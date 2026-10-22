@@ -1,0 +1,122 @@
+--- target.data
++++ target.data
+@@ -6812,6 +6812,8 @@
+             // get relative focussed index before moving the focus
+             var rfi = this._getRelativeFocussedIndex();
+ 
++            var currentFocussedIndex = this._getFocussedIndex();
++
+             // attempt focus move
+             if (rfi <= bottomFocusThreshold)
+             {
+@@ -6831,6 +6833,20 @@
+ 
+             // get relative focussed index after moving the focus
+             rfi = this._getRelativeFocussedIndex();
++
++            if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++            {
++                if (this.dataList && this.dataList.items)
++                {
++                    var index = 0;
++                    while (index < this.dataList.items.length && this.dataList.items[index].disabled) index++;
++                    if (index < this.dataList.items.length)
++                    {
++                        this._manageFocus(index);
++                        return 'consumed';
++                    }
++                }
++            }
+         }
+ 
+         // attempt scroll if the focus has passed the threshold
+@@ -6906,6 +6922,8 @@
+             // get relative focussed index before moving the focus
+             var rfi = this._getRelativeFocussedIndex();
+ 
++            var currentFocussedIndex = this._getFocussedIndex();
++
+             // attempt focus move
+             if (rfi >= 1)
+             {
+@@ -6925,6 +6943,20 @@
+ 
+             // get relative focussed index after moving the focus
+             rfi = this._getRelativeFocussedIndex();
++
++            if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++            {
++                if (this.dataList && this.dataList.items)
++                {
++                    var index = this.dataList.items.length - 1;
++                    while (index >= 0 && this.dataList.items[index].disabled) index--;
++                    if (index >= 0)
++                    {
++                        this._manageFocus(index);
++                        return 'consumed';
++                    }
++                }
++            }
+         }
+ 
+         // attempt scroll if the focus is at the first item
+@@ -6996,6 +7028,8 @@
+                 // get relative focussed index before moving the focus
+                 var rfi = this._getRelativeFocussedIndex();
+ 
++                var currentFocussedIndex = this._getFocussedIndex();
++
+                 // attempt focus move
+                 if (rfi <= bottomFocusThreshold)
+                 {
+@@ -7015,6 +7049,20 @@
+ 
+                 // get relative focussed index after moving the focus
+                 rfi = this._getRelativeFocussedIndex();
++
++                if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++                {
++                    if (this.dataList && this.dataList.items)
++                    {
++                        var index = 0;
++                        while (index < this.dataList.items.length && this.dataList.items[index].disabled) index++;
++                        if (index < this.dataList.items.length)
++                        {
++                            this._manageFocus(index);
++                            return 'consumed';
++                        }
++                    }
++                }
+             }
+             // attempt scroll if the focus has passed the threshold
+             if (rfi > bottomFocusThreshold)
+@@ -7080,6 +7128,8 @@
+                 // get relative focussed index before moving the focus
+                 var rfi = this._getRelativeFocussedIndex();
+ 
++                var currentFocussedIndex = this._getFocussedIndex();
++
+                 // attempt focus move
+                 if (rfi >= 1)
+                 {
+@@ -7099,6 +7149,20 @@
+ 
+                 // get relative focussed index after moving the focus
+                 rfi = this._getRelativeFocussedIndex();
++
++                if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++                {
++                    if (this.dataList && this.dataList.items)
++                    {
++                        var index = this.dataList.items.length - 1;
++                        while (index >= 0 && this.dataList.items[index].disabled) index--;
++                        if (index >= 0)
++                        {
++                            this._manageFocus(index);
++                            return 'consumed';
++                        }
++                    }
++                }
+             }
+ 
+             // attempt scroll if the focus is at the first item

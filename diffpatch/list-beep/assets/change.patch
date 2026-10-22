@@ -1,0 +1,20 @@
+--- target.data
++++ target.data
+@@ -6380,7 +6380,7 @@
+                         this._tiltHoldTimeoutId = null;
+                         log.debug('Schedule autoscroll tier 1');
+                         this._tiltHoldTimeoutId = setTimeout(function() {                               // schedule first autoscroll tier
+-                            this._beep('Long', 'Multicontroller');                                      // produce beep
++                        //  this._beep('Long', 'Multicontroller');                                      // produce beep
+                             log.debug('Start autoscroll tier 1');
+                             this._handleMCDown();                                                       // do the first scroll down
+                             clearInterval(this._tiltHoldIntervalId);                                    // clear any redundand intervals
+@@ -6447,7 +6447,7 @@
+                         this._tiltHoldTimeoutId = null;
+                         log.debug('Schedule autoscroll tier 1');
+                         this._tiltHoldTimeoutId = setTimeout(function() {                             // schedule first autoscroll tier
+-                            this._beep('Long', 'Multicontroller');                                    // produce beep
++                        //  this._beep('Long', 'Multicontroller');                                    // produce beep
+                             log.debug('Start autoscroll tier 1');
+                             this._handleMCUp();                                                       // do the first scroll up
+                             clearInterval(this._tiltHoldIntervalId);                                  // clear any redundand intervals

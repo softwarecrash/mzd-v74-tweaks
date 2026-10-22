@@ -1,0 +1,26 @@
+name: Standalone diffpatch tests
+on:
+  push:
+    paths: ['diffpatch/**', '.github/workflows/diffpatch.yml']
+  pull_request:
+    paths: ['diffpatch/**', '.github/workflows/diffpatch.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  standalone:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          for f in diffpatch/*/run.sh diffpatch/ssh/assets/service.sh; do
+            sh -n "$f" || exit 1
+          done
+      - name: Exercise standalone installers
+        run: python3 diffpatch/tests/test_installers.py
+      - name: Exercise SSH supervisor
+        run: python3 diffpatch/tests/test_ssh_service.py
+      - name: Package and verify all assets
+        run: python3 diffpatch/package.py "$RUNNER_TEMP/diffpatch.zip"
