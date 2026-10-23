@@ -1,7 +1,8 @@
 # Standalone diff/patch tweaks
 
-Independent folders for Mazda CMU firmware **74.00.324**. Each folder contains
-its own `run.sh`, a unified diff and any required assets. Workers share the
+Five reference tweaks for Mazda CMU firmware **74.00.324**, each with its own
+`run.sh`, a unified diff and required assets. Other tweak types can use the same
+interface with their own commands or native payloads. Workers share the
 packaged `lib/` helpers and run without an installer. Copy `lib/` together with
 the desired `tweaks/<id>/` folders onto a USB drive, preserving that layout.
 
@@ -14,7 +15,7 @@ not. See [LIBRARIES.md](LIBRARIES.md) for the runtime dependency contract.
 ## Repository layout
 
 ```text
-lib/                        # Common lifecycle and patch helpers, API 1
+lib/                        # Optional common/system/patch helpers, API 2
 tweaks/<id>/                 # Worker, manifest and tweak-specific assets
 build/tweaks/                # Renderer, package builder and shell templates
 tests/tweaks/                # Worker, metadata/package and SSH supervisor tests
@@ -68,13 +69,22 @@ reboot, and the flag describes how changes become effective, not vehicle-test
 coverage. The current upstream launcher/release recipe is unchanged; use the
 separate package command below for this experimental structure.
 
+## Optional helpers and other tweak types
+
+The shared interface does not require diff/patch. Workers may load `common.sh`
+alone, add `system.sh` for locks/mounts/watchdog, and use `patch.sh` only for text
+patches. Each `run.sh` controls its own commands and multi-file/service workflow.
+The manifest does not require a patch target or OEM hash for other kinds of tweak.
+See [LIBRARIES.md](LIBRARIES.md) for the API and upstream porting boundaries.
+The existing upstream tweaks have not been automatically converted by this refactor.
+
 ## Patching and backups
 
 The diffs contain the previously vehicle-tested modifications. No additional
 JavaScript helpers or replacement full JS files are introduced. The three list
 tweaks deliberately remain separate, although they change the same file.
 
-The native BusyBox 1.19.2 `patch` has no `--dry-run`. Each script therefore
+The native BusyBox 1.19.2 `patch` has no `--dry-run`. Each reference worker therefore
 applies both directions to separate USB copies, then applies the inverse and
 requires a byte-identical round trip. Exactly one direction must be valid.
 Unknown, partially applied or ambiguous patches are refused before writing
@@ -136,6 +146,7 @@ commands. They do not emulate Opera or prove a real network connection:
 
 ```sh
 python3 tests/tweaks/test_installers.py
+python3 tests/tweaks/test_libraries.py
 python3 tests/tweaks/test_ssh_service.py
 python3 tests/tweaks/test_metadata.py
 python3 build/tweaks/render_installers.py --check

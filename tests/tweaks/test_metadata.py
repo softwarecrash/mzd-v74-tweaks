@@ -22,7 +22,7 @@ class MetadataAndPackage(unittest.TestCase):
         folders = builder.tweak_folders()
         self.assertEqual({p.name for p in folders}, IDS)
         schema = json.loads(builder.SCHEMA.read_text())
-        self.assertEqual(set(schema['required']), builder.FIELDS)
+        self.assertEqual(set(schema['required']), builder.REQUIRED_FIELDS)
         self.assertEqual(set(schema['properties']), builder.FIELDS)
         targets = {}
         for folder in folders:
@@ -43,7 +43,7 @@ class MetadataAndPackage(unittest.TestCase):
             folder = Path(temporary) / 'list-loop'
             folder.mkdir()
             for key, value in [('entrypoint', '../other.sh'), ('original_md5', 'unknown'),
-                               ('firmware', ['70.00.100']), ('id', 'other'),
+                               ('firmware', ['invalid']), ('id', 'other'),
                                ('target', '/jci/../etc/passwd'),
                                ('reboot_required', 'yes'), ('reboot_required', 1),
                                ('library_api', 99), ('library_api', True),

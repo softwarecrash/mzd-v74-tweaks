@@ -20,6 +20,8 @@ jobs:
           done
       - name: Exercise standalone installers
         run: python3 tests/tweaks/test_installers.py
+      - name: Exercise optional command and multi-target libraries
+        run: python3 tests/tweaks/test_libraries.py
       - name: Verify manifests and reproducible installers
         run: python3 tests/tweaks/test_metadata.py
       - name: Exercise SSH supervisor

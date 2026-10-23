@@ -1,9 +1,9 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "id": "shorter-delay",
   "name": "Shorter List Delay",
   "description": "Reduce the four list autoscroll delays and intervals.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "patch",
   "group": "interface",
   "firmware": [
@@ -20,5 +20,10 @@
   "lock_group": "List2Ctrl",
   "status_scope": "target-patch",
   "reboot_required": true,
-  "library_api": 1
+  "library_api": 2,
+  "libraries": [
+    "common",
+    "system",
+    "patch"
+  ]
 }

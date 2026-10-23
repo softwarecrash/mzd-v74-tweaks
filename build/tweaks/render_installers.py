@@ -15,14 +15,16 @@ ROOT = REPO / 'tweaks'
 TEMPLATES = Path(__file__).with_name('templates')
 SCHEMA = REPO / 'schemas/tweak-manifest.schema.json'
 LIBDIR = REPO / 'lib'
-LIBRARIES = ('common.sh', 'patch.sh')
-LIBRARY_API = 1
+LIBRARIES = ('common.sh', 'system.sh', 'patch.sh')
+LIBRARY_API = 2
 ACTIONS = ['install', 'uninstall', 'status']
 FIELDS = {
     'schema_version', 'id', 'name', 'description', 'version', 'type', 'group',
     'firmware', 'entrypoint', 'actions', 'target', 'original_md5', 'lock_group',
-    'status_scope', 'reboot_required', 'library_api',
+    'status_scope', 'reboot_required', 'library_api', 'libraries',
 }
+REQUIRED_FIELDS = FIELDS - {'target', 'original_md5', 'lock_group'}
+GENERATED_IDS = {'ssh', 'list-beep', 'list-loop', 'shorter-delay', 'main-menu-loop'}
 
 
 def read_manifest(folder):
@@ -31,7 +33,7 @@ def read_manifest(folder):
     if b'\r' in raw:
         raise ValueError(f'{folder.name}: manifest must use LF')
     manifest = json.loads(raw)
-    if set(manifest) != FIELDS or manifest['schema_version'] != 4:
+    if not REQUIRED_FIELDS <= set(manifest) <= FIELDS or manifest['schema_version'] != 5:
         raise ValueError(f'{folder.name}: unsupported manifest fields/schema')
     if manifest['id'] != folder.name or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', folder.name):
         raise ValueError(f'{folder.name}: invalid tweak ID')
@@ -43,21 +45,40 @@ def read_manifest(folder):
         raise ValueError(f'{folder.name}: description contains a shell quote')
     if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', manifest['version']):
         raise ValueError(f'{folder.name}: invalid version')
-    if manifest['type'] not in ('patch', 'service') or manifest['group'] not in ('interface', 'system'):
-        raise ValueError(f'{folder.name}: unsupported type/group')
-    if manifest['firmware'] != ['74.00.324'] or manifest['entrypoint'] != 'run.sh':
-        raise ValueError(f'{folder.name}: unsupported firmware/entrypoint')
-    if manifest['actions'] != ACTIONS or manifest['status_scope'] != 'target-patch':
+    if manifest['type'] not in ('patch', 'service', 'command', 'files'):
+        raise ValueError(f'{folder.name}: unsupported implementation type')
+    if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', manifest['group']):
+        raise ValueError(f'{folder.name}: invalid menu group')
+    firmware = manifest['firmware']
+    if not isinstance(firmware, list) or not firmware:
+        raise ValueError(f'{folder.name}: firmware must be a nonempty version list')
+    for version in firmware:
+        if not isinstance(version, str) or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', version):
+            raise ValueError(f'{folder.name}: invalid firmware version')
+    if len(set(firmware)) != len(firmware) or manifest['entrypoint'] != 'run.sh':
+        raise ValueError(f'{folder.name}: duplicate firmware or unsupported entrypoint')
+    scopes = ('target-patch', 'configuration', 'payload', 'service-health')
+    if manifest['actions'] != ACTIONS or manifest['status_scope'] not in scopes:
         raise ValueError(f'{folder.name}: unsupported action/status contract')
     if type(manifest['reboot_required']) is not bool:
         raise ValueError(f'{folder.name}: reboot_required must be a boolean')
     if type(manifest['library_api']) is not int or manifest['library_api'] != LIBRARY_API:
         raise ValueError(f'{folder.name}: unsupported shared library API')
-    if not re.fullmatch(r'/jci/[A-Za-z0-9_./-]+', manifest['target']) or '..' in manifest['target'].split('/'):
-        raise ValueError(f'{folder.name}: invalid target')
-    if not re.fullmatch(r'[0-9a-f]{32}', manifest['original_md5']):
+    libraries = manifest['libraries']
+    if not isinstance(libraries, list) or 'common' not in libraries:
+        raise ValueError(f'{folder.name}: library selection must include common')
+    for name in libraries:
+        if not isinstance(name, str) or name + '.sh' not in LIBRARIES:
+            raise ValueError(f'{folder.name}: unknown library')
+    if len(set(libraries)) != len(libraries):
+        raise ValueError(f'{folder.name}: duplicate library selection')
+    if 'target' in manifest:
+        target = manifest['target']
+        if not re.fullmatch(r'/[A-Za-z0-9_./-]+', target) or '..' in target.split('/'):
+            raise ValueError(f'{folder.name}: invalid target')
+    if 'original_md5' in manifest and not re.fullmatch(r'[0-9a-f]{32}', manifest['original_md5']):
         raise ValueError(f'{folder.name}: invalid OEM checksum')
-    if not re.fullmatch(r'[A-Za-z0-9_-]+', manifest['lock_group']):
+    if 'lock_group' in manifest and not re.fullmatch(r'[A-Za-z0-9_-]+', manifest['lock_group']):
         raise ValueError(f'{folder.name}: invalid lock group')
     return manifest
 
@@ -69,6 +90,10 @@ def tweak_folders():
 
 def render(folder):
     manifest = read_manifest(folder)
+    if folder.name not in GENERATED_IDS:
+        raise ValueError(f'{folder.name}: has a hand-maintained entrypoint, not this template')
+    if manifest['firmware'] != ['74.00.324'] or manifest['libraries'] != ['common', 'system', 'patch']:
+        raise ValueError(f'{folder.name}: unsupported generated-worker configuration')
     ssh = manifest['id'] == 'ssh'
     values = {
         'ID': shlex.quote(manifest['id']),
@@ -77,9 +102,10 @@ def render(folder):
         'ORIGINAL': manifest['original_md5'],
         'GROUP': manifest['lock_group'],
         'LIBRARY_API': str(manifest['library_api']),
+        'LIBRARY_FILES': ' '.join(name + '.sh' for name in manifest['libraries']),
         'SSH_FUNCTIONS': (TEMPLATES / 'ssh-functions.sh.in').read_text().rstrip() if ssh else '',
-        'SSH_PREPARE': 'ssh_prepare' if ssh else ': # No service-specific preparation.',
-        'SSH_COMPLETE': 'ssh_complete' if ssh else ': # No service-specific completion.',
+        'SSH_PREPARE': 'ssh_prepare || exit 1' if ssh else ': # No service-specific preparation.',
+        'SSH_COMPLETE': 'ssh_complete || exit 1' if ssh else ': # No service-specific completion.',
     }
     source = (TEMPLATES / 'worker.sh.in').read_text()
     for key, value in values.items():
@@ -111,9 +137,14 @@ def build(check=False):
             checksum.write_bytes(expected)
     for folder in folders:
         script = folder / 'run.sh'
-        outputs = {script: render(folder)}
+        read_manifest(folder)
+        # The template belongs only to these five reference workers. Custom
+        # command/service/file workers keep their own run.sh and lifecycle.
+        outputs = {script: render(folder)} if folder.name in GENERATED_IDS else {}
+        if not outputs and not script.is_file():
+            raise ValueError(f'Missing worker: {script}')
         # Assets are never rewritten here: preserve exact patch/service bytes.
-        for path in [script, folder / 'manifest.json', *sorted((folder / 'assets').iterdir())]:
+        for path in [script, folder / 'manifest.json', *sorted((folder / 'assets').rglob('*'))]:
             if path.is_file() and not path.name.endswith('.md5'):
                 data = outputs[path] if path in outputs else path.read_bytes()
                 outputs[path.with_name(path.name + '.md5')] = checksum_bytes(path, data)

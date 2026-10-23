@@ -14,7 +14,10 @@ def package(destination):
         files.extend([LIBDIR / name, LIBDIR / (name + '.md5')])
     for folder in tweak_folders():
         read_manifest(folder)
-        required = ['run.sh', 'manifest.json', 'assets/change.patch']
+        required = ['run.sh', 'manifest.json']
+        # Custom workers may be command-only, with no assets or diff at all.
+        required += [p.relative_to(folder).as_posix() for p in (folder / 'assets').rglob('*')
+                     if p.is_file() and not p.name.endswith('.md5')]
         if folder.name == 'ssh':
             required += ['assets/' + n for n in
                          ('service.sh', 'sshd_config', 'password.hash', 'usb-log-marker.txt')]

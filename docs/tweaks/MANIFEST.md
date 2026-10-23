@@ -11,20 +11,21 @@ fields with Python's standard library and also enforces safe paths and IDs.
 
 | Field | Meaning |
 | --- | --- |
-| `schema_version` | Contract version, currently `4` (shared runtime dependency contract). |
-| `library_api` | Required shared runtime API, currently integer `1`. Both libraries must match. |
+| `schema_version` | Contract version, currently `5` (optional libraries and implementation-specific metadata). |
+| `library_api` | Required shared runtime API, currently integer `2`. Each imported module must match. |
+| `libraries` | Modules used by the worker: `common`, optionally `system` and/or `patch`. |
 | `id` | Stable tweak ID; matches the repository folder name. |
 | `name`, `description` | English menu label and short function description. |
-| `version` | Installer-package version, currently `0.5.0`; not a vehicle-test claim. |
-| `type` | Implementation kind: `patch` or `service`. SSH is a service with a boot-hook patch. |
-| `group` | Menu grouping: `interface` or `system` for the five current tweaks. |
+| `version` | Installer-package version, currently `0.6.0`; not a vehicle-test claim. |
+| `type` | Implementation kind: `patch`, `service`, `command` or `files`. SSH is a service with a boot-hook patch. |
+| `group` | Lowercase kebab-case menu category; currently `interface` or `system`. |
 | `firmware` | Explicitly supported firmware list, currently only `74.00.324`. |
 | `entrypoint` | Relative executable script, currently `run.sh`. Invoke it with `sh`. |
 | `actions` | `install`, `uninstall`, `status`; no display-specific actions. |
-| `target` | System file modified by this tweak's diff. |
-| `original_md5` | Exact OEM checksum, not the checksum of every modified combination. |
-| `lock_group` | Shared target-file lock; all three list tweaks use `List2Ctrl`. |
-| `status_scope` | `target-patch`: state of this patch in the target file. |
+| `target` | Optional single-file patch target; not required for command/multi-file workers. |
+| `original_md5` | Optional single-file OEM checksum, not the checksum of every modified combination. |
+| `lock_group` | Optional single-file lock name; all three list tweaks use `List2Ctrl`. Multi-file workers own their lock set. |
+| `status_scope` | `target-patch`, `configuration`, `payload` or `service-health`; define the exact meaning per tweak. |
 | `reboot_required` | Boolean: `true` for UI changes, `false` for immediate SSH activation. The launcher owns any reboot question. |
 
 The manifest is static discovery metadata, not an installed-state database.
@@ -53,7 +54,8 @@ describes the boot hook, **not** current WLAN connectivity or a successful login
 Live service health remains a separate concern. This limitation is explicit so
 the future menu does not present patch presence as full service verification.
 
-Version 4 adds the required `library_api` field. The contract has no `restore`
+Version 5 adds `libraries`, makes single-file patch metadata optional and uses
+library API 2. It supports command/file workers as well as patch/service workers. The contract has no `restore`
 alias and includes `reboot_required`. The only
 actions are `install`, `uninstall` and `status`. The earlier GUI action remains
 removed. A launcher must create any selection/confirmation before calling a
@@ -68,8 +70,10 @@ python3 build/tweaks/render_installers.py
 python3 build/tweaks/render_installers.py --check
 ```
 
-The first command renders all five independent `run.sh` files from the readable
-templates and their manifests and refreshes checksum sidecars. It does not
+The first command renders the five reference `run.sh` files from the readable
+template and their manifests and refreshes checksum sidecars. Other tweak IDs
+keep their own hand-maintained `run.sh`; the tool validates metadata and updates
+checksums without replacing their implementation. It does not
 regenerate patch contents or service assets. The second command only checks.
 
 Configuration constants, including the OEM hash, are rendered into each script.
@@ -87,14 +91,14 @@ Development templates and build tools are not required on USB.
 
 ## Source layout and review boundaries
 
-`build/tweaks/templates/worker.sh.in` defines argument validation, library loading,
-manifest-derived configuration and tweak hooks. `lib/common.sh` owns reports,
-checksums, firmware validation and cleanup. `lib/patch.sh` owns patch probes,
-backups, verified writes and the shared orchestration.
-`build/tweaks/templates/ssh-functions.sh.in` isolates SSH payload preparation and
-activation. The libraries define functions without starting operations when
-sourced; the worker explicitly invokes the workflow. See [LIBRARIES.md](LIBRARIES.md)
-for API context and hook responsibilities. Display helpers belong to the launcher.
+`build/tweaks/templates/worker.sh.in` defines the five reference workers' bootstrap
+and explicit orchestration. `lib/common.sh` provides reporting, checksums, tool
+and firmware checks. Optional `lib/system.sh` handles locks, mounts and watchdog
+cleanup; optional `lib/patch.sh` handles explicit per-target contexts and writes.
+`build/tweaks/templates/ssh-functions.sh.in` retains the SSH-specific lifecycle.
+No module imports a mandatory workflow. Non-patch workers choose only the
+modules and operations they need; see [LIBRARIES.md](LIBRARIES.md) for arguments,
+context ownership and multi-file limitations. Display helpers belong to the launcher.
 
 The vehicle JavaScript diffs and SSH supervisor payload remain byte-identical
 to the preceding branch revision. No firmware file is normalized or regenerated

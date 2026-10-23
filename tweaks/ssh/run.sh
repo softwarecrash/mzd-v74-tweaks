@@ -34,7 +34,7 @@ esac
 SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
 LIBDIR=$(readlink -f "$HERE/../../lib") || exit 1
-for MZD_LIBRARY in common.sh patch.sh
+for MZD_LIBRARY in common.sh system.sh patch.sh
 do
     MZD_FILE="$LIBDIR/$MZD_LIBRARY"
     if [ ! -f "$MZD_FILE" ] || [ -L "$MZD_FILE" ]
@@ -52,9 +52,10 @@ do
 done
 
 . "$LIBDIR/common.sh"
+. "$LIBDIR/system.sh"
 . "$LIBDIR/patch.sh"
-REQUIRED_LIBRARY_API=1
-if [ "$(mzd_common_api):$(mzd_patch_api)" != "$REQUIRED_LIBRARY_API:$REQUIRED_LIBRARY_API" ]
+REQUIRED_LIBRARY_API=2
+if [ "$(mzd_common_api):$(mzd_system_api):$(mzd_patch_api)" != "$REQUIRED_LIBRARY_API:$REQUIRED_LIBRARY_API:$REQUIRED_LIBRARY_API" ]
 then
     echo 'Incompatible shared library API.' >&2
     exit 1
@@ -74,11 +75,7 @@ SERVICE=/tmp/mnt/resources/mzd-v74-tweaks/ssh
 PAYLOAD="$HERE/assets"
 
 resources_rw() {
-    if awk '$2=="/tmp/mnt/resources" && $4 ~ /(^|,)ro(,|$)/ {f=1} END {exit !f}' /proc/mounts
-    then
-        mount -o rw,remount /tmp/mnt/resources || mzd_fail 'Cannot remount resources read-write.'
-        RES_CHANGED=1
-    fi
+    mzd_system_remount_rw /tmp/mnt/resources || exit 1
 }
 
 # Never replace an unknown service payload, even if the boot hook looks known.
@@ -158,12 +155,7 @@ ssh_prepare() {
 ssh_rollback_hook() {
     if [ "$NO_CHANGE" = 0 ]
     then
-        cat "$REPORT/before.data" > "$APP"
-        sync
-        if [ "$(mzd_hash "$APP")" != "$BEFORE" ]
-        then
-            mzd_fail 'SSH boot-hook rollback failed. Do NOT reboot.'
-        fi
+        mzd_patch_rollback "$CONTEXT" || exit 1
     fi
 }
 
@@ -209,13 +201,51 @@ ssh_complete() {
     fi
 }
 
-# Hooks keep service-specific operations out of the shared patch library.
-mzd_tweak_prepare() {
-    ssh_prepare
-}
+# This worker chooses its own lifecycle. Other tweak types may use common.sh
+# alone or common.sh + system.sh, and run their own commands instead of patching.
+mzd_begin "$SELF" "$ID" mzd_system_cleanup
+mzd_system_begin
+mzd_require_tools awk md5sum cp cmp || exit 1
+mzd_require_assets "$SELF" "$HERE/manifest.json" || exit 1
+mzd_validate_firmware 74.00.324 || exit 1
+mzd_system_lock "$LOCK" || exit 1
 
-mzd_tweak_complete() {
-    ssh_complete
-}
+CONTEXT="$MZD_REPORT/target"
+mzd_patch_prepare "$APP" "$PATCH_FILE" "$ORIGINAL" "$CONTEXT" || exit 1
+STATE=$(mzd_patch_state "$CONTEXT") || exit 1
+if [ "$ACTION" = status ]
+then
+    printf '%s\n' "$STATE" >&3
+    exit 0
+fi
 
-mzd_patch_run
+NO_CHANGE=0
+case "$ACTION:$STATE" in
+    install:installed|uninstall:uninstalled) NO_CHANGE=1 ;;
+esac
+if [ "$NO_CHANGE" = 0 ]
+then
+    mzd_patch_validate_backup "$CONTEXT" || exit 1
+fi
+
+# SSH-specific variables belong to this worker, never to the common library.
+USB=$MZD_USB
+REPORT=$MZD_REPORT
+mzd_report_message "$ACTION in progress. Do not remove the USB drive."
+ssh_prepare || exit 1
+if [ "$NO_CHANGE" = 0 ]
+then
+    mzd_system_watchdog_disable || exit 1
+    mzd_system_remount_rw / || exit 1
+    mzd_patch_apply "$CONTEXT" "$ACTION" || exit 1
+fi
+ssh_complete || exit 1
+
+if [ "$NO_CHANGE" = 1 ]
+then
+    mzd_report_message "Requested setting is already present.
+Reports: $MZD_REPORT"
+else
+    mzd_report_message "$ACTION completed. Other changes were preserved.
+Reports: $MZD_REPORT"
+fi

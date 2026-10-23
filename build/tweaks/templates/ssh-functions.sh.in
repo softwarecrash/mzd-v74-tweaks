@@ -5,11 +5,7 @@ SERVICE=/tmp/mnt/resources/mzd-v74-tweaks/ssh
 PAYLOAD="$HERE/assets"
 
 resources_rw() {
-    if awk '$2=="/tmp/mnt/resources" && $4 ~ /(^|,)ro(,|$)/ {f=1} END {exit !f}' /proc/mounts
-    then
-        mount -o rw,remount /tmp/mnt/resources || mzd_fail 'Cannot remount resources read-write.'
-        RES_CHANGED=1
-    fi
+    mzd_system_remount_rw /tmp/mnt/resources || exit 1
 }
 
 # Never replace an unknown service payload, even if the boot hook looks known.
@@ -89,12 +85,7 @@ ssh_prepare() {
 ssh_rollback_hook() {
     if [ "$NO_CHANGE" = 0 ]
     then
-        cat "$REPORT/before.data" > "$APP"
-        sync
-        if [ "$(mzd_hash "$APP")" != "$BEFORE" ]
-        then
-            mzd_fail 'SSH boot-hook rollback failed. Do NOT reboot.'
-        fi
+        mzd_patch_rollback "$CONTEXT" || exit 1
     fi
 }
 

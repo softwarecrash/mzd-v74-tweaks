@@ -20,7 +20,8 @@ layout remain proposals in issue #11.
 ## Changes made in this experimental branch
 
 - Five versioned JSON manifests, schema documentation and checked ZIP inclusion.
-- Shared runtime API 1 in `lib/common.sh` and `lib/patch.sh`. A copied
+- Shared runtime API 2 in `lib/common.sh`, optional `lib/system.sh` and
+  optional `lib/patch.sh`. A copied
   `tweaks/<id>/` folder and `lib/` work without a launcher.
 - Readable shell sections, named validation/write functions, comments explaining
   rollback and patch-state detection, and a short top-level workflow.

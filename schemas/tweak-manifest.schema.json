@@ -15,16 +15,14 @@
     "firmware",
     "entrypoint",
     "actions",
-    "target",
-    "original_md5",
-    "lock_group",
     "status_scope",
     "reboot_required",
-    "library_api"
+    "library_api",
+    "libraries"
   ],
   "properties": {
     "schema_version": {
-      "const": 4
+      "const": 5
     },
     "id": {
       "type": "string",
@@ -47,19 +45,23 @@
     "type": {
       "enum": [
         "patch",
-        "service"
+        "service",
+        "command",
+        "files"
       ]
     },
     "group": {
-      "enum": [
-        "interface",
-        "system"
-      ]
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
     },
     "firmware": {
-      "const": [
-        "74.00.324"
-      ]
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+      }
     },
     "entrypoint": {
       "const": "run.sh"
@@ -73,7 +75,7 @@
     },
     "target": {
       "type": "string",
-      "pattern": "^/jci/[A-Za-z0-9_./-]+$"
+      "pattern": "^/[A-Za-z0-9_./-]+$"
     },
     "original_md5": {
       "type": "string",
@@ -84,14 +86,34 @@
       "pattern": "^[A-Za-z0-9_-]+$"
     },
     "status_scope": {
-      "const": "target-patch"
+      "enum": [
+        "target-patch",
+        "configuration",
+        "payload",
+        "service-health"
+      ]
     },
     "reboot_required": {
       "type": "boolean"
     },
     "library_api": {
-      "const": 1,
+      "const": 2,
       "type": "integer"
+    },
+    "libraries": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "common",
+          "system",
+          "patch"
+        ]
+      },
+      "uniqueItems": true,
+      "minItems": 1,
+      "contains": {
+        "const": "common"
+      }
     }
   }
 }

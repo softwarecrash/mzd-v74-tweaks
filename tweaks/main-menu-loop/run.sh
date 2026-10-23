@@ -34,7 +34,7 @@ esac
 SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
 LIBDIR=$(readlink -f "$HERE/../../lib") || exit 1
-for MZD_LIBRARY in common.sh patch.sh
+for MZD_LIBRARY in common.sh system.sh patch.sh
 do
     MZD_FILE="$LIBDIR/$MZD_LIBRARY"
     if [ ! -f "$MZD_FILE" ] || [ -L "$MZD_FILE" ]
@@ -52,9 +52,10 @@ do
 done
 
 . "$LIBDIR/common.sh"
+. "$LIBDIR/system.sh"
 . "$LIBDIR/patch.sh"
-REQUIRED_LIBRARY_API=1
-if [ "$(mzd_common_api):$(mzd_patch_api)" != "$REQUIRED_LIBRARY_API:$REQUIRED_LIBRARY_API" ]
+REQUIRED_LIBRARY_API=2
+if [ "$(mzd_common_api):$(mzd_system_api):$(mzd_patch_api)" != "$REQUIRED_LIBRARY_API:$REQUIRED_LIBRARY_API:$REQUIRED_LIBRARY_API" ]
 then
     echo 'Incompatible shared library API.' >&2
     exit 1
@@ -69,13 +70,51 @@ PATCH_FILE="$HERE/assets/change.patch"
 
 
 
-# Hooks keep service-specific operations out of the shared patch library.
-mzd_tweak_prepare() {
-    : # No service-specific preparation.
-}
+# This worker chooses its own lifecycle. Other tweak types may use common.sh
+# alone or common.sh + system.sh, and run their own commands instead of patching.
+mzd_begin "$SELF" "$ID" mzd_system_cleanup
+mzd_system_begin
+mzd_require_tools awk md5sum cp cmp || exit 1
+mzd_require_assets "$SELF" "$HERE/manifest.json" || exit 1
+mzd_validate_firmware 74.00.324 || exit 1
+mzd_system_lock "$LOCK" || exit 1
 
-mzd_tweak_complete() {
-    : # No service-specific completion.
-}
+CONTEXT="$MZD_REPORT/target"
+mzd_patch_prepare "$APP" "$PATCH_FILE" "$ORIGINAL" "$CONTEXT" || exit 1
+STATE=$(mzd_patch_state "$CONTEXT") || exit 1
+if [ "$ACTION" = status ]
+then
+    printf '%s\n' "$STATE" >&3
+    exit 0
+fi
 
-mzd_patch_run
+NO_CHANGE=0
+case "$ACTION:$STATE" in
+    install:installed|uninstall:uninstalled) NO_CHANGE=1 ;;
+esac
+if [ "$NO_CHANGE" = 0 ]
+then
+    mzd_patch_validate_backup "$CONTEXT" || exit 1
+fi
+
+# SSH-specific variables belong to this worker, never to the common library.
+USB=$MZD_USB
+REPORT=$MZD_REPORT
+mzd_report_message "$ACTION in progress. Do not remove the USB drive."
+: # No service-specific preparation.
+if [ "$NO_CHANGE" = 0 ]
+then
+    mzd_system_watchdog_disable || exit 1
+    mzd_system_remount_rw / || exit 1
+    mzd_patch_apply "$CONTEXT" "$ACTION" || exit 1
+fi
+: # No service-specific completion.
+
+if [ "$NO_CHANGE" = 1 ]
+then
+    mzd_report_message "Requested setting is already present.
+Reports: $MZD_REPORT"
+else
+    mzd_report_message "$ACTION completed. Other changes were preserved.
+Reports: $MZD_REPORT"
+fi

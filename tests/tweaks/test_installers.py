@@ -137,7 +137,7 @@ class StandaloneInstallers(unittest.TestCase):
                 f.run('install', 1, 'Missing or linked library')
                 common.write_bytes(original + b'\necho MUST-NOT-RUN\n')
                 f.run('install', 1, 'Library checksum mismatch')
-                incompatible = original.replace(b"printf '%s\\n' '1'", b"printf '%s\\n' '2'", 1)
+                incompatible = original.replace(b"printf '%s\\n' '2'", b"printf '%s\\n' '99'", 1)
                 self.assertNotEqual(original, incompatible)
                 common.write_bytes(incompatible)
                 checksum(common)
@@ -160,10 +160,11 @@ ROOT_CHANGED=untouched
 trap 'printf "trap-preserved\\n"' 0
 . "$1"
 . "$2"
+. "$3"
 [ "$ROOT_CHANGED" = untouched ] || exit 9
 '''
             result = subprocess.run([SHELL, '-c', code, 'import-test',
-                                     bp(f.libs/'common.sh'), bp(f.libs/'patch.sh')],
+                                     bp(f.libs/'common.sh'), bp(f.libs/'system.sh'), bp(f.libs/'patch.sh')],
                                     capture_output=True, cwd=f.tmp, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, b'trap-preserved\n')
