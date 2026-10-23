@@ -14,11 +14,14 @@ REPO = Path(__file__).resolve().parents[2]
 ROOT = REPO / 'tweaks'
 TEMPLATES = Path(__file__).with_name('templates')
 SCHEMA = REPO / 'schemas/tweak-manifest.schema.json'
+LIBDIR = REPO / 'lib'
+LIBRARIES = ('common.sh', 'patch.sh')
+LIBRARY_API = 1
 ACTIONS = ['install', 'uninstall', 'status']
 FIELDS = {
     'schema_version', 'id', 'name', 'description', 'version', 'type', 'group',
     'firmware', 'entrypoint', 'actions', 'target', 'original_md5', 'lock_group',
-    'status_scope', 'reboot_required',
+    'status_scope', 'reboot_required', 'library_api',
 }
 
 
@@ -28,7 +31,7 @@ def read_manifest(folder):
     if b'\r' in raw:
         raise ValueError(f'{folder.name}: manifest must use LF')
     manifest = json.loads(raw)
-    if set(manifest) != FIELDS or manifest['schema_version'] != 3:
+    if set(manifest) != FIELDS or manifest['schema_version'] != 4:
         raise ValueError(f'{folder.name}: unsupported manifest fields/schema')
     if manifest['id'] != folder.name or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', folder.name):
         raise ValueError(f'{folder.name}: invalid tweak ID')
@@ -48,6 +51,8 @@ def read_manifest(folder):
         raise ValueError(f'{folder.name}: unsupported action/status contract')
     if type(manifest['reboot_required']) is not bool:
         raise ValueError(f'{folder.name}: reboot_required must be a boolean')
+    if type(manifest['library_api']) is not int or manifest['library_api'] != LIBRARY_API:
+        raise ValueError(f'{folder.name}: unsupported shared library API')
     if not re.fullmatch(r'/jci/[A-Za-z0-9_./-]+', manifest['target']) or '..' in manifest['target'].split('/'):
         raise ValueError(f'{folder.name}: invalid target')
     if not re.fullmatch(r'[0-9a-f]{32}', manifest['original_md5']):
@@ -57,9 +62,15 @@ def read_manifest(folder):
     return manifest
 
 
-def tweak_folders():
+def tweak_folders(selected=None):
     """Folders are discovered by manifest, just as a future launcher can do."""
-    return sorted(path.parent for path in ROOT.glob('*/manifest.json'))
+    folders = sorted(path.parent for path in ROOT.glob('*/manifest.json'))
+    if selected is None:
+        return folders
+    unknown = set(selected) - {folder.name for folder in folders}
+    if unknown:
+        raise ValueError('Unknown tweak selection: ' + ', '.join(sorted(unknown)))
+    return [folder for folder in folders if folder.name in selected]
 
 
 def render(folder):
@@ -71,11 +82,12 @@ def render(folder):
         'TARGET': shlex.quote(manifest['target']),
         'ORIGINAL': manifest['original_md5'],
         'GROUP': manifest['lock_group'],
+        'LIBRARY_API': str(manifest['library_api']),
         'SSH_FUNCTIONS': (TEMPLATES / 'ssh-functions.sh.in').read_text().rstrip() if ssh else '',
-        'SSH_PREPARE': 'ssh_prepare' if ssh else '# No extra payload to prepare for this UI tweak.',
-        'SSH_COMPLETE': 'ssh_complete' if ssh else '# No service activation needed for this UI tweak.',
+        'SSH_PREPARE': 'ssh_prepare' if ssh else ': # No service-specific preparation.',
+        'SSH_COMPLETE': 'ssh_complete' if ssh else ': # No service-specific completion.',
     }
-    source = (TEMPLATES / 'run.sh.in').read_text()
+    source = (TEMPLATES / 'worker.sh.in').read_text()
     for key, value in values.items():
         source = source.replace('@' + key + '@', value)
     if re.search(r'@[A-Z_]+@', source):
@@ -87,10 +99,22 @@ def checksum_bytes(path, data):
     return f'{hashlib.md5(data).hexdigest()}  {path.name}\n'.encode('ascii')
 
 
-def build(check=False):
-    folders = tweak_folders()
+def build(check=False, selected=None):
+    folders = tweak_folders(selected)
     if not folders:
         raise ValueError('No manifests found')
+    for name in LIBRARIES:
+        path = LIBDIR / name
+        checksum = path.with_name(path.name + '.md5')
+        data = path.read_bytes()
+        if b'\r' in data:
+            raise ValueError(f'{name}: library must use LF')
+        expected = checksum_bytes(path, data)
+        if check:
+            if not checksum.is_file() or checksum.read_bytes() != expected:
+                raise ValueError(f'Outdated library checksum: {name}')
+        else:
+            checksum.write_bytes(expected)
     for folder in folders:
         script = folder / 'run.sh'
         outputs = {script: render(folder)}
@@ -111,4 +135,6 @@ def build(check=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Fail if generated files need rebuilding')
-    build(parser.parse_args().check)
+    parser.add_argument('--tweak', action='append', help='Render/check only this tweak; repeatable')
+    args = parser.parse_args()
+    build(args.check, args.tweak)

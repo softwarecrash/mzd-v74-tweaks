@@ -7,7 +7,9 @@ the script prints usage and changes nothing. It never opens dialogs, asks
 questions or reboots the CMU. An installer can supply its own UI before invoking
 these same actions. Progress is text on stdout; errors use stderr and a nonzero
 exit code. The current working directory does not matter, and the folder can be
-copied independently. Uninstall removes only this tweak.
+copied as `tweaks/<id>/` alongside the shared `lib/` directory. Use a checked
+single-tweak ZIP to include both automatically (see [LIBRARIES.md](LIBRARIES.md)).
+Uninstall removes only this tweak.
 
 The only target file is `/jci/scripts/stage_wifi.sh`. `assets/change.patch` contains the exact
 previously verified change. The original checksum is

@@ -1,28 +1,30 @@
 # Standalone diff/patch tweaks
 
 Independent folders for Mazda CMU firmware **74.00.324**. Each folder contains
-its own `run.sh`, a unified diff and any required assets. There is no shared
-installer, file manager or installed-tweak database. Copy one folder, or this
-entire `tweaks` directory, onto a USB drive.
+its own `run.sh`, a unified diff and any required assets. Workers share the
+packaged `lib/` helpers and run without an installer. Copy `lib/` together with
+the desired `tweaks/<id>/` folders onto a USB drive, preserving that layout.
 
 Each folder now includes `manifest.json` and its checksum for discovery and
 grouping by a future launcher. The format is a proposal, documented in
 [MANIFEST.md](MANIFEST.md). Readable templates generate the independent scripts;
-no shared helper, Python or JSON parser is required on the CMU.
+the packaged shared libraries are required, but Python and a JSON parser are
+not. See [LIBRARIES.md](LIBRARIES.md) for the runtime dependency contract.
 
 ## Repository layout
 
 ```text
-tweaks/<id>/                 # Standalone runtime folder: run.sh, manifest, assets
+lib/                        # Common lifecycle and patch helpers, API 1
+tweaks/<id>/                 # Worker, manifest and tweak-specific assets
 build/tweaks/                # Renderer, package builder and shell templates
 tests/tweaks/                # Worker, metadata/package and SSH supervisor tests
 docs/tweaks/                 # Usage and implementation notes
 schemas/tweak-manifest.schema.json
 ```
 
-Only the runtime folder is needed to execute one tweak. The checked ZIP includes
-all runtime folders plus documentation and the schema, with `tweaks/` at its
-root. It contains no build tools, tests, MP3 entry assets or replacement launcher.
+A single tweak needs its runtime folder and `lib/`. The checked ZIP includes
+both automatically, plus documentation and the schema. Full packages contain
+all five runtime folders; `--tweak` selects individual folders. It contains no build tools, tests, MP3 entry assets or replacement launcher.
 
 | Folder | Function |
 | --- | --- |
@@ -142,6 +144,7 @@ Build a checked ZIP containing all five folders (without test tools) with:
 
 ```sh
 python3 build/tweaks/package.py path/to/diffpatch.zip
+python3 build/tweaks/package.py path/to/list-loop.zip --tweak list-loop
 ```
 
 See [PR-MIGRATION.md](PR-MIGRATION.md) for the review follow-up and the options

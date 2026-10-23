@@ -1,7 +1,8 @@
 # Plan: shared runtime helpers
 
-Status: implementation proposal. The five current workers still contain their
-helpers and do not require a runtime `lib/` directory yet.
+Status: implemented on this branch. All five workers use shared API 1.
+See [LIBRARIES.md](LIBRARIES.md) for the implemented contract. Integrated vehicle
+validation remains pending; upstream PRs are unchanged.
 
 ## Target layout
 
@@ -20,15 +21,15 @@ tweaks/<id>/
 ```
 
 Independent means callable without the launcher. A single-tweak USB package
-includes `lib/` and `tweaks/<id>/`; copying only the tweak folder will no longer
-be sufficient. All tweaks use the same maintained helper files.
+includes `lib/` and `tweaks/<id>/`; copying only the tweak folder is not
+sufficient. All tweaks use the same maintained helper files.
 
 ## Responsibilities
 
 | Location | Responsibilities |
 | --- | --- |
-| `lib/common.sh` | Checksums, firmware validation, startup-medium discovery, text output/USB reports, shared-target locks, mount/watchdog state and cleanup. |
-| `lib/patch.sh` | Forward/reverse probes on USB copies, patch-state detection, verified OEM backup, prepared write and complete previous-file rollback. |
+| `lib/common.sh` | Checksums, firmware validation, startup-medium discovery, text output/USB reports, mount/watchdog state and cleanup. |
+| `lib/patch.sh` | Shared-target locks, forward/reverse probes on USB copies, patch-state detection, verified OEM backup, prepared write and complete previous-file rollback. |
 | `tweaks/<id>/run.sh` | Resolve its location, load helpers, provide tweak configuration and run the requested action. SSH additionally orchestrates its own payload and service lifecycle. |
 | Launcher | Selection, confirmation, display adapters and any final reboot question. |
 
@@ -47,8 +48,7 @@ per function. Keep the reviewed diff files and SSH service assets byte-identical
 - Document the shared context variables and use namespaced helper functions.
   Avoid accidental variable/function overrides between the common and patch layers.
 - Define one library API version and record the worker's requirement in the
-  manifest and rendered bootstrap. Agree the exact metadata field before adding
-  it to the schema. Reject incompatible combinations instead of keeping legacy
+  manifest and rendered bootstrap. The manifest uses `library_api: 1` and schema version 4. Reject incompatible combinations instead of keeping legacy
   implementations or fallbacks.
 
 ## Implementation order

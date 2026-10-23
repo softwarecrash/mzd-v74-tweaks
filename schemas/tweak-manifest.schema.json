@@ -19,11 +19,12 @@
     "original_md5",
     "lock_group",
     "status_scope",
-    "reboot_required"
+    "reboot_required",
+    "library_api"
   ],
   "properties": {
     "schema_version": {
-      "const": 3
+      "const": 4
     },
     "id": {
       "type": "string",
@@ -87,6 +88,10 @@
     },
     "reboot_required": {
       "type": "boolean"
+    },
+    "library_api": {
+      "const": 1,
+      "type": "integer"
     }
   }
 }

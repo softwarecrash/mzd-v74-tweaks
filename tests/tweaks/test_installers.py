@@ -9,7 +9,8 @@ import subprocess
 import tempfile
 import unittest
 
-ROOT = Path(__file__).resolve().parents[2] / 'tweaks'
+REPO = Path(__file__).resolve().parents[2]
+ROOT = REPO / 'tweaks'
 SHELL = 'C:/Program Files/Git/bin/bash.exe' if os.name == 'nt' else '/bin/sh'
 UI_IDS = ['list-beep', 'shorter-delay', 'list-loop', 'main-menu-loop']
 ORIGINAL = b'alpha\nbeta\ngamma\nkeep 1\nkeep 2\nkeep 3\nkeep 4\none\ntwo\nthree\n'
@@ -31,14 +32,17 @@ def checksum(path):
     write(path.with_name(path.name + '.md5'), md5(path.read_bytes()) + '  ' + path.name + '\n')
 
 class Fixture:
-    def __init__(self, id):
+    def __init__(self, id, package_root=None):
         self.temporary = tempfile.TemporaryDirectory(prefix='diffpatch-installer-')
         self.tmp = Path(self.temporary.name)
         self.id = id
         self.usb, self.bins = self.tmp/'USB stick', self.tmp/'bin'
         self.usb.mkdir(); self.bins.mkdir()
-        self.folder = self.usb/'arbitrary folder name'
-        shutil.copytree(ROOT/id, self.folder)
+        source_root = Path(package_root) if package_root else REPO
+        self.folder = self.usb/'tweaks/arbitrary folder name'
+        self.libs = self.usb/'lib'
+        shutil.copytree(source_root/'tweaks'/id, self.folder)
+        shutil.copytree(source_root/'lib', self.libs)
         self.script = self.folder/'run.sh'
         self.app, self.gpio, self.mounts = self.tmp/'target.data', self.tmp/'gpio', self.tmp/'mounts'
         self.backup = self.app.with_name(self.app.name+'.org')
@@ -92,16 +96,19 @@ esac
             write(self.folder/'assets/change.patch',patch)
             checksum(self.folder/'assets/change.patch')
         self.app.write_bytes(self.original)
-        source = self.script.read_text(encoding='utf-8')
-        source = re.sub(r'^APP=.*$', 'APP="'+bp(self.app)+'"',source,flags=re.M)
-        source = re.sub(r'^ORIGINAL=.*$', 'ORIGINAL='+md5(self.original),source,flags=re.M)
-        source = re.sub(r'^LOCK=.*$', 'LOCK="'+bp(self.tmp/'lock')+'"',source,flags=re.M)
-        source = source.replace('/proc/mounts',bp(self.mounts)).replace('/jci/version.ini',bp(self.version))
-        source = source.replace('/sys/class/gpio/Watchdog\\ Disable/value',bp(self.gpio))
-        source = source.replace('/tmp/mnt/resources',bp(self.resources))
-        source = source.replace('#!/bin/sh\n','#!/bin/sh\nPATH="'+bp(self.bins)+':/usr/bin:/bin"\nexport PATH\n',1)
-        write(self.script,source)
-        checksum(self.script)
+        # Redirect only copies of workers/libraries; the host system is never used.
+        for path in [self.script, *self.libs.glob('*.sh')]:
+            source = path.read_text(encoding='utf-8')
+            source = re.sub(r'^APP=.*$', 'APP="'+bp(self.app)+'"',source,flags=re.M)
+            source = re.sub(r'^ORIGINAL=.*$', 'ORIGINAL='+md5(self.original),source,flags=re.M)
+            source = re.sub(r'^LOCK=.*$', 'LOCK="'+bp(self.tmp/'lock')+'"',source,flags=re.M)
+            source = source.replace('/proc/mounts',bp(self.mounts)).replace('/jci/version.ini',bp(self.version))
+            source = source.replace('/sys/class/gpio/Watchdog\\ Disable/value',bp(self.gpio))
+            source = source.replace('/tmp/mnt/resources',bp(self.resources))
+            if path == self.script:
+                source = source.replace('#!/bin/sh\n','#!/bin/sh\nPATH="'+bp(self.bins)+':/usr/bin:/bin"\nexport PATH\n',1)
+            write(path,source)
+            checksum(path)
 
     def run(self, action=None, code=0, contains=''):
         args = [] if action is None else [action] if isinstance(action, str) else action
@@ -120,6 +127,53 @@ esac
     def close(self): self.temporary.cleanup()
 
 class StandaloneInstallers(unittest.TestCase):
+    def test_library_failures_before_modifications(self):
+        for id in [*UI_IDS, 'ssh']:
+            f = Fixture(id)
+            try:
+                common = f.libs/'common.sh'
+                original = common.read_bytes()
+                common.unlink()
+                f.run('--help', contains='Usage:')
+                f.run('install', 1, 'Missing or linked library')
+                common.write_bytes(original + b'\necho MUST-NOT-RUN\n')
+                f.run('install', 1, 'Library checksum mismatch')
+                incompatible = original.replace(b"printf '%s\\n' '1'", b"printf '%s\\n' '2'", 1)
+                self.assertNotEqual(original, incompatible)
+                common.write_bytes(incompatible)
+                checksum(common)
+                f.run('install', 1, 'Incompatible shared library API')
+                common.write_bytes(original)
+                checksum(common)
+                (f.libs/'patch.sh.md5').unlink()
+                f.run('status', 1, 'Library checksum mismatch')
+                self.assertEqual(f.events.read_text(), '')
+                self.assertFalse((f.usb/'reports').exists())
+                self.assertEqual(f.app.read_bytes(), f.original)
+            finally:
+                f.close()
+
+    def test_library_import_has_no_side_effects(self):
+        f = Fixture('main-menu-loop')
+        try:
+            code = '''set -u
+ROOT_CHANGED=untouched
+trap 'printf "trap-preserved\\n"' 0
+. "$1"
+. "$2"
+[ "$ROOT_CHANGED" = untouched ] || exit 9
+'''
+            result = subprocess.run([SHELL, '-c', code, 'import-test',
+                                     bp(f.libs/'common.sh'), bp(f.libs/'patch.sh')],
+                                    capture_output=True, cwd=f.tmp, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, b'trap-preserved\n')
+            self.assertEqual(result.stderr, b'')
+            self.assertEqual(f.events.read_text(), '')
+            self.assertFalse((f.usb/'reports').exists())
+        finally:
+            f.close()
+
     def test_headless_usage_and_status_contract(self):
         for id in [*UI_IDS, 'ssh']:
             with self.subTest(tweak=id):

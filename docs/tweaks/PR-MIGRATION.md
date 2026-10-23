@@ -20,6 +20,8 @@ layout remain proposals in issue #11.
 ## Changes made in this experimental branch
 
 - Five versioned JSON manifests, schema documentation and checked ZIP inclusion.
+- Shared runtime API 1 in `lib/common.sh` and `lib/patch.sh`, included in full
+  and single-tweak packages. Workers remain callable without a launcher.
 - Readable shell sections, named validation/write functions, comments explaining
   rollback and patch-state detection, and a short top-level workflow.
 - Shell-only workers with textual progress, errors and a recorded status-output
@@ -44,7 +46,8 @@ If the maintainer wants the contributions before the restructuring:
    even though three of them modify the same file.
 3. Apply the corresponding worker structure to SSH #14 while keeping
    its separately verified service implementation and lifecycle tests intact.
-4. Move to manifests/shared helpers in a later coordinated restructuring.
+4. Integrate the manifest/shared-library variant through a coordinated replacement.
+   The branch already implements it; the old PRs remain unchanged.
    Do not add an unagreed launcher framework to individual feature PRs.
 
 Advantages: preserves the current reviews and allows incremental acceptance.

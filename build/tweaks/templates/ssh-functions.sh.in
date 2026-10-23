@@ -7,7 +7,7 @@ PAYLOAD="$HERE/assets"
 resources_rw() {
     if awk '$2=="/tmp/mnt/resources" && $4 ~ /(^|,)ro(,|$)/ {f=1} END {exit !f}' /proc/mounts
     then
-        mount -o rw,remount /tmp/mnt/resources || fail 'Cannot remount resources read-write.'
+        mount -o rw,remount /tmp/mnt/resources || mzd_fail 'Cannot remount resources read-write.'
         RES_CHANGED=1
     fi
 }
@@ -30,15 +30,15 @@ ssh_payload_ok() {
 ssh_prepare() {
     for _file in service.sh sshd_config password.hash usb-log-marker.txt
     do
-        check_asset "$PAYLOAD/$_file" || fail 'SSH asset checksum mismatch.'
+        mzd_check_asset "$PAYLOAD/$_file" || mzd_fail 'SSH asset checksum mismatch.'
     done
 
     if [ -e "$SERVICE" ]
     then
-        ssh_payload_ok || fail 'Existing SSH service files differ. Nothing overwritten.'
+        ssh_payload_ok || mzd_fail 'Existing SSH service files differ. Nothing overwritten.'
     elif [ "$STATE" = installed ]
     then
-        fail 'The SSH boot hook is installed but the service payload is missing.'
+        mzd_fail 'The SSH boot hook is installed but the service payload is missing.'
     fi
 
     if [ "$ACTION" != install ]
@@ -53,14 +53,14 @@ ssh_prepare() {
     then
         _check=$SERVICE
     fi
-    sh "$_check/service.sh" check || fail 'SSH prerequisites failed; an unrelated port 22 listener is never replaced.'
+    sh "$_check/service.sh" check || mzd_fail 'SSH prerequisites failed; an unrelated port 22 listener is never replaced.'
 
     if [ ! -e "$SERVICE" ]
     then
         resources_rw
-        mkdir -p "$(dirname "$SERVICE")" || fail 'Cannot create SSH parent directory.'
+        mkdir -p "$(dirname "$SERVICE")" || mzd_fail 'Cannot create SSH parent directory.'
         _stage="$SERVICE.new-$$"
-        mkdir "$_stage" || fail 'Cannot prepare SSH service directory.'
+        mkdir "$_stage" || mzd_fail 'Cannot prepare SSH service directory.'
 
         # Publish a directory only after all three payload files are verified.
         for _file in service.sh sshd_config password.hash
@@ -69,19 +69,19 @@ ssh_prepare() {
             then
                 rm -f "$_stage/service.sh" "$_stage/sshd_config" "$_stage/password.hash"
                 rmdir "$_stage"
-                fail 'Cannot copy and verify SSH service payload.'
+                mzd_fail 'Cannot copy and verify SSH service payload.'
             fi
         done
         if ! chmod 700 "$_stage/service.sh" ||
             ! chmod 600 "$_stage/sshd_config" "$_stage/password.hash"
         then
-            fail 'Cannot set SSH payload permissions.'
+            mzd_fail 'Cannot set SSH payload permissions.'
         fi
         sync
-        mv "$_stage" "$SERVICE" || fail 'Cannot publish SSH service directory.'
+        mv "$_stage" "$SERVICE" || mzd_fail 'Cannot publish SSH service directory.'
     fi
 
-    cp "$PAYLOAD/usb-log-marker.txt" "$USB/diffpatch-ssh-log-marker.txt" || fail 'Cannot save USB runtime-log marker.'
+    cp "$PAYLOAD/usb-log-marker.txt" "$USB/diffpatch-ssh-log-marker.txt" || mzd_fail 'Cannot save USB runtime-log marker.'
 }
 
 
@@ -91,9 +91,9 @@ ssh_rollback_hook() {
     then
         cat "$REPORT/before.data" > "$APP"
         sync
-        if [ "$(hash "$APP")" != "$BEFORE" ]
+        if [ "$(mzd_hash "$APP")" != "$BEFORE" ]
         then
-            fail 'SSH boot-hook rollback failed. Do NOT reboot.'
+            mzd_fail 'SSH boot-hook rollback failed. Do NOT reboot.'
         fi
     fi
 }
@@ -106,7 +106,7 @@ ssh_complete() {
         then
             rm -f "$SERVICE/enabled"
             ssh_rollback_hook
-            fail 'Cannot enable the SSH service. The new boot hook was reverted.'
+            mzd_fail 'Cannot enable the SSH service. The new boot hook was reverted.'
         fi
         sync
 
@@ -117,9 +117,9 @@ ssh_complete() {
         if ! sh "$SERVICE/service.sh" status
         then
             rm -f "$SERVICE/enabled"
-            sh "$SERVICE/service.sh" stop || fail 'SSH startup and service cleanup failed. Do NOT reboot.'
+            sh "$SERVICE/service.sh" stop || mzd_fail 'SSH startup and service cleanup failed. Do NOT reboot.'
             ssh_rollback_hook
-            fail 'SSH did not start. The new boot hook and runtime changes were reverted.'
+            mzd_fail 'SSH did not start. The new boot hook and runtime changes were reverted.'
         fi
         printf 'SSH: port 22, user cmu, password jci.\n' >&3
 
@@ -130,12 +130,12 @@ ssh_complete() {
         resources_rw
         rm -f "$SERVICE/enabled"
         sync
-        sh "$SERVICE/service.sh" stop || fail 'Boot hook removed; service cleanup failed. Check the report.'
+        sh "$SERVICE/service.sh" stop || mzd_fail 'Boot hook removed; service cleanup failed. Check the report.'
         for _file in service.sh sshd_config password.hash
         do
             rm -f "$SERVICE/$_file"
         done
-        rmdir "$SERVICE" || fail 'SSH stopped; service directory is not empty.'
+        rmdir "$SERVICE" || mzd_fail 'SSH stopped; service directory is not empty.'
         printf 'Managed SSH service, password overlay and firewall access removed.\n' >&3
     fi
 }

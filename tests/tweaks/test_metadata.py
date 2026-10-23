@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from zipfile import ZipFile
+from test_installers import Fixture
 
 REPO = Path(__file__).resolve().parents[2]
 ROOT = REPO / 'tweaks'
@@ -29,6 +30,7 @@ class MetadataAndPackage(unittest.TestCase):
             metadata = builder.read_manifest(folder)
             self.assertEqual(metadata['actions'], ['install', 'uninstall', 'status'])
             self.assertEqual(metadata['reboot_required'], folder.name != 'ssh')
+            self.assertEqual(metadata['library_api'], builder.LIBRARY_API)
             self.assertEqual((folder / metadata['entrypoint']).read_bytes(), builder.render(folder))
             # Different tweaks editing the same file must share the same lock.
             target = metadata['target']
@@ -45,6 +47,7 @@ class MetadataAndPackage(unittest.TestCase):
                                ('firmware', ['70.00.100']), ('id', 'other'),
                                ('target', '/jci/../etc/passwd'),
                                ('reboot_required', 'yes'), ('reboot_required', 1),
+                               ('library_api', 99), ('library_api', True),
                                ('actions', ['install', 'uninstall', 'restore', 'status'])]:
                 data = dict(source, **{key: value})
                 (folder / 'manifest.json').write_text(json.dumps(data))
@@ -67,7 +70,43 @@ class MetadataAndPackage(unittest.TestCase):
                         self.assertEqual(hashlib.md5(package.read(target)).hexdigest(), expected)
                 self.assertIn('docs/tweaks/README.md', package.namelist())
                 self.assertIn('schemas/tweak-manifest.schema.json', package.namelist())
+                for name in builder.LIBRARIES:
+                    self.assertIn('lib/' + name, package.namelist())
+                    self.assertIn('lib/' + name + '.md5', package.namelist())
                 self.assertFalse(any(p.startswith(('build/', 'tests/', 'diffpatch/')) for p in package.namelist()))
+
+    def test_unknown_selection_does_not_create_package(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary)/'invalid.zip'
+            result = subprocess.run([sys.executable, str(REPO/'build/tweaks/package.py'),
+                                     str(archive), '--tweak', 'unknown-tweak'], capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b'Unknown tweak selection', result.stderr)
+            self.assertFalse(archive.exists())
+
+    def test_single_tweak_packages_run_after_extraction(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for id in sorted(IDS):
+                with self.subTest(tweak=id):
+                    archive = Path(temporary)/(id + '.zip')
+                    extracted = Path(temporary)/id
+                    subprocess.run([sys.executable, str(REPO/'build/tweaks/package.py'),
+                                    str(archive), '--tweak', id], check=True, capture_output=True)
+                    with ZipFile(archive) as package:
+                        runtime_ids = {p.split('/')[1] for p in package.namelist() if p.startswith('tweaks/')}
+                        self.assertEqual(runtime_ids, {id})
+                        for name in builder.LIBRARIES:
+                            self.assertIn('lib/' + name, package.namelist())
+                        package.extractall(extracted)
+                    f = Fixture(id, package_root=extracted)
+                    try:
+                        f.run('status', contains='uninstalled')
+                        f.run('install')
+                        f.run('status', contains='installed')
+                        f.run('uninstall')
+                        self.assertEqual(f.app.read_bytes(), f.original)
+                    finally:
+                        f.close()
 
 
 if __name__ == '__main__':

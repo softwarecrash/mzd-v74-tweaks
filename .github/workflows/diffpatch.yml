@@ -1,9 +1,9 @@
 name: Standalone tweak tests
 on:
   push:
-    paths: ['tweaks/**', 'build/tweaks/**', 'tests/tweaks/**', 'docs/tweaks/**', 'schemas/**', '.github/workflows/diffpatch.yml']
+    paths: ['lib/**', 'tweaks/**', 'build/tweaks/**', 'tests/tweaks/**', 'docs/tweaks/**', 'schemas/**', '.github/workflows/diffpatch.yml']
   pull_request:
-    paths: ['tweaks/**', 'build/tweaks/**', 'tests/tweaks/**', 'docs/tweaks/**', 'schemas/**', '.github/workflows/diffpatch.yml']
+    paths: ['lib/**', 'tweaks/**', 'build/tweaks/**', 'tests/tweaks/**', 'docs/tweaks/**', 'schemas/**', '.github/workflows/diffpatch.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check shell syntax
         run: |
-          for f in tweaks/*/run.sh tweaks/ssh/assets/service.sh; do
+          for f in lib/*.sh tweaks/*/run.sh tweaks/ssh/assets/service.sh; do
             sh -n "$f" || exit 1
           done
       - name: Exercise standalone installers

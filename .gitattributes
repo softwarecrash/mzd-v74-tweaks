@@ -1,0 +1,3 @@
+# Runtime library bytes must match their checksums on Windows too.
+/lib/*.sh text eol=lf
+/lib/*.sh.md5 text eol=lf

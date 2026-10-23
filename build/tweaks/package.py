@@ -1,16 +1,18 @@
 """Package standalone folders, refusing missing or mismatching required assets."""
 import hashlib
+import argparse
 from pathlib import Path
-import sys
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from render_installers import REPO, ROOT, SCHEMA, build, read_manifest, tweak_folders
+from render_installers import LIBDIR, LIBRARIES, REPO, ROOT, SCHEMA, build, read_manifest, tweak_folders
 
-def package(destination):
+def package(destination, selected=None):
     # Refuse packages with stale generated workers or mismatching metadata.
-    build(check=True)
+    build(check=True, selected=selected)
     files = [SCHEMA, *sorted((REPO / 'docs/tweaks').glob('*.md'))]
-    for folder in tweak_folders():
+    for name in LIBRARIES:
+        files.extend([LIBDIR / name, LIBDIR / (name + '.md5')])
+    for folder in tweak_folders(selected):
         read_manifest(folder)
         required = ['run.sh', 'manifest.json', 'assets/change.patch']
         if folder.name == 'ssh':
@@ -24,7 +26,7 @@ def package(destination):
                 raise ValueError(f'Checksum mismatch: {target}')
         files.extend(sorted(p for p in folder.rglob('*') if p.is_file()))
     destination = Path(destination).resolve()
-    if destination == ROOT or ROOT in destination.parents or destination in files:
+    if destination == ROOT or ROOT in destination.parents or LIBDIR in destination.parents or destination in files:
         raise ValueError('Place the ZIP outside the runtime tweak folders and source files.')
     destination.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(destination, 'w', ZIP_DEFLATED) as archive:
@@ -37,6 +39,8 @@ def package(destination):
     print(f'{destination}: {len(files)} verified files, {destination.stat().st_size} bytes')
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        raise SystemExit('Usage: python3 build/tweaks/package.py OUTPUT.zip')
-    package(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', help='Output ZIP path')
+    parser.add_argument('--tweak', action='append', help='Include only this tweak and its libraries; repeatable')
+    args = parser.parse_args()
+    package(args.output, args.tweak)
