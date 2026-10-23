@@ -7,8 +7,7 @@ the script prints usage and changes nothing. It never opens dialogs, asks
 questions or reboots the CMU. An installer can supply its own UI before invoking
 these same actions. Progress is text on stdout; errors use stderr and a nonzero
 exit code. The current working directory does not matter, and the folder can be
-copied as `tweaks/<id>/` alongside the shared `lib/` directory. Use a checked
-single-tweak ZIP to include both automatically (see [LIBRARIES.md](LIBRARIES.md)).
+copied as `tweaks/<id>/` alongside the shared `lib/` directory. See [LIBRARIES.md](LIBRARIES.md) for the required layout.
 Uninstall removes only this tweak.
 
 The only target file is `/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js`. `assets/change.patch` contains the exact

@@ -16,16 +16,12 @@ USB/
   tweaks/<id>/assets/...
 ```
 
-Build a complete single-tweak package with:
+Copy `lib/` and the desired `tweaks/<id>/` folder onto the USB drive, preserving
+that relative layout. No separate package generation is needed. Invoke it from
+an existing root shell, using the actual USB mount:
 
 ```sh
-python3 build/tweaks/package.py list-loop.zip --tweak list-loop
-```
-
-Extract the ZIP at the USB root and invoke:
-
-```sh
-sh /actual/usb/tweaks/list-loop/run.sh install
+sh /tmp/mnt/sdb1/tweaks/list-loop/run.sh install
 ```
 
 The current directory and the leaf folder name do not matter; keep the two-level `tweaks/<id>/` layout relative to `lib/`.
@@ -77,7 +73,7 @@ scope. Review nested calls for variable collisions. Neither library parses or
 evaluates JSON on the CMU. Workers never prompt, open MMUI or reboot.
 
 The renderer refreshes worker/manifest/library checksums and `--check` rejects
-stale outputs. The package builder includes both libraries for full and selected
-packages. CI exercises missing/corrupt/API-mismatched libraries, import without
-side effects, lifecycle failures and actions from extracted single-tweak ZIPs.
+stale outputs. The existing package builder includes both libraries. CI exercises
+missing/corrupt/API-mismatched libraries, import without side effects, and the
+lifecycle of a separately copied tweak folder with its shared `lib/`.
 The shell interface and USB reporting contract are in [MANIFEST.md](MANIFEST.md).

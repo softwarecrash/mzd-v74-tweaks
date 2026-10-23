@@ -20,8 +20,8 @@ layout remain proposals in issue #11.
 ## Changes made in this experimental branch
 
 - Five versioned JSON manifests, schema documentation and checked ZIP inclusion.
-- Shared runtime API 1 in `lib/common.sh` and `lib/patch.sh`, included in full
-  and single-tweak packages. Workers remain callable without a launcher.
+- Shared runtime API 1 in `lib/common.sh` and `lib/patch.sh`. A copied
+  `tweaks/<id>/` folder and `lib/` work without a launcher.
 - Readable shell sections, named validation/write functions, comments explaining
   rollback and patch-state detection, and a short top-level workflow.
 - Shell-only workers with textual progress, errors and a recorded status-output

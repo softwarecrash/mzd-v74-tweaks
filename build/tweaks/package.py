@@ -1,18 +1,18 @@
 """Package standalone folders, refusing missing or mismatching required assets."""
 import hashlib
-import argparse
 from pathlib import Path
+import sys
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from render_installers import LIBDIR, LIBRARIES, REPO, ROOT, SCHEMA, build, read_manifest, tweak_folders
 
-def package(destination, selected=None):
+def package(destination):
     # Refuse packages with stale generated workers or mismatching metadata.
-    build(check=True, selected=selected)
+    build(check=True)
     files = [SCHEMA, *sorted((REPO / 'docs/tweaks').glob('*.md'))]
     for name in LIBRARIES:
         files.extend([LIBDIR / name, LIBDIR / (name + '.md5')])
-    for folder in tweak_folders(selected):
+    for folder in tweak_folders():
         read_manifest(folder)
         required = ['run.sh', 'manifest.json', 'assets/change.patch']
         if folder.name == 'ssh':
@@ -39,8 +39,4 @@ def package(destination, selected=None):
     print(f'{destination}: {len(files)} verified files, {destination.stat().st_size} bytes')
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('output', help='Output ZIP path')
-    parser.add_argument('--tweak', action='append', help='Include only this tweak and its libraries; repeatable')
-    args = parser.parse_args()
-    package(args.output, args.tweak)
+    package(sys.argv[1])

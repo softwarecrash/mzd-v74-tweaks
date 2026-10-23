@@ -79,7 +79,8 @@ script, so it needs neither Python nor a JSON parser. A future JS launcher can
 read JSON directly; a shell launcher would need an agreed data-only parser.
 
 Each runtime folder requires the packaged `lib/` at the USB root, beside
-`tweaks/`. The package builder includes it for both full and single-tweak ZIPs.
+`tweaks/`. The existing package builder includes it. To use one tweak, copy `lib/` and
+that `tweaks/<id>/` folder while preserving their relative layout.
 Workers resolve it relative to their own path, check library checksums and API,
 and fail before system changes on missing or incompatible dependencies.
 Development templates and build tools are not required on USB.

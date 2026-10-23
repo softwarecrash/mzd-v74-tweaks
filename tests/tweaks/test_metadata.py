@@ -8,7 +8,6 @@ import sys
 import tempfile
 import unittest
 from zipfile import ZipFile
-from test_installers import Fixture
 
 REPO = Path(__file__).resolve().parents[2]
 ROOT = REPO / 'tweaks'
@@ -75,38 +74,6 @@ class MetadataAndPackage(unittest.TestCase):
                     self.assertIn('lib/' + name + '.md5', package.namelist())
                 self.assertFalse(any(p.startswith(('build/', 'tests/', 'diffpatch/')) for p in package.namelist()))
 
-    def test_unknown_selection_does_not_create_package(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            archive = Path(temporary)/'invalid.zip'
-            result = subprocess.run([sys.executable, str(REPO/'build/tweaks/package.py'),
-                                     str(archive), '--tweak', 'unknown-tweak'], capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn(b'Unknown tweak selection', result.stderr)
-            self.assertFalse(archive.exists())
-
-    def test_single_tweak_packages_run_after_extraction(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            for id in sorted(IDS):
-                with self.subTest(tweak=id):
-                    archive = Path(temporary)/(id + '.zip')
-                    extracted = Path(temporary)/id
-                    subprocess.run([sys.executable, str(REPO/'build/tweaks/package.py'),
-                                    str(archive), '--tweak', id], check=True, capture_output=True)
-                    with ZipFile(archive) as package:
-                        runtime_ids = {p.split('/')[1] for p in package.namelist() if p.startswith('tweaks/')}
-                        self.assertEqual(runtime_ids, {id})
-                        for name in builder.LIBRARIES:
-                            self.assertIn('lib/' + name, package.namelist())
-                        package.extractall(extracted)
-                    f = Fixture(id, package_root=extracted)
-                    try:
-                        f.run('status', contains='uninstalled')
-                        f.run('install')
-                        f.run('status', contains='installed')
-                        f.run('uninstall')
-                        self.assertEqual(f.app.read_bytes(), f.original)
-                    finally:
-                        f.close()
 
 
 if __name__ == '__main__':

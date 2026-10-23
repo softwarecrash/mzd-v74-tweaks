@@ -20,9 +20,8 @@ tweaks/<id>/
   assets/
 ```
 
-Independent means callable without the launcher. A single-tweak USB package
-includes `lib/` and `tweaks/<id>/`; copying only the tweak folder is not
-sufficient. All tweaks use the same maintained helper files.
+Independent means callable without the launcher. To use a single tweak, copy `lib/` and `tweaks/<id>/`; copying only the tweak
+folder is insufficient. All tweaks use the same maintained helper files.
 
 ## Responsibilities
 
@@ -63,8 +62,8 @@ per function. Keep the reviewed diff files and SSH service assets byte-identical
    separate supervisor implementation.
 5. Update rendering, manifests/schema, checksum generation and documentation.
    Templates generate only the small worker entrypoints, not copies of helpers.
-6. Extend the package builder with a single-tweak selection as well as the full
-   package. Include required libraries automatically and verify ZIP contents.
+6. Include the shared libraries in the existing package and verify its contents.
+   Individual use requires only copying `lib/` and the desired tweak folder.
 7. Update CI and run worker, package, native BusyBox and SSH lifecycle checks.
    Validate the final integrated wrapper on the vehicle before claiming it is
    vehicle-tested. Keep upstream PRs unchanged until the replacement is agreed.
@@ -77,7 +76,7 @@ per function. Keep the reviewed diff files and SSH service assets byte-identical
   their documented behaviour. Workers never prompt or reboot.
 - Missing/corrupt/incompatible helpers fail before modifying system files.
 - Sourcing either library causes no operations or output by itself.
-- One-tweak and full ZIPs include every dependency and matching checksum; run
-  tests against extracted packages, not only repository files.
+- The existing ZIP includes the libraries and matching checksums. Tests copy
+  only `lib/` and the selected tweak folder, as a shell user would.
 - No private CMU binaries/readouts, payload normalization or duplicated runtime
   helper implementations are introduced.

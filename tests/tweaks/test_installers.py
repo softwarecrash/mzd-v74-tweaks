@@ -32,17 +32,16 @@ def checksum(path):
     write(path.with_name(path.name + '.md5'), md5(path.read_bytes()) + '  ' + path.name + '\n')
 
 class Fixture:
-    def __init__(self, id, package_root=None):
+    def __init__(self, id):
         self.temporary = tempfile.TemporaryDirectory(prefix='diffpatch-installer-')
         self.tmp = Path(self.temporary.name)
         self.id = id
         self.usb, self.bins = self.tmp/'USB stick', self.tmp/'bin'
         self.usb.mkdir(); self.bins.mkdir()
-        source_root = Path(package_root) if package_root else REPO
         self.folder = self.usb/'tweaks/arbitrary folder name'
         self.libs = self.usb/'lib'
-        shutil.copytree(source_root/'tweaks'/id, self.folder)
-        shutil.copytree(source_root/'lib', self.libs)
+        shutil.copytree(ROOT/id, self.folder)
+        shutil.copytree(REPO/'lib', self.libs)
         self.script = self.folder/'run.sh'
         self.app, self.gpio, self.mounts = self.tmp/'target.data', self.tmp/'gpio', self.tmp/'mounts'
         self.backup = self.app.with_name(self.app.name+'.org')

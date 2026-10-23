@@ -22,9 +22,11 @@ docs/tweaks/                 # Usage and implementation notes
 schemas/tweak-manifest.schema.json
 ```
 
-A single tweak needs its runtime folder and `lib/`. The checked ZIP includes
-both automatically, plus documentation and the schema. Full packages contain
-all five runtime folders; `--tweak` selects individual folders. It contains no build tools, tests, MP3 entry assets or replacement launcher.
+A single tweak needs its runtime folder and `lib/`. The existing checked ZIP
+contains all five runtime folders, the libraries, documentation and the schema.
+To use just one, copy `lib/` and that `tweaks/<id>/` folder, keeping the same
+relative layout. The ZIP contains no build tools, tests, MP3 entry assets or
+replacement launcher.
 
 | Folder | Function |
 | --- | --- |
@@ -144,7 +146,6 @@ Build a checked ZIP containing all five folders (without test tools) with:
 
 ```sh
 python3 build/tweaks/package.py path/to/diffpatch.zip
-python3 build/tweaks/package.py path/to/list-loop.zip --tweak list-loop
 ```
 
 See [PR-MIGRATION.md](PR-MIGRATION.md) for the review follow-up and the options

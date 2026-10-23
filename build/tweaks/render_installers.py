@@ -62,15 +62,9 @@ def read_manifest(folder):
     return manifest
 
 
-def tweak_folders(selected=None):
+def tweak_folders():
     """Folders are discovered by manifest, just as a future launcher can do."""
-    folders = sorted(path.parent for path in ROOT.glob('*/manifest.json'))
-    if selected is None:
-        return folders
-    unknown = set(selected) - {folder.name for folder in folders}
-    if unknown:
-        raise ValueError('Unknown tweak selection: ' + ', '.join(sorted(unknown)))
-    return [folder for folder in folders if folder.name in selected]
+    return sorted(path.parent for path in ROOT.glob('*/manifest.json'))
 
 
 def render(folder):
@@ -99,8 +93,8 @@ def checksum_bytes(path, data):
     return f'{hashlib.md5(data).hexdigest()}  {path.name}\n'.encode('ascii')
 
 
-def build(check=False, selected=None):
-    folders = tweak_folders(selected)
+def build(check=False):
+    folders = tweak_folders()
     if not folders:
         raise ValueError('No manifests found')
     for name in LIBRARIES:
@@ -135,6 +129,5 @@ def build(check=False, selected=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Fail if generated files need rebuilding')
-    parser.add_argument('--tweak', action='append', help='Render/check only this tweak; repeatable')
     args = parser.parse_args()
-    build(args.check, args.tweak)
+    build(args.check)
