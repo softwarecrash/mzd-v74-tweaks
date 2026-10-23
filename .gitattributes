@@ -1,0 +1,51 @@
+# Preserve unclassified files byte-for-byte. Opt project-owned source into LF.
+* -text
+/*.sh text eol=lf
+/*.sh.md5 text eol=lf
+/*.md text eol=lf
+/.editorconfig text eol=lf
+/.gitattributes text eol=lf
+/.gitignore text eol=lf
+/.gitmodules text eol=lf
+/.shellcheckrc text eol=lf
+/.pre-commit-config.yaml text eol=lf
+/.github/** text eol=lf
+/build/*.sh text eol=lf
+/docs/*.md text eol=lf
+/docs/**/*.md text eol=lf
+/jci-patches/*.py text eol=lf
+/tools/** text eol=lf
+/schemas/** text eol=lf
+/tests/**/*.py text eol=lf
+/tests/**/*.sh text eol=lf
+/tests/**/*.c text eol=lf
+/tests/**/*.h text eol=lf
+/tweaks/**/run.sh text eol=lf
+/tweaks/**/run.sh.md5 text eol=lf
+/tweaks/**/manifest.json text eol=lf
+/tweaks/**/manifest.json.md5 text eol=lf
+/common/** text eol=lf
+/lib/** text eol=lf
+/helpers/** text eol=lf
+/launcher/** text eol=lf
+
+# Do not normalize OEM copies, binary/native payloads, entry assets or fixtures.
+/jci-org/** -text
+/jci-mods/** -text
+/jci-shims/** -text
+/js/** -text
+/mp3/** -text
+/autorun/** -text
+/images/** -text
+/mazda/** -text
+**/assets/** -text
+**/original/** -text
+**/modified/** -text
+**/fixtures/** -text
+**/images/** -text
+*.patch -text
+*.diff -text
+*.org -text
+*.orig -text
+/tests/**/*.txt -text
+/tests/**/*.conf -text

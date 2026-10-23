@@ -1,0 +1,125 @@
+minimum_pre_commit_version: '4.7.0'
+# One shared boundary for all source-oriented checks. Protected payloads are
+# still included in the separate, read-only checksum check below.
+exclude: >-
+  (?x)^(?:jci-org|jci-mods|jci-shims|js|mp3|autorun|images|mazda)/
+  |(?:^|/)(?:assets|original|modified|fixtures|images)/
+  |\.(?:patch|diff|org|orig)$
+  |^tests/.*\.(?:txt|conf)$
+repos:
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: ShellCheck 0.11.0 (POSIX sh)
+        entry: shellcheck
+        language: python
+        additional_dependencies: ['shellcheck-py==0.11.0.1']
+        types: [shell]
+        args: [--severity=style]
+
+      - id: shfmt
+        name: shfmt (check only)
+        entry: shfmt
+        language: python
+        additional_dependencies: ['shfmt-py==4.2.0']
+        types: [shell]
+        # Generic flags leave .editorconfig in charge of the dialect/style.
+        args: [--diff, --apply-ignore]
+
+      - id: source-encoding
+        name: UTF-8 without BOM, LF and final newline (check only)
+        entry: python -c
+        language: python
+        files: >-
+          (?x)\.(?:sh|py|md|json|yaml|yml|c|h|md5)$
+          |^\.(?:editorconfig|gitattributes|gitignore|gitmodules|shellcheckrc)$
+        args:
+          - |
+            from pathlib import Path
+            import sys
+            failed = False
+            for name in sys.argv[1:]:
+                data = Path(name).read_bytes()
+                try:
+                    data.decode('utf-8')
+                    valid = not data.startswith(b'\xef\xbb\xbf') and b'\r' not in data
+                    valid = valid and (not data or data.endswith(b'\n'))
+                except UnicodeDecodeError:
+                    valid = False
+                if not valid:
+                    print(f'{name}: expected UTF-8 without BOM, LF and a final newline')
+                    failed = True
+            raise SystemExit(int(failed))
+
+      - id: payload-checksums
+        name: Validate all tracked MD5 sidecars, including payloads (read-only)
+        entry: python -c
+        language: python
+        pass_filenames: false
+        always_run: true
+        args:
+          - |
+            import hashlib
+            from pathlib import Path
+            import subprocess
+            names = subprocess.check_output(['git', 'ls-files', '-z', '*.md5']).decode().split('\0')
+            failed = False
+            for name in filter(None, names):
+                checksum = Path(name)
+                target = checksum.with_name(checksum.name[:-4])
+                expected = checksum.read_text().strip()[:32]
+                actual = hashlib.md5(target.read_bytes()).hexdigest() if target.is_file() else None
+                if actual != expected:
+                    print(f'{name}: checksum mismatch or missing target {target}')
+                    failed = True
+            raise SystemExit(int(failed))
+
+      - id: tweak-manifests
+        name: Validate common tweak manifest contract
+        entry: python -c
+        language: python
+        additional_dependencies: ['jsonschema==4.26.0']
+        files: (^|/)manifest\.json$
+        args:
+          - |
+            import json
+            from pathlib import Path
+            import sys
+            from jsonschema import Draft202012Validator
+            fields = {
+                'schema_version': {'type': 'integer', 'minimum': 1},
+                'id': {'type': 'string', 'pattern': '^[a-z0-9]+(-[a-z0-9]+)*$'},
+                'name': {'type': 'string', 'minLength': 1},
+                'description': {'type': 'string', 'minLength': 1},
+                'version': {'type': 'string', 'pattern': '^[0-9]+\\.[0-9]+\\.[0-9]+$'},
+                'type': {'type': 'string', 'pattern': '^[a-z][a-z0-9-]*$'},
+                'group': {'type': 'string', 'pattern': '^[a-z][a-z0-9-]*$'},
+                'firmware': {'type': 'array', 'minItems': 1, 'uniqueItems': True,
+                             'items': {'type': 'string', 'minLength': 1}},
+                'entrypoint': {'const': 'run.sh'},
+                'actions': {'const': ['install', 'uninstall', 'status']},
+                'reboot_required': {'type': 'boolean'},
+            }
+            schema = {'type': 'object', 'required': list(fields), 'properties': fields}
+            validator = Draft202012Validator(schema)
+            failed = False
+            for name in sys.argv[1:]:
+                path = Path(name)
+                try:
+                    data = json.loads(path.read_text(encoding='utf-8'))
+                    errors = list(validator.iter_errors(data))
+                    if errors:
+                        raise ValueError('; '.join(error.message for error in errors))
+                    if data['id'] != path.parent.name or not (path.parent/'run.sh').is_file():
+                        raise ValueError('id must match its folder and run.sh must exist')
+                except (ValueError, OSError) as error:
+                    print(f'{name}: {error}')
+                    failed = True
+            raise SystemExit(int(failed))
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict

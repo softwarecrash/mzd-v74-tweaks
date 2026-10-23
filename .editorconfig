@@ -1,0 +1,41 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+[*.py]
+indent_size = 4
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.sh]
+language_dialect = posix
+indent_size = 2
+case_indent = true
+space_redirects = true
+
+# Payloads are byte-sensitive data, not formatter input. tools/policy.py applies
+# the same exclusions when running checks or formatting explicitly named files.
+[{jci-org,jci-mods,jci-shims,js,mp3,autorun,images,mazda}/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = unset
+ignore = true
+
+[{**/assets/**,**/original/**,**/modified/**,**/fixtures/**,**/images/**,*.patch,*.diff,*.org,*.orig,tests/**/*.txt,tests/**/*.conf}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = unset
+ignore = true

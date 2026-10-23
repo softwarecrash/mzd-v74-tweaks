@@ -1,0 +1,3 @@
+# Match the CMU shell. No global diagnostic exclusions.
+shell=sh
+external-sources=false
