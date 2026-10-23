@@ -1,21 +1,19 @@
 # Standalone diff/patch tweaks
 
-Five reference tweaks for Mazda CMU firmware **74.00.324**, each with its own
-`run.sh`, a unified diff and required assets. Other tweak types can use the same
-interface with their own commands or native payloads. Workers share the
-packaged `lib/` helpers and run without an installer. Copy `lib/` together with
-the desired `tweaks/<id>/` folders onto a USB drive, preserving that layout.
+Five self-contained tweak folders for Mazda CMU firmware **74.00.324**. Each
+contains its own `run.sh`, manifest, unified diff and required assets. Copy any
+one folder to USB and run it from a shell. No shared `lib/`, launcher, build step,
+Python or JSON parser is needed on the CMU.
 
-Each folder now includes `manifest.json` and its checksum for discovery and
-grouping by a future launcher. The format is a proposal, documented in
-[MANIFEST.md](MANIFEST.md). Readable templates generate the independent scripts;
-the packaged shared libraries are required, but Python and a JSON parser are
-not. See [LIBRARIES.md](LIBRARIES.md) for the runtime dependency contract.
+The common contract is the shell interface (`install`, `uninstall`, `status`),
+output/exit rules and the manifest. Each worker owns its implementation and
+lifecycle. Shared runtime libraries are optional for future tweaks, not a
+requirement of that contract. See [MANIFEST.md](MANIFEST.md).
 
 ## Repository layout
 
 ```text
-lib/                        # Optional common/system/patch helpers, API 2
+lib/                        # Optional helper sources; no runtime dependency of these five
 tweaks/<id>/                 # Worker, manifest and tweak-specific assets
 build/tweaks/                # Renderer, package builder and shell templates
 tests/tweaks/                # Worker, metadata/package and SSH supervisor tests
@@ -23,11 +21,11 @@ docs/tweaks/                 # Usage and implementation notes
 schemas/tweak-manifest.schema.json
 ```
 
-A single tweak needs its runtime folder and `lib/`. The existing checked ZIP
-contains all five runtime folders, the libraries, documentation and the schema.
-To use just one, copy `lib/` and that `tweaks/<id>/` folder, keeping the same
-relative layout. The ZIP contains no build tools, tests, MP3 entry assets or
-replacement launcher.
+A single tweak needs only its own complete folder; its position/name and the
+caller's working directory do not matter. The existing checked package contains
+all five folders, documentation and the schema. It includes no shared libraries,
+build tools, tests, MP3 entry assets or replacement launcher. No per-tweak ZIPs
+or new package-generation step are needed.
 
 | Folder | Function |
 | --- | --- |
@@ -69,14 +67,22 @@ reboot, and the flag describes how changes become effective, not vehicle-test
 coverage. The current upstream launcher/release recipe is unchanged; use the
 separate package command below for this experimental structure.
 
-## Optional helpers and other tweak types
+## Independent implementations
 
-The shared interface does not require diff/patch. Workers may load `common.sh`
-alone, add `system.sh` for locks/mounts/watchdog, and use `patch.sh` only for text
-patches. Each `run.sh` controls its own commands and multi-file/service workflow.
-The manifest does not require a patch target or OEM hash for other kinds of tweak.
-See [LIBRARIES.md](LIBRARIES.md) for the API and upstream porting boundaries.
-The existing upstream tweaks have not been automatically converted by this refactor.
+The five `run.sh` files contain their technical helpers directly. The development
+renderer embeds reviewed helper source when updating these scripts; neither the
+renderer nor its source inputs are needed on USB. Repeated helper code in the
+resulting workers is intentional.
+
+Other tweaks can implement their own commands, file-copy or native-service
+workflow. They need to follow the same shell/manifest contract, not this template.
+Optional libraries are documented in [LIBRARIES.md](LIBRARIES.md); none of the
+five reference manifests declares them. Existing upstream installers still need
+individual adaptation and validation.
+
+The manifest declares supported firmware; each worker must enforce that support.
+It does not prevent implementation differences or replace conflict, backup and
+rollback checks. CI checks the generated workers and the shared external contract.
 
 ## Patching and backups
 
@@ -128,7 +134,7 @@ is disabled; verified inactive payload files can remain for retry or uninstall.
 ## Verification
 
 The five underlying functions were previously installed and removed on the
-vehicle; SSH also survived a reboot. This new diff/patch wrapper has been
+vehicle; SSH also survived a reboot. The current self-contained diff/patch wrapper has been
 validated offline, and has **not yet been run on the vehicle**.
 
 The local native compatibility test executed the original CMU ARM BusyBox

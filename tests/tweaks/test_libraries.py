@@ -13,6 +13,17 @@ import test_metadata
 
 
 class OptionalLibraries(unittest.TestCase):
+    def fixture(self):
+        f = Fixture('main-menu-loop')
+        shutil.copytree(test_metadata.REPO/'lib', f.libs)
+        for path in f.libs.glob('*.sh'):
+            source = path.read_text()
+            source = source.replace('/proc/mounts', bp(f.mounts)).replace('/jci/version.ini', bp(f.version))
+            source = source.replace('/sys/class/gpio/Watchdog\\ Disable/value', bp(f.gpio))
+            write(path, source)
+            checksum(path)
+        return f
+
     def worker(self, fixture, libraries, body, cleanup=''):
         # Only copied test libraries contain redirected device paths.
         imports = '\n'.join('. "' + bp(fixture.libs/(name + '.sh')) + '"' for name in libraries)
@@ -28,7 +39,7 @@ mzd_begin "{bp(fixture.script)}" custom {cleanup}
         checksum(fixture.script)
 
     def test_command_worker_without_patch_or_target(self):
-        f = Fixture('main-menu-loop')
+        f = self.fixture()
         try:
             f.app.unlink()
             # Neither optional module exists on this deliberately small USB.
@@ -64,7 +75,7 @@ esac''')
     def test_system_only_worker_multiple_mounts_locks_and_failure_cleanup(self):
         for fail in (False, True):
             with self.subTest(fail=fail):
-                f = Fixture('main-menu-loop')
+                f = self.fixture()
                 try:
                     (f.libs/'patch.sh').unlink()
                     second_lock = f.tmp/'second-lock'
@@ -83,7 +94,7 @@ mzd_system_remount_rw "{bp(f.resources)}" || exit 1
                     f.close()
 
     def test_two_patch_contexts_and_explicit_rollback(self):
-        f = Fixture('main-menu-loop')
+        f = self.fixture()
         try:
             second = f.tmp/'second.data'
             second.write_bytes(ORIGINAL)
@@ -135,7 +146,7 @@ fi
         data = json.loads((test_metadata.ROOT/'main-menu-loop/manifest.json').read_text())
         for key in ('target', 'original_md5', 'lock_group'):
             del data[key]
-        data.update(id='command-example', type='command', status_scope='configuration', libraries=['common'])
+        data.update(id='command-example', type='command', status_scope='configuration', libraries=['common'], library_api=test_metadata.builder.LIBRARY_API)
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)/'command-example'
             folder.mkdir()
@@ -159,7 +170,7 @@ fi
             data = json.loads((test_metadata.ROOT/'main-menu-loop/manifest.json').read_text())
             for key in ('target', 'original_md5', 'lock_group'):
                 del data[key]
-            data.update(id='command-example', type='command', status_scope='configuration', libraries=['common'])
+            data.update(id='command-example', type='command', status_scope='configuration', libraries=['common'], library_api=test_metadata.builder.LIBRARY_API)
             (folder/'manifest.json').write_text(json.dumps(data), newline='\n')
             worker = b'#!/bin/sh\n# Hand-maintained command worker\nexit 0\n'
             (folder/'run.sh').write_bytes(worker)

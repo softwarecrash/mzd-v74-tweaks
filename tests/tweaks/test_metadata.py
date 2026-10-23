@@ -29,7 +29,8 @@ class MetadataAndPackage(unittest.TestCase):
             metadata = builder.read_manifest(folder)
             self.assertEqual(metadata['actions'], ['install', 'uninstall', 'status'])
             self.assertEqual(metadata['reboot_required'], folder.name != 'ssh')
-            self.assertEqual(metadata['library_api'], builder.LIBRARY_API)
+            self.assertNotIn('libraries', metadata)
+            self.assertNotIn('library_api', metadata)
             self.assertEqual((folder / metadata['entrypoint']).read_bytes(), builder.render(folder))
             # Different tweaks editing the same file must share the same lock.
             target = metadata['target']
@@ -69,9 +70,7 @@ class MetadataAndPackage(unittest.TestCase):
                         self.assertEqual(hashlib.md5(package.read(target)).hexdigest(), expected)
                 self.assertIn('docs/tweaks/README.md', package.namelist())
                 self.assertIn('schemas/tweak-manifest.schema.json', package.namelist())
-                for name in builder.LIBRARIES:
-                    self.assertIn('lib/' + name, package.namelist())
-                    self.assertIn('lib/' + name + '.md5', package.namelist())
+                self.assertFalse(any(p.startswith('lib/') for p in package.namelist()))
                 self.assertFalse(any(p.startswith(('build/', 'tests/', 'diffpatch/')) for p in package.namelist()))
 
 

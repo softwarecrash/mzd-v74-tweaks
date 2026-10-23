@@ -1,44 +1,43 @@
 # Optional shared runtime libraries (API 2)
 
-A tweak is callable from a shell without the launcher. Copy the shared `lib/`
-folder and the desired `tweaks/<id>/` folder to USB, preserving this layout:
+## Current five tweaks: no runtime library dependency
 
-```text
-USB/
-  lib/
-    common.sh
-    common.sh.md5
-    system.sh
-    system.sh.md5
-    patch.sh
-    patch.sh.md5
-  tweaks/<id>/
-    run.sh
-    run.sh.md5
-    manifest.json
-    manifest.json.md5
-    assets/                 # Optional; commands may need no payload
-```
-
-No individual ZIP or build step is needed. For example:
+SSH, list-beep, shorter-delay, list-loop and main-menu-loop contain their helpers
+inside `run.sh`. Copy only the desired tweak folder, including its manifest,
+assets and sidecars, to any location on USB. No `lib/` or launcher is needed.
+For example, both layouts work:
 
 ```sh
+sh /tmp/mnt/sdb1/list-loop/run.sh install
 sh /tmp/mnt/sdb1/tweaks/list-loop/run.sh install
 ```
 
-The caller's directory and USB device name do not matter. Keep the relative
-`tweaks/<id>/` and `lib/` positions. A worker loads only the libraries it uses:
+The developer renderer uses the sources in `lib/` to embed the reviewed helper
+functions in the five workers. That avoids manual editing of identical generated
+blocks but does not create any on-device dependency. These manifests omit both
+`libraries` and `library_api`, and their package contains no shared libraries.
+
+## Optional helper experiment for future workers
+
+The rest of this document describes modules that another worker may explicitly
+choose to use at runtime. This is optional infrastructure, not part of the
+mandatory tweak interface and not used at runtime by our current five tweaks.
+
+Only workers choosing shared libraries need `lib/` alongside `tweaks/<id>/`:
+
+```text
+USB/
+  lib/                      # Only explicitly required modules and sidecars
+  tweaks/<id>/run.sh
+  tweaks/<id>/manifest.json
+  tweaks/<id>/assets/        # Optional
+```
 
 | Library | Responsibilities | Dependency |
 | --- | --- | --- |
-| `common.sh` | USB reports, caller output, checksums, tool and firmware checks, optional cleanup callback. | None |
-| `system.sh` | Multiple target locks, explicit watchdog changes, arbitrary mount-point remounts and cleanup. | `common.sh`, started report session |
-| `patch.sh` | Text patch preparation, state, OEM backup validation, verified application and explicit rollback. | `common.sh`, started report session |
-
-There is no mandatory patch workflow, target file or service assumption in the
-common/system layers. `patch.sh` does not remount, acquire locks, start services
-or reboot. The worker chooses those operations. Native payloads and command-only
-tweaks do not have to use diff/patch.
+| `common.sh` | USB reports, output, checksums, tool/firmware checks, optional cleanup callback. | None |
+| `system.sh` | Locks, watchdog, remounts and cleanup. | `common.sh`, started report session |
+| `patch.sh` | Patch contexts, state, OEM backup, verified application and rollback. | `common.sh`, started report session |
 
 ## Import and bootstrap
 
@@ -49,11 +48,11 @@ It checks each imported module's `mzd_<module>_api` result against `library_api`
 in the rendered script (currently `2`). Missing, corrupt or incompatible modules
 fail before operations. Checksums detect damage, not malicious packages.
 
-The manifest's `libraries` array records the modules used, for example
+An opting-in manifest's `libraries` array records the modules used, for example
 `["common"]` or `["common", "system", "patch"]`. It is data for tools/launchers;
 it is never sourced or evaluated on the CMU. Each worker implements its own
-bootstrap/lifecycle. The existing template is for the five reference tweaks,
-not a requirement for future command, native-shim or multi-file workers.
+bootstrap/lifecycle. The five reference workers do not use this loading mechanism. Their helper
+functions are embedded directly, with no imports or API negotiation at runtime.
 
 ## General functions
 
@@ -155,6 +154,6 @@ conflict checks, rollback and tests. In particular, fuel-ending and Android Auto
 both modify `sm.conf`/`sm_WCP.conf`: coordinated locks and selective removal are
 required, rather than restoring whole historical backups over other tweaks.
 
-The five reference workers retain their reviewed patch/service assets. Their
-integrated API-2 wrapper requires vehicle validation; offline/native results
+The five self-contained reference workers retain their reviewed patch/service
+assets. Their current wrapper requires vehicle validation; offline/native results
 are documented separately in [README.md](README.md).

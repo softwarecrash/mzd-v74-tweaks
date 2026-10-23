@@ -20,9 +20,9 @@ layout remain proposals in issue #11.
 ## Changes made in this experimental branch
 
 - Five versioned JSON manifests, schema documentation and checked ZIP inclusion.
-- Shared runtime API 2 in `lib/common.sh`, optional `lib/system.sh` and
-  optional `lib/patch.sh`. A copied
-  `tweaks/<id>/` folder and `lib/` work without a launcher.
+- Five self-contained tweak folders, with helpers embedded directly in each
+  `run.sh`. Copying one folder is sufficient; no launcher or shared library is
+  required. Shared runtime helpers remain an optional future choice.
 - Readable shell sections, named validation/write functions, comments explaining
   rollback and patch-state detection, and a short top-level workflow.
 - Shell-only workers with textual progress, errors and a recorded status-output

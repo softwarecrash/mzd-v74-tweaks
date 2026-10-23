@@ -7,7 +7,8 @@ the script prints usage and changes nothing. It never opens dialogs, asks
 questions or reboots the CMU. An installer can supply its own UI before invoking
 these same actions. Progress is text on stdout; errors use stderr and a nonzero
 exit code. The current working directory does not matter, and the folder can be
-copied as `tweaks/<id>/` alongside the shared `lib/` directory. See [LIBRARIES.md](LIBRARIES.md) for the required layout.
+copied anywhere on USB as a complete folder. No shared `lib/` or launcher is
+required; all helpers are embedded in `run.sh`.
 Uninstall removes only this tweak.
 
 The only target file is `/jci/scripts/stage_wifi.sh`. `assets/change.patch` contains the exact

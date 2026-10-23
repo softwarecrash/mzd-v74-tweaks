@@ -1,9 +1,9 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "id": "list-loop",
   "name": "List Loop",
   "description": "Wrap between the first and last selectable list items.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "patch",
   "group": "interface",
   "firmware": [
@@ -19,11 +19,5 @@
   "original_md5": "e111883b9dcbeb6bb154521826fcacac",
   "lock_group": "List2Ctrl",
   "status_scope": "target-patch",
-  "reboot_required": true,
-  "library_api": 2,
-  "libraries": [
-    "common",
-    "system",
-    "patch"
-  ]
+  "reboot_required": true
 }

@@ -16,13 +16,11 @@
     "entrypoint",
     "actions",
     "status_scope",
-    "reboot_required",
-    "library_api",
-    "libraries"
+    "reboot_required"
   ],
   "properties": {
     "schema_version": {
-      "const": 5
+      "const": 6
     },
     "id": {
       "type": "string",
@@ -115,5 +113,13 @@
         "const": "common"
       }
     }
+  },
+  "dependentRequired": {
+    "libraries": [
+      "library_api"
+    ],
+    "library_api": [
+      "libraries"
+    ]
   }
 }

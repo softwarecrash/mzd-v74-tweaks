@@ -1,9 +1,9 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "id": "main-menu-loop",
   "name": "Main Menu Loop",
   "description": "Wrap between the first and last main-menu icons.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "patch",
   "group": "interface",
   "firmware": [
@@ -19,11 +19,5 @@
   "original_md5": "40ccb293b8c6f80960f0b953dd2e173e",
   "lock_group": "MainMenuCtrl",
   "status_scope": "target-patch",
-  "reboot_required": true,
-  "library_api": 2,
-  "libraries": [
-    "common",
-    "system",
-    "patch"
-  ]
+  "reboot_required": true
 }

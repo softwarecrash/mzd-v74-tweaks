@@ -4,13 +4,17 @@ from pathlib import Path
 import sys
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from render_installers import LIBDIR, LIBRARIES, REPO, ROOT, SCHEMA, build, read_manifest, tweak_folders
+from render_installers import LIBDIR, REPO, ROOT, SCHEMA, build, read_manifest, tweak_folders
 
 def package(destination):
     # Refuse packages with stale generated workers or mismatching metadata.
     build(check=True)
     files = [SCHEMA, *sorted((REPO / 'docs/tweaks').glob('*.md'))]
-    for name in LIBRARIES:
+    # No shared files are added for self-contained workers. Future workers
+    # opting into libraries must declare their runtime dependency explicitly.
+    dependencies = {name + '.sh' for folder in tweak_folders()
+                    for name in read_manifest(folder).get('libraries', [])}
+    for name in sorted(dependencies):
         files.extend([LIBDIR / name, LIBDIR / (name + '.md5')])
     for folder in tweak_folders():
         read_manifest(folder)

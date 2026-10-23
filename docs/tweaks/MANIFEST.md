@@ -11,12 +11,12 @@ fields with Python's standard library and also enforces safe paths and IDs.
 
 | Field | Meaning |
 | --- | --- |
-| `schema_version` | Contract version, currently `5` (optional libraries and implementation-specific metadata). |
-| `library_api` | Required shared runtime API, currently integer `2`. Each imported module must match. |
-| `libraries` | Modules used by the worker: `common`, optionally `system` and/or `patch`. |
+| `schema_version` | Contract version, currently `6` (runtime library metadata is optional). |
+| `library_api` | Optional shared runtime API, currently integer `2`; required only when `libraries` is declared. |
+| `libraries` | Optional runtime dependencies. Omitted by all five self-contained reference tweaks. |
 | `id` | Stable tweak ID; matches the repository folder name. |
 | `name`, `description` | English menu label and short function description. |
-| `version` | Installer-package version, currently `0.6.0`; not a vehicle-test claim. |
+| `version` | Installer-package version, currently `0.7.0`; not a vehicle-test claim. |
 | `type` | Implementation kind: `patch`, `service`, `command` or `files`. SSH is a service with a boot-hook patch. |
 | `group` | Lowercase kebab-case menu category; currently `interface` or `system`. |
 | `firmware` | Explicitly supported firmware list, currently only `74.00.324`. |
@@ -54,8 +54,10 @@ describes the boot hook, **not** current WLAN connectivity or a successful login
 Live service health remains a separate concern. This limitation is explicit so
 the future menu does not present patch presence as full service verification.
 
-Version 5 adds `libraries`, makes single-file patch metadata optional and uses
-library API 2. It supports command/file workers as well as patch/service workers. The contract has no `restore`
+Version 6 makes `libraries` and `library_api` optional together. The five
+reference workers omit both and contain their helpers directly. Command/file
+workers can still use their own implementation with no patch-specific metadata.
+The contract has no `restore`
 alias and includes `reboot_required`. The only
 actions are `install`, `uninstall` and `status`. The earlier GUI action remains
 removed. A launcher must create any selection/confirmation before calling a
@@ -82,23 +84,27 @@ generated scripts. The CMU only checks the manifest checksum and runs the shell
 script, so it needs neither Python nor a JSON parser. A future JS launcher can
 read JSON directly; a shell launcher would need an agreed data-only parser.
 
-Each runtime folder requires the packaged `lib/` at the USB root, beside
-`tweaks/`. The existing package builder includes it. To use one tweak, copy `lib/` and
-that `tweaks/<id>/` folder while preserving their relative layout.
-Workers resolve it relative to their own path, check library checksums and API,
-and fail before system changes on missing or incompatible dependencies.
-Development templates and build tools are not required on USB.
+Each reference runtime folder is self-contained and can be copied anywhere on
+USB. No external libraries or fixed directory depth are required. Only future
+workers explicitly declaring runtime libraries need the shared helper layout.
+Development templates and build tools are never required on USB.
 
 ## Source layout and review boundaries
 
-`build/tweaks/templates/worker.sh.in` defines the five reference workers' bootstrap
-and explicit orchestration. `lib/common.sh` provides reporting, checksums, tool
-and firmware checks. Optional `lib/system.sh` handles locks, mounts and watchdog
-cleanup; optional `lib/patch.sh` handles explicit per-target contexts and writes.
-`build/tweaks/templates/ssh-functions.sh.in` retains the SSH-specific lifecycle.
-No module imports a mandatory workflow. Non-patch workers choose only the
-modules and operations they need; see [LIBRARIES.md](LIBRARIES.md) for arguments,
-context ownership and multi-file limitations. Display helpers belong to the launcher.
+`build/tweaks/templates/worker.sh.in` defines the five reference workers' explicit
+orchestration. The renderer embeds the helper source in each generated `run.sh`;
+this is development-time reuse, not a runtime dependency. Shared helpers remain
+an optional implementation choice for other workers. The renderer does not
+replace hand-maintained entrypoints for other tweak IDs.
+
+The five workers call only their embedded helpers. SSH payload preparation and
+activation remain in `build/tweaks/templates/ssh-functions.sh.in` and are embedded
+only in the SSH worker. Display helpers belong to the launcher. See
+[LIBRARIES.md](LIBRARIES.md) for the optional helper experiment.
+
+Firmware metadata declares support, not code equivalence. A worker must enforce
+its advertised firmware and retain its own integrity/conflict/rollback guards;
+the manifest cannot prevent unrelated implementations from diverging.
 
 The vehicle JavaScript diffs and SSH supervisor payload remain byte-identical
 to the preceding branch revision. No firmware file is normalized or regenerated

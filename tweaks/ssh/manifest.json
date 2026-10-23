@@ -1,9 +1,9 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "id": "ssh",
   "name": "SSH Access",
   "description": "Enable native SSH on port 22. Login: cmu / jci.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "type": "service",
   "group": "system",
   "firmware": [
@@ -19,11 +19,5 @@
   "original_md5": "d740449dea568696660a62fce0fb35bd",
   "lock_group": "stage_wifi",
   "status_scope": "target-patch",
-  "reboot_required": false,
-  "library_api": 2,
-  "libraries": [
-    "common",
-    "system",
-    "patch"
-  ]
+  "reboot_required": false
 }

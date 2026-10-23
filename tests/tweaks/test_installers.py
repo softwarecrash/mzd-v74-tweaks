@@ -38,10 +38,9 @@ class Fixture:
         self.id = id
         self.usb, self.bins = self.tmp/'USB stick', self.tmp/'bin'
         self.usb.mkdir(); self.bins.mkdir()
-        self.folder = self.usb/'tweaks/arbitrary folder name'
+        self.folder = self.usb/'arbitrary folder name'
         self.libs = self.usb/'lib'
         shutil.copytree(ROOT/id, self.folder)
-        shutil.copytree(REPO/'lib', self.libs)
         self.script = self.folder/'run.sh'
         self.app, self.gpio, self.mounts = self.tmp/'target.data', self.tmp/'gpio', self.tmp/'mounts'
         self.backup = self.app.with_name(self.app.name+'.org')
@@ -95,8 +94,8 @@ esac
             write(self.folder/'assets/change.patch',patch)
             checksum(self.folder/'assets/change.patch')
         self.app.write_bytes(self.original)
-        # Redirect only copies of workers/libraries; the host system is never used.
-        for path in [self.script, *self.libs.glob('*.sh')]:
+        # Redirect only the copied self-contained worker; no runtime lib is copied.
+        for path in [self.script]:
             source = path.read_text(encoding='utf-8')
             source = re.sub(r'^APP=.*$', 'APP="'+bp(self.app)+'"',source,flags=re.M)
             source = re.sub(r'^ORIGINAL=.*$', 'ORIGINAL='+md5(self.original),source,flags=re.M)
@@ -126,53 +125,21 @@ esac
     def close(self): self.temporary.cleanup()
 
 class StandaloneInstallers(unittest.TestCase):
-    def test_library_failures_before_modifications(self):
+    def test_standalone_without_shared_files(self):
         for id in [*UI_IDS, 'ssh']:
             f = Fixture(id)
             try:
-                common = f.libs/'common.sh'
-                original = common.read_bytes()
-                common.unlink()
-                f.run('--help', contains='Usage:')
-                f.run('install', 1, 'Missing or linked library')
-                common.write_bytes(original + b'\necho MUST-NOT-RUN\n')
-                f.run('install', 1, 'Library checksum mismatch')
-                incompatible = original.replace(b"printf '%s\\n' '2'", b"printf '%s\\n' '99'", 1)
-                self.assertNotEqual(original, incompatible)
-                common.write_bytes(incompatible)
-                checksum(common)
-                f.run('install', 1, 'Incompatible shared library API')
-                common.write_bytes(original)
-                checksum(common)
-                (f.libs/'patch.sh.md5').unlink()
-                f.run('status', 1, 'Library checksum mismatch')
-                self.assertEqual(f.events.read_text(), '')
-                self.assertFalse((f.usb/'reports').exists())
+                self.assertFalse(f.libs.exists())
+                source = f.script.read_text()
+                self.assertNotIn('LIBDIR=', source)
+                self.assertNotIn('. "$LIBDIR/', source)
+                f.run('status', contains='uninstalled')
+                f.run('install')
+                f.run('status', contains='installed')
+                f.run('uninstall')
                 self.assertEqual(f.app.read_bytes(), f.original)
             finally:
                 f.close()
-
-    def test_library_import_has_no_side_effects(self):
-        f = Fixture('main-menu-loop')
-        try:
-            code = '''set -u
-ROOT_CHANGED=untouched
-trap 'printf "trap-preserved\\n"' 0
-. "$1"
-. "$2"
-. "$3"
-[ "$ROOT_CHANGED" = untouched ] || exit 9
-'''
-            result = subprocess.run([SHELL, '-c', code, 'import-test',
-                                     bp(f.libs/'common.sh'), bp(f.libs/'system.sh'), bp(f.libs/'patch.sh')],
-                                    capture_output=True, cwd=f.tmp, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout, b'trap-preserved\n')
-            self.assertEqual(result.stderr, b'')
-            self.assertEqual(f.events.read_text(), '')
-            self.assertFalse((f.usb/'reports').exists())
-        finally:
-            f.close()
 
     def test_headless_usage_and_status_contract(self):
         for id in [*UI_IDS, 'ssh']:

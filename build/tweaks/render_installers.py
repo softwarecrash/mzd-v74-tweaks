@@ -23,7 +23,7 @@ FIELDS = {
     'firmware', 'entrypoint', 'actions', 'target', 'original_md5', 'lock_group',
     'status_scope', 'reboot_required', 'library_api', 'libraries',
 }
-REQUIRED_FIELDS = FIELDS - {'target', 'original_md5', 'lock_group'}
+REQUIRED_FIELDS = FIELDS - {'target', 'original_md5', 'lock_group', 'libraries', 'library_api'}
 GENERATED_IDS = {'ssh', 'list-beep', 'list-loop', 'shorter-delay', 'main-menu-loop'}
 
 
@@ -33,7 +33,7 @@ def read_manifest(folder):
     if b'\r' in raw:
         raise ValueError(f'{folder.name}: manifest must use LF')
     manifest = json.loads(raw)
-    if not REQUIRED_FIELDS <= set(manifest) <= FIELDS or manifest['schema_version'] != 5:
+    if not REQUIRED_FIELDS <= set(manifest) <= FIELDS or manifest['schema_version'] != 6:
         raise ValueError(f'{folder.name}: unsupported manifest fields/schema')
     if manifest['id'] != folder.name or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', folder.name):
         raise ValueError(f'{folder.name}: invalid tweak ID')
@@ -62,16 +62,21 @@ def read_manifest(folder):
         raise ValueError(f'{folder.name}: unsupported action/status contract')
     if type(manifest['reboot_required']) is not bool:
         raise ValueError(f'{folder.name}: reboot_required must be a boolean')
-    if type(manifest['library_api']) is not int or manifest['library_api'] != LIBRARY_API:
-        raise ValueError(f'{folder.name}: unsupported shared library API')
-    libraries = manifest['libraries']
-    if not isinstance(libraries, list) or 'common' not in libraries:
-        raise ValueError(f'{folder.name}: library selection must include common')
-    for name in libraries:
-        if not isinstance(name, str) or name + '.sh' not in LIBRARIES:
-            raise ValueError(f'{folder.name}: unknown library')
-    if len(set(libraries)) != len(libraries):
-        raise ValueError(f'{folder.name}: duplicate library selection')
+    # Shared runtime dependencies are optional. The five reference tweaks
+    # deliberately declare none; another worker may opt in explicitly.
+    if 'libraries' in manifest:
+        libraries = manifest['libraries']
+        if not isinstance(libraries, list) or 'common' not in libraries:
+            raise ValueError(f'{folder.name}: library selection must include common')
+        for name in libraries:
+            if not isinstance(name, str) or name + '.sh' not in LIBRARIES:
+                raise ValueError(f'{folder.name}: unknown library')
+        if len(set(libraries)) != len(libraries):
+            raise ValueError(f'{folder.name}: duplicate library selection')
+        if type(manifest.get('library_api')) is not int or manifest['library_api'] != LIBRARY_API:
+            raise ValueError(f'{folder.name}: unsupported shared library API')
+    elif 'library_api' in manifest:
+        raise ValueError(f'{folder.name}: library_api requires an explicit library dependency')
     if 'target' in manifest:
         target = manifest['target']
         if not re.fullmatch(r'/[A-Za-z0-9_./-]+', target) or '..' in target.split('/'):
@@ -88,21 +93,37 @@ def tweak_folders():
     return sorted(path.parent for path in ROOT.glob('*/manifest.json'))
 
 
+def embedded_helpers():
+    """Reuse reviewed source while emitting completely self-contained scripts.
+
+    These are development inputs only. A worker never reads lib/ on the CMU.
+    Optional shared-library users can still source the same modules themselves.
+    """
+    sections = []
+    for name in LIBRARIES:
+        source = (LIBDIR / name).read_text()
+        source = '\n'.join(source.splitlines()[2:])
+        source = re.sub(r'^mzd_(?:common|system|patch)_api\(\) \{\n.*?^\}\n', '',
+                        source, flags=re.MULTILINE | re.DOTALL)
+        sections.append('# --- Embedded ' + name + ' helpers ---\n' + source.strip())
+    return '\n\n'.join(sections)
+
+
 def render(folder):
     manifest = read_manifest(folder)
     if folder.name not in GENERATED_IDS:
         raise ValueError(f'{folder.name}: has a hand-maintained entrypoint, not this template')
-    if manifest['firmware'] != ['74.00.324'] or manifest['libraries'] != ['common', 'system', 'patch']:
+    if manifest['firmware'] != ['74.00.324'] or 'libraries' in manifest:
         raise ValueError(f'{folder.name}: unsupported generated-worker configuration')
     ssh = manifest['id'] == 'ssh'
     values = {
         'ID': shlex.quote(manifest['id']),
+        'FIRMWARE': shlex.quote(manifest['firmware'][0]),
         'TITLE_COMMENT': manifest['name'],
         'TARGET': shlex.quote(manifest['target']),
         'ORIGINAL': manifest['original_md5'],
         'GROUP': manifest['lock_group'],
-        'LIBRARY_API': str(manifest['library_api']),
-        'LIBRARY_FILES': ' '.join(name + '.sh' for name in manifest['libraries']),
+        'EMBEDDED_HELPERS': embedded_helpers(),
         'SSH_FUNCTIONS': (TEMPLATES / 'ssh-functions.sh.in').read_text().rstrip() if ssh else '',
         'SSH_PREPARE': 'ssh_prepare || exit 1' if ssh else ': # No service-specific preparation.',
         'SSH_COMPLETE': 'ssh_complete || exit 1' if ssh else ': # No service-specific completion.',

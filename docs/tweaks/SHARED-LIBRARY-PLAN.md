@@ -1,23 +1,21 @@
-# Shared runtime helper implementation
+# Independent tweak implementation
 
-Status: implemented on this branch as API 2. See [LIBRARIES.md](LIBRARIES.md)
-for the maintained interface and usage. Integrated vehicle validation remains
-pending; upstream PRs and existing upstream installers are unchanged.
+Current decision: the five reference tweaks are self-contained. Their shared
+contract is `install`, `uninstall`, `status`, output/exit behaviour and manifest
+metadata. A single tweak folder can be copied anywhere on USB and run directly
+without `lib/`, a launcher or a build step.
 
-The initial two-library extraction was too specific to single-file patches.
-The revised structure separates general helpers (`common.sh`), optional system
-operations (`system.sh`) and optional text patches (`patch.sh`). Each worker
-loads what it needs and explicitly controls its own lifecycle.
+The renderer embeds helper source into each reference `run.sh` at development
+time. Duplicate code in those deployed scripts is intentional. The reviewed
+patch and SSH payload bytes remain unchanged.
 
-Implemented checks cover:
+Shared runtime libraries remain optional for future larger features. They are
+not required by the interface. See [LIBRARIES.md](LIBRARIES.md) for the optional
+prototype; the five manifests declare no runtime library dependencies.
 
-- Five reference tweak workers, including SSH activation rollback.
-- A command-only worker with no target file and no system/patch library present.
-- A system-only worker with multiple mounts/locks and failure cleanup.
-- Two independent patch contexts and explicit group rollback.
-- Missing/corrupt/incompatible libraries and imports without side effects.
-- Manifests without patch-specific fields and hand-maintained custom workers.
-- Original CMU BusyBox patch/diff compatibility using private offline fixtures.
+Firmware metadata declares supported versions; it cannot guarantee identical
+implementation behaviour. Each worker checks firmware and protects its writes,
+backups and rollback. Contract tests and focused reviews cover code changes.
 
-Standalone use means copying `lib/` and `tweaks/<id>/`, preserving their relative
-layout. No per-tweak ZIP, launcher or build step is required.
+Integrated vehicle validation remains pending; upstream PRs and existing
+upstream installers are unchanged.
