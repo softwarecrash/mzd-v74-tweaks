@@ -5,6 +5,11 @@ its own `run.sh`, a unified diff and any required assets. There is no shared
 installer, file manager or installed-tweak database. Copy one folder, or this
 entire `diffpatch` directory, onto a USB drive.
 
+Each folder now includes `manifest.json` and its checksum for discovery and
+grouping by a future launcher. The format is a proposal, documented in
+[MANIFEST.md](MANIFEST.md). Readable templates generate the independent scripts;
+no shared helper, Python or JSON parser is required on the CMU.
+
 | Folder | Function |
 | --- | --- |
 | `ssh` | Native SSH on port 22, login `cmu` / `jci` |
@@ -21,7 +26,7 @@ sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh status
 sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh uninstall
 ```
 
-Without an argument, `run.sh` shows the native Install / Uninstall / Exit
+Without an argument, or with `dialog`, `run.sh` shows the native Install / Uninstall / Exit
 dialog. `restore` is an alias for uninstalling **only that tweak**. The current
 working directory and the copied folder name do not matter. CLI installation
 does not reboot automatically; reboot the CMU to reload changed UI files.
@@ -98,6 +103,8 @@ commands. They do not emulate Opera or prove a real network connection:
 ```sh
 python3 diffpatch/tests/test_installers.py
 python3 diffpatch/tests/test_ssh_service.py
+python3 diffpatch/tests/test_metadata.py
+python3 diffpatch/build_installers.py --check
 ```
 
 On Windows these tests use Git for Windows Bash; on Linux they use `/bin/sh`.
@@ -106,3 +113,6 @@ Build a checked ZIP containing all five folders (without test tools) with:
 ```sh
 python3 diffpatch/package.py path/to/diffpatch.zip
 ```
+
+See [PR-MIGRATION.md](PR-MIGRATION.md) for the review follow-up and the options
+for retaining the existing PRs or switching them to the diff/patch approach.

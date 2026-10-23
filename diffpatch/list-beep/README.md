@@ -2,7 +2,7 @@
 
 Mute the two long multicontroller list beeps.
 
-Run `sh run.sh` for screen dialogs, or `sh run.sh install`, `uninstall`,
+Run `sh run.sh` or `sh run.sh dialog` for screen dialogs, or use `install`, `uninstall`,
 `restore`, or `status`. Resolve the script from its actual USB location; the
 current working directory does not matter. This folder contains all its assets
 and can be copied to a USB independently. `restore` removes only this tweak.
@@ -18,3 +18,6 @@ on copies on the startup medium, with inverse byte comparisons; partial or
 ambiguous states are refused. Reports and rollback copies go to
 `reports/diffpatch/list-beep-*/` at the root of that medium. See the parent README
 for verification, reboot and SSH details.
+
+`manifest.json` provides discovery metadata and the OEM checksum. See
+[MANIFEST.md](../MANIFEST.md) for the proposed menu/status contract.

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "ssh",
+  "name": "SSH Access",
+  "description": "Enable native SSH on port 22. Login: cmu / jci.",
+  "version": "0.2.0",
+  "type": "service",
+  "group": "system",
+  "firmware": [
+    "74.00.324"
+  ],
+  "entrypoint": "run.sh",
+  "actions": [
+    "dialog",
+    "install",
+    "uninstall",
+    "restore",
+    "status"
+  ],
+  "target": "/jci/scripts/stage_wifi.sh",
+  "original_md5": "d740449dea568696660a62fce0fb35bd",
+  "lock_group": "stage_wifi",
+  "status_scope": "target-patch"
+}

@@ -52,6 +52,17 @@ class Fixture:
         write(self.events,'')
         for name in ['sync','killall','reboot']:
             write(self.bins/name,f'#!/bin/sh\necho {name} >> "{bp(self.events)}"\n')
+        # Model button results and record dialogs without opening a real UI.
+        write(self.bins/'jci-dialog',f'''#!/bin/sh
+printf 'dialog %s\\n' "$*" >> "{bp(self.events)}"
+case "$1" in
+  --3-button-dialog) /bin/cat "{bp(self.tmp/'dialog-choice')}"; exit "$(/bin/cat "{bp(self.tmp/'dialog-choice')}")" ;;
+  --question) exit 1 ;;
+  --info) exit 0 ;;
+  *) exit 2 ;;
+esac
+''')
+        write(self.tmp/'dialog-choice','0\n')
         write(self.bins/'mount',f'''#!/bin/sh
 if [ "$3" = / ] && [ "$2" = rw,remount ] && [ -f "{bp(self.tmp/'fail-mount')}" ]; then exit 1; fi
 if [ "$3" = / ] || [ "$3" = "{bp(self.resources)}" ]; then
@@ -94,6 +105,7 @@ esac
         source = source.replace('/proc/mounts',bp(self.mounts)).replace('/jci/version.ini',bp(self.version))
         source = source.replace('/sys/class/gpio/Watchdog\\ Disable/value',bp(self.gpio))
         source = source.replace('/tmp/mnt/resources',bp(self.resources))
+        source = source.replace('/jci/tools/jci-dialog',bp(self.bins/'jci-dialog'))
         source = source.replace('#!/bin/sh\n','#!/bin/sh\nPATH="'+bp(self.bins)+':/usr/bin:/bin"\nexport PATH\n',1)
         write(self.script,source)
         checksum(self.script)
@@ -112,6 +124,33 @@ esac
     def close(self): self.temporary.cleanup()
 
 class StandaloneInstallers(unittest.TestCase):
+    def test_dialog_flow_and_status_contract(self):
+        f = Fixture('list-loop')
+        try:
+            self.assertEqual(f.run('status').strip(), 'uninstalled')
+            self.assertNotIn('dialog ', f.events.read_text())
+            f.run('dialog')
+            self.assertEqual(f.app.read_bytes(), INSTALLED)
+            events = f.events.read_text()
+            self.assertIn('--3-button-dialog', events)
+            self.assertIn('--text=install in progress.', events)
+            self.assertIn('--question', events)
+            self.assertEqual(f.run('status').strip(), 'installed')
+            write(f.tmp/'dialog-choice', '1\n')
+            f.run('dialog')
+            self.assertEqual(f.app.read_bytes(), ORIGINAL)
+            self.assertIn('--text=uninstall in progress.', f.events.read_text())
+            write(f.tmp/'dialog-choice', '2\n')
+            f.run('dialog')
+            self.assertEqual(f.app.read_bytes(), ORIGINAL)
+            # Metadata changes must be caught before any target write.
+            with (f.folder/'manifest.json').open('a') as manifest:
+                manifest.write('\n')
+            f.run('status', 1, 'checksum mismatch')
+            self.assertEqual(f.app.read_bytes(), ORIGINAL)
+        finally:
+            f.close()
+
     def test_ui_lifecycle_and_failures(self):
         for id in UI_IDS:
             with self.subTest(tweak=id):

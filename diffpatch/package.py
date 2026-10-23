@@ -4,14 +4,18 @@ from pathlib import Path
 import sys
 from zipfile import ZipFile, ZIP_DEFLATED
 
+from build_installers import read_manifest
+
 ROOT = Path(__file__).resolve().parent
 IDS = ('ssh', 'list-beep', 'shorter-delay', 'list-loop', 'main-menu-loop')
 
 def package(destination):
-    files = [ROOT / 'README.md']
+    files = [ROOT / name for name in
+             ('README.md', 'MANIFEST.md', 'manifest.schema.json', 'PR-MIGRATION.md')]
     for name in IDS:
         folder = ROOT / name
-        required = ['run.sh', 'assets/change.patch']
+        read_manifest(folder)
+        required = ['run.sh', 'manifest.json', 'assets/change.patch']
         if name == 'ssh':
             required += ['assets/' + n for n in
                          ('service.sh', 'sshd_config', 'password.hash', 'usb-log-marker.txt')]
