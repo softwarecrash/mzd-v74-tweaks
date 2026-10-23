@@ -4,9 +4,9 @@ Each complete tweak folder runs independently on firmware 74.00.324.
 Copy the required folder to USB and invoke its script from a root shell:
 
 ```sh
-sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh status
-sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh install
-sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh uninstall
+sh /tmp/mnt/sdb1/tweaks/list-beep/run.sh status
+sh /tmp/mnt/sdb1/tweaks/list-beep/run.sh install
+sh /tmp/mnt/sdb1/tweaks/list-beep/run.sh uninstall
 ```
 
 Available tweaks: `list-beep`, `list-loop`, `main-menu-loop`, `shorter-delay`,

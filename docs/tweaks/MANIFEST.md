@@ -4,7 +4,7 @@ Issue [#11](https://github.com/piotrmocko/mzd-v74-tweaks/issues/11#issuecomment-
 suggests a manifest to describe each tweak and its group. No format or complete
 launcher protocol has been agreed there yet. This branch proposes
 **`manifest.json`**, standard JSON with a versioned project-specific schema.
-[`diffpatch/tweak-manifest.schema.json`](../../diffpatch/tweak-manifest.schema.json) documents the shape; the fields describe the proposed launcher interface.
+[`tweaks/tweak-manifest.schema.json`](../../tweaks/tweak-manifest.schema.json) documents the shape; the fields describe the proposed launcher interface.
 
 ## Fields
 
@@ -63,7 +63,7 @@ is no dependency on MMUI or an interactive stdin in the tweak scripts.
 
 ## Directly maintained workers
 
-Each `diffpatch/<id>/run.sh` is the implementation source and runs without a build
+Each `tweaks/<id>/run.sh` is the implementation source and runs without a build
 or external runtime helpers. Keep its configuration constants consistent with
 the manifest and refresh checksum sidecars when files change. Keep worker constants and asset checksums consistent with the metadata.
 
@@ -71,8 +71,8 @@ The CMU needs neither Python nor a JSON parser to run a worker. A future launche
 reads the manifest for discovery and display. Every complete tweak folder can
 be copied anywhere on USB, with no fixed parent directory.
 
-SSH-specific installation logic lives in `diffpatch/ssh/run.sh`; its supervisor is
-`diffpatch/ssh/assets/service.sh`. Display helpers belong to the launcher. Shared
+SSH-specific installation logic lives in `tweaks/ssh/run.sh`; its supervisor is
+`tweaks/ssh/assets/service.sh`. Display helpers belong to the launcher. Shared
 libraries and code generation are deferred until migration and installer
 integration provide evidence for useful abstractions.
 
