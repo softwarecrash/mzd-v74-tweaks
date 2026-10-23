@@ -11,15 +11,15 @@ fields with Python's standard library and also enforces safe paths and IDs.
 
 | Field | Meaning |
 | --- | --- |
-| `schema_version` | Manifest format version, currently `1`. |
+| `schema_version` | Contract version, currently `2` (shell-only actions). |
 | `id` | Stable tweak ID; matches the repository folder name. |
 | `name`, `description` | English menu label and short function description. |
-| `version` | Installer-package version, currently `0.2.0`; not a vehicle-test claim. |
+| `version` | Installer-package version, currently `0.3.0`; not a vehicle-test claim. |
 | `type` | Implementation kind: `patch` or `service`. SSH is a service with a boot-hook patch. |
 | `group` | Menu grouping: `interface` or `system` for the five current tweaks. |
 | `firmware` | Explicitly supported firmware list, currently only `74.00.324`. |
 | `entrypoint` | Relative executable script, currently `run.sh`. Invoke it with `sh`. |
-| `actions` | Supported arguments, including explicit `dialog` and `status`. |
+| `actions` | `install`, `uninstall`, `restore`, `status`; no display-specific actions. |
 | `target` | System file modified by this tweak's diff. |
 | `original_md5` | Exact OEM checksum, not the checksum of every modified combination. |
 | `lock_group` | Shared target-file lock; all three list tweaks use `List2Ctrl`. |
@@ -40,9 +40,10 @@ Checksums detect accidental corruption; they are not package signatures.
 | Invocation | stdout / result |
 | --- | --- |
 | `status`, exit `0` | Exactly `installed` or `uninstalled`, followed by a newline. |
-| `status`, nonzero exit | Error, unknown or partial state; never display it as uninstalled. An error message is printed and details are logged on USB. |
-| `dialog` or no argument | Native Install / Uninstall / Exit dialog. |
-| `install` / `uninstall` | Direct action with textual progress; no GUI or automatic reboot. |
+| `status`, nonzero exit | Error, unknown or partial state; stdout remains empty, error text goes to stderr. Never display it as uninstalled. Details are logged on USB. |
+| No argument, `--help` or `-h` | Usage text, exit `0`; no mounts, reports or system writes. |
+| Unknown action or extra arguments | Error on stderr, nonzero exit; no mounts, reports or system writes. |
+| `install` / `uninstall` | Complete direct action with textual progress; no GUI, questions or automatic reboot. |
 | `restore` | Selective uninstall of this tweak only. |
 
 `status` currently needs a writable startup medium because its patch probes and
@@ -50,6 +51,12 @@ reports stay on USB. It leaves the system target untouched. For SSH, `installed`
 describes the boot hook, **not** current WLAN connectivity or a successful login.
 Live service health remains a separate concern. This limitation is explicit so
 the future menu does not present patch presence as full service verification.
+
+Version 2 removes the earlier prototype's `dialog` action and implicit GUI
+startup. A launcher must create any selection/confirmation before calling a
+worker, wait for the action to finish, and handle its exit code and messages.
+Display adapters and any final reboot question belong to that launcher. There
+is no dependency on MMUI or an interactive stdin in the tweak scripts.
 
 ## Reproducible installers without a CMU JSON dependency
 
@@ -74,13 +81,14 @@ new shared runtime dependency until upstream agrees how to organize helpers.
 
 ## Source layout and review boundaries
 
-`templates/run.sh.in` groups interface helpers, USB reports/cleanup, integrity,
+`templates/run.sh.in` groups text output, USB reports/cleanup, integrity,
 firmware checks, patch probes, verified writes and the short main flow.
 `templates/ssh-functions.sh.in` isolates SSH payload preparation and activation.
-Dialogs go through `info`, `confirm` and `ask`; `info` shows non-blocking progress.
-These functions can later move into common helpers without changing the tweaks.
+The main flow performs exactly the requested shell action. Technical helpers
+can later move into packaged libraries, provided an individually copied tweak
+still has everything it needs. UI helpers do not belong in these workers.
 
 The vehicle JavaScript diffs and SSH supervisor payload remain byte-identical
 to the preceding branch revision. No firmware file is normalized or regenerated
-by this refactor. The installer structure and GUI progress path require their
+by this refactor. The worker structure and its output contract require their
 own tests and are not automatically covered by the earlier vehicle evidence.

@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "shorter-delay",
   "name": "Shorter List Delay",
   "description": "Reduce the four list autoscroll delays and intervals.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "patch",
   "group": "interface",
   "firmware": [
@@ -11,7 +11,6 @@
   ],
   "entrypoint": "run.sh",
   "actions": [
-    "dialog",
     "install",
     "uninstall",
     "restore",

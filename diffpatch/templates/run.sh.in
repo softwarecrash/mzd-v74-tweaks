@@ -6,7 +6,6 @@ set -u
 # --- Tweak configuration ----------------------------------------------------
 # These paths are rendered from the manifest. Metadata is never sourced as code.
 ID=@ID@
-TITLE=@TITLE@
 APP=@TARGET@
 LOCK=/tmp/mzd-@GROUP@-tweak.lock
 
@@ -14,93 +13,56 @@ SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
 PATCH_FILE="$HERE/assets/change.patch"
 ORIGINAL=@ORIGINAL@
-ACTION=${1:-dialog}
+ACTION=${1:-}
 
 # Track only changes made by this invocation, so cleanup preserves prior state.
-UI=0
 ROOT_CHANGED=0
 RES_CHANGED=0
 WATCHDOG_CHANGED=0
 LOCKED=0
-REBOOT=0
-PROGRESS_ACTIVE=0
 
 
-# --- Interface helpers ------------------------------------------------------
-# Keep jci-dialog calls here, ready to replace with another dialog backend.
-# CLI calls print messages and never open dialogs or reboot automatically.
-dialog_kill() {
-    killall -q jci-dialog || :
-    PROGRESS_ACTIVE=0
-}
-
-# Non-blocking information while a modifying action is running.
-info() {
+# --- Text output ------------------------------------------------------------
+# A launcher can display these messages, but all decisions happen before it
+# invokes this script. Direct terminal use follows exactly the same workflow.
+report_message() {
     echo "$1"
     printf '%s\n' "$1" >&3
-
-    if [ "$UI" = 1 ]
-    then
-        dialog_kill
-        /jci/tools/jci-dialog --info --title="$TITLE" --text="$1" --no-cancel &
-        PROGRESS_ACTIVE=1
-    fi
-}
-
-# Blocking information for completion or errors.
-confirm() {
-    printf '%s\n' "$1" >&3
-
-    if [ "$UI" = 1 ]
-    then
-        dialog_kill
-        /jci/tools/jci-dialog --info --title="$TITLE" --text="$1" --no-cancel
-    fi
-}
-
-# Buttons return their native result: 0 = first, 1 = second, other = exit.
-ask() {
-    if [ "$UI" != 1 ]
-    then
-        return 1
-    fi
-
-    dialog_kill
-    if [ -n "${4:-}" ]
-    then
-        /jci/tools/jci-dialog --3-button-dialog --title="$TITLE" \
-            --text="$1" --ok-label="$2" --cancel-label="$3" --button3-label="$4"
-    else
-        /jci/tools/jci-dialog --question --title="$TITLE" \
-            --text="$1" --ok-label="$2" --cancel-label="$3"
-    fi
 }
 
 fail() {
     echo "ERROR: $*"
-    confirm "ERROR: $*
-Reports: $REPORT"
+    printf 'ERROR: %s\nReports: %s\n' "$*" "$REPORT" >&4
     exit 1
 }
 
 
 # --- Startup medium, reports and cleanup ------------------------------------
 parse_action() {
+    if [ "$#" -gt 1 ]
+    then
+        echo 'Expected exactly one action, or no arguments for usage.' >&2
+        usage >&2
+        exit 1
+    fi
+
     case "$ACTION" in
-        --help|-h)
-            echo 'Usage: sh run.sh [dialog|install|uninstall|restore|status]'
+        ''|--help|-h)
+            usage
             exit 0
-            ;;
-        dialog)
-            UI=1
             ;;
         install|uninstall|restore|status)
             ;;
         *)
-            echo 'Unknown action. Use dialog, install, uninstall, restore or status.' >&2
+            echo 'Unknown action. Use install, uninstall, restore or status.' >&2
             exit 1
             ;;
     esac
+}
+
+usage() {
+    echo 'Usage: sh run.sh <install|uninstall|restore|status>'
+    echo 'No arguments or --help: show usage without changing anything.'
 }
 
 open_report() {
@@ -121,8 +83,11 @@ open_report() {
     mkdir -p "$REPORT" || exit 1
     : > "$REPORT/run.log" || exit 1
 
-    # fd 3 retains the caller's stdout; detailed diagnostics go to the USB log.
+    # Keep caller output separate from the detailed USB log. Status writes only
+    # its state to fd 3; errors go to fd 4 so a launcher cannot mistake them for
+    # a valid state. Help and invalid arguments return before opening a report.
     exec 3>&1
+    exec 4>&2
     exec > "$REPORT/run.log" 2>&1
 }
 
@@ -130,10 +95,6 @@ finish() {
     _code=$?
     trap - 0
 
-    if [ "$PROGRESS_ACTIVE" = 1 ]
-    then
-        dialog_kill
-    fi
     if [ "$ROOT_CHANGED" = 1 ]
     then
         mount -o ro,remount / || _code=1
@@ -154,11 +115,6 @@ finish() {
     printf 'exit_code=%s\n' "$_code" > "$REPORT/status.txt"
     sync
 
-    # Cleanup must finish before an optional GUI-requested reboot.
-    if [ "$_code" = 0 ] && [ "$REBOOT" = 1 ]
-    then
-        reboot
-    fi
     exit "$_code"
 }
 
@@ -363,26 +319,8 @@ write_prepared_change() {
 
 @SSH_FUNCTIONS@
 
-# --- Action selection and completion ----------------------------------------
-select_action() {
-    if [ "$UI" = 1 ]
-    then
-        ask '@DESCRIPTION@\nWhat would you like to do?' Install Uninstall Exit
-        _choice=$?
-        case "$_choice" in
-            0)
-                ACTION=install
-                ;;
-            1)
-                ACTION=uninstall
-                ;;
-            *)
-                echo 'Cancelled. Nothing changed.'
-                exit 0
-                ;;
-        esac
-    fi
-
+# --- Action preparation and completion -------------------------------------
+prepare_action() {
     # Restore is selective removal, never a whole-file OEM overwrite.
     if [ "$ACTION" = restore ]
     then
@@ -400,14 +338,11 @@ select_action() {
 report_completion() {
     if [ "$NO_CHANGE" = 1 ]
     then
-        confirm "Requested setting is already present.
+        report_message "Requested setting is already present.
 Reports: $REPORT"
     else
-        printf '%s completed. Other changes were preserved.\nReports: %s\n' "$ACTION" "$REPORT" >&3
-        if ask 'Completed. Reboot to reload the system.' 'Reboot now' 'Reboot later'
-        then
-            REBOOT=1
-        fi
+        report_message "$ACTION completed. Other changes were preserved.
+Reports: $REPORT"
     fi
 }
 
@@ -415,7 +350,7 @@ Reports: $REPORT"
 # --- Main flow --------------------------------------------------------------
 # Keep the sequence visible: inspect first, prepare copies, write, then finish.
 main() {
-    parse_action
+    parse_action "$@"
     open_report
     trap finish 0
     trap 'exit 130' INT
@@ -432,13 +367,13 @@ main() {
         return 0
     fi
 
-    select_action
+    prepare_action
     if [ "$NO_CHANGE" = 0 ]
     then
         validate_original_backup
     fi
 
-    info "$ACTION in progress. Do not remove the USB drive."
+    report_message "$ACTION in progress. Do not remove the USB drive."
     @SSH_PREPARE@
     if [ "$NO_CHANGE" = 0 ]
     then
@@ -450,4 +385,4 @@ main() {
     return 0
 }
 
-main
+main "$@"

@@ -11,7 +11,7 @@ import re
 import shlex
 
 ROOT = Path(__file__).resolve().parent
-ACTIONS = ['dialog', 'install', 'uninstall', 'restore', 'status']
+ACTIONS = ['install', 'uninstall', 'restore', 'status']
 FIELDS = {
     'schema_version', 'id', 'name', 'description', 'version', 'type', 'group',
     'firmware', 'entrypoint', 'actions', 'target', 'original_md5', 'lock_group',
@@ -25,7 +25,7 @@ def read_manifest(folder):
     if b'\r' in raw:
         raise ValueError(f'{folder.name}: manifest must use LF')
     manifest = json.loads(raw)
-    if set(manifest) != FIELDS or manifest['schema_version'] != 1:
+    if set(manifest) != FIELDS or manifest['schema_version'] != 2:
         raise ValueError(f'{folder.name}: unsupported manifest fields/schema')
     if manifest['id'] != folder.name or not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', folder.name):
         raise ValueError(f'{folder.name}: invalid tweak ID')
@@ -62,9 +62,7 @@ def render(folder):
     ssh = manifest['id'] == 'ssh'
     values = {
         'ID': shlex.quote(manifest['id']),
-        'TITLE': shlex.quote(manifest['name']),
         'TITLE_COMMENT': manifest['name'],
-        'DESCRIPTION': manifest['description'],
         'TARGET': shlex.quote(manifest['target']),
         'ORIGINAL': manifest['original_md5'],
         'GROUP': manifest['lock_group'],

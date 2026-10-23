@@ -26,13 +26,23 @@ sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh status
 sh /tmp/mnt/sdb1/diffpatch/list-beep/run.sh uninstall
 ```
 
-Without an argument, or with `dialog`, `run.sh` shows the native Install / Uninstall / Exit
-dialog. `restore` is an alias for uninstalling **only that tweak**. The current
-working directory and the copied folder name do not matter. CLI installation
-does not reboot automatically; reboot the CMU to reload changed UI files.
-SSH starts immediately and also starts after reboot. The GUI offers a reboot
-after a successful change. These folders do not provide the MP3 entry point;
-use the existing upstream entry mechanism to obtain the shell first.
+Every `run.sh` is a shell-only worker: it performs the requested action without
+dialogs, confirmation prompts, MMUI calls or automatic reboot. Without an
+argument, or with `--help`, it prints usage and makes no changes. Unknown actions
+(including the removed `dialog` action) and extra arguments are rejected before
+mounts, reports or target writes. `restore` uninstalls **only that tweak**.
+
+The current working directory and copied folder name do not matter. Progress
+and completion are text on stdout; errors are on stderr, and failures return a
+nonzero exit code. `status` writes exactly `installed` or `uninstalled` to stdout
+on success. Detailed reports remain on the startup USB drive.
+
+An installer can read the manifests, display its own selection/confirmation,
+then call these same actions sequentially and present their results. The
+installer owns the display implementation and any reboot question. Direct shell
+users reboot the CMU themselves to reload changed UI files. SSH starts
+immediately and also starts after reboot. These folders do not provide the MP3
+entry point; use the existing upstream entry mechanism to obtain a shell first.
 
 ## Patching and backups
 

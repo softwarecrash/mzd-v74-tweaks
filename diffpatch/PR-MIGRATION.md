@@ -22,8 +22,11 @@ layout remain proposals in issue #11.
 - Five versioned JSON manifests, schema documentation and checked ZIP inclusion.
 - Readable shell sections, named validation/write functions, comments explaining
   rollback and patch-state detection, and a short top-level workflow.
-- Dialog wrappers and non-blocking installation/uninstallation information.
-- Explicit `dialog` documentation and a recorded status-output contract.
+- Shell-only workers with textual progress, errors and a recorded status-output
+  contract. Usage-only startup replaces the earlier prototype's implicit GUI.
+- Display/confirmation/reboot handling assigned to the launcher, not individual
+  tweaks. This follows the owner's clarified architecture; the review's dialog
+  abstraction belongs on the launcher side in this design.
 - OEM checksums maintained in manifests and rendered into independent scripts;
   a reproducibility check prevents those copies from drifting apart.
 - Original patch files and SSH supervisor/configuration kept unchanged.
@@ -32,12 +35,14 @@ layout remain proposals in issue #11.
 
 If the maintainer wants the contributions before the restructuring:
 
-1. Apply a readability-only follow-up to #17: sections, comments, named helpers,
-   dialog progress and corrected docs. Retain its targeted AWK backend and the
-   existing feature-specific tests to keep the review focused.
+1. Apply a readability-only follow-up to #17: sections, comments, named technical
+   helpers and corrected docs. Retain its targeted AWK backend and the existing
+   feature-specific tests to keep the review focused. Agree with the maintainer
+   how the existing launcher should supply dialogs before removing any current
+   PR entry behaviour; the experimental branch now uses shell-only workers.
 2. Apply the same agreed style to #15, #16 and #18. Keep each tweak in its own PR,
    even though three of them modify the same file.
-3. Apply the corresponding installer/dialog structure to SSH #14 while keeping
+3. Apply the corresponding worker structure to SSH #14 while keeping
    its separately verified service implementation and lifecycle tests intact.
 4. Move to manifests/shared helpers in a later coordinated restructuring.
    Do not add an unagreed launcher framework to individual feature PRs.

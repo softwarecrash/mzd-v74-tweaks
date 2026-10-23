@@ -110,9 +110,9 @@ ssh_complete() {
         fi
         sync
 
-        # Close the caller's stdout in the detached supervisor. It handles its
+        # Close both caller streams in the detached supervisor. It handles its
         # own USB runtime logs and does not require WLAN to have an address yet.
-        sh "$SERVICE/service.sh" boot "$USB" >/dev/null 2>&1 3>&- &
+        sh "$SERVICE/service.sh" boot "$USB" >/dev/null 2>&1 3>&- 4>&- &
         sleep 2
         if ! sh "$SERVICE/service.sh" status
         then

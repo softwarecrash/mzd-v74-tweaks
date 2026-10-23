@@ -2,10 +2,13 @@
 
 Wrap between the first and last main-menu icons.
 
-Run `sh run.sh` or `sh run.sh dialog` for screen dialogs, or use `install`, `uninstall`,
-`restore`, or `status`. Resolve the script from its actual USB location; the
-current working directory does not matter. This folder contains all its assets
-and can be copied to a USB independently. `restore` removes only this tweak.
+Run `sh run.sh install`, `sh run.sh uninstall`, `sh run.sh restore`, or
+`sh run.sh status` directly from a shell. Without an argument (or with `--help`),
+the script prints usage and changes nothing. It never opens dialogs, asks
+questions or reboots the CMU. An installer can supply its own UI before invoking
+these same actions. Progress is text on stdout; errors use stderr and a nonzero
+exit code. The current working directory does not matter, and the folder can be
+copied independently. `restore` removes only this tweak.
 
 The only target file is `/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js`. `assets/change.patch` contains the exact
 previously verified change. The original checksum is

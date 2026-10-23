@@ -50,19 +50,10 @@ class Fixture:
         write(self.mounts,f'mock {bp(self.usb)} vfat rw 0 0\nroot / relfs ro 0 0\nres {bp(self.resources)} relfs ro 0 0\n')
         write(self.version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n')
         write(self.events,'')
-        for name in ['sync','killall','reboot']:
-            write(self.bins/name,f'#!/bin/sh\necho {name} >> "{bp(self.events)}"\n')
-        # Model button results and record dialogs without opening a real UI.
-        write(self.bins/'jci-dialog',f'''#!/bin/sh
-printf 'dialog %s\\n' "$*" >> "{bp(self.events)}"
-case "$1" in
-  --3-button-dialog) /bin/cat "{bp(self.tmp/'dialog-choice')}"; exit "$(/bin/cat "{bp(self.tmp/'dialog-choice')}")" ;;
-  --question) exit 1 ;;
-  --info) exit 0 ;;
-  *) exit 2 ;;
-esac
-''')
-        write(self.tmp/'dialog-choice','0\n')
+        write(self.bins/'sync', f'#!/bin/sh\necho sync >> "{bp(self.events)}"\n')
+        # A tweak must never open/close UI processes or restart the CMU.
+        for name in ['jci-dialog', 'killall', 'reboot']:
+            write(self.bins/name, f'#!/bin/sh\necho FORBIDDEN-{name} >> "{bp(self.events)}"\nexit 97\n')
         write(self.bins/'mount',f'''#!/bin/sh
 if [ "$3" = / ] && [ "$2" = rw,remount ] && [ -f "{bp(self.tmp/'fail-mount')}" ]; then exit 1; fi
 if [ "$3" = / ] || [ "$3" = "{bp(self.resources)}" ]; then
@@ -83,7 +74,10 @@ exec /bin/cat "$@"
 D=$(CDPATH= cd "$(dirname "$0")" && pwd)
 case "$1" in
 check) [ ! -f "{bp(self.tmp/'foreign-port')}" ] ;;
-boot) [ ! -f "{bp(self.tmp/'fail-start')}" ] && [ -f "$D/enabled" ] && echo running > "$D/running" ;;
+boot)
+  # A detached service must not retain the launcher's stdout/stderr pipes.
+  if ( : >&3 ) 2>/dev/null || ( : >&4 ) 2>/dev/null; then exit 1; fi
+  [ ! -f "{bp(self.tmp/'fail-start')}" ] && [ -f "$D/enabled" ] && echo running > "$D/running" ;;
 status) [ -f "$D/running" ] ;;
 stop) rm -f "$D/running" ;;
 *) exit 1 ;;
@@ -105,51 +99,55 @@ esac
         source = source.replace('/proc/mounts',bp(self.mounts)).replace('/jci/version.ini',bp(self.version))
         source = source.replace('/sys/class/gpio/Watchdog\\ Disable/value',bp(self.gpio))
         source = source.replace('/tmp/mnt/resources',bp(self.resources))
-        source = source.replace('/jci/tools/jci-dialog',bp(self.bins/'jci-dialog'))
         source = source.replace('#!/bin/sh\n','#!/bin/sh\nPATH="'+bp(self.bins)+':/usr/bin:/bin"\nexport PATH\n',1)
         write(self.script,source)
         checksum(self.script)
 
-    def run(self, action, code=0, contains=''):
-        result = subprocess.run([SHELL,bp(self.script),action],capture_output=True,timeout=25)
+    def run(self, action=None, code=0, contains=''):
+        args = [] if action is None else [action] if isinstance(action, str) else action
+        result = subprocess.run([SHELL,bp(self.script),*args],capture_output=True,timeout=25)
+        self.stdout = result.stdout.decode(errors='replace')
+        self.stderr = result.stderr.decode(errors='replace')
         output = result.stdout.decode(errors='replace')+result.stderr.decode(errors='replace')
         assert result.returncode == code, output
         assert contains in output, output
         assert self.gpio.read_text().strip() == '0'
         assert 'root / relfs ro ' in self.mounts.read_text()
         assert not (self.tmp/'lock').exists()
-        assert 'reboot' not in self.events.read_text()
+        assert 'FORBIDDEN-' not in self.events.read_text()
         return output
 
     def close(self): self.temporary.cleanup()
 
 class StandaloneInstallers(unittest.TestCase):
-    def test_dialog_flow_and_status_contract(self):
-        f = Fixture('list-loop')
-        try:
-            self.assertEqual(f.run('status').strip(), 'uninstalled')
-            self.assertNotIn('dialog ', f.events.read_text())
-            f.run('dialog')
-            self.assertEqual(f.app.read_bytes(), INSTALLED)
-            events = f.events.read_text()
-            self.assertIn('--3-button-dialog', events)
-            self.assertIn('--text=install in progress.', events)
-            self.assertIn('--question', events)
-            self.assertEqual(f.run('status').strip(), 'installed')
-            write(f.tmp/'dialog-choice', '1\n')
-            f.run('dialog')
-            self.assertEqual(f.app.read_bytes(), ORIGINAL)
-            self.assertIn('--text=uninstall in progress.', f.events.read_text())
-            write(f.tmp/'dialog-choice', '2\n')
-            f.run('dialog')
-            self.assertEqual(f.app.read_bytes(), ORIGINAL)
-            # Metadata changes must be caught before any target write.
-            with (f.folder/'manifest.json').open('a') as manifest:
-                manifest.write('\n')
-            f.run('status', 1, 'checksum mismatch')
-            self.assertEqual(f.app.read_bytes(), ORIGINAL)
-        finally:
-            f.close()
+    def test_headless_usage_and_status_contract(self):
+        for id in [*UI_IDS, 'ssh']:
+            with self.subTest(tweak=id):
+                f = Fixture(id)
+                try:
+                    for action in (None, '--help', '-h'):
+                        f.run(action, contains='Usage:')
+                    for action in ('dialog', 'unknown', ['install', 'extra']):
+                        f.run(action, 1)
+                        self.assertEqual(f.stdout, '')
+                        self.assertTrue(f.stderr)
+                    # Help/invalid actions return before mounts, logs or writes.
+                    self.assertEqual(f.events.read_text(), '')
+                    self.assertFalse((f.usb/'reports').exists())
+                    self.assertFalse(f.backup.exists())
+                    self.assertEqual(f.app.read_bytes(), f.original)
+
+                    self.assertEqual(f.run('status'), 'uninstalled\n')
+                    self.assertEqual(f.stderr, '')
+                    # Errors use stderr, not the machine-readable state channel.
+                    with (f.folder/'manifest.json').open('a') as manifest:
+                        manifest.write('\n')
+                    f.run('status', 1, 'checksum mismatch')
+                    self.assertEqual(f.stdout, '')
+                    self.assertIn('Reports:', f.stderr)
+                    self.assertEqual(f.app.read_bytes(), f.original)
+                finally:
+                    f.close()
 
     def test_ui_lifecycle_and_failures(self):
         for id in UI_IDS:
@@ -158,6 +156,8 @@ class StandaloneInstallers(unittest.TestCase):
                 try:
                     f.run('status',contains='uninstalled')
                     f.run('install',contains='install completed')
+                    self.assertEqual(f.run('status'), 'installed\n')
+                    self.assertEqual(f.stderr, '')
                     self.assertEqual(f.app.read_bytes(),INSTALLED)
                     self.assertEqual(f.backup.read_bytes(),ORIGINAL)
                     f.run('install',contains='already present')
