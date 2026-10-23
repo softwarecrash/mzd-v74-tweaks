@@ -7,25 +7,22 @@ Python or JSON parser is needed on the CMU.
 
 The common contract is the shell interface (`install`, `uninstall`, `status`),
 output/exit rules and the manifest. Each worker owns its implementation and
-lifecycle. Shared runtime libraries are optional for future tweaks, not a
-requirement of that contract. See [MANIFEST.md](MANIFEST.md).
+lifecycle. Shared helpers can be considered after migration and installer
+integration. See [MANIFEST.md](MANIFEST.md).
 
 ## Repository layout
 
 ```text
-lib/                        # Optional helper sources; no runtime dependency of these five
 tweaks/<id>/                 # Worker, manifest and tweak-specific assets
-build/tweaks/                # Renderer, package builder and shell templates
-tests/tweaks/                # Worker, metadata/package and SSH supervisor tests
+tests/tweaks/                # Worker, metadata and SSH supervisor tests
 docs/tweaks/                 # Usage and implementation notes
 schemas/tweak-manifest.schema.json
 ```
 
 A single tweak needs only its own complete folder; its position/name and the
-caller's working directory do not matter. The existing checked package contains
-all five folders, documentation and the schema. It includes no shared libraries,
-build tools, tests, MP3 entry assets or replacement launcher. No per-tweak ZIPs
-or new package-generation step are needed.
+caller's working directory do not matter. Copy the complete `tweaks/` directory
+to use all five tweaks, or copy just the required tweak folder. No packaging
+script or code generation is required.
 
 | Folder | Function |
 | --- | --- |
@@ -65,24 +62,22 @@ entry point; use the existing upstream entry mechanism to obtain a shell first.
 can collect successful UI changes and offer one final reboot. The workers never
 reboot, and the flag describes how changes become effective, not vehicle-test
 coverage. The current upstream launcher/release recipe is unchanged; use the
-separate package command below for this experimental structure.
+standalone folders for this experimental structure.
 
 ## Independent implementations
 
-The five `run.sh` files contain their technical helpers directly. The development
-renderer embeds reviewed helper source when updating these scripts; neither the
-renderer nor its source inputs are needed on USB. Repeated helper code in the
-resulting workers is intentional.
+The five `run.sh` files are maintained directly and contain their technical
+helpers locally. Repeated helper code is intentional at this stage. Edit the
+worker itself and refresh its `run.sh.md5` sidecar after a change.
 
 Other tweaks can implement their own commands, file-copy or native-service
-workflow. They need to follow the same shell/manifest contract, not this template.
-Optional libraries are documented in [LIBRARIES.md](LIBRARIES.md); none of the
-five reference manifests declares them. Existing upstream installers still need
-individual adaptation and validation.
+workflow. They follow the same shell/manifest contract. Shared-code extraction
+is a later step based on the migrated tweaks. Existing upstream installers still
+need individual adaptation and validation.
 
 The manifest declares supported firmware; each worker must enforce that support.
 It does not prevent implementation differences or replace conflict, backup and
-rollback checks. CI checks the generated workers and the shared external contract.
+rollback checks. CI checks the workers and the shared external contract.
 
 ## Patching and backups
 
@@ -152,17 +147,16 @@ commands. They do not emulate Opera or prove a real network connection:
 
 ```sh
 python3 tests/tweaks/test_installers.py
-python3 tests/tweaks/test_libraries.py
 python3 tests/tweaks/test_ssh_service.py
 python3 tests/tweaks/test_metadata.py
-python3 build/tweaks/render_installers.py --check
 ```
 
 On Windows these tests use Git for Windows Bash; on Linux they use `/bin/sh`.
-Build a checked ZIP containing all five folders (without test tools) with:
+No build is required. After editing a worker, refresh its checksum from inside
+that tweak folder and run the tests above:
 
 ```sh
-python3 build/tweaks/package.py path/to/diffpatch.zip
+md5sum run.sh > run.sh.md5
 ```
 
 See [PR-MIGRATION.md](PR-MIGRATION.md) for the review follow-up and the options

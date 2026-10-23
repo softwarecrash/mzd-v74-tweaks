@@ -30,7 +30,7 @@ layout remain proposals in issue #11.
 - Display/confirmation/reboot handling assigned to the launcher, not individual
   tweaks. This follows the owner's clarified architecture; the review's dialog
   abstraction belongs on the launcher side in this design.
-- OEM checksums maintained in manifests and rendered into independent scripts;
+- OEM checksums maintained consistently in manifests and independent scripts;
   a reproducibility check prevents those copies from drifting apart.
 - Original patch files and SSH supervisor/configuration kept unchanged.
 
@@ -79,9 +79,9 @@ and final-wrapper vehicle tests before treating it as the replacement.
 ## Current working direction
 
 Continue with route B and the standalone structure: runtime folders under
-`tweaks/`, tooling under `build/tweaks/`, tests under `tests/tweaks/`, documents
+`tweaks/`, tests under `tests/tweaks/`, documents
 under `docs/tweaks/`, and the schema under `schemas/`. Agree the remaining
-manifest/category/helper details before integrating the launcher.
+manifest/category details before integrating the launcher.
 
 Keep the five existing PRs available and unchanged until the replacement path
 is ready for review. This preparation changes only the experimental branch;

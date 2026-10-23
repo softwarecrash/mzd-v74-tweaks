@@ -93,33 +93,6 @@
     },
     "reboot_required": {
       "type": "boolean"
-    },
-    "library_api": {
-      "const": 2,
-      "type": "integer"
-    },
-    "libraries": {
-      "type": "array",
-      "items": {
-        "enum": [
-          "common",
-          "system",
-          "patch"
-        ]
-      },
-      "uniqueItems": true,
-      "minItems": 1,
-      "contains": {
-        "const": "common"
-      }
     }
-  },
-  "dependentRequired": {
-    "libraries": [
-      "library_api"
-    ],
-    "library_api": [
-      "libraries"
-    ]
   }
 }

@@ -1,3 +1,5 @@
-# Runtime library bytes must match their checksums on Windows too.
-/lib/*.sh text eol=lf
-/lib/*.sh.md5 text eol=lf
+# Keep standalone development files consistent on Windows and Linux.
+/tests/tweaks/*.py text eol=lf
+/docs/tweaks/*.md text eol=lf
+/schemas/tweak-manifest.schema.json text eol=lf
+/.github/workflows/diffpatch.yml text eol=lf
