@@ -1,5 +1,0 @@
-# Keep standalone development files consistent on Windows and Linux.
-/tests/tweaks/*.py text eol=lf
-/docs/tweaks/*.md text eol=lf
-/schemas/tweak-manifest.schema.json text eol=lf
-/.github/workflows/diffpatch.yml text eol=lf

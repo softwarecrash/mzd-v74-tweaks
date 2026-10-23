@@ -4,11 +4,6 @@ A collection of tweaks and modifications for the Mazda infotainment system (CMU 
 
 ## System Requirements
 
-Development branch: the standalone workers are now under [`tweaks/`](tweaks/).
-See [their documentation](docs/tweaks/README.md) and the
-[manifest contract](docs/tweaks/MANIFEST.md). They use a separate package builder;
-the existing launcher and release workflow below have not been migrated yet.
-
 - **Infotainment System**: MZD Connect (CMU firmware version **74.00.324 only**)
 - **USB Drive**: FAT32 formatted USB flash drive (up to 32 GB)
 - **Input Device**: None for the launcher. A USB keyboard is needed only for the alternative terminal workflow.

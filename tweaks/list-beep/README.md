@@ -1,6 +1,6 @@
-# Shorter List Delay
+# No List Beep
 
-Reduce the four list autoscroll delays and intervals.
+Mute the two long multicontroller list beeps.
 
 Run `sh run.sh install`, `sh run.sh uninstall`, or `sh run.sh status` directly from a shell. Without an argument (or with `--help`),
 the script prints usage and changes nothing. It never opens dialogs, asks
@@ -20,8 +20,8 @@ other tweaks. Existing unknown/corrupt originals are refused.
 No patch is applied directly to the system file. Both directions are tested
 on copies on the startup medium, with inverse byte comparisons; partial or
 ambiguous states are refused. Reports and rollback copies go to
-`reports/diffpatch/shorter-delay-*/` at the root of that medium. See [README.md](README.md)
+`reports/diffpatch/list-beep-*/` at the root of that medium. See [the overview](../README.md)
 for verification, reboot and SSH details.
 
 `manifest.json` provides discovery metadata and the OEM checksum. See
-[MANIFEST.md](MANIFEST.md) for the proposed menu/status contract.
+[the overview](../README.md) for the proposed menu/status contract.
