@@ -1,0 +1,4 @@
+* text eol=lf
+# Runtime payloads remain byte-exact, including any future mixed line endings.
+**/assets/** -text
+*.patch whitespace=-blank-at-eol,-blank-at-eof

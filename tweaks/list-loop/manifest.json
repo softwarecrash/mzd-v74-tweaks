@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "id": "list-loop",
+  "name": "List Loop",
+  "description": "Wrap between the first and last selectable list items.",
+  "version": "0.4.0",
+  "type": "patch",
+  "group": "interface",
+  "firmware": [
+    "74.00.324"
+  ],
+  "entrypoint": "run.sh",
+  "actions": [
+    "install",
+    "uninstall",
+    "status"
+  ],
+  "target": "/jci/gui/common/controls/List2/js/List2Ctrl.js",
+  "original_md5": "e111883b9dcbeb6bb154521826fcacac",
+  "lock_group": "List2Ctrl",
+  "status_scope": "target-patch",
+  "reboot_required": true
+}

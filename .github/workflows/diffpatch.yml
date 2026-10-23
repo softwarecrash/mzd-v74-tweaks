@@ -1,9 +1,9 @@
-name: Standalone diffpatch tests
+name: Standalone tweak tests
 on:
   push:
-    paths: ['diffpatch/**', '.github/workflows/diffpatch.yml']
+    paths: ['tweaks/**', 'build/tweaks/**', 'tests/tweaks/**', 'docs/tweaks/**', 'schemas/**', '.github/workflows/diffpatch.yml']
   pull_request:
-    paths: ['diffpatch/**', '.github/workflows/diffpatch.yml']
+    paths: ['tweaks/**', 'build/tweaks/**', 'tests/tweaks/**', 'docs/tweaks/**', 'schemas/**', '.github/workflows/diffpatch.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,14 +15,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check shell syntax
         run: |
-          for f in diffpatch/*/run.sh diffpatch/ssh/assets/service.sh; do
+          for f in tweaks/*/run.sh tweaks/ssh/assets/service.sh; do
             sh -n "$f" || exit 1
           done
       - name: Exercise standalone installers
-        run: python3 diffpatch/tests/test_installers.py
+        run: python3 tests/tweaks/test_installers.py
       - name: Verify manifests and reproducible installers
-        run: python3 diffpatch/tests/test_metadata.py
+        run: python3 tests/tweaks/test_metadata.py
       - name: Exercise SSH supervisor
-        run: python3 diffpatch/tests/test_ssh_service.py
+        run: python3 tests/tweaks/test_ssh_service.py
       - name: Package and verify all assets
-        run: python3 diffpatch/package.py "$RUNNER_TEMP/diffpatch.zip"
+        run: python3 build/tweaks/package.py "$RUNNER_TEMP/tweaks.zip"

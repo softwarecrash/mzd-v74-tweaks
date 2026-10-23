@@ -1,0 +1,23 @@
+{
+  "schema_version": 3,
+  "id": "main-menu-loop",
+  "name": "Main Menu Loop",
+  "description": "Wrap between the first and last main-menu icons.",
+  "version": "0.4.0",
+  "type": "patch",
+  "group": "interface",
+  "firmware": [
+    "74.00.324"
+  ],
+  "entrypoint": "run.sh",
+  "actions": [
+    "install",
+    "uninstall",
+    "status"
+  ],
+  "target": "/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js",
+  "original_md5": "40ccb293b8c6f80960f0b953dd2e173e",
+  "lock_group": "MainMenuCtrl",
+  "status_scope": "target-patch",
+  "reboot_required": true
+}
