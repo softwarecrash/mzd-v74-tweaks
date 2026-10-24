@@ -1,0 +1,13 @@
+{
+  "schema_version": 7,
+  "id": "hello",
+  "name": "Hello Example",
+  "description": "Print HELLO without changing the system.",
+  "version": "0.1.0",
+  "type": "command",
+  "group": "examples",
+  "firmware": ["74.00.324"],
+  "entrypoint": "run.sh",
+  "actions": ["run"],
+  "reboot_required": false
+}

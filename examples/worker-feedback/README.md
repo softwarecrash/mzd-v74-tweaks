@@ -1,5 +1,8 @@
 # Returning worker results to the launcher
 
+For a minimal real one-shot command, see [hello/](hello/README.md). Its `run.sh run`
+prints `HELLO`; its manifest illustrates the proposed command interface.
+
 The current launcher is **shell code**, not a JavaScript installer:
 
 ```text
