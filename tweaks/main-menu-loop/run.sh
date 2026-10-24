@@ -84,10 +84,19 @@ mzd_fail() {
   then
     printf 'ERROR: %s\n' "$*"
     printf 'ERROR: %s\nReports: %s\n' "$*" "$MZD_REPORT" >&4
+    : > "$MZD_REPORT/error-reported" 2>/dev/null || :
   else
     printf 'ERROR: %s\n' "$*" >&2
   fi
-  exit 1
+  exit "${MZD_FAILURE_CODE:-1}"
+}
+
+# Persist severity because patch helpers run in subshells.
+# Exit 2 means manual intervention is required; never continue or reboot.
+mzd_fatal() {
+  printf '%s\n' "$*" > "$MZD_REPORT/critical-error" || :
+  MZD_FAILURE_CODE=2
+  mzd_fail "$@"
 }
 
 # Explicit session start: script path, tweak ID, optional cleanup function.
@@ -120,12 +129,34 @@ mzd_begin() {
 mzd_finish() {
   MZD_EXIT=$?
   trap - 0
-  if [ -n "$MZD_CLEANUP" ]
+  if [ -n "$MZD_CLEANUP" ] && ! "$MZD_CLEANUP"
   then
-    "$MZD_CLEANUP" || MZD_EXIT=1
+    printf 'ERROR: Cleanup failed; system state could not be fully restored. Do NOT reboot.\nReports: %s\n' "$MZD_REPORT" >&4
+    MZD_EXIT=2
   fi
-  printf 'exit_code=%s\n' "$MZD_EXIT" > "$MZD_REPORT/status.txt" || MZD_EXIT=1
+  if [ -f "$MZD_REPORT/critical-error" ]
+  then
+    MZD_EXIT=2
+  fi
+  if [ "$MZD_EXIT" != 0 ] && [ ! -f "$MZD_REPORT/error-reported" ]
+  then
+    printf 'ERROR: Operation failed or was interrupted (exit %s). Check the report before continuing.\nReports: %s\n' "$MZD_EXIT" "$MZD_REPORT" >&4
+  fi
+  if ! printf 'exit_code=%s\n' "$MZD_EXIT" > "$MZD_REPORT/status.txt"
+  then
+    printf 'ERROR: Cannot save the final result. Check USB storage.\nReports: %s\n' "$MZD_REPORT" >&4
+    [ "$MZD_EXIT" = 0 ] && MZD_EXIT=1
+  fi
   sync
+  # Never announce success before cleanup and result recording have succeeded.
+  if [ "$MZD_EXIT" = 0 ] && [ -n "${MZD_SUCCESS:-}" ]
+  then
+    mzd_report_message "$MZD_SUCCESS"
+  fi
+  if [ "$MZD_EXIT" = 0 ] && [ -n "${MZD_STATUS:-}" ]
+  then
+    printf '%s\n' "$MZD_STATUS" >&3
+  fi
   exit "$MZD_EXIT"
 }
 
@@ -367,7 +398,7 @@ mzd_patch_apply() (
   then
     cat "$context/before.data" > "$target"
     sync
-    [ "$(mzd_hash "$target")" = "$before" ] || mzd_fail 'Write AND rollback failed. Do NOT reboot the CMU.'
+    [ "$(mzd_hash "$target")" = "$before" ] || mzd_fatal 'Write AND rollback failed. Do NOT reboot the CMU.'
     mzd_fail 'Write failed; the complete previous file was restored.'
   fi
 )
@@ -381,11 +412,11 @@ mzd_patch_rollback() (
   desired=$(cat "$context/desired.md5") || exit 1
   current=$(mzd_hash "$target")
   [ "$current" = "$before" ] && exit 0
-  [ "$current" = "$desired" ] || mzd_fail 'Rollback target changed. Do NOT reboot.'
-  [ "$(mzd_hash "$context/before.data")" = "$before" ] || mzd_fail 'Rollback copy changed. Do NOT reboot.'
+  [ "$current" = "$desired" ] || mzd_fatal 'Rollback target changed. Do NOT reboot.'
+  [ "$(mzd_hash "$context/before.data")" = "$before" ] || mzd_fatal 'Rollback copy changed. Do NOT reboot.'
   cat "$context/before.data" > "$target"
   sync
-  [ "$(mzd_hash "$target")" = "$before" ] || mzd_fail 'Rollback failed. Do NOT reboot.'
+  [ "$(mzd_hash "$target")" = "$before" ] || mzd_fatal 'Rollback failed. Do NOT reboot.'
 )
 
 # --- Tweak configuration --------------------------------------------------
@@ -419,7 +450,7 @@ mzd_patch_prepare "$APP" "$PATCH_FILE" "$ORIGINAL" "$CONTEXT" || exit 1
 STATE=$(mzd_patch_state "$CONTEXT") || exit 1
 if [ "$ACTION" = status ]
 then
-    printf '%s\n' "$STATE" >&3
+    MZD_STATUS=$STATE
     exit 0
 fi
 
@@ -443,16 +474,16 @@ if [ "$NO_CHANGE" = 0 ]
 then
     mzd_system_watchdog_disable || exit 1
     mzd_system_remount_rw / || exit 1
-    mzd_patch_apply "$CONTEXT" "$ACTION" || exit 1
+    mzd_patch_apply "$CONTEXT" "$ACTION" || exit $?
 fi
 : # No service-specific completion.
 
 # Report completion; the launcher owns dialogs and any reboot decision.
 if [ "$NO_CHANGE" = 1 ]
 then
-    mzd_report_message "Requested setting is already present.
+    MZD_SUCCESS="Requested setting is already present.
 Reports: $MZD_REPORT"
 else
-    mzd_report_message "$ACTION completed. Other changes were preserved.
+    MZD_SUCCESS="$ACTION completed. Other changes were preserved.
 Reports: $MZD_REPORT"
 fi

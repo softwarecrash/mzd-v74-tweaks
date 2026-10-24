@@ -25,3 +25,13 @@ for verification, reboot and SSH details.
 
 `manifest.json` provides discovery metadata and the OEM checksum. See
 [the overview](../README.md) for the proposed menu/status contract.
+
+## Results for callers
+
+Capture stdout, stderr and the exit status separately. Exit `0` means success;
+`1` means an ordinary failure; `2` means a critical failure requiring manual
+intervention (for example failed rollback or failed system-state cleanup).
+Signals can return `130`/`143`. Never infer success from progress text alone.
+Final success/status output is emitted only after cleanup and result recording
+succeed. Errors include the USB report path where available. A critical failure
+must stop the launcher's remaining actions and must not offer an automatic reboot.
