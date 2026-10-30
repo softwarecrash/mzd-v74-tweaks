@@ -66,6 +66,19 @@ for id_, runner in CASES.items():
         # A status query, blocked action or help must never reach these commands.
         for name in ['mount', 'sync', 'iptables', 'reboot', 'killall', 'sshd', 'ssh-keygen']:
             write(bins / name, '#!/bin/sh\nprintf "%s\\n" ' + name + ' >> ' + shlex.quote(bp(events)) + '\nexit 90\n')
+        if id_ == 'hud-street-name':
+            write(bins / 'dbus-send', '''#!/bin/sh
+case "${TEST_HUD:-whud}:$*" in
+    none:*byte:13*) printf '   byte 0\\n' ;;
+    unknown:*) exit 1 ;;
+    mono:*byte:13*|combiner:*byte:13*) printf '   byte 1\\n' ;;
+    mono:*byte:26*) printf '   byte 0\\n' ;;
+    combiner:*byte:26*) printf '   byte 1\\n' ;;
+    *byte:13*) printf '   byte 1\\n' ;;
+    *byte:26*) printf '   byte 2\\n' ;;
+    *) exit 1 ;;
+esac
+''')
         if os.environ.get('CMU_TEST_BUSYBOX'):
             busybox = shutil.which('busybox')
             assert busybox, 'BusyBox requested but missing.'
@@ -125,6 +138,13 @@ for id_, runner in CASES.items():
             print('PASS', id_, ' '.join(action) or 'usage', state or code, flush=True)
             return result
         run(['status'], 'uninstalled')
+        if id_ == 'hud-street-name':
+            for hud in ['mono', 'combiner', 'none', 'unknown']:
+                env['TEST_HUD'] = hud
+                run(['status'], 'unavailable', reason=True)
+                run(['install'], code=1)
+            env['TEST_HUD'] = 'whud'
+            run(['status'], 'uninstalled')
         for action in [[], ['--help'], ['-h']]:
             assert 'Usage:' in run(action).stdout
         run(['unknown'], code=1); run(['status', 'extra'], code=1)
@@ -138,6 +158,19 @@ for id_, runner in CASES.items():
                 shutil.copyfile(worker / 'assets' / name, service / name)
             write(service / 'enabled', 'enabled\n')
         run(['status'], 'installed')
+        if id_ == 'hud-street-name':
+            env['TEST_HUD'] = 'mono'
+            run(['status'], 'broken', reason=True)
+            env['TEST_HUD'] = 'whud'
+            result = run(['status'], 'installed')
+            assert 'Detected compatible color windshield HUD.' not in result.stderr
+            for hud in ['mono', 'combiner', 'none', 'unknown']:
+                env['TEST_HUD'] = hud
+                run(['status'], 'broken', reason=True)
+                run(['install'], code=1)
+                run(['uninstall'], code=1)
+            env['TEST_HUD'] = 'whud'
+            run(['status'], 'installed')
         write(backup, 'corrupt original backup\n')
         run(['status'], 'broken', reason=True)
         write(backup, original)
@@ -164,7 +197,9 @@ for id_, runner in CASES.items():
             hunks = patch.count('\n@@ ')
             match = list(re.finditer(r'^@@ .*\n', patch, re.M))[-1]
             context = next(line[1:] for line in patch[match.end():].splitlines() if line.startswith('+') and line[1:].strip())
-            write(target, installed.replace(context, context + ' // damaged', 1))
+            position = installed.rfind(context)
+            assert position >= 0, (id_, 'last patch context not found')
+            write(target, installed[:position] + installed[position:].replace(context, context + ' // damaged', 1))
             run(['status'], 'broken' if hunks > 1 else 'unavailable', reason=True)
         write(target, 'unsupported target content\n')
         if service.exists(): shutil.rmtree(service)
@@ -293,7 +328,7 @@ esac
             (base / 'fail-start').unlink(); mutate('uninstall')
             mutate('install'); write(base / 'fail-stop', 'yes'); mutate('uninstall', 2)
             (base / 'fail-stop').unlink(); mutate('uninstall')
-        if id_ in ['list-beep', 'ssh']:
+        if id_ in ['list-beep', 'ssh', 'hud-street-name']:
             # The real worker must also work from its persistent package with
             # its own helpers and reports still written to the originating USB.
             persist=base/'persist';persist.mkdir()
