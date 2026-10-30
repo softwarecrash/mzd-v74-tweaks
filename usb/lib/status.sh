@@ -61,7 +61,7 @@ mzd_status_dependencies() (
 )
 
 mzd_read_status() (
-    ACTION=status
+    ACTION=${ACTION:-status}
     [ ! -e "$LOCK" ] || mzd_fail 'Target is busy; retry status after the other operation.'
     mzd_require_assets "$SELF" "$HERE/manifest.conf" "$PATCH_FILE" || exit 1
     if command -v mzd_status_assets >/dev/null 2>&1; then mzd_status_assets || exit 1; fi
@@ -135,10 +135,15 @@ mzd_read_status() (
         fi
     fi
     if [ "$state" = installed ] || [ "$state" = uninstalled ]; then
+        case "${MZD_PACKAGE_STATE:-}:$state" in
+            uninstalling:uninstalled|restoring:uninstalled) ;;
+            *)
         if ! mzd_status_dependencies 2> "$MZD_REPORT/prerequisites.txt"; then
             reason=$(cat "$MZD_REPORT/prerequisites.txt")
             if [ "$state" = installed ]; then state=broken; else state=unavailable; fi
         fi
+                ;;
+        esac
     fi
     mzd_status_emit "$state" "${reason:-}"
 )
