@@ -1,0 +1,82 @@
+--- target.data
++++ target.data
+@@ -3412,7 +3412,7 @@
+ vehsettingsApp.prototype._HUDDispInfoCtxtIn = function()
+ {
+     log.debug("_HUDDispInfoCtxtIn called...");
+-	var region = framework.localize.getRegion();			
++	var region = "Region_NorthAmerica";			
+ 	if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") )  //CI-7264 NA -> NA/4A/CH
+ 	{
+ 		this._HUDDispInfoCtxtList = {
+@@ -3456,7 +3456,7 @@
+ vehsettingsApp.prototype._CHUDNavigationCtxtIn = function()
+ {
+     log.debug("_CHUDNavigationCtxtIn called...");
+-	var region = framework.localize.getRegion();			
++	var region = "Region_NorthAmerica";			
+     //this.populateListCtrl(this._currentContextTemplate);
+ 	if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") ) //CI-7264 NA -> NA/4A/CH
+ 	{
+@@ -4814,7 +4814,7 @@
+ {
+     log.debug("_CHUDNavigation received", msg.params.payload.evData); 
+     this._cachedCHudNavindex = msg.params.payload.evData;
+-	var region = framework.localize.getRegion(); 
++	var region = "Region_NorthAmerica"; 
+ 	if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") ) //CI-7264 NA -> NA/4A/CH
+ 	{
+ 		switch(msg.params.payload.evData)
+@@ -4873,8 +4873,8 @@
+             else if (this._currentContext.ctxtId === "HUDDisplayInformation")
+             {   
+                 this._currentContextTemplate.list2Ctrl.setToggleValue(0,this._cachedNaviVal);
+-				var region = framework.localize.getRegion(); 
+-				var currLang = framework.localize.getCurrLang();	//CI-7264 Only English/French/Spanish
++				var region = "Region_NorthAmerica"; 
++				var currLang = "en_US";	//CI-7264 Only English/French/Spanish
+ 				if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") ) //CI-7264 NA -> NA/4A/CH
+ 				{
+ 					if(this._cachedNaviVal === 1)
+@@ -7580,8 +7580,8 @@
+                 }
+                 break;
+             case "HUDDisplayInformation": 
+-					var region = framework.localize.getRegion();
+-					var currLang = framework.localize.getCurrLang();	//CI-7264 Only English/French/Spanish
++					var region = "Region_NorthAmerica";
++					var currLang = "en_US";	//CI-7264 Only English/French/Spanish
+ 					if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") ) //CI-7264 NA -> NA/4A/CH
+ 					{
+ 						if(this._cachedNaviVal === 1 )
+@@ -7693,8 +7693,8 @@
+ 				
+ 			case "HUDNavigation" :
+                 var tempChange=0;
+-				var region = framework.localize.getRegion();
+-				var currLang = framework.localize.getCurrLang();	//CI-7264 Only English/French/Spanish
++				var region = "Region_NorthAmerica";
++				var currLang = "en_US";	//CI-7264 Only English/French/Spanish
+ 				if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") ) //CI-7264 NA -> NA/4A/CH
+ 				{
+ 					switch(this._cachedCHudNavindex)
+@@ -11111,7 +11111,7 @@
+             break; 
+ 			
+ 		case 'SelectHUDNavigation':
+-			var region = framework.localize.getRegion();			
++			var region = "Region_NorthAmerica";			
+ 			if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") )
+ 			{
+ 				switch(params.itemIndex)
+@@ -11166,8 +11166,8 @@
+             {    
+                 this._cachedNaviVal = params.additionalData;
+                 framework.sendEventToMmui(this.uiaId, "SetHudNavigation", { payload : { evData : params.additionalData} } );
+-				var region = framework.localize.getRegion();			
+-				var currLang = framework.localize.getCurrLang();	//CI-7264 Only English/French/Spanish
++				var region = "Region_NorthAmerica";			
++				var currLang = "en_US";	//CI-7264 Only English/French/Spanish
+ 				if((framework.getSharedData("syssettings","DestinationCode") !== "SETTINGS_Destination_JP" ) && (region !== "Region_Europe") )  //CI-7264 NA -> NA/4A/CH
+ 				{
+ 					if(this._cachedNaviVal===1)
