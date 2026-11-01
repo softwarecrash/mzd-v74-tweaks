@@ -66,6 +66,37 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     info = call(['settings-info', 'settings-example']).stdout
     assert 'settings_saved=false' in info and 'value.log_limit_mb=20' in info
     assert '20 MB' in call(['action','settings-example','run']).stdout
+
+    # User settings defaults from USB user/<id>/settings.conf with comments and empty lines
+    user_conf = usb/'user/settings-example/settings.conf'
+    write(user_conf, '# Custom user defaults\n\nlog_limit_mb=30\ncompress=false\n# end of overrides\nprofile=large\n')
+    info = call(['settings-info', 'settings-example']).stdout
+    assert 'value.log_limit_mb=30' in info and 'value.compress=false' in info and 'value.profile=large' in info
+    out = call(['action','settings-example','run']).stdout
+    assert '30 MB' in out and 'false' in out and 'large' in out
+    # Explicit command-line arguments override user defaults
+    out = call(['action','settings-example','run','log_limit_mb=40']).stdout
+    assert '40 MB' in out and 'false' in out and 'large' in out
+    # Partial user defaults fall back to manifest defaults for unlisted settings
+    write(user_conf, 'log_limit_mb=35\n')
+    info = call(['settings-info', 'settings-example']).stdout
+    assert 'value.log_limit_mb=35' in info and 'value.compress=true' in info and 'value.profile=stock' in info
+    # Invalid user defaults are rejected with clear diagnostics
+    write(user_conf, 'log_limit_mb=21\n')
+    r = call(['settings-info', 'settings-example'], 1)
+    assert 'Invalid default for log_limit_mb: 21' in r.stderr
+    write(user_conf, 'unknown_key=foo\n')
+    r = call(['settings-info', 'settings-example'], 1)
+    assert 'Unknown default: unknown_key' in r.stderr
+    # Size limit on settings.conf (exceeding 64 KB is rejected)
+    write(user_conf, 'log_limit_mb=30\n' + ('# padding comment line\n' * 3000))
+    assert user_conf.stat().st_size > 65536
+    r = call(['settings-info', 'settings-example'], 1)
+    assert 'User configuration file exceeds size limit of 64 KB: settings.conf' in r.stderr
+    user_conf.unlink()
+    (usb/'user/settings-example').rmdir()
+    (usb/'user').rmdir()
+
     args = ['log_limit_mb=30', 'compress=false', 'profile=large']
     out = call(['action','settings-example','run', *args]).stdout
     assert '30 MB' in out and 'false' in out and 'large' in out

@@ -5,6 +5,7 @@ types must add their own real-entrypoint runner instead of claiming coverage.
 """
 CASES = {
     'tetris': 'gui-extension',
+    'android-auto': 'component-bundle',
     'cluster-language': 'component-bundle',
     'list-beep': 'shared-patch',
     'list-loop': 'shared-patch',
