@@ -3,6 +3,7 @@
 set -u
 SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
+. "$HERE/lib/defines.sh" || exit 1
 . "$HERE/lib/version.sh" || exit 1
 MZD_INSTALLER_VERSION=$(mzd_installer_version "$HERE"); export MZD_INSTALLER_VERSION
 fail() { printf '%s\n' "$*" >&2; exit 1; }

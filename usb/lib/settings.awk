@@ -46,9 +46,19 @@ NR==FNR {
     }
     next
 }
+defaults != "" && FILENAME == defaults {
+    sub(/\r$/, "")
+    if($0 ~ /[[:cntrl:]]/)fail("Control characters in defaults value.")
+    if($0 ~ /^[[:space:]]*$/ || substr($0,1,1)=="#")next
+    at=index($0,"="); key=substr($0,1,at-1); value=substr($0,at+1)
+    if(!at || length($0)>128 || user_def_seen[key]++)fail("Invalid or duplicate default: " key)
+    user_def[key]=value
+    next
+}
 {
     sub(/\r$/, "")
     if($0 ~ /[[:cntrl:]]/)fail("Control characters in supplied value.")
+    if($0 ~ /^[[:space:]]*$/ || substr($0,1,1)=="#")next
     at=index($0,"="); key=substr($0,1,at-1); value=substr($0,at+1)
     if(!at || length($0)>128 || supplied[key]++)fail("Invalid or duplicate value: " key)
     input[key]=value
@@ -56,6 +66,11 @@ NR==FNR {
 END {
     if(bad)exit 1
     count=schema()
+    for(key in user_def) {
+        if(!declared[key])fail("Unknown default: " key)
+        if(!valid(key,user_def[key]))fail("Invalid default for " key ": " user_def[key])
+        field[key,"default"]=user_def[key]
+    }
     for(key in input)if(!declared[key])fail("Unknown value: " key)
     if(mode=="validate")exit 0
     if(mode=="info") {

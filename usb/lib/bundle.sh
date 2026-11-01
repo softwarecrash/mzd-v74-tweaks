@@ -3,7 +3,7 @@
 # Workers may define mzd_bundle_prerequisites: data-only block/warning records.
 # Workers may define mzd_bundle_patch: dynamic patch configuration hook.
 mzd_bundle_load() {
-    for bundle_library in manifest report system patch restore settings components shim; do
+    for bundle_library in defines manifest report system patch restore settings components shim; do
         . "$ROOT/lib/$bundle_library.sh" || return 1
     done
     mzd_manifest_load "$HERE/manifest.conf" || return 1
@@ -18,15 +18,16 @@ mzd_bundle_validate_install() (
     mzd_settings_check "$HERE/manifest.conf" "$MZD_SETTINGS_FILE" || exit 1
     tab=$(printf '\t')
     while IFS="$tab" read -r kind target source service original; do
+        asset_file=$(mzd_tweak_asset "$source") || exit 1
         case "$kind" in
             check) mzd_asset_readable "$target" && [ "$(mzd_hash "$target")" = "$original" ] || { printf 'Unsupported native module: %s (expected MD5 %s).\n' "$target" "$original" >&2; exit 1; } ;;
-            shim) mzd_asset_readable "$HERE/$source" && mzd_shim_elf "$HERE/$source" || { printf 'Missing or unsupported ARM library: %s\n' "$source" >&2; exit 1; } ;;
-            config) mzd_component_config "$HERE/$source" "$scratch/config" || exit 1 ;;
-            file) mzd_asset_readable "$HERE/$source" || exit 1 ;;
+            shim) mzd_asset_readable "$asset_file" && mzd_shim_elf "$asset_file" || { printf 'Missing or unsupported ARM library: %s\n' "$source" >&2; exit 1; } ;;
+            config) mzd_component_config "$asset_file" "$scratch/config" || exit 1 ;;
+            file) mzd_asset_readable "$asset_file" || exit 1 ;;
             patch)
-                mzd_asset_readable "$HERE/$source" || exit 1
+                mzd_asset_readable "$asset_file" || exit 1
                 if command -v mzd_bundle_patch >/dev/null 2>&1; then
-                    mzd_bundle_patch "$HERE/$source" "$scratch/patch.test" || exit 1
+                    mzd_bundle_patch "$asset_file" "$scratch/patch.test" || exit 1
                     awk '/^--- /{a++;if($0!="--- target.data")bad=1} /^\+\+\+ /{b++;if($0!="+++ target.data")bad=1} END{exit bad || a!=1 || b!=1}' "$scratch/patch.test" || exit 1
                 fi
                 ;;
@@ -87,11 +88,12 @@ mzd_bundle_plan() (
             cp -a "$target" "$folder/before.data" || exit 1
             evidence=$((evidence+1))
         else : > "$folder/before.absent"; fi
+        asset_file=$(mzd_tweak_asset "$source") || exit 1
         case "$kind" in
             file|config|shim)
                 case "$kind" in
-                    config) mzd_component_config "$HERE/$source" "$folder/expected.data" || exit 1 ;;
-                    *) mzd_asset_readable "$HERE/$source" && cp "$HERE/$source" "$folder/expected.data" || exit 1 ;;
+                    config) mzd_component_config "$asset_file" "$folder/expected.data" || exit 1 ;;
+                    *) mzd_asset_readable "$asset_file" && cp "$asset_file" "$folder/expected.data" || exit 1 ;;
                 esac
                 [ "$kind" != shim ] || mzd_shim_elf "$folder/expected.data" || {
                     printf 'Unsupported ARM library: %s\n' "$source" >&2; exit 1;
@@ -105,7 +107,7 @@ mzd_bundle_plan() (
             patch|loader)
                 [ -f "$folder/before.data" ] || { printf 'Missing target: %s\n' "$target" >&2; exit 1; }
                 if [ "$kind" = patch ]; then
-                    patch_source="$HERE/$source"
+                    patch_source="$asset_file"
                     if command -v mzd_bundle_patch >/dev/null 2>&1; then
                         mzd_bundle_patch "$patch_source" "$folder/prepared.patch" || exit 1
                         patch_source="$folder/prepared.patch"

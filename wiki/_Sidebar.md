@@ -1,6 +1,7 @@
 - [Home](Home)
 - [Getting started](Getting-started)
 - [Using the installer](Using-the-installer)
+- [User settings](User-settings)
 - [Backup and restore](Backup-and-restore)
 - [Terminal](Terminal)
 - [Troubleshooting](Troubleshooting)

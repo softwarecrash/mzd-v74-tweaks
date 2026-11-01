@@ -1,0 +1,6 @@
+#!/bin/sh
+# Global constants and limits for the installer runtime.
+MZD_CONFIG_SIZE_LIMIT=${MZD_CONFIG_SIZE_LIMIT:-${MZD_CONFIG_LIMIT:-65536}}
+export MZD_CONFIG_SIZE_LIMIT
+MZD_CONFIG_LIMIT=$MZD_CONFIG_SIZE_LIMIT
+export MZD_CONFIG_LIMIT

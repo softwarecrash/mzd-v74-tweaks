@@ -9,6 +9,32 @@ mzd_asset_readable() (
   [ -f "$1" ] && [ ! -L "$1" ] && [ -r "$1" ]
 )
 
+mzd_tweak_asset() {
+  asset_source=$1
+  case "$asset_source" in
+    assets/*.conf|*/assets/*.conf)
+      if [ -z "${MZD_PACKAGE_STATE:-}" ]; then
+        asset_name=${asset_source##*/}
+        user_asset="${MZD_ORIGIN_USB:-${ROOT:-${HERE%/*/*}}}/user/${ID:-${HERE##*/}}/$asset_name"
+        if [ -f "$user_asset" ] && [ ! -L "$user_asset" ]; then
+          [ -n "${MZD_CONFIG_SIZE_LIMIT:-}" ] || . "${MZD_ORIGIN_USB:-${ROOT:-${HERE%/*/*}}}/lib/defines.sh" 2>/dev/null || :
+          asset_size=$(( $(wc -c < "$user_asset") ))
+          if [ "$asset_size" -le "${MZD_CONFIG_SIZE_LIMIT:-65536}" ]; then
+            printf '%s\n' "$user_asset"
+            return 0
+          fi
+          printf 'Asset configuration override exceeds size limit of %d KB: %s\n' "$(( ${MZD_CONFIG_SIZE_LIMIT:-65536} / 1024 ))" "$asset_name" >&2
+          return 1
+        fi
+      fi
+      ;;
+  esac
+  case "$asset_source" in
+    /*) printf '%s\n' "$asset_source" ;;
+    *) printf '%s\n' "${HERE:-.}/$asset_source" ;;
+  esac
+}
+
 mzd_require_assets() (
   for asset in "$@"
   do

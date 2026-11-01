@@ -111,9 +111,27 @@ first. For the recorded physical test scope, see [test evidence](test-runs/2026-
 ## Effective tweak settings
 
 Before Install the controller validates supplied values against the USB schema.
+Initial defaults are loaded from USB `user/<id>/settings.conf` when present, falling
+back to manifest declarations. Any tweak asset matching `assets/*.conf` can also be
+overridden via USB `user/<id>/<name>.conf`. Configuration override files in `user/<id>/`
+are enforced to be regular `.conf` files subject to a 64 KB (65,536 bytes) size limit
+(defined by `MZD_CONFIG_SIZE_LIMIT` in `lib/defines.sh`), and the size of `user/<id>/`
+is included in the persistent storage free-space calculation (`du -sk`) before installation.
+
+Validation differs between settings and asset overrides:
+- `settings.conf` is parsed and validated against the `manifest.conf` schema by `settings.awk`
+  (types, bounds, choices, and unknown keys).
+- Asset overrides matching `assets/*.conf` (such as `libpatch.conf`) are not parsed or
+  schema-validated by the package controller; they are copied into the staged package and
+  verified byte-for-byte (`cmp -s`). Content, syntax and directive validation is the
+  responsibility of the relevant tweak.
+- Asset overrides replace the bundled asset file entirely; they are **not merged** with the
+  bundled version.
+
 The normalized effective configuration is copied into `package/settings.conf`
-and covered by `package.files`, along with the matching manifest, worker and
-helpers. Invalid settings are refused before persistent staging or target writes.
+and covered by `package.files`, along with any user asset overrides, the matching
+manifest, worker and helpers. Invalid settings or oversized overrides are refused before
+persistent staging or target writes.
 
 The saved worker receives `MZD_SETTINGS_FILE` pointing to that saved file for
 install/deep status/uninstall. Reset hooks use the same saved configuration and
