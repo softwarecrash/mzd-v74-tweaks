@@ -1,0 +1,7 @@
+# kind	target	source	service	oem-md5
+loader	/jci/sm/sm.conf	-	-	74d9fc389b74fb01d0cfc2615a82c782
+loader	/jci/sm/sm_WCP.conf	-	-	030e918f5d6edcd62d196ee37b86fe99
+shim	/tmp/mnt/data_persist/mzd-tweaks/shims/fuel-consumption-ending/fuel_ending_mmui.so	assets/fuel_ending_mmui.so	jciMMUI	-
+patch	/jci/gui/apps/ecoenergy/js/ecoenergyApp.js	assets/change.patch	-	32f3607cbbbb0532f28bb726882e990b
+check	/jci/mmui/uia/libjciuiaecoenergy.so	-	-	ac44a5f1bbcbe32d83d4076e6e6f4562
+check	/jci/mmui/svcjcimmui.so	-	-	3b63fa37aa2ae4989c1febaa18c1f292

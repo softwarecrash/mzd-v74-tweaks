@@ -1,0 +1,36 @@
+--- target.data
++++ target.data
+@@ -44,6 +44,24 @@
+     // Base application functionality is provided in a common location via this call to baseApp.init().
+     // See framework.js/BaseApp.js for details.
+     baseApp.init(this, uiaId);
++
++    // MOD (fuel-ending): show the Fuel Consumption ending screen on i-stop cars too.
++    // On i-stop cars the MMUI always sends the EndingEffectiveness context;
++    // redirect it to EndingFuelConsumption (what cars without i-stop get).
++    var _modOrigHandleContext = this.handleContext;
++    this.handleContext = function(contextObj)
++    {
++        if (contextObj && contextObj.ctxtId === "EndingEffectiveness")
++        {
++            log.info("MOD fuel-ending: EndingEffectiveness -> EndingFuelConsumption");
++            contextObj.ctxtId = "EndingFuelConsumption";
++            if (contextObj.params && contextObj.params.payload && !contextObj.params.payload.fuelEconomyBarGraphUnit && this._globalUnit)
++            {
++                contextObj.params.payload.fuelEconomyBarGraphUnit = this._globalUnit;
++            }
++        }
++        _modOrigHandleContext(contextObj);
++    }.bind(this);
+ }
+ 
+ /***********************************************************/
+@@ -3515,7 +3533,7 @@
+ // Start the timer for Ending screen for 5 seconds
+ ecoenergyApp.prototype._startEndingTimer = function() 
+ {
+-    this.endingTimer = setTimeout(this._stopEndingTimer.bind(this), 5000);
++    this.endingTimer = setTimeout(this._stopEndingTimer.bind(this), 7000); // MOD: 5000 -> 7000
+ };
+ 
+ // Send event to mmui and clear the ending timeout

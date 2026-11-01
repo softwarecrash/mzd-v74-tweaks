@@ -20,6 +20,7 @@ Optional sponsor links can be placed directly after the contributor's name.
 | [Main Menu Loop](usb/tweaks/main-menu-loop/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
 | [No More Disclaimer](usb/tweaks/no-more-disclaimer/) | v74 implementation: [@piotrmocko](https://github.com/piotrmocko); patch port: [@softwarecrash](https://github.com/softwarecrash) |
 | [HUD Street Name](usb/tweaks/hud-street-name/) | v74 patch: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
+| [Fuel Consumption Ending Screen](usb/tweaks/fuel-consumption-ending/) | v74 implementation (JS patch + MMUI shim): [@patrikguth](https://github.com/patrikguth) |
 | [Tetris](usb/tweaks/tetris/) | CMU game/integration: [@softwarecrash](https://github.com/softwarecrash); based on Jake Gordon and contributors (MIT) |
 | [Touch While Driving](usb/tweaks/touch-while-driving/) | v74 implementation: [@softwarecrash](https://github.com/softwarecrash) |
 | [Instrument Cluster / HUD Language (test release)](usb/tweaks/cluster-language/) | shim: [@patrikguth](https://github.com/patrikguth); release: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
