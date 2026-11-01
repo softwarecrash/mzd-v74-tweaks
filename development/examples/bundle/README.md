@@ -42,6 +42,12 @@ tokens remain intact. Each patch must modify only relative `target.data` and
 have an exact inverse. A bundle may include several patches on distinct files;
 combine edits to the same file into one reviewed patch.
 
+Workers with dynamic patch requirements can define `mzd_bundle_patch` before
+calling `mzd_bundle_main`: `mzd_bundle_patch source_patch target_patch` transforms
+patch hunks using effective settings (such as resolution or display parameters)
+before validation and application. The resulting patch must retain the unified diff
+header and exact reversibility.
+
 Payload files must be direct children of
 `/tmp/mnt/data_persist/mzd-tweaks/shims/<id>/`. This keeps library-relative
 configuration working and gives each package an owned container. Paths are
