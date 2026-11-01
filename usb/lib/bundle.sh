@@ -1,6 +1,7 @@
 #!/bin/sh
 # One transaction for payload files, generated configuration, shims and patches.
 # Workers may define mzd_bundle_prerequisites: data-only block/warning records.
+# Workers may define mzd_bundle_patch: dynamic patch configuration hook.
 mzd_bundle_load() {
     for bundle_library in manifest report system patch restore settings components shim; do
         . "$ROOT/lib/$bundle_library.sh" || return 1
@@ -21,7 +22,14 @@ mzd_bundle_validate_install() (
             check) mzd_asset_readable "$target" && [ "$(mzd_hash "$target")" = "$original" ] || { printf 'Unsupported native module: %s (expected MD5 %s).\n' "$target" "$original" >&2; exit 1; } ;;
             shim) mzd_asset_readable "$HERE/$source" && mzd_shim_elf "$HERE/$source" || { printf 'Missing or unsupported ARM library: %s\n' "$source" >&2; exit 1; } ;;
             config) mzd_component_config "$HERE/$source" "$scratch/config" || exit 1 ;;
-            file|patch) mzd_asset_readable "$HERE/$source" || exit 1 ;;
+            file) mzd_asset_readable "$HERE/$source" || exit 1 ;;
+            patch)
+                mzd_asset_readable "$HERE/$source" || exit 1
+                if command -v mzd_bundle_patch >/dev/null 2>&1; then
+                    mzd_bundle_patch "$HERE/$source" "$scratch/patch.test" || exit 1
+                    awk '/^--- /{a++;if($0!="--- target.data")bad=1} /^\+\+\+ /{b++;if($0!="+++ target.data")bad=1} END{exit bad || a!=1 || b!=1}' "$scratch/patch.test" || exit 1
+                fi
+                ;;
         esac
     done < "$scratch/components"
     mzd_bundle_preflight
@@ -97,11 +105,16 @@ mzd_bundle_plan() (
             patch|loader)
                 [ -f "$folder/before.data" ] || { printf 'Missing target: %s\n' "$target" >&2; exit 1; }
                 if [ "$kind" = patch ]; then
-                    mzd_asset_readable "$HERE/$source" || exit 1
-                    awk '/^--- /{a++;if($0!="--- target.data")bad=1} /^\+\+\+ /{b++;if($0!="+++ target.data")bad=1} END{exit bad || a!=1 || b!=1}' "$HERE/$source" || exit 1
+                    patch_source="$HERE/$source"
+                    if command -v mzd_bundle_patch >/dev/null 2>&1; then
+                        mzd_bundle_patch "$patch_source" "$folder/prepared.patch" || exit 1
+                        patch_source="$folder/prepared.patch"
+                    fi
+                    mzd_asset_readable "$patch_source" || exit 1
+                    awk '/^--- /{a++;if($0!="--- target.data")bad=1} /^\+\+\+ /{b++;if($0!="+++ target.data")bad=1} END{exit bad || a!=1 || b!=1}' "$patch_source" || exit 1
                     forward=0; reverse=0
-                    mzd_patch_probe "$folder" install "$HERE/$source" && forward=1
-                    mzd_patch_probe "$folder" uninstall "$HERE/$source" && reverse=1
+                    mzd_patch_probe "$folder" install "$patch_source" && forward=1
+                    mzd_patch_probe "$folder" uninstall "$patch_source" && reverse=1
                     [ ! -e "$folder/probe-error" ] || exit 1
                     case "$forward:$reverse" in
                         1:0) state=uninstalled; direction=install ;;
