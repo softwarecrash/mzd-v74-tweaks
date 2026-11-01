@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-packages-') as directory:
     write(pkg,source.replace('/jci/version.ini',bp(version)))
     write(mounts,f'/dev/mmcblk0p2 {bp(persist)} relfs rw 0 0\n/dev/sdb1 {bp(usb)} vfat rw 0 0\n')
     write(bins/'sync','#!/bin/sh\nexit 0\n')
-    write(bins/'df','#!/bin/sh\nif [ -f '+shlex.quote(bp(base/'no-space'))+' ]; then free=1; else free=900000; fi\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 1000000 100000 %s 10%% persist\\n" "$free"\n')
+    write(bins/'df','#!/bin/sh\nif [ -f '+shlex.quote(bp(base/'no-space'))+' ]; then free=1; elif [ -f '+shlex.quote(bp(base/'custom-free'))+' ]; then free=$(cat '+shlex.quote(bp(base/'custom-free'))+'); else free=900000; fi\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 1000000 100000 %s 10%% persist\\n" "$free"\n')
     # The factory BusyBox awk does not decode backslash-t in the -F argument.
     # A literal ASCII tab is required; fail explicitly if this regression returns.
     write(bins/'awk', r'''#!/bin/sh
@@ -99,9 +99,55 @@ esac
     call(['statuses','alpha hello'],output='alpha\tuninstalled\t\nhello\tuninstalled\t\n')
     assert not events.exists() and not store.exists()
     (bins/'md5sum').unlink();target.unlink()
+    # Asset override replaces bundled version entirely (not merged)
+    write(folder/'assets/custom.conf', 'release=default\nbundled_extra=123\n')
+    write(usb/'user/alpha/custom.conf', 'user=custom\n')
     action('alpha','install')
     entry=store/'alpha'
     assert 'state=installed' in (entry/'state.conf').read_text()
+    installed_custom = (entry/'package/tweaks/alpha/assets/custom.conf').read_text()
+    assert installed_custom == 'user=custom\n'
+    assert 'bundled_extra' not in installed_custom
+    shutil.rmtree(usb/'user/alpha')
+    action('alpha','uninstall')
+
+    # Size limit on configuration overrides (exceeding 64 KB is rejected)
+    write(usb/'user/alpha/custom.conf', 'x' * 65537)
+    r = action('alpha', 'install', 1)
+    assert 'Configuration override exceeds size limit of 64 KB: custom.conf' in r.stderr
+    assert not entry.exists() and not target.exists()
+    shutil.rmtree(usb/'user/alpha')
+
+    # Unsupported configuration override file
+    write(usb/'user/alpha/override.txt', 'notes\n')
+    r = action('alpha', 'install', 1)
+    assert 'Unsupported configuration override: override.txt' in r.stderr
+    assert not entry.exists() and not target.exists()
+    shutil.rmtree(usb/'user/alpha')
+
+    # Subdirectory in user dir is rejected
+    write(usb/'user/alpha/sub/nested.conf', 'nested\n')
+    r = action('alpha', 'install', 1)
+    assert 'Configuration override must be a regular file.' in r.stderr
+    assert not entry.exists() and not target.exists()
+    shutil.rmtree(usb/'user/alpha')
+
+    # User configuration size is included in the persistent free-space calculation
+    base_sizes = subprocess.run([SHELL, '-c', f'du -sk {shlex.quote(bp(folder))} {shlex.quote(bp(usb/"lib"))}'], capture_output=True, text=True, check=True).stdout
+    base_needed = sum(int(line.split()[0]) for line in base_sizes.splitlines()) + 1024
+    write(base/'custom-free', str(100000 + base_needed + 5))
+    action('alpha', 'install')
+    action('alpha', 'uninstall')
+    write(usb/'user/alpha/custom.conf', 'k=' + ('v' * 20000) + '\n')
+    r = action('alpha', 'install', 1)
+    assert 'Not enough persistent space; installation has not started.' in r.stderr
+    assert not entry.exists() and not target.exists()
+    shutil.rmtree(usb/'user/alpha')
+    (base/'custom-free').unlink()
+
+    write(usb/'user/alpha/custom.conf', 'user=custom\n')
+    action('alpha','install')
+    shutil.rmtree(usb/'user/alpha')
     assert 'install alpha 1.0.0 1.0.0 '+bp(entry/'package') in text()
     before=text();snapshot={p.relative_to(store):p.read_bytes() for p in store.rglob('*') if p.is_file()}
     action('alpha','status',output='installed\n')

@@ -53,7 +53,8 @@ for id_, runner in CASES.items():
         subprocess.run([sys.executable, str(Path(__file__).with_name('test_touch.py'))], check=True)
         continue
     if runner == 'component-bundle':
-        subprocess.run([sys.executable,str(Path(__file__).with_name('test_cluster_language.py'))],check=True)
+        test_file = f'test_{id_.replace("-", "_")}.py'
+        subprocess.run([sys.executable, str(Path(__file__).with_name(test_file))], check=True)
         continue
     if runner in ['export-command', 'restore-command', 'terminal-command']: continue
     assert runner == 'shared-patch', 'Add a dedicated runner for this implementation.'

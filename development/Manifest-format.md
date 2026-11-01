@@ -112,8 +112,10 @@ setting.profile.options=stock medium large
   and values are always literal data, never sourced or evaluated.
 
 The controller accepts separate `key=value` arguments for Install/Run. Missing
-values use defaults. Values are checked again in the shell before staging or
-starting a worker; the UI is not a security or correctness boundary.
+values use defaults. Defaults are loaded first from USB `user/<id>/settings.conf`
+when present, falling back to manifest defaults. Values are checked again in the
+shell before staging or starting a worker; the UI is not a security or correctness
+boundary.
 
 ```sh
 sh installer.sh action example install log_limit_mb=30 compress=false profile=medium

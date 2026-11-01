@@ -1,0 +1,9 @@
+# kind	target	source	service	oem-md5
+loader	/jci/sm/sm.conf	-	-	74d9fc389b74fb01d0cfc2615a82c782
+loader	/jci/sm/sm_WCP.conf	-	-	030e918f5d6edcd62d196ee37b86fe99
+shim	/tmp/mnt/data_persist/oem-aa-mod/libpatch-blmjciaapa.so	assets/libpatch-blmjciaapa.so	jciAAPA	-
+shim	/tmp/mnt/data_persist/oem-aa-mod/libpatch-svcjcinavi.so	assets/libpatch-svcjcinavi.so	jcinavi	-
+shim	/tmp/mnt/data_persist/oem-aa-mod/libpatch-aap_service.so	assets/libpatch-aap_service.so	aap_service	-
+file	/tmp/mnt/data_persist/oem-aa-mod/libpatch.conf	assets/libpatch.conf	-	-
+patch	/etc/aap_system_attributes.xml	assets/aap_system_attributes.patch	-	58e287b8fb677d41307178f3b425d09a
+patch	/etc/aap_system_attributes_UCP.xml	assets/aap_system_attributes_UCP.patch	-	357c4fe93baf5a948cf3a70157a4607e

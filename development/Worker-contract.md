@@ -186,8 +186,9 @@ The internal `validate-install` action validates replacement assets, generated
 configuration, firmware, native module checks and compatibility before the
 controller removes an old version. It is not a mutation action. Install repeats
 its compatibility check under the shared lock. A worker callback returns plain
-records only: no dialogs, mounts or writes. See the
-[bundle example](examples/bundle/README.md) for transaction and upgrade limits.
+records only: no dialogs, mounts or writes. Workers may also define
+`mzd_bundle_patch` to dynamically configure patch components from effective settings.
+See the [bundle example](examples/bundle/README.md) for transaction and upgrade limits.
 
 ## Shared GUI extensions
 

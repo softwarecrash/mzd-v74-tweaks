@@ -45,7 +45,7 @@ def main():
  for path in (REPO/'usb/lib/lua-bridge').glob('*.lua'):add('experiment/'+path.name,path.read_bytes())
  for path in [HERE/name for name in ["backend.lua", "demo.sh", "start-helper.sh", "package-test.sh", "recovery-test.sh", "settings-test.sh", "shim-test.sh", "cluster-test.sh"]]:
   if path.is_file():add('experiment/tests/'+path.name,path.read_bytes(),0o755 if path.suffix=='.sh' else 0o644)
- for name in ['VERSION','installer.sh','lib/manifest.sh','lib/jobs.sh','lib/transport.sh','ui/transport.html']:
+ for name in ['VERSION','installer.sh','lib/defines.sh','lib/version.sh','lib/manifest.sh','lib/jobs.sh','lib/transport.sh','ui/transport.html']:
   target='experiment/transport.html' if name=='ui/transport.html' else 'experiment/package/'+name
   add(target,(REPO/'usb'/name).read_bytes(),0o755 if name.endswith('.sh') else 0o644)
  add('experiment/package/tweaks/demo/run.sh',(HERE/'demo.sh').read_bytes(),0o755)

@@ -236,10 +236,30 @@ mzd_package_remove() {
     if ! rm -rf "$1"; then mzd_package_error 'Uninstall succeeded but package cleanup failed.'; return 2; fi
     sync
 }
+mzd_package_user_check() (
+    user_dir="$1/user/$2"
+    [ -n "${MZD_CONFIG_SIZE_LIMIT:-}" ] || . "$1/lib/defines.sh" 2>/dev/null || :
+    [ -e "$user_dir" ] || [ -L "$user_dir" ] || return 0
+    [ -d "$user_dir" ] && [ ! -L "$user_dir" ] || { mzd_package_error 'Invalid user configuration directory.'; exit 1; }
+    mzd_package_tree_ok "$user_dir" || exit 1
+    for user_file in "$user_dir"/*; do
+        [ -e "$user_file" ] || continue
+        [ -f "$user_file" ] && [ ! -L "$user_file" ] || { mzd_package_error 'Configuration override must be a regular file.'; exit 1; }
+        case "${user_file##*/}" in *.conf) ;; *) mzd_package_error "Unsupported configuration override: ${user_file##*/}"; exit 1 ;; esac
+        file_size=$(( $(wc -c < "$user_file") ))
+        [ "$file_size" -le "${MZD_CONFIG_SIZE_LIMIT:-65536}" ] || { mzd_package_error "Configuration override exceeds size limit of $(( ${MZD_CONFIG_SIZE_LIMIT:-65536} / 1024 )) KB: ${user_file##*/}"; exit 1; }
+    done
+)
 mzd_package_stage() (
     source=$1; stage=$2; id=$3
+    [ -n "${MZD_CONFIG_SIZE_LIMIT:-}" ] || . "$source/lib/defines.sh" 2>/dev/null || :
     mzd_package_tree_ok "$source/tweaks/$id" && mzd_package_tree_ok "$source/lib" || exit 1
-    sizes=$(du -sk "$source/tweaks/$id" "$source/lib") || exit 1
+    mzd_package_user_check "$source" "$id" || exit 1
+    if [ -d "$source/user/$id" ]; then
+        sizes=$(du -sk "$source/tweaks/$id" "$source/lib" "$source/user/$id") || exit 1
+    else
+        sizes=$(du -sk "$source/tweaks/$id" "$source/lib") || exit 1
+    fi
     needed=$(printf '%s\n' "$sizes" | awk '{n+=$1} END {print n+1024}')
     df -Pk "$MZD_PACKAGE_MOUNT" | awk -v needed="$needed" 'NR==2 {reserve=$2/10; if(reserve<65536)reserve=65536; ok=($4-needed>=reserve)} END {exit !ok}' || {
         mzd_package_error 'Not enough persistent space; installation has not started.'; exit 1;
@@ -254,6 +274,14 @@ mzd_package_stage() (
     [ "$ID" = "$id" ] || { mzd_package_error 'Copied package ID differs from its folder.'; exit 1; }
     [ -z "${4:-}" ] || [ "$VERSION" = "$4" ] || { mzd_package_error 'USB version changed while staging.'; exit 1; }
     mzd_package_paths "$stage/package/tweaks/$id" > "$stage/paths.tsv" && mzd_package_paths_ok "$stage/paths.tsv" || exit 1
+    for asset_conf in "$stage/package/tweaks/$id/assets/"*.conf; do
+        [ -f "$asset_conf" ] && [ ! -L "$asset_conf" ] || continue
+        conf_name=${asset_conf##*/}
+        user_conf="$source/user/$id/$conf_name"
+        if [ -f "$user_conf" ] && [ ! -L "$user_conf" ]; then
+            cp "$user_conf" "$asset_conf" && cmp -s "$user_conf" "$asset_conf" || exit 1
+        fi
+    done
     if [ -n "${SETTINGS:-}${COMPONENTS:-}" ]; then
         . "$stage/package/lib/settings.sh" || exit 1
         mzd_settings_check "$stage/package/tweaks/$id/manifest.conf" "${MZD_SETTINGS_FILE:-}" || exit 1
@@ -298,6 +326,7 @@ mzd_package_action() (
     [ "$MZD_ORIGIN_USB" != / ] || { mzd_package_error 'Originating USB mount is missing.'; exit 1; }
     requested=''; requested_type=''
     if [ "$action" = install ]; then
+        mzd_package_user_check "$source" "$id" || exit 1
         mzd_manifest_load "$source/tweaks/$id/manifest.conf" || exit 1
         [ "$ID" = "$id" ] || { mzd_package_error 'Manifest ID differs from its folder.'; exit 1; }
         requested=$VERSION; requested_type=$TYPE
