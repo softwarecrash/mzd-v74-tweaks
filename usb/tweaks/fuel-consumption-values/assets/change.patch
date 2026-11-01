@@ -1,0 +1,94 @@
+--- target.data
++++ target.data
+@@ -1137,6 +1137,7 @@
+                                                    this._CDFEGraphBarValues[barIdx],
+                                                    this.properties.currentFuelConfig.yAxisLimitValue,
+                                                    false) + 'px';
++        this._modSetBarLabel(bar, this._CDFEGraphBarValues[barIdx], parseFloat(bar.style.height), 21, 13); // MOD
+         
+         
+     }
+@@ -1178,6 +1179,7 @@
+                                                    this._CDFEGraphBarValuesRight[barIdx],
+                                                    this.properties.currentFuelConfig.yAxisLimitValue,
+                                                    false) + 'px';
++        this._modSetBarLabel(bar, this._CDFEGraphBarValuesRight[barIdx], parseFloat(bar.style.height), 44, 18); // MOD
+     }
+ }
+ 
+@@ -1201,6 +1203,7 @@
+                                                        this._CDFEGraphBarValues[i],
+                                                        yLimit,
+                                                        false) + 'px';
++            this._modSetBarLabel(bar, this._CDFEGraphBarValues[i], parseFloat(bar.style.height), 21, 13); // MOD
+         }
+         
+         if(this.properties.ctrlStyle === 'hevstyle')
+@@ -1236,6 +1239,7 @@
+                                                        this._CDFEGraphBarValuesRight[i],
+                                                        yLimit,
+                                                        false) + 'px';
++            this._modSetBarLabel(bar, this._CDFEGraphBarValuesRight[i], parseFloat(bar.style.height), 44, 18); // MOD
+         }
+         if(this.properties.ctrlStyle === 'hevstyle')
+         { 
+@@ -1655,6 +1659,42 @@
+     }
+ }
+ 
++// MOD (bar-values): show the value above every bar of the fuel graphs.
++// The graph areas are 109 px high and clip anything above, so on tall bars the value goes inside the bar.
++FuelConsumptionCtrl.prototype._modSetBarLabel = function(bar, value, heightPx, widthPx, fontPx)
++{
++    if (!bar) { return; }
++    var lbl = bar._modLbl;
++    if (!lbl)
++    {
++        lbl = document.createElement('div');
++        lbl.style.cssText = 'position:absolute;left:0px;width:' + widthPx + 'px;text-align:center;color:#fff;' +
++                            'font-size:' + fontPx + 'px;line-height:' + (fontPx + 2) + 'px;white-space:nowrap;' +
++                            'font-family:Tipperary, Arial, Helvetica, sans-serif;';
++        bar.appendChild(lbl);
++        bar._modLbl = lbl;
++    }
++    var v = parseFloat(value);
++    if (!(v > 0))
++    {
++        lbl.innerHTML = '';
++        return;
++    }
++    var txt = v.toFixed(1);
++    lbl.innerHTML = txt;
++    // On narrow bars a 4-character value (e.g. 12.8) gets a smaller, tighter font so it fits.
++    var fs = fontPx, ls = '0px';
++    if (widthPx < 30 && txt.length > 3) { fs = fontPx - 2; ls = '-1px'; }
++    lbl.style.fontSize = fs + 'px';
++    lbl.style.letterSpacing = ls;
++    var above = fontPx + 6;
++    lbl.style.top = (heightPx > (109 - above)) ? '4px' : ('-' + above + 'px');
++};
++FuelConsumptionCtrl.prototype._modSetCFERBarLabel = function(bar, value, heightPx)
++{
++    this._modSetBarLabel(bar, value, heightPx, 50, 22);
++};
++
+ /*
+  * Utility function to set the height of single CFER graph bar (e.g. the just-inserted one)
+  */
+@@ -1670,7 +1710,7 @@
+                                                    this._CFERGraphBarValues[barIdx],
+                                                    this.properties.cumulativeFuelConfig.yAxisLimitValue,
+                                                    false) + 'px';
+-          
++                  this._modSetCFERBarLabel(bar, this._CFERGraphBarValues[barIdx], parseFloat(bar.style.height)); // MOD
+     }
+ }
+ 
+@@ -1717,6 +1757,7 @@
+                                                        this._CFERGraphBarValues[i],
+                                                        yLimit,
+                                                        false) + 'px';
++            this._modSetCFERBarLabel(bar, this._CFERGraphBarValues[i], parseFloat(bar.style.height)); // MOD
+         }
+     }
+ }

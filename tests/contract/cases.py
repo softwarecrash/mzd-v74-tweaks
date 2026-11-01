@@ -13,6 +13,7 @@ CASES = {
     'main-menu-loop': 'shared-patch',
     'no-more-disclaimer': 'shared-patch',
     'hud-street-name': 'shared-patch',
+    'fuel-consumption-values': 'shared-patch',
     'touch-while-driving': 'touch-transaction',
     'backup-jci': 'export-command',
     'logs-collector': 'export-command',
