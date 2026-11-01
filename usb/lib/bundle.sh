@@ -44,10 +44,17 @@ mzd_bundle_preflight() (
             cat "$reason.error" >&2; exit 1
         fi
     fi
-    awk -F "$(printf '\t')" 'NR>16 || length($0)>512 || NF!=2 || $1!~/^(block|warning)$/ || $2=="" || $2~/[[:cntrl:]]/ {bad=1} END {exit bad}' "$reason" || {
+    awk -F "$(printf '\t')" '
+        $1~/^(block|warning)$/ {
+            if (length($0)>512 || NF!=2 || $2=="" || $2~/[[:cntrl:]]/) bad=1
+            count++
+        }
+        $1!~/^(block|warning)$/ && NF>1 { bad=1 }
+        END { exit bad || count>16 }
+    ' "$reason" || {
         printf 'block\tInvalid compatibility response.\n'; exit 1;
     }
-    cat "$reason"
+    awk -F "$(printf '\t')" '$1~/^(block|warning)$/' "$reason"
     awk -F "$(printf '\t')" '$1=="block"{bad=1} END{exit bad}' "$reason"
 )
 mzd_bundle_transform() (
