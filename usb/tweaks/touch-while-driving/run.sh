@@ -12,7 +12,7 @@ set -u
 
 # Help and invalid actions return before reports, mounts or system changes.
 mzd_worker_usage() {
-    echo 'Usage: sh run.sh <install|uninstall|status>'
+    echo 'Usage: sh run.sh <install|uninstall|status|preflight>'
     echo 'No arguments or --help: show usage without changing anything.'
 }
 
@@ -28,10 +28,10 @@ case "$ACTION" in
         mzd_worker_usage
         exit 0
         ;;
-    install|uninstall|status)
+    install|uninstall|status|preflight)
         ;;
     *)
-        echo 'Unknown action. Use install, uninstall or status.' >&2
+        echo 'Unknown action. Use install, uninstall, status or preflight.' >&2
         exit 1
         ;;
 esac
@@ -44,7 +44,7 @@ HERE=$(dirname "$SELF")
 ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 # Public actions go through persistent package management. The controller
 # sets MZD_WORKER_DIRECT only for its saved worker and deep inspection calls.
-if [ "${MZD_WORKER_DIRECT:-}" != 1 ]; then
+if [ "${MZD_WORKER_DIRECT:-}" != 1 ] && [ "$ACTION" != preflight ]; then
     exec sh "$ROOT/installer.sh" action "$(basename "$HERE")" "$ACTION"
 fi
 for library in manifest report system patch status; do
@@ -62,18 +62,23 @@ PATCH_FILE="$HERE/assets/change.patch"
 
 . "$ROOT/lib/settings.sh" || exit 1
 . "$HERE/touch.sh" || exit 1
-mzd_settings_check "$HERE/manifest.conf" "${MZD_SETTINGS_FILE:-/dev/null}" || exit 1
-BUS_MODE=$(mzd_setting general_speed_restriction) || exit 1
 
-mzd_check_prerequisites() {
+touch_preflight() {
     touch_require || return 1
     if [ "$(touch_read lvds_speed_restriction)" = disable ]; then
         printf 'info\tTouchscreen while driving is already enabled. Install to disable additional menu operation restriction.\n'
     fi
 }
 
+if [ "$ACTION" = preflight ]; then
+    touch_preflight
+    exit $?
+fi
+
 if [ "$ACTION" = status ]; then mzd_read_status; exit $?; fi
 mzd_action_preflight || exit 1
+mzd_settings_check "$HERE/manifest.conf" "${MZD_SETTINGS_FILE:-/dev/null}" || exit 1
+BUS_MODE=$(mzd_setting general_speed_restriction) || exit 1
 mzd_begin "$SELF" "$ID" touch_cleanup
 mzd_system_begin
 mzd_validate_firmware "$FIRMWARE" || exit 1

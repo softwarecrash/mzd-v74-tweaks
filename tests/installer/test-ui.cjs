@@ -480,6 +480,30 @@ x.click('tweak-bundle-example');x.pump();assert.equal(x.nodes.action.textContent
 assert.equal(x.calls.filter(a=>a[0]==='preflight-info').length,before,'Hardware failure must not block saved uninstall');
 console.log('COMPATIBILITY_UI_PASSED: detail-only bounded queries, hard block, soft warning, info message, stale replies and unrestricted saved uninstall.');
 
+// Non-bundle tweak preflight info (Touchscreen While Driving)
+x=boot(null,false,false,false,false,false);
+x.usb.ids=['touch-while-driving'];
+x.states['touch-while-driving']='uninstalled';
+x.preflight['touch-while-driving']=x.ok('info\tTouchscreen while driving is already enabled. Install to disable additional menu operation restriction.\n');
+x.click('refresh');x.pump();
+x.click('tweak-touch-while-driving');x.pump();
+assert(!x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Info: Touchscreen while driving is already enabled/);
+x.click('back');
+x.preflight['touch-while-driving']=x.ok();
+x.click('tweak-touch-while-driving');x.pump();
+assert(!x.nodes.action.disabled);
+assert.doesNotMatch(x.nodes['dialog-description'].textContent,/Info: Touchscreen while driving/);
+x.click('back');
+x.preflight['touch-while-driving']=x.ok('',1,'Cannot read valid speed restriction settings.');
+x.click('tweak-touch-while-driving');x.pump();
+assert(x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Cannot read valid speed restriction settings/);
+
+const touchManifest=parseConf('touch-while-driving',fs.readFileSync(path.join(ROOT,'tweaks/touch-while-driving/manifest.conf'),'utf8'));
+assert.equal(touchManifest.preflight,true);
+assert.throws(()=>parseConf('touch-while-driving',fs.readFileSync(path.join(ROOT,'tweaks/touch-while-driving/manifest.conf'),'utf8').replace('preflight=true','preflight=yes')));
+
 const clusterManifest=parseConf('cluster-language',fs.readFileSync(path.join(ROOT,'tweaks/cluster-language/manifest.conf'),'utf8'));
 assert.equal(clusterManifest.settingDefs[0].key,'hud_display_language');
 assert.equal(clusterManifest.settingDefs[0].default,'off');

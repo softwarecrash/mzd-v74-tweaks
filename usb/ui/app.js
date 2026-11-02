@@ -357,7 +357,7 @@
         });
     }
     function parseManifest(id, raw) {
-        var m = {}, lines = raw.split("\n"), fields = "contract_version id name description version type group firmware entrypoint actions target oem_backup_md5 lock_group status_scope reboot_required requires conflicts progress confirmation refresh_all reset_entrypoint settings shim_service shim_asset shim_path shim_extra_targets shim_checks components contributors payload_dir gui_api gui_menu_path gui_label gui_entrypoint gui_resident gui_service gui_translations".split(" ");
+        var m = {}, lines = raw.split("\n"), fields = "contract_version id name description version type group firmware entrypoint actions target oem_backup_md5 lock_group status_scope reboot_required requires conflicts progress confirmation refresh_all reset_entrypoint settings shim_service shim_asset shim_path shim_extra_targets shim_checks components contributors payload_dir gui_api gui_menu_path gui_label gui_entrypoint gui_resident gui_service gui_translations preflight".split(" ");
         for (var n = 0; n < lines.length; n++) {
             var line = lines[n].replace(/\r$/, "");
             if (/[\x00-\x1f\x7f]/.test(line)) throw new Error("Manifest contains control characters.");
@@ -393,6 +393,8 @@
         m.progress = m.progress === "true";
         if (m.refresh_all !== undefined && m.refresh_all !== "true" && m.refresh_all !== "false") throw new Error("Invalid refresh_all value.");
         m.refresh_all = m.refresh_all === "true";
+        if (m.preflight !== undefined && m.preflight !== "true" && m.preflight !== "false") throw new Error("Invalid preflight value.");
+        m.preflight = m.preflight === "true";
         if (m.reset_entrypoint !== undefined && m.reset_entrypoint !== "" && m.reset_entrypoint !== "reset.sh") throw new Error("Invalid reset entrypoint.");
         var lists = ["firmware","actions","requires","conflicts"];
         for (var l = 0; l < lists.length; l++) m[lists[l]] = trim(m[lists[l]]) ? trim(m[lists[l]]).split(/ +/) : [];
@@ -592,7 +594,7 @@
         };
         item.compatibilityPending=false; item.compatibilityBlocked=false;
         loadSettings(item,view);
-        if(item.manifest.components && item.state!=="installed" && !item.invalid) {
+        if((item.manifest.components || item.manifest.preflight) && item.state!=="installed" && !item.invalid) {
             item.compatibilityPending=true;el("action").disabled=true;
             call(["preflight-info",item.id],function(error,result) {
                 if(view!==detailView || dialogMode!=="details" || selected!==item || operating || closing)return;

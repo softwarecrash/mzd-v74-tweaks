@@ -4,8 +4,8 @@ from settings_schema import definitions
 
 FIELDS = ('contract_version id name description version type group firmware '
           'entrypoint actions target oem_backup_md5 lock_group status_scope '
-          'reboot_required requires conflicts progress confirmation refresh_all reset_entrypoint settings shim_service shim_asset shim_path shim_extra_targets shim_checks components contributors payload_dir gui_api gui_menu_path gui_label gui_entrypoint gui_resident gui_service gui_translations').split()
-REQUIRED = set(FIELDS) - {'target', 'oem_backup_md5', 'lock_group', 'progress', 'confirmation', 'refresh_all', 'reset_entrypoint', 'settings', 'shim_service', 'shim_asset', 'shim_path', 'shim_extra_targets', 'shim_checks', 'components', 'contributors', 'payload_dir', 'gui_api', 'gui_menu_path', 'gui_label', 'gui_entrypoint', 'gui_resident', 'gui_service', 'gui_translations'}
+          'reboot_required requires conflicts progress confirmation refresh_all reset_entrypoint settings shim_service shim_asset shim_path shim_extra_targets shim_checks components contributors payload_dir gui_api gui_menu_path gui_label gui_entrypoint gui_resident gui_service gui_translations preflight').split()
+REQUIRED = set(FIELDS) - {'target', 'oem_backup_md5', 'lock_group', 'progress', 'confirmation', 'refresh_all', 'reset_entrypoint', 'settings', 'shim_service', 'shim_asset', 'shim_path', 'shim_extra_targets', 'shim_checks', 'components', 'contributors', 'payload_dir', 'gui_api', 'gui_menu_path', 'gui_label', 'gui_entrypoint', 'gui_resident', 'gui_service', 'gui_translations', 'preflight'}
 ID = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
 VERSION = re.compile(r'^[0-9]+\.[0-9]+\.[0-9]+$')
 
@@ -82,6 +82,8 @@ def parse(text):
         raise ValueError('Expected true/false for progress.')
     if values.get('refresh_all', 'false') not in ['true', 'false']:
         raise ValueError('Expected true/false for refresh_all.')
+    if values.get('preflight', 'false') not in ['true', 'false']:
+        raise ValueError('Expected true/false for preflight.')
     if values.get('reset_entrypoint', '') not in ['', 'reset.sh']:
         raise ValueError('Reset entrypoint must be reset.sh.')
     if any(values.get(k) for k in ('shim_service', 'shim_asset', 'shim_path', 'shim_extra_targets', 'shim_checks')):

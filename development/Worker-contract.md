@@ -174,8 +174,8 @@ The settings example is non-destructive and reports its values on stdout.
 
 ## Component workers and compatibility details
 
-Workers with `components=components.tsv` delegate to bundle.sh. Their extra
-read-only `preflight` action returns `block<TAB>reason`, `warning<TAB>reason`
+Workers with `components=components.tsv` (or declaring `preflight=true`) support an
+extra read-only `preflight` action returning `block<TAB>reason`, `warning<TAB>reason`
 and/or `info<TAB>reason`, at most 16 lines of 512 characters. A completed inspection
 with a block returns 1; warnings and info messages alone return 0. The GUI calls this through
 `installer.sh preflight-info ID` only for an opened uninstalled detail view.

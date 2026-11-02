@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-touch-') as folder:
         if p.name == 'run.sh':
             text = text.replace('PATCH_FILE=', 'LOCK=' + shlex.quote(bp(lock)) + '\nPATCH_FILE=', 1)
             text = text.replace('. "$HERE/touch.sh" || exit 1',
-                                '. "$HERE/touch.sh" || exit 1\nif [ "$ACTION" != status ]; then printf "%s\\n" "$$" > '
+                                '. "$HERE/touch.sh" || exit 1\nif [ "$ACTION" != status ] && [ "$ACTION" != preflight ]; then printf "%s\\n" "$$" > '
                                 + shlex.quote(bp(base / 'worker.pid')) + '; fi')
         write(p, text)
     # Mutating commands are harmless fakes and leave an observable trace.
@@ -137,32 +137,24 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
 
     def mutate(action, code=0): return invoke([worker / 'run.sh', action], code)
 
-    def check_prereq():
-        cmd = (
-            f'. {shlex.quote(bp(usb / "lib/manifest.sh"))} && '
-            f'. {shlex.quote(bp(usb / "lib/settings.sh"))} && '
-            f'. {shlex.quote(bp(worker / "touch.sh"))} && '
-            f'mzd_manifest_load {shlex.quote(bp(worker / "manifest.conf"))} && '
-            f'eval "$(sed -n \'/^mzd_check_prerequisites()/,/^}}/p\' {shlex.quote(bp(worker / "run.sh"))})" && '
-            f'mzd_check_prerequisites'
-        )
-        return subprocess.run([SHELL, '-c', cmd], env=env, capture_output=True, text=True, timeout=60)
+    adapter = usb / 'installer.sh'
+    def preflight_info(code=0): return invoke([adapter, 'preflight-info', 'touch-while-driving'], code)
 
     for args in [[], ['--help'], ['-h']]: invoke([worker / 'run.sh'] + args)
     invoke([worker / 'run.sh', 'unknown'], 1)
     invoke([worker / 'run.sh', 'status', 'extra'], 1)
     deep('uninstalled')  # Missing keys use the OEM enable default.
-    # Factory enable: mzd_check_prerequisites produces no info message.
-    keys('enable', 'enable'); r = check_prereq()
+    # Factory enable: preflight produces no info message.
+    keys('enable', 'enable'); r = preflight_info()
     assert r.returncode == 0 and r.stdout == '' and r.stderr == ''
     # Already disabled: provides non-blocking info message.
-    keys('enable', 'disable'); r = check_prereq()
+    keys('enable', 'disable'); r = preflight_info()
     assert r.returncode == 0
     assert r.stdout == 'info\tTouchscreen while driving is already enabled. Install to disable additional menu operation restriction.\n'
     assert r.stderr == ''
     deep('uninstalled')  # Non-blocking info message does not change uninstalled status.
     write(nvram / 'keys/lvds_speed_restriction', 'invalid\n')
-    r = check_prereq()
+    r = preflight_info(1)
     assert r.returncode == 1 and 'Cannot read valid speed restriction settings.' in r.stderr
     deep('unavailable')
     keys(); write(version, 'unsupported\n'); deep('unavailable')
@@ -247,7 +239,7 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
         if p.name == 'run.sh':
             text = text.replace('PATCH_FILE=', 'LOCK=' + shlex.quote(bp(lock)) + '\nPATCH_FILE=', 1)
             text = text.replace('. "$HERE/touch.sh" || exit 1',
-                                '. "$HERE/touch.sh" || exit 1\nif [ "$ACTION" != status ]; then printf "%s\\n" "$$" > '
+                                '. "$HERE/touch.sh" || exit 1\nif [ "$ACTION" != status ] && [ "$ACTION" != preflight ]; then printf "%s\\n" "$$" > '
                                 + shlex.quote(bp(base / 'worker.pid')) + '; fi')
         write(p, text)
     # Default value (enabled) is used by installer.sh when no setting is supplied.

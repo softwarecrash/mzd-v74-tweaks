@@ -17,7 +17,7 @@ mzd_manifest_load() {
     SETTINGS=; MZD_MANIFEST_FILE=$mzd_manifest_file; mzd_manifest_settings=0
     CONTRACT_VERSION=; ID=; NAME=; DESCRIPTION=; VERSION=; TYPE=; GROUP=
     FIRMWARE=; ENTRYPOINT=; ACTIONS=; APP=; ORIGINAL=; LOCK_GROUP=
-    STATUS_SCOPE=; REBOOT_REQUIRED=; REQUIRES=; CONFLICTS=; PROGRESS=false; CONFIRMATION=; REFRESH_ALL=false; RESET_ENTRYPOINT=
+    STATUS_SCOPE=; REBOOT_REQUIRED=; REQUIRES=; CONFLICTS=; PROGRESS=false; CONFIRMATION=; REFRESH_ALL=false; RESET_ENTRYPOINT=; PREFLIGHT=false
     mzd_manifest_seen=' '; mzd_manifest_cr=$(printf '\r')
     while IFS= read -r mzd_manifest_line || [ -n "$mzd_manifest_line" ]; do
         mzd_manifest_line=${mzd_manifest_line%"$mzd_manifest_cr"}
@@ -27,7 +27,7 @@ mzd_manifest_load() {
         mzd_manifest_key=${mzd_manifest_line%%=*}
         mzd_manifest_value=${mzd_manifest_line#*=}
         case "$mzd_manifest_key" in
-            contract_version|id|name|description|version|type|group|firmware|entrypoint|actions|target|oem_backup_md5|lock_group|status_scope|reboot_required|requires|conflicts|progress|confirmation|refresh_all|reset_entrypoint|settings|setting.*|shim_service|shim_asset|shim_path|shim_extra_targets|shim_checks|components|contributors|payload_dir|gui_api|gui_menu_path|gui_label|gui_entrypoint|gui_resident|gui_service|gui_translations) ;;
+            contract_version|id|name|description|version|type|group|firmware|entrypoint|actions|target|oem_backup_md5|lock_group|status_scope|reboot_required|requires|conflicts|progress|confirmation|refresh_all|reset_entrypoint|settings|setting.*|shim_service|shim_asset|shim_path|shim_extra_targets|shim_checks|components|contributors|payload_dir|gui_api|gui_menu_path|gui_label|gui_entrypoint|gui_resident|gui_service|gui_translations|preflight) ;;
             *) mzd_manifest_error "Unknown field: $mzd_manifest_key"; return 1 ;;
         esac
         case "$mzd_manifest_seen" in *" $mzd_manifest_key "*) mzd_manifest_error "Duplicate field: $mzd_manifest_key"; return 1 ;; esac
@@ -70,6 +70,7 @@ mzd_manifest_load() {
             confirmation) CONFIRMATION=$mzd_manifest_value ;;
             refresh_all) REFRESH_ALL=$mzd_manifest_value ;;
             reset_entrypoint) RESET_ENTRYPOINT=$mzd_manifest_value ;;
+            preflight) PREFLIGHT=$mzd_manifest_value ;;
         esac
     done < "$mzd_manifest_file"
     for mzd_manifest_key in contract_version id name description version type group firmware entrypoint actions status_scope reboot_required requires conflicts; do
@@ -103,6 +104,7 @@ mzd_manifest_load() {
     done
     case "$PROGRESS" in true|false) ;; *) mzd_manifest_error 'Expected true or false for progress.'; return 1 ;; esac
     case "$REFRESH_ALL" in true|false) ;; *) mzd_manifest_error 'Expected true or false for refresh_all.'; return 1 ;; esac
+    case "$PREFLIGHT" in true|false) ;; *) mzd_manifest_error 'Expected true or false for preflight.'; return 1 ;; esac
     case "$RESET_ENTRYPOINT" in ''|reset.sh) ;; *) mzd_manifest_error 'Reset entrypoint must be reset.sh.'; return 1 ;; esac
     if [ "$mzd_manifest_settings" = 1 ]; then
         mzd_manifest_schema="${mzd_manifest_file%/*}/../../lib/settings.awk"

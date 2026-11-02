@@ -51,6 +51,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
         ('bad boolean', original.replace('reboot_required=true', 'reboot_required=yes'), False),
         ('bad OEM hash', original.replace('oem_backup_md5=', 'oem_backup_md5=bad'), False),
         ('control character', original + '# tab\t\n', False),
+        ('preflight true', original + 'preflight=true\n', True),
+        ('preflight false', original + 'preflight=false\n', True),
+        ('preflight invalid', original + 'preflight=yes\n', False),
     ]
     shim=(ROOT/'development/examples/shim/manifest.conf').read_text()
     cases += [('shim metadata',shim,True),

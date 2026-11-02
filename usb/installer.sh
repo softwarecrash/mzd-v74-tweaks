@@ -18,7 +18,7 @@ case "${1:-}" in
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
     . "$HERE/lib/manifest.sh" || exit 1
     mzd_manifest_load "$HERE/tweaks/$2/manifest.conf" && [ "$ID" = "$2" ] || exit 1
-    [ -n "${COMPONENTS:-}" ] || exit 0
+    [ -n "${COMPONENTS:-}" ] || [ "${PREFLIGHT:-}" = true ] || exit 0
     /bin/sh "$HERE/tweaks/$2/run.sh" preflight ;;
   settings-info)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'

@@ -67,6 +67,10 @@ The launcher calls `installer.sh start-run <id>`, polls `job-status <token>`, an
 - `reset_entrypoint`: optional fixed value `reset.sh`. Required by repository
   validation for service/files workers owning persistent extras. The reset hook
   must be a regular local file, not a link.
+- `preflight`: optional boolean, default false; enables read-only preflight and
+  compatibility queries for non-bundle tweaks through `installer.sh preflight-info ID`.
+  The worker's `preflight` action returns `block`, `warning` and/or `info` records
+  rendered in the detail view before installation.
 
 ## Optional tweak settings
 
