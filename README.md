@@ -23,7 +23,7 @@ Optional sponsor links can be placed directly after the contributor's name.
 | [Fuel Consumption Values](usb/tweaks/fuel-consumption-values/) | v74 implementation: [@patrikguth](https://github.com/patrikguth) |
 | [Wallpaper Manager](usb/tweaks/wallpaper-manager/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Tetris](usb/tweaks/tetris/) | CMU game/integration: [@softwarecrash](https://github.com/softwarecrash); based on Jake Gordon and contributors (MIT) |
-| [Touch While Driving](usb/tweaks/touch-while-driving/) | v74 implementation: [@softwarecrash](https://github.com/softwarecrash) |
+| [Touchscreen While Driving](usb/tweaks/touch-while-driving/) | v74 implementation: [@softwarecrash](https://github.com/softwarecrash) |
 | [Instrument Cluster / HUD Language (test release)](usb/tweaks/cluster-language/) | shim: [@patrikguth](https://github.com/patrikguth); release: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
 | [SSH Access, including automatic Wi-Fi activation](usb/tweaks/ssh/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Backup JCI](usb/tweaks/backup-jci/) | launcher implementation: [@softwarecrash](https://github.com/softwarecrash); earlier v74 script: [@piotrmocko](https://github.com/piotrmocko) |

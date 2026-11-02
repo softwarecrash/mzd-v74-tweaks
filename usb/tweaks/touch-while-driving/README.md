@@ -5,11 +5,14 @@ and the GUI `Global.AtSpeed` handler, so Mazda menus also stop becoming
 speed-disabled. Restart after installing or uninstalling.
 
 The **GPS & General Speed Restriction** setting defaults to `enabled`. This
-preserves the original general speed restriction while disabling the LVDS touch
-restriction. Select `disabled` to disable both restrictions. Disabling the
-general restriction can cut GPS/GNSS and compass signals to MZD Navigation,
-CarPlay and Android Auto; it is not required for touchscreen unlock. DVD
-unlocking is outside this tweak's scope.
+preserves the vehicle's existing general (bus) speed restriction value; it does
+not force that restriction on. The LVDS touch restriction is disabled either
+way. Select `disabled` to also disable the general restriction. This can cut
+GPS/GNSS and compass signals to MZD Navigation, CarPlay and Android Auto; it is
+not required for touchscreen unlock. On upgrade from 0.1.0, the old choice
+values `disable` and `keep` fall back to the new `enabled` default. This changes
+the former `disable` behavior to preserving the vehicle's existing general
+restriction. DVD unlocking is outside this tweak's scope.
 
 The worker uses the OEM NVRAM setters, verifies their return codes and reads
 both values back. Before the first change, it saves the original values under
