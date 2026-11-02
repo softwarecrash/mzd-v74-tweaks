@@ -1,13 +1,15 @@
-# Touch While Driving
+# Touchscreen While Driving
 
 For firmware **74.00.324**. Removes the Mazda touchscreen speed restriction
 and the GUI `Global.AtSpeed` handler, so Mazda menus also stop becoming
 speed-disabled. Restart after installing or uninstalling.
 
-The **General speed restriction** setting defaults to `disable`, matching the
-traditional AIO unlock. Select `keep` to retain the original general speed
-restriction for compass compatibility. Both choices disable the LVDS touch
-restriction. DVD unlocking is outside this tweak's scope.
+The **GPS & General Speed Restriction** setting defaults to `enabled`. This
+preserves the original general speed restriction while disabling the LVDS touch
+restriction. Select `disabled` to disable both restrictions. Disabling the
+general restriction can cut GPS/GNSS and compass signals to MZD Navigation,
+CarPlay and Android Auto; it is not required for touchscreen unlock. DVD
+unlocking is outside this tweak's scope.
 
 The worker uses the OEM NVRAM setters, verifies their return codes and reads
 both values back. Before the first change, it saves the original values under
