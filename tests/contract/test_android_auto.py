@@ -212,6 +212,31 @@ esac
     assert 'warning\tUnknown HUD type' in r.stdout
     env['TEST_HUD'] = 'whud'
 
+    # Foreign AA Mod shim in primary loader (sm.conf) must block installation
+    foreign = stock.replace('<dependency value="other"/>', '<environ_var env_name="LD_PRELOAD" env_value="/data_persist/oem-aa-mod/libpatch-blmjciaapa.so"/>', 1)
+    write(config, foreign)
+    r = call(['preflight-info', 'android-auto'], 1)
+    assert 'already referenced' in r.stdout
+    call(['action', 'android-auto', 'install'], 1)
+    assert config.read_text() == foreign and not payload_dir.exists()
+    write(config, stock)
+
+    # Foreign AA Mod shim in secondary loader (sm_WCP.conf) must also block installation
+    foreign_wcp = stock.replace('<dependency value="other"/>', '<environ_var env_name="LD_PRELOAD" env_value="/data_persist/oem-aa-mod/libpatch-svcjcinavi.so"/>', 1)
+    write(second, foreign_wcp)
+    r = call(['preflight-info', 'android-auto'], 1)
+    assert 'already referenced' in r.stdout
+    call(['action', 'android-auto', 'install'], 1)
+    assert second.read_text() == foreign_wcp and not payload_dir.exists()
+    write(second, stock)
+
+    # Cluster-language shim must not block android-auto
+    cluster_shim = stock.replace('<dependency value="other"/>', '<environ_var env_name="LD_PRELOAD" env_value="/data_persist/cluster-language/libpatch-svcjciblmsettings.so"/>', 1)
+    write(config, cluster_shim)
+    r = call(['preflight-info', 'android-auto'])
+    assert not r.stdout
+    write(config, stock)
+
     # Manifest settings defaults
     info = call(['settings-info', 'android-auto']).stdout
     assert 'value.resolution_dpi=141' in info and 'value.resolution_par=10670' in info
