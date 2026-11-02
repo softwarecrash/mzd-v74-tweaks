@@ -64,6 +64,14 @@ PATCH_FILE="$HERE/assets/change.patch"
 . "$HERE/touch.sh" || exit 1
 mzd_settings_check "$HERE/manifest.conf" "${MZD_SETTINGS_FILE:-/dev/null}" || exit 1
 BUS_MODE=$(mzd_setting general_speed_restriction) || exit 1
+
+mzd_check_prerequisites() {
+    touch_require || return 1
+    if [ "$(touch_read lvds_speed_restriction)" = disable ]; then
+        printf 'info\tTouchscreen while driving is already enabled. Install to disable additional menu operation restriction.\n'
+    fi
+}
+
 if [ "$ACTION" = status ]; then mzd_read_status; exit $?; fi
 mzd_action_preflight || exit 1
 mzd_begin "$SELF" "$ID" touch_cleanup
@@ -87,7 +95,7 @@ elif [ "$ACTION:$STATE" = install:uninstalled ]; then
     mkdir "$TOUCH_STATE" || exit 1
     BASE_BUS=$ENTRY_BUS; BASE_LVDS=$ENTRY_LVDS
     DESIRED_BUS=$BASE_BUS
-    [ "$BUS_MODE" != disable ] || DESIRED_BUS=disable
+    [ "$BUS_MODE" != disabled ] || DESIRED_BUS=disable
     printf 'mzd-touch-v1\n%s\n%s\n%s\n' "$BASE_BUS" "$BASE_LVDS" "$DESIRED_BUS" > "$MZD_REPORT/new-original-settings.txt" || exit 1
     cp "$MZD_REPORT/new-original-settings.txt" "$TOUCH_STATE/original.txt" &&
         cmp -s "$MZD_REPORT/new-original-settings.txt" "$TOUCH_STATE/original.txt" || exit 1

@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-touch-') as folder:
     write(watchdog, '0\n')
     write(mounts, f'mock / ext4 ro 0 0\nmock {bp(usb)} vfat rw 0 0\n'
           f'mock {bp(resources)} ext4 ro 0 0\nmock {bp(persist)} ext4 rw 0 0\n')
-    write(settings, 'general_speed_restriction=disable\n')
+    write(settings, 'general_speed_restriction=disabled\n')
     replacements = {
         '/jci/gui/common/js/Common.js': bp(target),
         '/sys/class/nvram/nv-config': bp(nvram),
@@ -137,11 +137,34 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
 
     def mutate(action, code=0): return invoke([worker / 'run.sh', action], code)
 
+    def check_prereq():
+        cmd = (
+            f'. {shlex.quote(bp(usb / "lib/manifest.sh"))} && '
+            f'. {shlex.quote(bp(usb / "lib/settings.sh"))} && '
+            f'. {shlex.quote(bp(worker / "touch.sh"))} && '
+            f'mzd_manifest_load {shlex.quote(bp(worker / "manifest.conf"))} && '
+            f'eval "$(sed -n \'/^mzd_check_prerequisites()/,/^}}/p\' {shlex.quote(bp(worker / "run.sh"))})" && '
+            f'mzd_check_prerequisites'
+        )
+        return subprocess.run([SHELL, '-c', cmd], env=env, capture_output=True, text=True, timeout=60)
+
     for args in [[], ['--help'], ['-h']]: invoke([worker / 'run.sh'] + args)
     invoke([worker / 'run.sh', 'unknown'], 1)
     invoke([worker / 'run.sh', 'status', 'extra'], 1)
     deep('uninstalled')  # Missing keys use the OEM enable default.
-    write(nvram / 'keys/lvds_speed_restriction', 'invalid\n'); deep('unavailable')
+    # Factory enable: mzd_check_prerequisites produces no info message.
+    keys('enable', 'enable'); r = check_prereq()
+    assert r.returncode == 0 and r.stdout == '' and r.stderr == ''
+    # Already disabled: provides non-blocking info message.
+    keys('enable', 'disable'); r = check_prereq()
+    assert r.returncode == 0
+    assert r.stdout == 'info\tTouchscreen while driving is already enabled. Install to disable additional menu operation restriction.\n'
+    assert r.stderr == ''
+    deep('uninstalled')  # Non-blocking info message does not change uninstalled status.
+    write(nvram / 'keys/lvds_speed_restriction', 'invalid\n')
+    r = check_prereq()
+    assert r.returncode == 1 and 'Cannot read valid speed restriction settings.' in r.stderr
+    deep('unavailable')
     keys(); write(version, 'unsupported\n'); deep('unavailable')
     write(version, 'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n')
     lock.mkdir(); deep('', 1); lock.rmdir()
@@ -154,12 +177,14 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
     mutate('uninstall'); values('disable', 'disable')
     assert target.read_text() == original + '// unrelated sentinel\n' and not state.exists()
     deep('uninstalled')
-    # keep preserves the original bus restriction and original LVDS value.
-    write(settings, 'general_speed_restriction=keep\n'); keys('enable', 'disable')
+    # enabled preserves the original bus restriction and original LVDS value.
+    write(settings, 'general_speed_restriction=enabled\n'); keys('enable', 'disable')
     mutate('install'); values('enable', 'disable'); deep('installed')
     keys('disable', 'enable'); deep('broken')
     mutate('uninstall'); values('enable', 'disable'); assert not state.exists()
-    write(settings, 'general_speed_restriction=disable\n'); keys()
+    # Choice options validation rejects invalid values.
+    write(settings, 'general_speed_restriction=invalid\n'); mutate('install', 1)
+    write(settings, 'general_speed_restriction=disabled\n'); keys()
     for failure in ['fail-once', 'bad-readback']:
         write(base / failure, '1\n'); before = target.read_bytes()
         mutate('install', 1); values('enable', 'enable'); assert target.read_bytes() == before
@@ -200,7 +225,11 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
     mutate('uninstall'); values('enable', 'enable')
     # Full saved-package removal restores settings despite a changed USB payload.
     adapter = usb / 'installer.sh'
-    invoke([adapter, 'action', 'touch-while-driving', 'install', 'general_speed_restriction=keep'])
+    info = invoke([adapter, 'settings-info', 'touch-while-driving']).stdout
+    assert 'setting.general_speed_restriction.options=disabled enabled' in info
+    assert 'setting.general_speed_restriction.default=enabled' in info
+    assert 'value.general_speed_restriction=enabled' in info
+    invoke([adapter, 'action', 'touch-while-driving', 'install', 'general_speed_restriction=enabled'])
     values('enable', 'disable')
     write(worker / 'touch.sh', '#!/bin/sh\nexit 97\n')
     write(worker / 'assets/change.patch', 'incompatible USB payload\n')
@@ -208,5 +237,30 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
     values('enable', 'enable')
     assert not state.exists() and not (persist / 'mzd-tweaks/installed/touch-while-driving').exists()
     assert target.read_text() == original
+    # Restore USB worker for additional adapter checks.
+    shutil.copytree(ROOT / 'usb/tweaks/touch-while-driving', worker, dirs_exist_ok=True)
+    for p in list(worker.rglob('*.sh')) + [worker / 'manifest.conf', worker / 'managed-paths.tsv']:
+        text = p.read_text(encoding='utf-8')
+        for before, after in replacements.items(): text = text.replace(before, after)
+        if p.suffix == '.sh':
+            text = text.replace('#!/bin/sh\n', '#!/bin/sh\nPATH=' + shlex.quote(bp(bins) + ':/usr/bin:/bin') + '\nexport PATH\n', 1)
+        if p.name == 'run.sh':
+            text = text.replace('PATCH_FILE=', 'LOCK=' + shlex.quote(bp(lock)) + '\nPATCH_FILE=', 1)
+            text = text.replace('. "$HERE/touch.sh" || exit 1',
+                                '. "$HERE/touch.sh" || exit 1\nif [ "$ACTION" != status ]; then printf "%s\\n" "$$" > '
+                                + shlex.quote(bp(base / 'worker.pid')) + '; fi')
+        write(p, text)
+    # Default value (enabled) is used by installer.sh when no setting is supplied.
+    invoke([adapter, 'action', 'touch-while-driving', 'install'])
+    values('enable', 'disable')
+    invoke([adapter, 'action', 'touch-while-driving', 'uninstall'])
+    values('enable', 'enable')
+    # Disabled option sets both bus and lvds restrictions to disable.
+    invoke([adapter, 'action', 'touch-while-driving', 'install', 'general_speed_restriction=disabled'])
+    values('disable', 'disable')
+    invoke([adapter, 'action', 'touch-while-driving', 'uninstall'])
+    values('enable', 'enable')
+    # Invalid options rejected through adapter.
+    invoke([adapter, 'action', 'touch-while-driving', 'install', 'general_speed_restriction=invalid'], 1)
 
 print('TOUCH_CONTRACT_PASSED:', checks, 'entrypoint checks; isolated settings, rollback, reset and saved removal.')
