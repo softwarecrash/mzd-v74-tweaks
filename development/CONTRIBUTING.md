@@ -11,7 +11,9 @@ Do not introduce a second legacy launcher or generated runtime tree.
    For a lazy-loaded GUI view, use [the Hello World GUI example](examples/gui-hello-world/)
    and read [Shared GUI extensions](Gui-extensions.md). Menu paths, including nested paths,
    use the same shared lifecycle for all views.
-3. Supply an English manifest, README, entrypoint and assets.
+3. Supply an English manifest, README, entrypoint and assets. For mutable app data,
+   use [the config example](examples/config-data/README.md) and declare
+   `config.<name>.path` directly in the manifest.
 4. Declare firmware, dependencies, conflicts, lock group and reboot needs.
    Put these settings only in manifest.conf; the shared reader configures run.sh.
 5. Implement and test any hardware or component checks. With the shared runtime,

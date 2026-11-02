@@ -24,6 +24,7 @@ def main():
  mode.add_argument('--recovery',action='store_true',help='Reproduce pre-persistence List Beep recovery with original CMU tools')
  mode.add_argument('--probe',action='store_true')
  mode.add_argument('--packages',action='store_true',help='Run only persistent packages with the original CMU shell')
+ mode.add_argument('--tetris',action='store_true',help='Test Tetris high score storage using original CMU Lua modules')
  mode.add_argument('--transport',action='store_true',help='Run HTTP/process checks without repeating the saved-package roundtrip')
  args=parser.parse_args()
  sys.path.insert(0,str(EMU));import appliance
@@ -65,6 +66,7 @@ requires=
 conflicts=
 progress=true
 """)
+ add('experiment/tests/tetris-highscore.lua',(REPO/'tests/tweaks/tetris/highscore.lua').read_bytes())
  import tarfile
  with tarfile.open(WORKSPACE/'mcu_backup_20261021_203342/03_root_system.tar.gz') as archive:
   add('cmu/bin/busybox',archive.extractfile('bin/busybox').read(),0o755)
@@ -160,7 +162,7 @@ export INSTALLER_LOG=/tmp/lua-logs
 lua() { /usr/bin/qemu-arm -L /cmu /cmu/lib/ld-linux.so.3 --library-path /cmu/lib:/cmu/usr/lib /cmu/usr/bin/lua "$@"; }
 cmush() { /usr/bin/qemu-arm -L /cmu /cmu/lib/ld-linux.so.3 --library-path /cmu/lib:/cmu/usr/lib /cmu/bin/busybox sh "$@"; }
 echo LUA_TEST_START
-"""+('lua /probe.lua\n' if args.probe else 'cmush /experiment/tests/cluster-test.sh\n' if args.cluster else 'cmush /experiment/tests/shim-test.sh\n' if args.shims else 'cmush -x /experiment/tests/settings-test.sh\n' if args.settings else 'cmush /experiment/tests/recovery-test.sh\n' if args.recovery else 'cmush /experiment/tests/package-test.sh\n' if args.packages else 'cd /experiment\nlua /experiment/tests/backend.lua\n')+"""result=$?
+"""+('lua /experiment/tests/tetris-highscore.lua\n' if args.tetris else 'lua /probe.lua\n' if args.probe else 'cmush /experiment/tests/cluster-test.sh\n' if args.cluster else 'cmush /experiment/tests/shim-test.sh\n' if args.shims else 'cmush -x /experiment/tests/settings-test.sh\n' if args.settings else 'cmush /experiment/tests/recovery-test.sh\n' if args.recovery else 'cmush /experiment/tests/package-test.sh\n' if args.packages else 'cd /experiment\nlua /experiment/tests/backend.lua\n')+"""result=$?
 echo "LUA_TEST_RESULT=$result"
 sync
 poweroff -f

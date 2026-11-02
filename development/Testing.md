@@ -176,3 +176,17 @@ The replug case must include a changed USB mount (for example sda1 to sdb1).
 The firmware USB invocation must return while the detached installer stays alive.
 Original-CMU Lua transport checks cover resolving the current installer path and
 serving the cached transport page after its USB source disappears.
+
+Mutable config checks: `python tests/contract/test_config_data.py`,
+`python tests/contract/test_packages.py`, and
+`python tests/contract/test_bundles.py` cover defaults, preservation, exclusive
+ownership, path/link refusal, native bundle coexistence and original-file reset.
+The symlink checks need Linux or Windows symlink privileges; the isolated Linux
+appliance provides that without modifying the CMU.
+
+Run `python tests/contract/test_gui_extensions.py --tetris-config-only` and
+`--config-example-only` for actual consumer lifecycle tests.
+`node tests/tweaks/tetris/highscore.cjs` covers the authenticated resident/view
+bridge. With the private original CMU runtime available,
+`python tests/transport/test-in-vm.py --tetris` tests real Lua/filesystem highscore
+I/O under QEMU. A physical CMU visual/gameplay test remains separate evidence.

@@ -207,3 +207,35 @@ translation dictionary for `gui-extension` consumers. Omit it for unchanged
 behavior. When present the path must be nonempty, under assets, end in `.js`
 and contain no dot/traversal segments. It does not require a resident or service.
 See [Shared GUI extensions](Gui-extensions.md#optional-translations).
+
+## Mutable configuration and user data
+
+Declare each path directly; no name list or type field is needed:
+
+```ini
+config.preferences.path=/tmp/mnt/data_persist/mzd-tweaks/data/my-tweak/preferences.conf
+config.preferences.source=assets/defaults/preferences.conf
+config.state.path=/tmp/mnt/data_persist/mzd-tweaks/data/my-tweak/state/
+config.state.source=assets/defaults/state/
+```
+
+A trailing slash on `path` means a directory; otherwise it means a file. The
+source is optional, relative to the tweak, and must be under assets/. An empty
+file is a valid template. Installation copies only missing files; existing
+contents are never overwritten. Without a source, the app creates its own files
+when needed. Declare up to 32 names using lowercase letters, digits or underscores.
+
+Mutable targets must be inside persistent storage, outside installer metadata,
+and exclusive to one tweak. Overlapping declarations and links are refused.
+Do not also register these targets as immutable component files. Declare a
+folder only when every file in that folder belongs to the app's mutable data.
+
+Contents and missing config files do not determine installed status. Apps own
+parsing, defaults, format changes and safe writes. GUI services can access the
+declared paths through `context.config.<name>`. The original spelling's trailing
+slash is removed in that mapping. Other apps/workers can use their paths directly.
+
+Update preserves config automatically. Uninstall asks Keep/Remove only for
+config-owning tweaks. CLI removal uses `uninstall` (remove data) or
+`uninstall --preserve-config` (keep data). See [the config example](examples/config-data/README.md)
+and Tetris for complete lifecycle and runtime I/O examples.

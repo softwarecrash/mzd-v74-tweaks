@@ -1,4 +1,5 @@
 #!/bin/sh
+if [ "${1:-}" = uninstall ] && [ "${2:-}" = --preserve-config ];then . "$(dirname "$(readlink -f "$0")")/../../lib/config-args.sh" || exit 1;fi
 # No More Disclaimer for Mazda firmware 74.00.324.
 # Launcher worker; shared runtime helpers are in ../../lib/.
 #

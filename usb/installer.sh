@@ -63,6 +63,12 @@ case "${1:-}" in
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
     . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
     mzd_package_update_info "$HERE" "$2" ;;
+  config-info)
+    [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
+    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+    mzd_package_check "$MZD_PACKAGE_STORE/$2" || exit 1
+    mzd_manifest_load "$MZD_PACKAGE_STORE/$2/package/tweaks/$2/manifest.conf" || exit 1
+    if [ -n "$CONFIGS" ];then printf 'present\n';else printf 'none\n';fi ;;
   package-info)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
     . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
@@ -97,7 +103,7 @@ case "${1:-}" in
   manifest|action)
     [ "$#" -ge 2 ] && valid_id "$2" || fail 'Invalid tweak folder.'
     TWEAK="$HERE/tweaks/$2"
-    if [ "$1" = action ] && [ "$#" = 3 ]; then
+    if [ "$1" = action ] && { [ "$#" = 3 ] || { [ "$#" = 4 ] && [ "$3" = uninstall ] && [ "$4" = --preserve-config ]; }; }; then
       case "$3" in uninstall|status)
         . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
         if [ -e "$MZD_PACKAGE_STORE/$2" ] || [ -L "$MZD_PACKAGE_STORE/$2" ]; then

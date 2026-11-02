@@ -363,12 +363,32 @@
             if (/[\x00-\x1f\x7f]/.test(line)) throw new Error("Manifest contains control characters.");
             if (!trim(line) || line.charAt(0) === "#") continue;
             var at = line.indexOf("="), key = line.substring(0, at);
-            if (at < 0 || (fields.indexOf(key) === -1 && key.indexOf("setting.")!==0)) throw new Error("Invalid manifest field.");
+            if (at < 0 || (fields.indexOf(key) === -1 && key.indexOf("setting.")!==0 && key.indexOf("config.")!==0)) throw new Error("Invalid manifest field.");
             if (Object.prototype.hasOwnProperty.call(m,key)) throw new Error("Duplicate manifest field: " + key);
             m[key] = line.substring(at + 1);
         }
         var required = "contract_version id name description version type group firmware entrypoint actions status_scope reboot_required requires conflicts".split(" ");
         for (var r = 0; r < required.length; r++) if (!Object.prototype.hasOwnProperty.call(m,required[r])) throw new Error("Missing manifest field: " + required[r]);
+        var configNames=[],configTargets=[],configKey,ci,cname,ctype,cpath,csource,cp;
+        for(configKey in m)if(m.hasOwnProperty(configKey) && configKey.indexOf("config.")===0) {
+            if(String(m[configKey]).length>512)throw new Error("Oversized config field.");
+            cp=configKey.split(".");if(cp.length!==3 || ["path","source"].indexOf(cp[2])<0)throw new Error("Invalid config field.");
+            if(configNames.indexOf(cp[1])<0)configNames.push(cp[1]);
+        }
+        if(configNames.length>32)throw new Error("Too many config entries.");
+        for(ci=0;ci<configNames.length;ci++) {
+            cname=configNames[ci];cpath=m["config."+cname+".path"]||"";csource=(m["config."+cname+".source"]===undefined?"-":m["config."+cname+".source"]);
+            if(cpath.indexOf("//")>=0)throw new Error("Invalid config path.");
+            ctype=cpath.charAt(cpath.length-1)==="/"?"dir":"file";
+            if(ctype==="dir"){cpath=cpath.substring(0,cpath.length-1);if(csource.charAt(csource.length-1)==="/")csource=csource.substring(0,csource.length-1);}
+            if(!/^[a-z][a-z0-9_]{0,31}$/.test(cname) || configNames.indexOf(cname)!==ci || ["file","dir"].indexOf(ctype)<0 || m.type==="command" || !/^\/[A-Za-z0-9_.\/-]+$/.test(cpath) || /\/\.\.?($|\/)|\/\/|\/$/.test(cpath))throw new Error("Invalid config declaration.");
+            if(csource!=="-" && (!/^assets\/[A-Za-z0-9_.\/-]+$/.test(csource) || /\/\.\.?($|\/)|\/\/|\/$/.test(csource)))throw new Error("Invalid config source.");
+            for(cp=0;cp<configTargets.length;cp++)if(cpath===configTargets[cp] || cpath.indexOf(configTargets[cp]+"/")===0 || configTargets[cp].indexOf(cpath+"/")===0)throw new Error("Overlapping config paths.");
+            var scope=cpath.match(/\/mzd-tweaks\/(data|gui-data|shims)(?:\/([^/]+))?/);
+            if(scope && scope[2]!==m.id)throw new Error("Config overlaps another app namespace.");
+            if(/\/mzd-tweaks\/(installed|gui-provider|config-owners)($|\/)|\/mzd-tweaks$/.test(cpath))throw new Error("Config overlaps installer metadata.");
+            configTargets.push(cpath);
+        }
         if (m.contract_version !== "1") throw new Error("Unsupported manifest contract version.");
         m.contract_version = 1;
         if (m.type==="gui-extension") {
@@ -526,11 +546,29 @@
         }
         return false;
     }
+    function requestUninstall(item) {
+        if(operating || closing || scanning || locked)return;
+        operating=true;controls();setDialogMode("working");el("back").disabled=true;el("action").disabled=true;text("dialog-state","Checking configuration");
+        call(["config-info",item.id],function(error,result){
+            operating=false;
+            var problem=error||resultError(result), answer=result?trim(result.stdout):"";
+            if(problem || (answer!=="present" && answer!=="none")) {
+                controls();showResult("Cannot uninstall",String(problem||"Invalid configuration response"),false,function(){openDetails(item);});return;
+            }
+            if(answer==="none"){item.preserveConfig=false;perform(item,"uninstall");return;}
+            setDialogMode("confirm");text("dialog-title","Keep configuration?");text("dialog-state",item.name);
+            text("dialog-description","Keep this tweak's configuration and user data for a later installation?");
+            clear(el("dialog-meta"));text("dialog-output","");text("back","No, remove");text("action","Yes, keep");
+            el("back").disabled=false;el("action").disabled=false;
+            el("back").onclick=function(){item.preserveConfig=false;perform(item,"uninstall");};
+            el("action").onclick=function(){item.preserveConfig=true;perform(item,"uninstall");};el("action").focus();
+        });
+    }
     function confirmUpdate(item) {
         if (!item.updateAvailable || operating || scanning || closing || locked) return;
         setDialogMode("confirm");el("dialog-body").className="";
         text("dialog-title","Update: "+item.name);text("dialog-state",item.installedVersion+" to "+item.manifest.version);
-        text("dialog-description","The saved version will be uninstalled, then the USB version installed.\nCompatible settings are retained; new or incompatible options use the new defaults.\n\nIf replacement fails, the previous package is retained for recovery. It is not automatically reinstalled.");
+        text("dialog-description","The saved version will be uninstalled, then the USB version installed.\nConfiguration files and app data are kept. Compatible manifest settings are retained; new or incompatible options use the new defaults.\n\nIf replacement fails, the previous package is retained for recovery. It is not automatically reinstalled.");
         clear(el("dialog-meta"));text("dialog-output","");text("back","Cancel");text("action","Update");
         el("back").disabled=false;el("action").disabled=false;el("back").onclick=function(){openDetails(item);};
         el("action").onclick=function(){perform(item,"update");};el("back").focus();
@@ -590,6 +628,7 @@
                 scanning = true; controls(); el("action").disabled = true;
                 checkStatus(item,function () {scanning=false;controls();openDetails(item);});
             } else if (action === "run" && item.manifest.confirmation) confirmRun(item);
+            else if(action==="uninstall")requestUninstall(item);
             else perform(item,action);
         };
         item.compatibilityPending=false; item.compatibilityBlocked=false;
@@ -629,7 +668,7 @@
                 text("dialog-description",item.manifest.description+"\n\nRemove the saved installation (version "+info[1]+") before trying again. Its recorded uninstaller will be used. You can install the USB version after successful removal.");
                 el("uninstall-action").onclick=function () {
                     if (el("uninstall-action").disabled || view!==detailView || dialogMode!=="details" || selected!==item || operating || closing || scanning || locked) return;
-                    perform(item,"uninstall");
+                    requestUninstall(item);
                 };
             });
         }
@@ -704,6 +743,7 @@
     function executeAction(item, action, callback, restoreHash) {
         if(action==="restore-original") {call(["restore-original",item.id,restoreHash],callback);return;}
         var options;
+        if(action==="uninstall" && item.preserveConfig){call(["action",item.id,"uninstall","--preserve-config"],callback);return;}
         if(action==="update"){call(["action",item.id,"update",item.manifest.version],callback);return;}
         try {options=(action==="install" || action==="run")?settingArguments(item):[];}
         catch(e){callback(null,{started:false,startError:String(e),exitCode:null,signal:null,stdout:"",stderr:""});return;}

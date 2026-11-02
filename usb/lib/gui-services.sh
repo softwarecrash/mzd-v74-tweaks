@@ -10,7 +10,8 @@ mzd_gui_data_owned() (
     printf 'MZD_GUI_DATA_V1\n%s\n' "$2" | cmp -s - "$1/owner"
 )
 mzd_gui_capabilities() (
-    needs_i18n=0; needs_resident=0
+    needs_i18n=0; needs_resident=0; needs_config=0
+    if [ -n "${CONFIGS:-}" ];then needs_config=1;fi
     [ -z "$GUI_TRANSLATIONS" ] || needs_i18n=1
     [ -z "$GUI_RESIDENT$GUI_SERVICE" ] || needs_resident=1
     [ -z "$GUI_RESIDENT" ] || [ -f "$HERE/$GUI_RESIDENT" ] && [ ! -L "$HERE/$GUI_RESIDENT" ] || exit 1
@@ -20,6 +21,11 @@ mzd_gui_capabilities() (
         if [ "$receipt" != "$MZD_GUI_PROVIDER" ]; then
             mzd_manifest_load "$receipt/package/tweaks/${receipt##*/}/manifest.conf" || exit 1
             [ "$TYPE" = gui-extension ] || continue
+        fi
+        if [ "$needs_config" = 1 ];then
+            mzd_line_is config=1 "$receipt/package/lib/gui-runtime/api.conf" || {
+                mzd_gui_error 'GUI config support requires a fresh shared provider. Remove its GUI consumers, then install the updated package.';exit 1;
+            }
         fi
         if [ "$needs_i18n" = 1 ]; then
             mzd_line_is i18n=2 "$receipt/package/lib/gui-runtime/api.conf" || {

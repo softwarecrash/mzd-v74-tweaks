@@ -246,6 +246,26 @@ esac
     make('beta',requires='alpha');action('beta','install',1)
     # The global operation lock also coordinates with Restore.
     lock.mkdir();before=text();action('alpha','install',1);assert text()==before;lock.rmdir()
+    # Mutable configs are outside the inventory: edited values survive Update/keep.
+    make('alpha');config=base/'persist/user-config';config_file=config/'settings.conf'
+    p=folder/'manifest.conf';write(p,p.read_text()+'config.prefs.path='+bp(config)+'/\nconfig.prefs.source=assets/defaults\n')
+    write(folder/'assets/defaults/settings.conf','value=default\n')
+    action('alpha','install');assert config_file.read_text()=='value=default\n'
+    write(config_file,'value=edited\n');write(config/'runtime-created.conf','runtime=yes\n')
+    action('alpha','status',output='installed\n')
+    write(p,p.read_text().replace('version=1.0.0','version=2.0.0'))
+    write(folder/'assets/defaults/settings.conf','value=new-default\n');write(folder/'assets/defaults/added.conf','new=yes\n')
+    call(['action','alpha','update','2.0.0']);assert config_file.read_text()=='value=edited\n'
+    assert (config/'runtime-created.conf').exists() and (config/'added.conf').read_text()=='new=yes\n'
+    write(p,p.read_text().replace('version=2.0.0','version=3.0.0'));action('alpha','install');assert config_file.read_text()=='value=edited\n'
+    call(['action','alpha','uninstall','--preserve-config']);assert config_file.exists() and not entry.exists()
+    action('alpha','install');assert config_file.read_text()=='value=edited\n'
+    action('alpha','uninstall');assert not config.exists()
+    # Config default files are optional after installation; links are never adopted.
+    action('alpha','install');shutil.rmtree(config);action('alpha','status',output='installed\n');action('alpha','uninstall')
+    config.symlink_to(base,target_is_directory=True);action('alpha','install',1);config.unlink()
+    # Return to a fixture without config declarations for the unmanaged-target test.
+    make('alpha')
     # Deliberately no adoption of pre-receipt installations.
     write(target,'unmanaged\n');action('alpha','install',1);action('alpha','uninstall',1)
     assert target.read_text()=='unmanaged\n' and not entry.exists()

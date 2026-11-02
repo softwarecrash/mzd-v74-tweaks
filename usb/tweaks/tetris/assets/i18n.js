@@ -3,6 +3,7 @@ window.MzdGuiI18n.register("tetris", {
   "version": 1,
   "languages": {
     "en_US": {
+      "highscore": "HIGH SCORE",
       "start": "Start",
       "exit": "Exit",
       "continue": "Continue",
@@ -44,9 +45,11 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "BACK",
-      "gui.backToApplications": "Back to Applications"
+      "gui.backToApplications": "Back to Applications",
+      "notSaved": "not saved"
     },
     "de_DE": {
+      "highscore": "REKORD",
       "start": "Start",
       "exit": "Beenden",
       "continue": "Fortsetzen",
@@ -88,7 +91,8 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ZURÜCK",
-      "gui.backToApplications": "ZURÜCK"
+      "gui.backToApplications": "ZURÜCK",
+      "notSaved": "nicht gespeichert"
     },
     "es_ES": {
       "start": "Iniciar",
@@ -132,7 +136,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ATRÁS",
-      "gui.backToApplications": "ATRÁS"
+      "gui.backToApplications": "ATRÁS",
+      "highscore": "MEJOR PUNTUACIÓN",
+      "notSaved": "no guardado"
     },
     "fr_FR": {
       "start": "Démarrer",
@@ -176,7 +182,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "RETOUR",
-      "gui.backToApplications": "RETOUR"
+      "gui.backToApplications": "RETOUR",
+      "highscore": "MEILLEUR SCORE",
+      "notSaved": "non enregistré"
     },
     "it_IT": {
       "start": "Inizia",
@@ -220,7 +228,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "INDIETRO",
-      "gui.backToApplications": "INDIETRO"
+      "gui.backToApplications": "INDIETRO",
+      "highscore": "RECORD",
+      "notSaved": "non salvato"
     },
     "nl_NL": {
       "start": "Start",
@@ -264,7 +274,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "TERUG",
-      "gui.backToApplications": "TERUG"
+      "gui.backToApplications": "TERUG",
+      "highscore": "HIGHSCORE",
+      "notSaved": "niet opgeslagen"
     },
     "pt_PT": {
       "start": "Iniciar",
@@ -308,7 +320,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "VOLTAR",
-      "gui.backToApplications": "VOLTAR"
+      "gui.backToApplications": "VOLTAR",
+      "highscore": "RECORDE",
+      "notSaved": "não salvo"
     },
     "pt_BR": {
       "start": "Iniciar",
@@ -352,7 +366,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "VOLTAR",
-      "gui.backToApplications": "VOLTAR"
+      "gui.backToApplications": "VOLTAR",
+      "highscore": "RECORDE",
+      "notSaved": "não salvo"
     },
     "ru_RU": {
       "start": "Начать",
@@ -396,7 +412,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "НАЗАД",
-      "gui.backToApplications": "НАЗАД"
+      "gui.backToApplications": "НАЗАД",
+      "highscore": "РЕКОРД",
+      "notSaved": "не сохранено"
     },
     "fi_FI": {
       "start": "Aloita",
@@ -440,7 +458,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "TAKAISIN",
-      "gui.backToApplications": "TAKAISIN"
+      "gui.backToApplications": "TAKAISIN",
+      "highscore": "ENNÄTYS",
+      "notSaved": "ei tallennettu"
     },
     "sv_SE": {
       "start": "Starta",
@@ -484,7 +504,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "TILLBAKA",
-      "gui.backToApplications": "TILLBAKA"
+      "gui.backToApplications": "TILLBAKA",
+      "highscore": "REKORD",
+      "notSaved": "inte sparat"
     },
     "da_DK": {
       "start": "Start",
@@ -528,7 +550,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "TILBAGE",
-      "gui.backToApplications": "TILBAGE"
+      "gui.backToApplications": "TILBAGE",
+      "highscore": "REKORD",
+      "notSaved": "ikke gemt"
     },
     "no_NO": {
       "start": "Start",
@@ -572,7 +596,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "TILBAKE",
-      "gui.backToApplications": "TILBAKE"
+      "gui.backToApplications": "TILBAKE",
+      "highscore": "REKORD",
+      "notSaved": "ikke lagret"
     },
     "cs_CS": {
       "start": "Spustit",
@@ -616,7 +642,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ZPĚT",
-      "gui.backToApplications": "ZPĚT"
+      "gui.backToApplications": "ZPĚT",
+      "highscore": "REKORD",
+      "notSaved": "neuloženo"
     },
     "hu_HU": {
       "start": "Indítás",
@@ -660,7 +688,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "VISSZA",
-      "gui.backToApplications": "VISSZA"
+      "gui.backToApplications": "VISSZA",
+      "highscore": "REKORD",
+      "notSaved": "nincs mentve"
     },
     "pl_PL": {
       "start": "Start",
@@ -704,7 +734,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "WSTECZ",
-      "gui.backToApplications": "WSTECZ"
+      "gui.backToApplications": "WSTECZ",
+      "highscore": "REKORD",
+      "notSaved": "nie zapisano"
     },
     "sk_SK": {
       "start": "Spustiť",
@@ -748,7 +780,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "SPÄŤ",
-      "gui.backToApplications": "SPÄŤ"
+      "gui.backToApplications": "SPÄŤ",
+      "highscore": "REKORD",
+      "notSaved": "neuložené"
     },
     "tr_TR": {
       "start": "Başlat",
@@ -792,7 +826,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "GERİ",
-      "gui.backToApplications": "GERİ"
+      "gui.backToApplications": "GERİ",
+      "highscore": "REKOR",
+      "notSaved": "kaydedilmedi"
     },
     "et_EE": {
       "start": "Alusta",
@@ -836,7 +872,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "TAGASI",
-      "gui.backToApplications": "TAGASI"
+      "gui.backToApplications": "TAGASI",
+      "highscore": "REKORD",
+      "notSaved": "salvestamata"
     },
     "lv_LV": {
       "start": "Sākt",
@@ -880,7 +918,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ATPAKAĻ",
-      "gui.backToApplications": "ATPAKAĻ"
+      "gui.backToApplications": "ATPAKAĻ",
+      "highscore": "REKORDS",
+      "notSaved": "nav saglabāts"
     },
     "lt_LT": {
       "start": "Pradėti",
@@ -924,7 +964,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ATGAL",
-      "gui.backToApplications": "ATGAL"
+      "gui.backToApplications": "ATGAL",
+      "highscore": "REKORDAS",
+      "notSaved": "neišsaugota"
     },
     "el_GR": {
       "start": "Έναρξη",
@@ -968,7 +1010,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ΠΙΣΩ",
-      "gui.backToApplications": "ΠΙΣΩ"
+      "gui.backToApplications": "ΠΙΣΩ",
+      "highscore": "ΡΕΚΟΡ",
+      "notSaved": "δεν αποθηκεύτηκε"
     },
     "hr_HR": {
       "start": "Pokreni",
@@ -1012,7 +1056,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "NATRAG",
-      "gui.backToApplications": "NATRAG"
+      "gui.backToApplications": "NATRAG",
+      "highscore": "REKORD",
+      "notSaved": "nije spremljeno"
     },
     "bg_BG": {
       "start": "Старт",
@@ -1056,7 +1102,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "НАЗАД",
-      "gui.backToApplications": "НАЗАД"
+      "gui.backToApplications": "НАЗАД",
+      "highscore": "РЕКОРД",
+      "notSaved": "не е запазено"
     },
     "ro_RO": {
       "start": "Start",
@@ -1100,7 +1148,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ÎNAPOI",
-      "gui.backToApplications": "ÎNAPOI"
+      "gui.backToApplications": "ÎNAPOI",
+      "highscore": "RECORD",
+      "notSaved": "nesalvat"
     },
     "sr_RS": {
       "start": "Почни",
@@ -1144,7 +1194,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "НАЗАД",
-      "gui.backToApplications": "НАЗАД"
+      "gui.backToApplications": "НАЗАД",
+      "highscore": "РЕКОРД",
+      "notSaved": "није сачувано"
     },
     "uk_UA": {
       "start": "Почати",
@@ -1188,7 +1240,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "НАЗАД",
-      "gui.backToApplications": "НАЗАД"
+      "gui.backToApplications": "НАЗАД",
+      "highscore": "РЕКОРД",
+      "notSaved": "не збережено"
     },
     "ms_MY": {
       "start": "Mula",
@@ -1232,7 +1286,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "KEMBALI",
-      "gui.backToApplications": "KEMBALI"
+      "gui.backToApplications": "KEMBALI",
+      "highscore": "SKOR TERTINGGI",
+      "notSaved": "tidak disimpan"
     },
     "id_ID": {
       "start": "Mulai",
@@ -1276,7 +1332,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "KEMBALI",
-      "gui.backToApplications": "KEMBALI"
+      "gui.backToApplications": "KEMBALI",
+      "highscore": "SKOR TERTINGGI",
+      "notSaved": "belum disimpan"
     },
     "ja_JP": {
       "start": "開始",
@@ -1320,7 +1378,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "戻る",
-      "gui.backToApplications": "戻る"
+      "gui.backToApplications": "戻る",
+      "highscore": "ハイスコア",
+      "notSaved": "未保存"
     },
     "zh_CN": {
       "start": "开始",
@@ -1364,7 +1424,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "返回",
-      "gui.backToApplications": "返回"
+      "gui.backToApplications": "返回",
+      "highscore": "最高分",
+      "notSaved": "未保存"
     },
     "zh_TW": {
       "start": "開始",
@@ -1408,7 +1470,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "返回",
-      "gui.backToApplications": "返回"
+      "gui.backToApplications": "返回",
+      "highscore": "最高分",
+      "notSaved": "未儲存"
     },
     "cn_HK": {
       "start": "開始",
@@ -1452,7 +1516,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "返回",
-      "gui.backToApplications": "返回"
+      "gui.backToApplications": "返回",
+      "highscore": "最高分",
+      "notSaved": "未儲存"
     },
     "ar_SA": {
       "start": "ابدأ",
@@ -1496,7 +1562,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "رجوع",
-      "gui.backToApplications": "رجوع"
+      "gui.backToApplications": "رجوع",
+      "highscore": "أعلى نتيجة",
+      "notSaved": "لم يتم الحفظ"
     },
     "he_IL": {
       "start": "התחלה",
@@ -1540,7 +1608,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "חזרה",
-      "gui.backToApplications": "חזרה"
+      "gui.backToApplications": "חזרה",
+      "highscore": "שיא נקודות",
+      "notSaved": "לא נשמר"
     },
     "th_TH": {
       "start": "เริ่ม",
@@ -1584,7 +1654,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "กลับ",
-      "gui.backToApplications": "กลับ"
+      "gui.backToApplications": "กลับ",
+      "highscore": "คะแนนสูงสุด",
+      "notSaved": "ยังไม่บันทึก"
     },
     "en_UK": {
       "start": "Start",
@@ -1628,7 +1700,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "BACK",
-      "gui.backToApplications": "Back to Applications"
+      "gui.backToApplications": "Back to Applications",
+      "highscore": "HIGH SCORE",
+      "notSaved": "not saved"
     },
     "en_AU": {
       "start": "Start",
@@ -1672,7 +1746,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "BACK",
-      "gui.backToApplications": "Back to Applications"
+      "gui.backToApplications": "Back to Applications",
+      "highscore": "HIGH SCORE",
+      "notSaved": "not saved"
     },
     "es_MX": {
       "start": "Iniciar",
@@ -1716,7 +1792,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "ATRÁS",
-      "gui.backToApplications": "ATRÁS"
+      "gui.backToApplications": "ATRÁS",
+      "highscore": "MEJOR PUNTUACIÓN",
+      "notSaved": "no guardado"
     },
     "fr_CN": {
       "start": "Démarrer",
@@ -1760,7 +1838,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "RETOUR",
-      "gui.backToApplications": "RETOUR"
+      "gui.backToApplications": "RETOUR",
+      "highscore": "MEILLEUR SCORE",
+      "notSaved": "non enregistré"
     },
     "mn_TW": {
       "start": "開始",
@@ -1804,7 +1884,9 @@ window.MzdGuiI18n.register("tetris", {
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
       "gui.back": "返回",
-      "gui.backToApplications": "返回"
+      "gui.backToApplications": "返回",
+      "highscore": "最高分",
+      "notSaved": "未儲存"
     }
   }
 });

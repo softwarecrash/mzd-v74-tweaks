@@ -32,6 +32,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
  shutil.copytree(ROOT/'usb/tweaks/tetris',usb/'tweaks/tetris')
  shutil.copytree(ROOT/'usb/tweaks/wallpaper-manager',usb/'tweaks/wallpaper-manager')
  shutil.copytree(ROOT/'development/examples/gui-hello-world',usb/'tweaks/gui-hello-world')
+ shutil.copytree(ROOT/'development/examples/config-data',usb/'tweaks/config-example')
  shutil.copytree(ROOT/'usb/tweaks/restore-originals',usb/'tweaks/restore-originals')
  if '--services-only' in sys.argv or '--wallpaper-only' in sys.argv:
   for id_ in ['gui-example','second-example']:
@@ -40,6 +41,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
    write(dest/'assets/resident.js','window.MzdGuiResidents.register("'+id_+'",function () {});\n')
    write(dest/'assets/service.lua','return function() return {request=function()return {}end}end\n')
   write(b/'startup','#!/bin/sh\n# unrelated SSH hook\necho original\n')
+ if '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv:
+  write(b/'startup','#!/bin/sh\necho original\n')
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
  replacements={'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts)}
@@ -48,6 +51,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
   for x,y in replacements.items():s=s.replace(x,y)
   s=s.replace('/tmp/mnt/sd[a-z][0-9]*|/mnt/sd[a-z][0-9]*',shlex.quote(bp(usb)))
   s=s.replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1);write(p,s)
+ for p in usb.rglob('manifest.conf'):
+  write(p,p.read_text().replace('/tmp/mnt/data_persist',bp(persist)))
  for name in ['mount','sync']:write(bins/name,'#!/bin/sh\nprintf "'+name+'\\n" >> '+shlex.quote(bp(events))+'\n')
  write(bins/'df','#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nmock 1000000 1000 999000 1%% persist\\n"\n')
  # Simulate an install-time boot-hook copy failure without touching any real CMU file.
@@ -59,7 +64,7 @@ if [ "$destination" = '''+shlex.quote(bp(base/'mzd-gui-runtime'))+''' ] && [ -f 
 exec '''+copy_command+''' "$@"
 ''')
  write(bins/'rm','#!/bin/sh\nfor arg do destination=$arg; done\nif [ "$destination" = '+shlex.quote(bp(base/'mzd-gui-runtime'))+' ] && [ -f '+shlex.quote(bp(b/'fail-remove'))+' ]; then '+remove_command+' -f '+shlex.quote(bp(b/'fail-remove'))+'; exit 1; fi\nexec '+remove_command+' "$@"\n')
- if '--services-only' in sys.argv or '--wallpaper-only' in sys.argv:
+ if any(flag in sys.argv for flag in ['--services-only','--wallpaper-only','--tetris-only','--tetris-config-only']):
   # CMU BusyBox does not decode the literal backslash-t passed through -F.
   # Reject that nonportable form even when the host awk would accept it.
   write(bins/'awk','#!/bin/sh\nif [ \"$1\" = -F ] && [ \"$2\" = '+shlex.quote(r'\t')+' ]; then printf \"Unsupported CMU awk field separator.\\n\" >&2; exit 1; fi\nexec '+awk_command+' \"$@\"\n')
@@ -69,9 +74,9 @@ exec '''+copy_command+''' "$@"
   with (usb/'lib/gui-services.sh').open('a',encoding='utf-8') as f:
    f.write('\nmzd_gui_services_stop() { printf "stop\\n" >> '+shlex.quote(bp(events))+'; }\n')
    f.write('mzd_gui_services_start() { printf "start\\n" >> '+shlex.quote(bp(events))+'; }\n')
- def call(id_,action,code=0,out=None):
+ def call(id_,action,code=0,out=None,extra=()):
   global checks
-  r=subprocess.run([SHELL,bp(usb/'installer.sh'),'action',id_,action],capture_output=True,text=True,timeout=180 if os.name=='nt' else 60)
+  r=subprocess.run([SHELL,bp(usb/'installer.sh'),'action',id_,action,*extra],capture_output=True,text=True,timeout=180 if os.name=='nt' else 60)
   detail=''
   if r.returncode!=code:
    logs=sorted((usb/'reports'/id_).rglob('run.log'),key=lambda p:p.stat().st_mtime)
@@ -91,7 +96,7 @@ exec '''+copy_command+''' "$@"
  def absent():assert not hook.exists() and not runtime.exists() and not registry.exists() and not provider.exists() and not modules.exists()
  if '--services-only' in sys.argv:
   startup=b/'startup';original=startup.read_bytes()
-  call('tetris','install')
+  call('gui-hello-world','install')
   call('gui-example','install');deep('gui-example','installed')
   assert b'resident:' in registry.read_bytes() and 'gui-example' in (base/'mzd-gui-services.tsv').read_text()
   assert startup.read_text().count('# MZD shared GUI services')==1
@@ -101,10 +106,10 @@ exec '''+copy_command+''' "$@"
   call('second-example','install');assert startup.read_text().count('# MZD shared GUI services')==1
   call('gui-example','uninstall');assert hook.exists() and startup.read_bytes()!=original and (user_data/'user-file').exists()
   call('second-example','uninstall');assert hook.exists() and startup.read_bytes()==original and not (base/'mzd-gui-services.tsv').read_text()
-  call('tetris','uninstall');absent();assert not (base/'mzd-gui-services.tsv').exists()
+  call('gui-hello-world','uninstall');absent();assert not (base/'mzd-gui-services.tsv').exists()
   # Old immutable providers and saved uninstallers must be removed explicitly.
-  call('tetris','install')
-  for q in [provider/'package/lib/gui-runtime/api.conf',runtime/'api.conf',persist/'mzd-tweaks/installed/tetris/package/lib/gui-runtime/api.conf']:
+  call('gui-hello-world','install')
+  for q in [provider/'package/lib/gui-runtime/api.conf',runtime/'api.conf',persist/'mzd-tweaks/installed/gui-hello-world/package/lib/gui-runtime/api.conf']:
    write(q,'api=1\nversion=0.1.0\n')
   for folder,inventory in [(provider,'provider.files'),(persist/'mzd-tweaks/installed/tetris','package.files')]:
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
@@ -112,7 +117,7 @@ exec '''+copy_command+''' "$@"
   diagnostics=failed.stdout+failed.stderr+'\n'.join(p.read_text() for p in (usb/'reports/gui-example').glob('install-*/run.log'))
   assert 'predates resident services' in diagnostics,diagnostics
   assert startup.read_bytes()==original and not (modules/'gui-example').exists() and not (persist/'mzd-tweaks/installed/gui-example').exists()
-  call('tetris','uninstall');absent()
+  call('gui-hello-world','uninstall');absent()
   print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, retained user data and old-provider refusal.')
   raise SystemExit(0)
  if '--wallpaper-only' in sys.argv:
@@ -124,8 +129,8 @@ exec '''+copy_command+''' "$@"
   user_data=persist/'mzd-tweaks/gui-data/wallpaper-manager'
   write(user_data/'test-image.png','synthetic user data\n')
   call('wallpaper-manager','uninstall');assert hook.exists() and (user_data/'test-image.png').exists()
-  assert startup.read_bytes()==original
-  call('tetris','uninstall');absent()
+  assert startup.read_bytes()!=original  # Tetris is also a service consumer now.
+  call('tetris','uninstall');absent();assert startup.read_bytes()==original
   call('wallpaper-manager','install');call('tetris','install');call('tetris','uninstall');assert hook.exists()
   call('wallpaper-manager','uninstall');absent();assert startup.read_bytes()==original
   print('WALLPAPER_PACKAGE_PASSED:',checks,'real actions; image-free public payload, mixed consumers, both removal orders and retained user data.')
@@ -153,6 +158,29 @@ exec '''+copy_command+''' "$@"
   assert (retained/'keep').read_text()=='user content\n'
   assert not (b/'startup').exists(),'uninstalled service consumer changed startup'
   print('GUI_RESTORE_PASSED:',checks,'real actions; mixed GUI reset and last shared-support cleanup.')
+  raise SystemExit(0)
+ if '--config-example-only' in sys.argv:
+  call('config-example','install')
+  data=persist/'mzd-tweaks/data/config-example'
+  assert (data/'preferences.conf').read_text()=='theme=default\n'
+  assert (data/'state/counter.conf').read_text()=='' and not (data/'session.conf').exists()
+  write(data/'preferences.conf','user=changed\n');write(data/'state/runtime.conf','runtime=yes\n');write(data/'session.conf','session=yes\n')
+  call('config-example','uninstall',extra=['--preserve-config']);assert (data/'session.conf').exists();absent()
+  call('config-example','install');assert (data/'preferences.conf').read_text()=='user=changed\n'
+  call('config-example','uninstall');assert not (data/'preferences.conf').exists() and not (data/'state').exists() and not (data/'session.conf').exists();absent()
+  print('CONFIG_EXAMPLE_PASSED:',checks,'real actions; file, folder, optional source, runtime data, keep/reinstall and removal.')
+  raise SystemExit(0)
+ if '--tetris-config-only' in sys.argv:
+  call('tetris','install')
+  score=persist/'mzd-tweaks/data/tetris/highscore.conf'
+  assert score.exists() and score.read_text()==''
+  write(score,'highscore=1234\n')
+  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.0','version=0.5.1'))
+  call('tetris','update');assert score.read_text()=='highscore=1234\n'
+  call('tetris','uninstall',extra=['--preserve-config']);assert score.exists();absent()
+  call('tetris','install');assert score.read_text()=='highscore=1234\n'
+  call('tetris','uninstall');assert not score.exists();absent()
+  print('TETRIS_CONFIG_LIFECYCLE_PASSED:',checks,'real actions; template, edited highscore, Update, keep/reinstall and full removal.')
   raise SystemExit(0)
  if '--tetris-only' in sys.argv:
   deep('tetris','uninstalled');call('tetris','install');deep('tetris','installed');original_hook=hook.read_bytes()

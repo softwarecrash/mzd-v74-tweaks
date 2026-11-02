@@ -75,6 +75,7 @@ mzd_package_presence() (
     done < "$entry/package.files"
     mzd_package_paths_ok "$entry/paths.tsv" || exit 1
     while IFS="$tab" read -r kind path; do
+        case "$kind" in config-file|config-dir) continue;;esac
         [ -e "$path" ] || [ -L "$path" ] || { mzd_package_error "Registered target is missing: $path"; exit 1; }
     done < "$entry/paths.tsv"
 )
@@ -106,8 +107,7 @@ mzd_package_storage() (
     p=$MZD_PACKAGE_STORE
     while [ "$p" != / ]; do [ ! -L "$p" ] || exit 1; p=$(dirname "$p"); done
 )
-mzd_package_paths() (
-    mzd_manifest_load "$1/manifest.conf" || exit 1
+mzd_package_payload_paths() (
     if [ "$TYPE" = gui-extension ]; then
         . "${1%/tweaks/*}/lib/gui-extension.sh" || exit 1
         mzd_gui_paths "$1"; exit $?
@@ -123,8 +123,17 @@ mzd_package_paths() (
         printf 'shim\t%s\ncreate\t%s\n' "$SHIM_PATH" "${SHIM_PATH%/*}"
     fi
 )
+mzd_package_paths() (
+    mzd_manifest_load "$1/manifest.conf" || exit 1
+    mzd_package_payload_paths "$1" || exit 1
+    if [ -n "$CONFIGS" ]; then
+        . "${1%/tweaks/*}/lib/config-data.sh" || exit 1
+        records=$(mzd_config_records "$1") || exit 1
+        printf '%s\n' "$records" | awk -F "$(printf '\t')" '{print "config-" $2 "\t" $3}'
+    fi
+)
 mzd_package_paths_ok() {
-    awk -F "$(printf '\t')" 'NF!=2 || $1!~/^(patch|create|shim)$/ || $2!~/^\// || $2~/[[:cntrl:]]/ || $2~/\/\.\.?($|\/)/ || seen[$2]++ {bad=1} END {exit bad}' "$1"
+    awk -F "$(printf '\t')" 'NF!=2 || $1!~/^(patch|create|shim|config-file|config-dir)$/ || $2!~/^\// || $2~/[[:cntrl:]]/ || $2~/\/\.\.?($|\/)/ || seen[$2]++ {bad=1} END {exit bad}' "$1"
 }
 mzd_package_install_paths() (
     incoming=$1
@@ -135,7 +144,7 @@ mzd_package_install_paths() (
         state=$(mzd_package_state "$other") || state=invalid
         [ "$state" = installed ] || { mzd_package_error "Incomplete installation needs attention first: ${other##*/}"; exit 1; }
         [ -f "$other/paths.tsv" ] && mzd_package_paths_ok "$other/paths.tsv" || exit 1
-        awk -F "$(printf '\t')" 'NR==FNR {used[$2]=1; kind[$2]=$1; next} {if(kind[$2]=="shim")bad=1; if($1=="create" || $1=="shim")for(p in used) if(p==$2 || index(p,$2 "/")==1) bad=1} END {exit bad}' "$other/paths.tsv" "$incoming" || {
+        awk -F "$(printf '\t')" 'NR==FNR {used[$2]=1; kind[$2]=$1; next} {if(kind[$2]=="shim")bad=1; for(p in used)if(($1~/^config-/ || kind[p]~/^config-/) && (p==$2 || index(p,$2 "/")==1 || index($2,p "/")==1))bad=1; if($1=="create" || $1=="shim")for(p in used) if(p==$2 || index(p,$2 "/")==1) bad=1} END {exit bad}' "$other/paths.tsv" "$incoming" || {
             mzd_package_error "A managed file is already used by installed tweak: ${other##*/}"; exit 1;
         }
     done
@@ -187,7 +196,9 @@ mzd_package_worker_raw() (
         mzd_settings_check "${worker%/*}/manifest.conf" "$1/package/settings.conf" || exit 1
         MZD_SETTINGS_FILE="$1/package/settings.conf"; export MZD_SETTINGS_FILE
     fi
-    sh "$worker" "$2"
+    if [ "$2" = uninstall ] && [ "${MZD_PRESERVE_CONFIG:-0}" = 1 ] && [ -n "$CONFIGS" ]; then
+        sh "$worker" uninstall --preserve-config
+    else sh "$worker" "$2";fi
 )
 # Persist the last failed modifying worker outside its immutable inventory.
 # Status only reads this record; it never opens reports or changes the package.
@@ -223,6 +234,10 @@ mzd_package_worker() (
 )
 mzd_package_remove() {
     mzd_package_check "$1" && mzd_package_dependents "$1" || return 1
+    mzd_manifest_load "$1/package/tweaks/${1##*/}/manifest.conf" || return 1
+    if [ -n "$CONFIGS" ];then
+        . "$1/package/lib/config-data.sh" && mzd_config_preflight "$1/package/tweaks/${1##*/}" || return 1
+    fi
     mzd_package_set_state "$1" uninstalling || return 1
     mzd_package_worker "$1" uninstall; code=$?
     if [ "$code" != 0 ]; then mzd_package_set_state "$1" failed || :; return "$code"; fi
@@ -230,6 +245,14 @@ mzd_package_remove() {
     if [ "$code" != 0 ] || [ "$result" != uninstalled ]; then
         mzd_package_set_state "$1" failed || :
         mzd_package_error 'Uninstall could not be verified; saved package retained. Do NOT reboot.'; return 2
+    fi
+    mzd_manifest_load "$1/package/tweaks/${1##*/}/manifest.conf" || return 1
+    if [ -n "$CONFIGS" ] && [ "${MZD_PRESERVE_CONFIG:-0}" != 1 ]; then
+        . "$1/package/lib/config-data.sh" && mzd_config_remove "$1/package/tweaks/${1##*/}" || { mzd_package_set_state "$1" failed;return 1; }
+        if [ -n "$COMPONENTS" ];then
+            config_payload="${PAYLOAD_DIR:-$MZD_PACKAGE_MOUNT/mzd-tweaks/shims/$ID}"
+            [ ! -d "$config_payload" ] || rmdir "$config_payload" 2>/dev/null || :
+        fi
     fi
     # Restrict recursive deletion to a validated direct child of the store.
     [ "$1" = "$MZD_PACKAGE_STORE/${1##*/}" ] || return 2
@@ -339,11 +362,16 @@ mzd_package_action() (
     mzd_manifest_id "$id" || exit 1
     case "$action" in install|uninstall|status|update) ;; *) mzd_package_error 'Unsupported package action.'; exit 1 ;; esac
     entry="$MZD_PACKAGE_STORE/$id"
-    updating=0;update_archive='';expected_update=''
+    updating=0;update_archive='';expected_update='';preserve_requested=0
+    if [ "$action" = uninstall ] && [ "$#" = 1 ] && [ "$1" = --preserve-config ]; then
+        MZD_PRESERVE_CONFIG=1;preserve_requested=1;shift
+    fi
+    if [ "$action" = uninstall ];then [ "$#" = 0 ] || exit 1;fi
+    MZD_PRESERVE_CONFIG=${MZD_PRESERVE_CONFIG:-0};export MZD_PRESERVE_CONFIG
     if [ "$action" = update ]; then
         [ "$#" -le 1 ] || { mzd_package_error 'Expected at most one update version.';exit 1; }
         expected_update=${1:-};shift "$#"
-        updating=1;action=install
+        updating=1;action=install;MZD_PRESERVE_CONFIG=1
     fi
     if [ "$action" = status ]; then
         if [ -e "$entry" ] || [ -L "$entry" ]; then mzd_package_status "$id"; exit $?; fi
@@ -404,12 +432,18 @@ mzd_package_action() (
             sh "$source/tweaks/$id/run.sh" validate-install || exit 1
         fi
         mzd_package_requirements "$source/tweaks/$id" || exit 1
+        if [ -n "$CONFIGS" ];then
+            . "$source/lib/config-data.sh" && mzd_config_preflight "$source/tweaks/$id" || exit 1
+        elif [ -e "$MZD_PACKAGE_MOUNT/mzd-tweaks/config-owners/$id.tsv" ];then
+            mzd_package_error 'Retained configs require their declarations; perform a full uninstall before removing them.';exit 1
+        fi
     fi
     if [ -e "$entry" ] || [ -L "$entry" ]; then
         mzd_package_check "$entry" || exit 1
         state=$(mzd_package_state "$entry") || exit 1
         old_gui=0
         mzd_manifest_load "$entry/package/tweaks/$id/manifest.conf" || exit 1
+        [ "$preserve_requested" = 0 ] || [ -n "$CONFIGS" ] || { mzd_package_error 'This tweak has no declared config.';exit 1; }
         [ "$TYPE" != gui-extension ] || old_gui=1
         if [ "$action" = install ] && { [ "$old_gui" = 1 ] || [ "$requested_type" = gui-extension ]; }; then
             [ "$old_gui:$requested_type" = 1:gui-extension ] || { mzd_package_error 'GUI type migration requires explicit saved removal first.'; exit 1; }
@@ -424,6 +458,8 @@ mzd_package_action() (
                 [ "$result" = installed ] || { mzd_package_error 'Registered installation failed its target check.'; exit 1; }
                 printf 'Version %s is already installed.\n' "$VERSION"; exit 0
             fi
+            # Any version replacement retains mutable data, including direct Install.
+            [ -z "$CONFIGS" ] || MZD_PRESERVE_CONFIG=1
             stage="$MZD_PACKAGE_STORE/.stage-$id-$$"
             [ ! -e "$stage" ] && [ ! -L "$stage" ] || exit 1
             mzd_package_stage "$source" "$stage" "$id" "$requested" || exit 1
@@ -460,6 +496,10 @@ mzd_package_action() (
     mzd_package_install_paths "$stage/paths.tsv" || exit 1
     mv "$stage" "$entry" || exit 1; stage=''
     mzd_package_set_state "$entry" installing || exit 1
+    mzd_manifest_load "$entry/package/tweaks/$id/manifest.conf" || exit 1
+    if [ -n "$CONFIGS" ];then
+        . "$entry/package/lib/config-data.sh" && mzd_config_seed "$entry/package/tweaks/$id" || { mzd_package_set_state "$entry" failed;exit 1; }
+    fi
     mzd_package_worker "$entry" install; code=$?
     if [ "$code" != 0 ]; then mzd_package_set_state "$entry" failed || :; exit "$code"; fi
     result=$(mzd_package_worker "$entry" status installed); code=$?

@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    var game = new TetrisEngine.Game(), cell = 22;
+    var game = new TetrisEngine.Game(), cell = 22, highscore=0, scoreHandler=null;
     var board = document.getElementById('board'), ctx = board.getContext('2d');
     var preview = document.getElementById('next'), previewType = -1;
     var menu = [], choice = 0, screen = 'ready', keys = {}, held = {}, pressed = {}, lastStamp = '';
@@ -93,7 +93,7 @@
         focusMenu(); render(true);
     }
     function hideDialog() { screen = 'play'; el('shade').style.display = 'none'; el('dialog').style.display = 'none'; el('court').style.display = 'block'; clearHeld(); }
-    function start() { game.start(); hideDialog(); last = new Date().getTime(); render(true); }
+    function start() { recordScore(); game.start(); hideDialog(); last = new Date().getTime(); render(true); }
     function resume() { if (game.state === 'paused') { game.pause(); } hideDialog(); last = new Date().getTime(); render(true); }
     function lobby() {
         if (game.state === 'playing') { game.pause(); }
@@ -102,7 +102,7 @@
         ]);
     }
     function exitGame() {
-        clearHeld();
+        recordScore();clearHeld();
         if (exitHandler) { exitHandler(); } else { lobby(); }
     }
     function ready() { dialog('ready', 'Tetris', tr('startHint','Select Start to begin.'), [{ label: tr('start','Start'), action: start }, { label: tr('exit','Exit'), action: exitGame }]); }
@@ -184,7 +184,15 @@
         var delta = typeof event.deltaY === 'number' ? event.deltaY : -(event.wheelDelta || 0);
         if (delta) { event.preventDefault(); input(delta > 0 ? 'rotateRight' : 'rotateLeft'); }
     }
+    function setHighscore(value,error) {
+        if(typeof value==='number' && isFinite(value) && value>=0)highscore=Math.max(highscore,Math.floor(value));
+        var node=el('highscore');if(node)node.textContent=pad(highscore,6)+(error?' ('+tr('notSaved','not saved')+')':'');
+    }
+    function recordScore() {
+        if(game.score>highscore){setHighscore(game.score,'');if(scoreHandler)scoreHandler(game.score);}
+    }
     function overMenu() {
+        recordScore();
         dialog('over', tr('gameOver','Game over'), tr('result','Score {score} - {lines} lines cleared.',{score:game.score,lines:game.lines}), [
             {label:tr('again','Play again'),action:start},{label:tr('exit','Exit'),action:exitGame}
         ]);
@@ -238,7 +246,7 @@
     window.addEventListener('blur', blur, false); window.addEventListener('resize', fit, false);
     // Pick one wheel event family to avoid duplicate rotations.
     document.addEventListener('onwheel' in document ? 'wheel' : 'mousewheel', wheel, false);
-    window.MzdTetris = { translate:translate, input: input, press: press, release: release, pause: pause, destroy: destroy,
+    window.MzdTetris = { setHighscore:setHighscore,setScoreHandler:function(fn){scoreHandler=fn;}, translate:translate, input: input, press: press, release: release, pause: pause, destroy: destroy,
         setExitHandler: function (fn) { exitHandler = typeof fn === 'function' ? fn : null; },
         getState: function () { return { state: game.state, screen: screen, score: game.score, lines: game.lines,
             menuChoice: choice, menuItems: menu.length, menuVisible: screen !== 'play',

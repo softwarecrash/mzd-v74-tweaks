@@ -55,7 +55,16 @@ for line in lines:gmatch('[^\n]+')do
         assert(files.read(folder..'/owner',256)=='MZD_GUI_DATA_V1\n'..id..'\n','Unknown module data ownership.')
         local entry=module_root..'/'..id..'/'..path;files.regular(entry)
         local factory=scoped(entry);assert(type(factory)=='function','Service factory required.')
-        local service=factory({id=id,data=folder,files=files,urls={image=function(kind,key)
+        local config={}
+        local manifest=files.read(module_root..'/'..id..'/manifest.conf',65536)
+        for row in manifest:gmatch('[^\n]+')do
+            local key,target=row:match('^config%.([a-z][a-z0-9_]*)%.path=([^\r]+)')
+            if key then
+                assert(target:match('^/tmp/mnt/data_persist/'),'Invalid config path.')
+                config[key]=target:gsub('/$','')
+            end
+        end
+        local service=factory({id=id,data=folder,config=config,files=files,urls={image=function(kind,key)
             assert(type(kind)=='string' and #kind<=32 and kind:match('^[a-z]+$') and type(key)=='string' and #key<=512,'Invalid service image key.')
             return asset_url(id,kind,key)
         end}})

@@ -27,6 +27,8 @@ jobs:
         run: python tests/contract/test_shims.py
       - name: Test settings validation, saved values and background jobs
         run: python tests/contract/test_settings.py
+      - name: Test mutable config defaults and ownership
+        run: python tests/contract/test_config_data.py
       - name: Test persistent packages, versions and owned paths
         run: python tests/contract/test_packages.py
       - name: Test automatic GUI support and saved consumer lifecycle
@@ -40,6 +42,8 @@ jobs:
           python tests/contract/test_gui_extensions.py --wallpaper-only
           python tests/contract/test_gui_extensions.py --restore-only
           python tests/contract/test_gui_extensions.py --i18n-compat-only
+          python tests/contract/test_gui_extensions.py --tetris-config-only
+          python tests/contract/test_gui_extensions.py --config-example-only
       - name: Check shell errors
         run: shellcheck --severity=error --shell=sh usb/autorun.sh usb/installer.sh usb/lib/*.sh usb/lib/gui-runtime/service/supervisor.sh usb/tweaks/*/run.sh usb/tweaks/*/reset.sh usb/tweaks/terminal/assets/terminal.sh development/examples/hello/run.sh development/examples/settings/run.sh development/examples/shim/run.sh development/examples/shim/reset.sh development/examples/shim/build.sh development/examples/bundle/run.sh development/examples/bundle/reset.sh development/examples/bundle/build.sh development/examples/gui-extension/run.sh development/examples/gui-extension/reset.sh development/examples/gui-hello-world/run.sh development/examples/gui-hello-world/reset.sh
       - name: Install full static BusyBox test applets
@@ -163,6 +167,7 @@ jobs:
       - run: node tests/installer/test-gui-residents.cjs
       - run: node tests/installer/test-gui-services.cjs
       - run: node tests/tweaks/tetris/shared-sdk.cjs
+      - run: node tests/tweaks/tetris/highscore.cjs
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs

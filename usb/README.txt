@@ -27,3 +27,6 @@ No temporary diagnostic SSH server or notebook public key is included.
 
 The installer leaves its USB writable after actions and Exit; it flushes writes
 before leaving or restarting. System filesystem mount restoration is unchanged.
+
+Tweaks with declared configuration ask whether to keep it during Uninstall.
+Updates retain configuration automatically. Other tweaks uninstall directly.

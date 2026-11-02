@@ -3,10 +3,10 @@
     'use strict';
     var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash);
     var token = match ? match[1] : '', input = null, dispose = null, keys = {}, ended = false, originalError = window.onerror, errorHandler;
-    var locale = {language:'en_US',direction:'ltr',texts:{}}, languageHandler = null;
+    var locale = {language:'en_US',direction:'ltr',texts:{}}, languageHandler = null, moduleMessage = null;
     function send(type, message) { if (token && !ended) { try { window.parent.postMessage({type:'mzd-gui-'+type,token:token,message:String(message || '').substring(0,512)}, '*'); } catch (ignore) {} } }
     function cleanup() {
-        if (ended) { return; } ended = true; languageHandler = null;
+        if (ended) { return; } ended = true; languageHandler = null; moduleMessage = null;
         if (window.onerror === errorHandler) { window.onerror = originalError; }
         window.removeEventListener('message', receive, false); window.removeEventListener('keydown', down, true); window.removeEventListener('keyup', up, true);
         try { if (dispose) { dispose(); } } catch (ignore) {}
@@ -21,6 +21,7 @@
     function receive(event) {
         var data = event.data;
         if (event.source !== window.parent || !data || data.token !== token) { return; }
+        if (/^mzd-module-/.test(data.type || '') && moduleMessage) { moduleMessage(data);return; }
         if (data.type === 'mzd-gui-language' && data.value && typeof data.value.language === 'string' && data.value.texts && typeof data.value.texts === 'object') {
             locale = data.value; if (languageHandler) { var callback = languageHandler; languageHandler = null; try { callback(locale.language,locale.direction); } catch (ignore) {} } return;
         }
@@ -42,7 +43,12 @@
         var value = Object.prototype.hasOwnProperty.call(locale.texts,key) && typeof locale.texts[key] === 'string' ? locale.texts[key] : String(fallback || key);
         return value.replace(/\{([a-zA-Z0-9_]+)\}/g,function (match,name) { return values && Object.prototype.hasOwnProperty.call(values,name) ? String(values[name]) : match; });
     }
-    window.MzdGuiModule = {t:translate,language:function () { return locale.language; },
+    window.MzdGuiModule = {
+        onMessage:function(fn){moduleMessage=typeof fn==='function'?fn:null;},
+        send:function(type,value){
+            if(!token || ended || !/^[a-z][a-z0-9-]{0,40}$/.test(type))return;
+            window.parent.postMessage({type:'mzd-module-'+type,token:token,value:value},'*');
+        },t:translate,language:function () { return locale.language; },
         loadLanguage:function (fn) { languageHandler = typeof fn === 'function' ? fn : null; if (languageHandler) { send('language-request'); } },ready:function () { send('ready'); },close:function () { send('close'); },
         onInput:function (fn) { input = typeof fn === 'function' ? fn : null; },
         onDispose:function (fn) { dispose = typeof fn === 'function' ? fn : null; },_dispose:cleanup};

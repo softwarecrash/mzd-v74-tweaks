@@ -210,3 +210,27 @@ automatically. Keep it until the failed update has been investigated.
 `installer.sh action ID update VERSION` performs the confirmed replacement.
 Update is a controller action; manifests and workers keep their existing
 install/uninstall/status actions.
+
+## Mutable config lifecycle
+
+Manifest `config.<name>.path` entries describe user-writable data separately
+from the immutable package snapshot. The controller records exclusive ownership
+in `config-owners/<id>.tsv`. Keeping data retains this record, including after
+Uninstall; reinstall can reuse the data. Full removal deletes the declared data
+and its ownership record. Default templates in assets remain immutable.
+
+The saved uninstaller receives `--preserve-config` only if its manifest declares
+config. The shared `config-args.sh` accepts this option; workers must source it
+before their ordinary argument checks. Package management seeds/removes the data,
+so individual workers need no data lifecycle code. Stop app/service writers before
+returning from Uninstall. Worker dialogs remain forbidden.
+
+Update preserves all declared config paths and does not compare their contents.
+It stages new code and validates ownership/default sources before old removal.
+After the new receipt is published, it seeds missing defaults before the new
+worker starts. Failure retains initialized data and a failed receipt for explicit
+inspection/removal; config is never silently discarded on a failed install.
+
+Removing/moving old retained declarations requires a full removal first. No
+legacy installation adoption or config format migration is provided. Original
+file Restore keeps mutable app data, matching the existing GUI-data policy.

@@ -35,6 +35,7 @@ function boot(manifestVersion,includeCommand,keepDisclaimer,includeExports,inclu
   let background=null,polls=0;
   function process(job){
     assert.equal(job.program,'/bin/sh');assert.equal(job.args[0],'./installer.sh');const a=job.args.slice(1);calls.push(a);
+    if(a[0]==='config-info')return ok(usb.configPresent?'present\n':'none\n');
     if(a[0]==='event' && a[1]==='focus-poll'){const requested=usb.refocusRequested;usb.refocusRequested=false;return ok(requested?'requested\n':'');}
     if(a[0]==='event')return ok();
     if(a[0]==='uninstall-check')return savedUninstall[a[1]]||ok('',1,'No saved uninstaller is available.');
@@ -90,7 +91,7 @@ installAnimation();assert.equal(x.nodes['dialog-state'].textContent,'Installing'
 assert.equal(x.intervals[x.intervals.length-1],null);installAnimation();assert.equal(x.nodes['dialog-state'].textContent,'Install completed');
 assert.equal(x.nodes['dialog-title'].textContent,'Operation completed');assert.equal(x.nodes['dialog-state'].textContent,'Install completed');assert.doesNotMatch(x.nodes['dialog-output'].textContent,/install in progress|install completed/i);
 x.click('result-ok');x.pump();assert.equal(x.doc.getElementById('tweak-list-beep').children[0].className,'dot installed');
-x.click('tweak-list-beep');assert.equal(x.nodes.action.textContent,'Uninstall');x.click('action');assert.equal(x.nodes['dialog-state'].textContent,'Uninstalling');x.pump();assert.equal(x.nodes['dialog-state'].textContent,'Uninstall completed');x.click('result-ok');x.pump();assert.equal(x.states['list-beep'],'uninstalled');
+x.click('tweak-list-beep');assert.equal(x.nodes.action.textContent,'Uninstall');x.click('action');assert.equal(x.nodes['dialog-state'].textContent,'Checking configuration');x.pump();assert.equal(x.nodes['dialog-state'].textContent,'Uninstall completed');x.click('result-ok');x.pump();assert.equal(x.states['list-beep'],'uninstalled');
 x.outcomes['list-beep']=1;x.click('tweak-list-beep');x.click('action');x.pump();assert.equal(x.nodes['dialog-title'].textContent,'Operation failed');assert.equal(x.nodes['dialog-state'].textContent,'Install failed');x.click('result-ok');x.pump();assert.equal(x.nodes.refresh.disabled,false);
 x.nodes.tabs.children.find(n=>n.textContent.indexOf('System')===0).onclick();x.click('tweak-ssh');assert.equal(x.nodes.action.textContent,'Retry status');assert.match(x.nodes['dialog-state'].textContent,/ambiguous/);x.click('back');
 x.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();x.outcomes['list-beep']=2;x.click('tweak-list-beep');x.click('action');x.pump();assert.equal(x.nodes['dialog-title'].textContent,'Manual check required');assert.match(x.nodes['dialog-description'].textContent,/Do NOT reboot/);x.click('result-ok');assert.equal(x.nodes.refresh.disabled,true);x.click('tweak-main-menu-loop');assert.equal(x.nodes.action.disabled,true);x.click('back');
@@ -639,3 +640,8 @@ x.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();
 x.usb.refocusRequested=true;const pendingRequests=x.jobs.length;pollFocus();assert.equal(x.jobs.length,pendingRequests,'No focus polling during a worker');
 x.pump();pollFocus();x.pump();assert.equal(x.calls.filter(a=>a[0]==='focus').length,focusBefore+2);
 console.log('REPLUG_FOCUS_UI_PASSED: explicit request only, coalescing, no idle focus stealing and deferred while operating.');
+
+function installedWithConfig(){const r=boot();r.usb.configPresent=true;r.states['list-beep']='installed';r.click('refresh');r.pump();r.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();r.click('tweak-list-beep');r.pump();r.click('action');r.pump();return r;}
+x=installedWithConfig();assert.equal(x.nodes['dialog-title'].textContent,'Keep configuration?');assert(!x.calls.some(a=>a[0]==='action'&&a[2]==='uninstall'));x.click('action');x.pump();assert(x.calls.some(a=>a[0]==='action'&&a[2]==='uninstall'&&a[3]==='--preserve-config'));
+x=installedWithConfig();x.click('back');x.pump();assert(x.calls.some(a=>a[0]==='action'&&a[2]==='uninstall'&&a.length===3));
+console.log('MUTABLE_CONFIG_UI_PASSED: keep/remove only for declared configs, explicit CLI flag and no question for other tweaks.');

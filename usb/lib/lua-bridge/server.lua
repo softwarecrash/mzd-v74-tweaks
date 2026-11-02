@@ -122,7 +122,7 @@ local function request(client)
     trace("begin")
     -- A disconnect or SIGTERM must not abort an already-running modifying worker.
     local readonlyStatus=program=="/bin/sh" and args[1]=="./installer.sh" and
-        ((args[2]=="action" and args[4]=="status" and #args==4) or ((args[2]=="statuses" or args[2]=="update-info" or args[2]=="uninstall-check" or args[2]=="restore-check" or args[2]=="settings-info" or args[2]=="preflight-info") and #args==3))
+        ((args[2]=="action" and args[4]=="status" and #args==4) or ((args[2]=="statuses" or args[2]=="config-info" or args[2]=="update-info" or args[2]=="uninstall-check" or args[2]=="restore-check" or args[2]=="settings-info" or args[2]=="preflight-info") and #args==3))
     local runArgs=args
     if program=="/bin/sh" and args[1]=="./installer.sh" then
         local installer=currentInstaller()
