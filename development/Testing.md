@@ -79,8 +79,8 @@ component grammar and configuration mappings, and
 payloads/targets. The latter includes distinct services, generated configuration,
 a JS patch, later-write rollback, critical rollback payload retention, saved
 uninstall and reset ownership checks. Header fixtures are never loaded.
-The UI suite covers detail-only compatibility queries, blocks, warnings and
-stale replies. The focused `--shims` emulation test additionally exercises the
+The UI suite covers detail-only compatibility queries, blocks, warnings, info
+messages and stale replies. The focused `--shims` emulation test additionally exercises the
 component/config-map parsers and vehicle helper with original CMU shell/awk.
 
 ## Opera startup compatibility

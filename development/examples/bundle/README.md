@@ -60,8 +60,8 @@ managed-paths.tsv is needed.
 ## Hardware and warnings
 
 A worker can define `mzd_bundle_prerequisites()` before calling the main helper.
-It prints zero or more `block<TAB>reason` or `warning<TAB>reason` lines and returns
-zero for a completed inspection. A query/tool failure returns nonzero. Keep
+It prints zero or more `block<TAB>reason`, `warning<TAB>reason` or `info<TAB>reason`
+lines and returns zero for a completed inspection. A query/tool failure returns nonzero. Keep
 queries bounded; the backend gives read-only detail queries a 30-second deadline.
 
 `usb/lib/vehicle.sh` provides read-only `mzd_vehicle_hud` and

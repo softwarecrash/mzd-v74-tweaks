@@ -455,6 +455,18 @@ assert(x.nodes.action.disabled);assert.match(x.nodes['dialog-description'].textC
 x.click('back');x.preflight['bundle-example']=x.ok('warning\tNo extra function in this region.\n');
 x.click('tweak-bundle-example');x.pump();assert(!x.nodes.action.disabled);
 assert.match(x.nodes['dialog-description'].textContent,/Note: No extra function/);
+x.click('back');x.preflight['bundle-example']=x.ok('info\tSupported HUD detected.\n');
+x.click('tweak-bundle-example');x.pump();assert(!x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Info: Supported HUD detected/);
+x.click('back');x.preflight['bundle-example']=x.ok('info\tSupported HUD detected.\nwarning\tLimited functionality in this region.\n');
+x.click('tweak-bundle-example');x.pump();assert(!x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Info: Supported HUD detected/);
+assert.match(x.nodes['dialog-description'].textContent,/Note: Limited functionality in this region/);
+x.click('back');x.preflight['bundle-example']=x.ok('info\tSupported HUD detected.\nblock\tIncompatible hardware.\n',1);
+x.click('tweak-bundle-example');x.pump();assert(x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Info: Supported HUD detected/);
+assert.match(x.nodes['dialog-description'].textContent,/Cannot install: Incompatible hardware/);
+x.click('back');x.preflight['bundle-example']=x.ok('info\tSupported HUD detected.\n');
 // A stale blocked result must not lock the newly opened view.
 x.click('back');x.click('tweak-bundle-example');const stale=x.jobs.splice(0);x.click('back');
 x.click('tweak-bundle-example');for(const job of stale)x.event({type:'shell-result',token:'secret',id:job.id,result:x.ok('block\tStale HUD failure.\n',1)});
@@ -464,7 +476,7 @@ x.nodes.tabs.children.find(n=>n.textContent.indexOf('System')===0).onclick();
 const before=x.calls.filter(a=>a[0]==='preflight-info').length;
 x.click('tweak-bundle-example');x.pump();assert.equal(x.nodes.action.textContent,'Uninstall');assert(!x.nodes.action.disabled);
 assert.equal(x.calls.filter(a=>a[0]==='preflight-info').length,before,'Hardware failure must not block saved uninstall');
-console.log('COMPATIBILITY_UI_PASSED: detail-only bounded queries, hard block, soft warning, stale replies and unrestricted saved uninstall.');
+console.log('COMPATIBILITY_UI_PASSED: detail-only bounded queries, hard block, soft warning, info message, stale replies and unrestricted saved uninstall.');
 
 const clusterManifest=parseConf('cluster-language',fs.readFileSync(path.join(ROOT,'tweaks/cluster-language/manifest.conf'),'utf8'));
 assert.equal(clusterManifest.settingDefs[0].key,'hud_display_language');

@@ -79,6 +79,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-bundles-') as temporary:
     r=call(['preflight-info','bundle-example'],1);assert 'No supported HUD' in r.stdout
     call(['action','bundle-example','install'],1)
     assert config.read_text()==stock and target.read_text()=='value = 10;\n' and not payload_dir.exists()
+    write(folder/'run.sh',worker.replace('mzd_bundle_main',"mzd_bundle_prerequisites() { printf 'info\\tSupported HUD detected.\\n'; }\nmzd_bundle_main"))
+    r=call(['preflight-info','bundle-example']);assert 'info\tSupported HUD detected.' in r.stdout
     write(folder/'run.sh',worker.replace('mzd_bundle_main',"mzd_bundle_prerequisites() { printf 'warning\\tNo additional function in this region.\\n'; }\nmzd_bundle_main"))
     r=call(['preflight-info','bundle-example']);assert 'warning' in r.stdout
     # Combined transaction: two shims, two loaders, one generated config, one JS patch.

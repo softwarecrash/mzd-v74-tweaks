@@ -570,9 +570,9 @@
                 for(var i=0;i<lines.length;i++) {
                     if(!lines[i])continue;
                     var parts=lines[i].split("\t");
-                    if(parts.length!==2 || (parts[0]!=="block" && parts[0]!=="warning") || !parts[1] || /[\x00-\x1f\x7f]/.test(parts[1])) {blocked=true;messages.push("Invalid compatibility response.");break;}
+                    if(parts.length!==2 || (parts[0]!=="block" && parts[0]!=="warning" && parts[0]!=="info") || !parts[1] || /[\x00-\x1f\x7f]/.test(parts[1])) {blocked=true;messages.push("Invalid compatibility response.");break;}
                     if(parts[0]==="block")blocked=true;
-                    messages.push((parts[0]==="block"?"Cannot install: ":"Note: ")+parts[1]);
+                    messages.push((parts[0]==="block"?"Cannot install: ":parts[0]==="warning"?"Note: ":"Info: ")+parts[1]);
                 }
                 if(error || resultError(result)) {blocked=true;if(!messages.length)messages.push(String(error||resultError(result)));}
                 item.compatibilityBlocked=blocked;

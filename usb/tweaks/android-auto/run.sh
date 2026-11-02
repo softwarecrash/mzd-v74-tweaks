@@ -35,7 +35,7 @@ mzd_bundle_prerequisites() (
     hud=$(mzd_vehicle_hud)
     case "$hud" in
         WHUD_color)
-            printf 'Detected supported Windshield HUD. Displaying street names should work.\n'
+            printf 'info\tDetected supported Windshield HUD. Displaying street names should work.\n'
             ;;
         CHUD_mono)
             printf 'warning\tDetected Combiner HUD (monochrome). Displaying street names will not work.\n'

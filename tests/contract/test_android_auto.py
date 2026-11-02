@@ -193,7 +193,7 @@ esac
     call(['manifest', 'android-auto'])
     env['TEST_HUD'] = 'whud'
     r = call(['preflight-info', 'android-auto'])
-    assert not r.stdout, 'WHUD_color should not emit warnings or blocks'
+    assert 'info\tDetected supported Windshield HUD' in r.stdout
 
     env['TEST_HUD'] = 'mono'
     r = call(['preflight-info', 'android-auto'])
@@ -234,7 +234,7 @@ esac
     cluster_shim = stock.replace('<dependency value="other"/>', '<environ_var env_name="LD_PRELOAD" env_value="/data_persist/cluster-language/libpatch-svcjciblmsettings.so"/>', 1)
     write(config, cluster_shim)
     r = call(['preflight-info', 'android-auto'])
-    assert not r.stdout
+    assert 'info\tDetected supported Windshield HUD' in r.stdout and 'already referenced' not in r.stdout
     write(config, stock)
 
     # Manifest settings defaults

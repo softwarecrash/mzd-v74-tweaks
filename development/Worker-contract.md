@@ -175,9 +175,9 @@ The settings example is non-destructive and reports its values on stdout.
 ## Component workers and compatibility details
 
 Workers with `components=components.tsv` delegate to bundle.sh. Their extra
-read-only `preflight` action returns `block<TAB>reason` and/or
-`warning<TAB>reason`, at most 16 lines of 512 characters. A completed inspection
-with a block returns 1; warnings alone return 0. The GUI calls this through
+read-only `preflight` action returns `block<TAB>reason`, `warning<TAB>reason`
+and/or `info<TAB>reason`, at most 16 lines of 512 characters. A completed inspection
+with a block returns 1; warnings and info messages alone return 0. The GUI calls this through
 `installer.sh preflight-info ID` only for an opened uninstalled detail view.
 It waits for the result before enabling Install. No new persistent status enum
 is introduced, and compatibility never blocks saved Uninstall.

@@ -43,6 +43,9 @@ mzd_settings_normalize "$HERE/manifest.conf" hud_display_language=english > "$sc
 MZD_SETTINGS_FILE="$scratch/settings"
 mzd_component_config "$HERE/assets/libpatch.map" "$scratch/generated.conf"
 grep -q '^hud_display_language = english$' "$scratch/generated.conf"
+mzd_bundle_prerequisites() { printf 'info\tSupported hardware detected.\n'; }
+mzd_bundle_preflight > "$scratch/info"
+grep -q "$(printf '^info\tSupported hardware detected\.$')" "$scratch/info"
 mzd_bundle_prerequisites() { printf 'warning\tA warning is not a block.\n'; }
 mzd_bundle_preflight > "$scratch/warning"
 mzd_bundle_prerequisites() { printf 'block\tNo supported hardware.\n'; }
