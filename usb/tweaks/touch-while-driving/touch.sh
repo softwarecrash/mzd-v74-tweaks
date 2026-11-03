@@ -38,7 +38,9 @@ touch_require() (
             printf 'Missing OEM NVRAM setter: %s\n' "$path" >&2; exit 1;
         }
     done
-    touch_read bus_bcm_speed_restriction >/dev/null && touch_read lvds_speed_restriction >/dev/null || {
+    # Factory ash can report failure for a nested subshell reader redirected to
+    # /dev/null in an AND-list. Capture the validated values instead.
+    checked_bus=$(touch_read bus_bcm_speed_restriction) && checked_lvds=$(touch_read lvds_speed_restriction) || {
         printf 'Cannot read valid speed restriction settings.\n' >&2; exit 1;
     }
     [ ! -L "$TOUCH_STATE" ] && [ ! -L "$(dirname "$TOUCH_STATE")" ] || {
