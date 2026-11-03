@@ -176,7 +176,7 @@ mzd_bundle_plan() (
     payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$plan/components" || {
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$plan/components" || {
             . "$ROOT/lib/config-data.sh" || exit 1
             mzd_config_contains "$HERE" "$existing" || { printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2;exit 1; }
         }
@@ -365,7 +365,7 @@ mzd_bundle_reset_main() (
     mzd_shim_parent_ok "$payload_dir" || exit 1
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
     done
     while IFS="$tab" read -r kind target source service original; do
         mzd_shim_parent_ok "$target" || exit 1
