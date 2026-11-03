@@ -12,7 +12,9 @@ touch_read() (
     if [ ! -e "$key" ]; then printf 'enable\n'; exit 0; fi
     [ -f "$key" ] && [ -r "$key" ] || exit 1
     value=$(cat "$key") || exit 1
-    case "$value" in enable|disable) printf '%s\n' "$value" ;; *) exit 1 ;; esac
+    # exit 0: on the CMU, BusyBox's printf returns 1 when its output goes to /dev/null, and callers use
+    # "touch_read KEY >/dev/null" as a check.
+    case "$value" in enable|disable) printf '%s\n' "$value"; exit 0 ;; *) exit 1 ;; esac
 )
 
 touch_baseline() {
