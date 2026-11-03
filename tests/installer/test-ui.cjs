@@ -89,18 +89,18 @@ installAnimation();assert.equal(x.nodes['dialog-state'].textContent,'Installing.
 installAnimation();assert.equal(x.nodes['dialog-state'].textContent,'Installing...');
 installAnimation();assert.equal(x.nodes['dialog-state'].textContent,'Installing');assert.equal(x.jobs.length,requestsBeforeAnimation);x.pump();
 assert.equal(x.intervals[x.intervals.length-1],null);installAnimation();assert.equal(x.nodes['dialog-state'].textContent,'Install completed');
-assert.equal(x.nodes['dialog-title'].textContent,'Operation completed');assert.equal(x.nodes['dialog-state'].textContent,'Install completed');assert.doesNotMatch(x.nodes['dialog-output'].textContent,/install in progress|install completed/i);
+assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation completed$/);assert.equal(x.nodes['dialog-state'].textContent,'Install completed');assert.doesNotMatch(x.nodes['dialog-output'].textContent,/install in progress|install completed/i);
 x.click('result-ok');x.pump();assert.equal(x.doc.getElementById('tweak-list-beep').children[0].className,'dot installed');
 x.click('tweak-list-beep');assert.equal(x.nodes.action.textContent,'Uninstall');x.click('action');assert.equal(x.nodes['dialog-state'].textContent,'Checking configuration');x.pump();assert.equal(x.nodes['dialog-state'].textContent,'Uninstall completed');x.click('result-ok');x.pump();assert.equal(x.states['list-beep'],'uninstalled');
-x.outcomes['list-beep']=1;x.click('tweak-list-beep');x.click('action');x.pump();assert.equal(x.nodes['dialog-title'].textContent,'Operation failed');assert.equal(x.nodes['dialog-state'].textContent,'Install failed');x.click('result-ok');x.pump();assert.equal(x.nodes.refresh.disabled,false);
+x.outcomes['list-beep']=1;x.click('tweak-list-beep');x.click('action');x.pump();assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation failed$/);assert.equal(x.nodes['dialog-state'].textContent,'Install failed');x.click('result-ok');x.pump();assert.equal(x.nodes.refresh.disabled,false);
 x.nodes.tabs.children.find(n=>n.textContent.indexOf('System')===0).onclick();x.click('tweak-ssh');assert.equal(x.nodes.action.textContent,'Retry status');assert.match(x.nodes['dialog-state'].textContent,/ambiguous/);x.click('back');
-x.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();x.outcomes['list-beep']=2;x.click('tweak-list-beep');x.click('action');x.pump();assert.equal(x.nodes['dialog-title'].textContent,'Manual check required');assert.match(x.nodes['dialog-description'].textContent,/Do NOT reboot/);x.click('result-ok');assert.equal(x.nodes.refresh.disabled,true);x.click('tweak-main-menu-loop');assert.equal(x.nodes.action.disabled,true);x.click('back');
+x.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();x.outcomes['list-beep']=2;x.click('tweak-list-beep');x.click('action');x.pump();assert.match(x.nodes['dialog-title'].textContent,/^.+ - Manual check required$/);assert.match(x.nodes['dialog-description'].textContent,/Do NOT reboot/);x.click('result-ok');assert.equal(x.nodes.refresh.disabled,true);x.click('tweak-main-menu-loop');assert.equal(x.nodes.action.disabled,true);x.click('back');
 x.click('exit');x.pump();assert.deepEqual(x.calls.filter(a=>a[0]==='focus').at(-1),['focus','JCI_OPERA_PRIMARY']);
 // A known start failure cannot have changed the target and must not falsely
 // claim that manual rollback or a no-reboot state is required.
 x=boot();x.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();x.click('tweak-list-beep');x.click('action');
 let request=x.jobs.pop();assert.equal(request.args[1],'action');x.event({type:'shell-result',token:'secret',id:request.id,error:null,result:{started:false,exitCode:null,signal:null,stdout:'',stderr:'',startError:'Missing executable'}});
-assert.equal(x.nodes['dialog-title'].textContent,'Operation failed');x.click('result-ok');x.pump();assert.equal(x.nodes.refresh.disabled,false);
+assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation failed$/);x.click('result-ok');x.pump();assert.equal(x.nodes.refresh.disabled,false);
 console.log('INSTALLER_UI_TESTS_PASSED: discovery, tabs, dots, metadata, status errors, install/uninstall, result OK, critical lock, Exit.');
 
 // A blocked or broken state is a valid inspection, with a required reason.
@@ -162,7 +162,7 @@ controller('onkeyup',8);assert(x.nodes.overlay.className.includes('hidden'));
 // Back cannot dismiss an in-flight operation or skip result acknowledgement.
 x.click('tweak-list-beep');x.click('action');controller('onkeydown',8);controller('onkeyup',8);
 assert(!x.nodes.overlay.className.includes('hidden'));x.pump();controller('onkeyup',8);
-assert.equal(x.nodes['dialog-title'].textContent,'Operation completed');
+assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation completed$/);
 x.click('result-ok');x.pump();controller('onkeydown',8);controller('onkeyup',8);x.pump();
 assert.equal(x.nodes['dialog-title'].textContent,'Restart recommended');
 controller('onkeyup',8);x.pump();
@@ -186,7 +186,7 @@ console.log('MANIFEST_UI_PASSED: literal values, lists, booleans, duplicate/unkn
 
 // Startup is entirely in the styled UI; no discovery or worker runs before OK.
 x=boot(undefined,false,true);
-assert.equal(x.nodes['dialog-title'].textContent,'Before you begin');
+assert.equal(x.nodes['dialog-title'].textContent,'MZD Tweaks - Before you begin');
 assert.equal(x.nodes.action.textContent,'OK');assert.equal(x.nodes.back.textContent,'Exit');
 assert.equal(x.doc.activeElement,x.nodes.action);assert.equal(x.nodes.refresh.disabled,true);
 assert(!x.calls.some(a=>['list','manifest','action'].includes(a[0])));
@@ -213,7 +213,7 @@ for(const id of ['backup-jci','logs-collector']){
  x.click('tweak-'+id);assert.equal(x.nodes.action.textContent,'Run');x.click('action');x.pump();
  assert.match(x.nodes['dialog-state'].textContent,/Creating archive/);assert.equal(x.nodes.exit.disabled,true);
  assert.equal(x.timers.length,1);x.timers.shift()();x.pump();assert.match(x.nodes['dialog-state'].textContent,/5\/10/);
- x.timers.shift()();x.pump();assert.equal(x.nodes['dialog-title'].textContent,'Operation completed');
+ x.timers.shift()();x.pump();assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation completed$/);
  assert.match(x.nodes['dialog-output'].textContent,/Saved to USB/);x.click('result-ok');x.pump();assert.equal(x.nodes.exit.disabled,false);
  assert(!x.calls.some(a=>a[0]==='action'&&a[1]===id&&a[2]==='run'));
 }
@@ -242,7 +242,7 @@ assert(!x.calls.some(a=>a[0]==='start-run'));
 x.click('back');assert.equal(x.nodes.action.textContent,'Run');
 x.click('action');x.click('action');x.pump();
 while(x.timers.length){x.timers.shift()();x.pump();}
-assert.equal(x.nodes['dialog-title'].textContent,'Operation completed');
+assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation completed$/);
 let statusBefore=x.calls.filter(a=>a[0]==='statuses').length;
 x.click('result-ok');x.pump();
 assert.equal(x.calls.filter(a=>a[0]==='statuses').length,statusBefore+1);
@@ -404,7 +404,7 @@ assert.equal(x.doc.activeElement,x.nodes.back,'A refused restore check must pres
 // A blocked install returns to details after OK, without opening confirmation.
 x=boot();x.outcomes['list-beep']=1;
 x.nodes.tabs.children.find(n=>n.textContent.indexOf('Interface')===0).onclick();x.click('tweak-list-beep');x.pump();x.recovery['list-beep']='available\t'+'a'.repeat(32)+'\t/jci/test.js\n';x.click('action');x.pump();
-assert.equal(x.nodes['dialog-title'].textContent,'Operation failed');x.click('result-ok');x.pump();
+assert.match(x.nodes['dialog-title'].textContent,/^.+ - Operation failed$/);x.click('result-ok');x.pump();
 assert.equal(x.nodes['dialog-title'].textContent,'No List Beep - Not installed');assert(!x.nodes['restore-action'].className.includes('hidden'));
 assert(!x.calls.some(a=>a[0]==='restore-original'));
 // A later settings reply must not re-enable Install after Restore was offered.
@@ -675,3 +675,12 @@ x=updateOffer('2.0.0','1.0.0');let rowInvalidations=0;
 Object.defineProperty(x.nodes['dialog-actions'],'offsetHeight',{get(){if(x.nodes['dialog-actions'].style.display==='none')rowInvalidations++;return 60;}});
 x.nodes['update-action'].focus();x.click('update-action');assert(rowInvalidations>0);assert.equal(x.nodes['dialog-actions'].style.display,'');assert(x.nodes['update-action'].className.includes('hidden'));
 console.log('DIALOG_ROW_REPAINT_PASSED: entire action row is invalidated before hidden native controls are removed.');
+
+// One Update request owns the complete uninstall/install transaction in the UI.
+x=updateOffer('2.0.0','1.0.0');x.click('update-action');x.click('action');
+const updateWork=x.jobs.find(j=>j.args[1]==='action'&&j.args[3]==='update');assert(updateWork);assert(x.nodes.back.disabled);
+const duringUpdateAnimation=x.intervals[x.intervals.length-1];duringUpdateAnimation();assert(x.nodes.back.disabled);
+const updateRequests=x.jobs.length;controller('onkeyup',8);x.doc.onkeydown({keyCode:27,preventDefault(){}});assert.equal(x.jobs.length,updateRequests);assert(x.nodes.back.disabled);
+x.nodes.back.onclick();assert(x.nodes.back.disabled);assert.equal(x.nodes['dialog-state'].textContent,'Updating.');
+x.pump();assert.equal(x.nodes['dialog-title'].textContent,'No List Beep - Operation completed');assert(x.nodes.back.className.includes('hidden'));assert(!x.nodes['result-ok'].disabled);
+console.log('UI_POLISH_PASSED: app welcome title, tweak-specific result title and Back locked for the whole Update.');

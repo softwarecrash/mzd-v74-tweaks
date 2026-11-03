@@ -158,6 +158,7 @@
     }
     function itemLabel(item) {return item.manifest.type==="command" && item.state==="uninstalled" ? "Ready" : label(item.state);}
     function controls() {
+        if(operating || closing)el("back").disabled=true;
         el("refresh").disabled = !accepted || scanning || operating || closing || locked;
         el("exit").disabled = operating || closing;
         el("restore-action").disabled = scanning || locked || operating || closing;
@@ -754,7 +755,7 @@
     function showDisclaimer() {
         setDialogMode("disclaimer");
         el("dialog-body").className="";
-        text("dialog-title","Before you begin"); el("dialog-dot").className="dot";
+        text("dialog-title","MZD Tweaks - Before you begin"); el("dialog-dot").className="dot";
         el("dialog-state").className="startup-warning";
         text("dialog-state","Use only while parked.");
         text("dialog-description","Choose how you want to customize your Mazda.\nRead each description before installing.\n\nKeep the system on and leave the USB stick plugged in until everything is finished.");
@@ -879,7 +880,7 @@
             var status = actionName + (problem ? " failed" : " completed");
             controls(); footer(locked ? "Critical worker failure. Do NOT reboot." : status);
             var title = critical ? "Manual check required" : problem ? "Operation failed" : "Operation completed";
-            showResult(title,message,critical,function () {
+            showResult(item.name+" - "+title,message,critical,function () {
                 if (locked) return;
                 if (item.manifest.refresh_all) {refreshAll();return;}
                 scanning=true; controls(); footer("Checking " + item.name + "...");

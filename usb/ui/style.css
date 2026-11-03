@@ -64,7 +64,7 @@ button:focus{outline:3px solid #fff;outline-offset:-4px}button:active{background
 
 /* Generic manifest settings; compatible with Opera 12 without flex/grid. */
 #dialog-settings:empty{display:none}
-#dialog-settings{margin:10px 0 16px;border-top:1px solid #41434a;padding-top:10px}
+#dialog-settings{margin:4px 0 16px;padding-top:0}
 .settings-heading{font-size:13px;letter-spacing:1px;color:#b8bac2;margin-bottom:7px}
 .setting-row{position:relative;min-height:50px;margin-bottom:10px;padding-right:240px}
 .setting-label{font-size:17px;line-height:23px;padding-top:8px}
