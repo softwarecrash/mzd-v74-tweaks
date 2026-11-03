@@ -28,12 +28,14 @@ button:focus{outline:3px solid #fff;outline-offset:-4px}button:active{background
 
 #overlay{position:absolute;left:0;top:0;width:800px;height:480px;background:rgba(0,0,0,.82);z-index:100}
 #dialog{position:absolute;left:38px;top:27px;width:720px;height:424px;background:#1b1c21;border:1px solid #6c6e75;border-top:4px solid #c7213d}
+#detail-loading{position:absolute;left:0;top:0;width:100%;height:100%;z-index:20;background:rgba(35,36,40,.88);text-align:center;cursor:wait}
+#detail-loading-text{display:inline-block;margin-top:185px;min-width:310px;text-align:left;font-size:22px;color:#fff}
 #dialog-heading{position:absolute;left:24px;right:20px;top:16px;font-size:25px;line-height:30px;white-space:nowrap;overflow:hidden}#dialog-heading .dot{margin-right:12px}
 #dialog-body{position:absolute;left:25px;right:22px;top:61px;bottom:82px;overflow:auto;font-size:17px;line-height:24px;padding-right:8px}
 #dialog-state{color:#d4d5dc;font-size:15px;line-height:21px;white-space:pre-line;margin-bottom:8px}#dialog-description{white-space:pre-wrap;margin-bottom:12px}
 .meta-row{display:inline-block;vertical-align:top;box-sizing:border-box;width:50%;padding-right:10px;font-size:14px;line-height:20px;margin-bottom:2px;word-wrap:break-word}.meta-row:last-child{width:100%}.meta-key{color:#999da9;margin-right:8px}
 #dialog-output{margin:8px 0 0;font:15px/22px monospace;white-space:pre-wrap;word-wrap:break-word;color:#e5e6eb}
-#dialog-actions{position:absolute;left:24px;right:24px;bottom:18px;height:47px;border-top:1px solid #393b44;padding-top:12px}
+#dialog-actions{position:absolute;left:24px;right:24px;bottom:18px;height:47px;border-top:1px solid #393b44;padding-top:12px;background:#1b1c21}
 #dialog-actions button{width:180px;height:46px;font-size:20px}#back{float:left}#action,#result-ok{float:right}
 #restore-action,#uninstall-action,#update-action{float:left;margin-left:66px}
 .primary{background:#a01830;border-color:#ee3e5b}.primary:disabled{background:#3e222b}

@@ -5,6 +5,8 @@ types must add their own real-entrypoint runner instead of claiming coverage.
 """
 CASES = {
     'remove-safety-warnings': 'safety-images',
+    'snake': 'traffic-jam',
+    'minesweeper': 'traffic-jam',
     'tetris': 'gui-extension',
     'wallpaper-manager': 'gui-extension',
     'android-auto': 'component-bundle',

@@ -20,6 +20,7 @@ def real_command(name):
  return shlex.quote(command)
 copy_command=real_command('cp');remove_command=real_command('rm');awk_command=real_command('awk')
 checks=0
+traffic_profile=any(flag in sys.argv for flag in ['--traffic-jam-only','--snake-only','--minesweeper-only'])
 with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
  b=Path(folder);usb=b/'usb';data=b/'data';base=data/'integration';persist=b/'persist';provider=persist/'mzd-tweaks/gui-provider';bins=b/'bin';version=b/'version';mounts=b/'mounts';events=b/'events'
  for p in [base,bins,persist]:p.mkdir(parents=True)
@@ -30,6 +31,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
   if id_=='second-example':s=s.replace('gui_label=Example GUI page','gui_label=Second "page" </script>')
   write(p,s)
  shutil.copytree(ROOT/'usb/tweaks/tetris',usb/'tweaks/tetris')
+ for game_id in ['snake','minesweeper']:shutil.copytree(ROOT/'usb/tweaks'/game_id,usb/'tweaks'/game_id)
  shutil.copytree(ROOT/'usb/tweaks/wallpaper-manager',usb/'tweaks/wallpaper-manager')
  shutil.copytree(ROOT/'development/examples/gui-hello-world',usb/'tweaks/gui-hello-world')
  shutil.copytree(ROOT/'development/examples/config-data',usb/'tweaks/config-example')
@@ -41,7 +43,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
    write(dest/'assets/resident.js','window.MzdGuiResidents.register("'+id_+'",function () {});\n')
    write(dest/'assets/service.lua','return function() return {request=function()return {}end}end\n')
   write(b/'startup','#!/bin/sh\n# unrelated SSH hook\necho original\n')
- if '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv:
+ if '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or traffic_profile:
   write(b/'startup','#!/bin/sh\necho original\n')
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
@@ -64,7 +66,7 @@ if [ "$destination" = '''+shlex.quote(bp(base/'mzd-gui-runtime'))+''' ] && [ -f 
 exec '''+copy_command+''' "$@"
 ''')
  write(bins/'rm','#!/bin/sh\nfor arg do destination=$arg; done\nif [ "$destination" = '+shlex.quote(bp(base/'mzd-gui-runtime'))+' ] && [ -f '+shlex.quote(bp(b/'fail-remove'))+' ]; then '+remove_command+' -f '+shlex.quote(bp(b/'fail-remove'))+'; exit 1; fi\nexec '+remove_command+' "$@"\n')
- if any(flag in sys.argv for flag in ['--services-only','--wallpaper-only','--tetris-only','--tetris-config-only']):
+ if traffic_profile or any(flag in sys.argv for flag in ['--services-only','--wallpaper-only','--tetris-only','--tetris-config-only']):
   # CMU BusyBox does not decode the literal backslash-t passed through -F.
   # Reject that nonportable form even when the host awk would accept it.
   write(bins/'awk','#!/bin/sh\nif [ \"$1\" = -F ] && [ \"$2\" = '+shlex.quote(r'\t')+' ]; then printf \"Unsupported CMU awk field separator.\\n\" >&2; exit 1; fi\nexec '+awk_command+' \"$@\"\n')
@@ -119,6 +121,30 @@ exec '''+copy_command+''' "$@"
   assert startup.read_bytes()==original and not (modules/'gui-example').exists() and not (persist/'mzd-tweaks/installed/gui-example').exists()
   call('gui-hello-world','uninstall');absent()
   print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, retained user data and old-provider refusal.')
+  raise SystemExit(0)
+ if traffic_profile:
+  startup=b/'startup';original=startup.read_bytes()
+  call('tetris','install');call('snake','install');call('minesweeper','install')
+  assert registry.read_text().count('menuPath:"Traffic Jam"')==3
+  selected=['snake','minesweeper'] if '--traffic-jam-only' in sys.argv else ['snake' if '--snake-only' in sys.argv else 'minesweeper']
+  for game_id in selected:
+   deep(game_id,'installed')
+   user_data=persist/'mzd-tweaks/gui-data'/game_id
+   owner=(user_data/'owner').read_bytes();write(user_data/'record.conf','best=42\n')
+   assert (user_data/'record.conf').read_text()=='best=42\n'
+   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.1','version=0.1.2'))
+   call(game_id,'update');assert (user_data/'record.conf').read_text()=='best=42\n' and (user_data/'owner').read_bytes()==owner
+   call(game_id,'uninstall',extra=['--preserve-config']);assert (user_data/'record.conf').exists() and hook.exists()
+   call(game_id,'install');assert (user_data/'record.conf').read_text()=='best=42\n'
+   call(game_id,'uninstall');assert not user_data.exists() and hook.exists()
+   assert not (persist/'mzd-tweaks/config-owners'/(game_id+'.tsv')).exists()
+   call(game_id,'install');assert not (user_data/'record.conf').exists()
+   call(game_id,'uninstall');assert not user_data.exists()
+  for game_id in ['snake','minesweeper']:
+   if game_id not in selected:call(game_id,'uninstall')
+  assert registry.read_text().count('menuPath:"Traffic Jam"')==1
+  call('tetris','uninstall');absent();assert startup.read_bytes()==original
+  print('TRAFFIC_JAM_PACKAGES_PASSED:',checks,'real actions; three Games consumers, separate records, Update, keep/reinstall, full data removal and original startup.')
   raise SystemExit(0)
  if '--wallpaper-only' in sys.argv:
   startup=b/'startup';original=startup.read_bytes()

@@ -6,7 +6,28 @@
     var tweaks = [], selectedGroup = "", selected = null, scanning = false;
     var restartRequired = false, failedStatusName = "";
     var operating = false, closing = false, locked = false, dialogMode = "", returnFocusId = "", accepted = false;
-    var detailView = 0, choicePicker = null;
+    var detailView = 0, choicePicker = null, detailLoad = null;
+    function detailBusy() { return !!detailLoad && dialogMode==="details"; }
+    function clearDetailLoad() {
+        if(detailLoad)window.clearInterval(detailLoad.timer);
+        detailLoad=null;show("detail-loading",false);el("dialog").setAttribute("aria-busy","false");
+    }
+    function finishDetailLoad(state) {
+        if(detailLoad!==state || state.building || state.pending)return;
+        clearDetailLoad();
+        if(dialogMode==="details" && state.view===detailView)el("back").focus();
+    }
+    function beginDetailLoad(view) {
+        clearDetailLoad();
+        var state={view:view,pending:0,building:true,timer:null,dots:1};detailLoad=state;
+        text("detail-loading-text","Reading tweak information.");show("detail-loading",true);el("dialog").setAttribute("aria-busy","true");
+        el("detail-loading").focus();
+        state.timer=window.setInterval(function(){
+            if(detailLoad!==state)return;
+            state.dots=state.dots%3+1;text("detail-loading-text","Reading tweak information"+new Array(state.dots+1).join("."));
+        },350);
+        return state;
+    }
     function el(id) { return document.getElementById(id); }
     function revealSection(node) {
         var area=el("dialog-body"), top=0, current=node;
@@ -60,10 +81,20 @@
     function show(id, visible) { el(id).className = visible ? el(id).className.replace(/\bhidden\b/g, "") : el(id).className.replace(/\bhidden\b/g, "") + " hidden"; }
     function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
     function setDialogMode(mode) {
+        clearDetailLoad();
         closeChoice(false);
+        var actions=el("dialog-actions"), previousDisplay=actions.style.display;
+        // Presto can retain a native focus outline when its button is hidden.
+        // Transfer focus while the middle action is still painted.
+        if(mode!=="details" && [el("update-action"),el("uninstall-action"),el("restore-action")].indexOf(document.activeElement)>=0)el("back").focus();
+        // Invalidate the whole native button row, including the former button's
+        // background. Hiding just that control can leave its red border behind.
+        actions.style.display="none";
+        actions.offsetHeight;
         dialogMode=mode;
         el("dialog-heading").className=mode==="details"?"detail-heading":"";
         if (mode!=="details") {el("dialog-meta").tabIndex=-1;show("restore-action",false);show("uninstall-action",false);show("update-action",false);clear(el("dialog-settings"));clear(el("dialog-contributors"));}
+        actions.style.display=previousDisplay||"";
     }
     function trim(value) { return String(value || "").replace(/^\s+|\s+$/g, ""); }
     function supported(item, action) { return item.manifest.actions.indexOf(action) !== -1; }
@@ -83,7 +114,14 @@
             frame.contentWindow.postMessage({type:"shell-exec",token:config.token,id:id,program:program,args:args}, config.origin);
         }
     };
-    function call(args, callback) { shell.exec("/bin/sh", ["./installer.sh"].concat(args), callback); }
+    function call(args, callback) {
+        var state=detailBusy() && ["package-info","update-info","settings-info","preflight-info","uninstall-check","restore-check"].indexOf(args[0])>=0 ? detailLoad : null;
+        if(state)state.pending++;
+        shell.exec("/bin/sh", ["./installer.sh"].concat(args), function(error,result){
+            try { callback(error,result); }
+            finally { if(state){state.pending--;finishDetailLoad(state);} }
+        });
+    }
     var cpuTotal = "0", cpuIdle = "0", metricsPending = false;
     function updateMetrics() {
         // Never enqueue telemetry behind status scans or a modifying action.
@@ -547,7 +585,7 @@
         return false;
     }
     function requestUninstall(item) {
-        if(operating || closing || scanning || locked)return;
+        if(detailBusy() || operating || closing || scanning || locked)return;
         operating=true;controls();setDialogMode("working");el("back").disabled=true;el("action").disabled=true;text("dialog-state","Checking configuration");
         call(["config-info",item.id],function(error,result){
             operating=false;
@@ -565,7 +603,7 @@
         });
     }
     function confirmUpdate(item) {
-        if (!item.updateAvailable || operating || scanning || closing || locked) return;
+        if (detailBusy() || !item.updateAvailable || operating || scanning || closing || locked) return;
         setDialogMode("confirm");el("dialog-body").className="";
         text("dialog-title","Update: "+item.name);text("dialog-state",item.installedVersion+" to "+item.manifest.version);
         text("dialog-description","The saved version will be uninstalled, then the USB version installed.\nConfiguration files and app data are kept. Compatible manifest settings are retained; new or incompatible options use the new defaults.\n\nIf replacement fails, the previous package is retained for recovery. It is not automatically reinstalled.");
@@ -580,6 +618,7 @@
         text("back","Back"); el("back").onclick=closeDialog;
         el("dialog-body").className = "section-list";
         selected = item; returnFocusId = "tweak-" + item.id; setDialogMode("details");
+        var loading=beginDetailLoad(view);
         text("dialog-title", item.name+" - "+itemLabel(item)); el("dialog-dot").className = "dot " + item.state;
         text("dialog-state",item.error || "");
         var description = item.manifest.description || "Manifest could not be loaded.";
@@ -623,7 +662,7 @@
         el("action").disabled = scanning || locked || item.invalid || !supported(item,action);
         el("back").disabled = false; el("back").focus();
         el("action").onclick = function () {
-            if (el("action").disabled || !item.settingsReady || item.compatibilityPending || item.compatibilityBlocked || (action === "install" && item.installNeedsRestore)) return;
+            if (detailBusy() || el("action").disabled || !item.settingsReady || item.compatibilityPending || item.compatibilityBlocked || (action === "install" && item.installNeedsRestore)) return;
             if (action === "status") {
                 scanning = true; controls(); el("action").disabled = true;
                 checkStatus(item,function () {scanning=false;controls();openDetails(item);});
@@ -693,6 +732,8 @@
                 };
             });
         }
+        loading.building=false;finishDetailLoad(loading);
+        if(detailBusy())el("detail-loading").focus();
     }
     function confirmRun(item) {
         setDialogMode("confirm");
@@ -705,6 +746,7 @@
         el("action").onclick = function () {text("back","Back");el("back").onclick=closeDialog;perform(item,"run");};
     }
     function closeDialog() {
+        if(detailBusy())return;
         if(selected)selected.settingDraft=null;
         show("overlay",false); setDialogMode(""); el("dialog-state").className=""; el("dialog-body").className="";
         var button = document.getElementById(returnFocusId); if (button) button.focus();
@@ -783,6 +825,7 @@
         return {hash:fields[1],path:fields[2].slice(0,-1)};
     }
     function confirmOriginalRestore(item, hash, path, cancel) {
+        if(detailBusy())return;
         setDialogMode("restore-confirm"); el("dialog-body").className="";
         el("dialog-state").className="";
         text("dialog-title","Restore original file?"); el("dialog-dot").className="dot unavailable";
@@ -797,7 +840,7 @@
         el("dialog-body").scrollTop=0; el("back").focus();
     }
     function perform(item, action, restoreHash) {
-        if(choicePicker)return;
+        if(detailBusy() || choicePicker)return;
         var actionName = action==="restore-original" ? "Restore" : action.charAt(0).toUpperCase() + action.slice(1);
         var workingTimer = null, workingDots = 0;
         var workingLabel = {install:"Installing",update:"Updating",uninstall:"Uninstalling","restore-original":"Restoring"}[action];
@@ -897,7 +940,7 @@
         el("back").disabled=false;el("action").disabled=scanning || locked;el("dialog-body").scrollTop=0;
         el("back").onclick=function(){leaveInstaller(false);};
         el("action").onclick=function(){leaveInstaller(true);};
-        el("back").focus();
+        (el("action").disabled ? el("back") : el("action")).focus();
     }
     el("back").onclick=closeDialog;
     el("refresh").onclick=function () {
@@ -910,12 +953,13 @@
     function controllerBack(event) {
         // Backspace is the CMU Back button. Always suppress browser history.
         if(event.preventDefault)event.preventDefault();event.returnValue=false;
-        if(operating || closing)return;
+        if(detailBusy() || operating || closing)return;
         if(choicePicker){closeChoice(true);return;}
         if(dialogMode==="restore-confirm")el("back").onclick();else if(dialogMode==="restart")leaveInstaller(false);else if(dialogMode==="confirm")openDetails(selected);else if(dialogMode==="details")closeDialog();else if(dialogMode==="disclaimer" || !dialogMode)exit();
     }
     document.onkeydown=function (event) {
         event=event||window.event; var key=event.keyCode||event.which, nodes, buttons=[],i,index=-1;
+        if(detailBusy()){if(event.preventDefault)event.preventDefault();event.returnValue=false;return;}
         if(key===8) {
             // Mazda emits goBack on keyup, not keydown or auto-repeat.
             if(event.preventDefault)event.preventDefault();event.returnValue=false;return;

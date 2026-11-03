@@ -40,5 +40,6 @@ the paths used after copying into the USB layout.
 - [Reviewed test runs and template](test-runs/README.md)
 - [Wiki publishing](Wiki-publishing.md)
 - [Tweak implementation notes](tweaks/)
+- [Traffic Jam games: Snake and Minesweeper](traffic-jam/README.md)
 
 Component bundles: [multiple shims, configuration and patches](examples/bundle/README.md).

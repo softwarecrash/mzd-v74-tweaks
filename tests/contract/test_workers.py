@@ -51,6 +51,9 @@ for id_, runner in CASES.items():
         for profile in ['--full', '--restore-only']:
             subprocess.run([sys.executable, str(test), profile], check=True)
         continue
+    if runner == 'traffic-jam':
+        subprocess.run([sys.executable,str(Path(__file__).with_name('test_gui_extensions.py')),'--'+id_+'-only'],check=True)
+        continue
     if runner == 'gui-extension':
         subprocess.run([sys.executable,str(Path(__file__).with_name('test_gui_extensions.py')),'--wallpaper-only' if id_ == 'wallpaper-manager' else '--tetris-only'],check=True)
         continue

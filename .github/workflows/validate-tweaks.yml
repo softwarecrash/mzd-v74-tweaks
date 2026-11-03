@@ -167,6 +167,7 @@ jobs:
       - run: node tests/installer/test-gui-residents.cjs
       - run: node tests/installer/test-gui-services.cjs
       - run: node tests/tweaks/tetris/shared-sdk.cjs
+      - run: node tests/tweaks/traffic-jam/behavior.cjs
       - run: node tests/tweaks/tetris/highscore.cjs
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
