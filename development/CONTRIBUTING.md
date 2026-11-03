@@ -27,7 +27,8 @@ Do not introduce a second legacy launcher or generated runtime tree.
    Also run `python tests/contract/test_packages.py` for lifecycle/helper changes.
    Run `python tests/contract/test_recovery.py` for single-file recovery changes.
    Run `node tests/installer/test-ui.cjs` and the transport test for UI changes.
-   CI additionally runs ShellCheck and tests on BusyBox in Linux.
+   CI additionally runs ShellCheck, and the worker tests on a CMU-like BusyBox 1.19.2
+   (see [Testing](Testing.md#tests-in-ci)).
 8. Record real vehicle results under `development/test-runs/` using its template. Include
    firmware, commit, actions, expected/actual results and limits. Never commit
    keys, raw dumps or personal logs.
@@ -43,7 +44,8 @@ PR checks validate metadata and the contract, exercise sandboxed real entrypoint
 and test UI processing. A green check does not prove arbitrary shell code safe
 or replace code review and a vehicle test. New behavior needs relevant tests,
 not merely a manifest that advertises it. Configure `Validate tweaks / contract`
-as a required check in repository branch protection if merges must be blocked.
+and `Validate tweaks / workers` (which needs `Validate tweaks / busybox`) as required
+checks in repository branch protection if merges must be blocked.
 
 The installer release version is maintained in `usb/VERSION` as `major.minor.patch`.
 It is independent of tweak versions and appears in the footer, launcher logs and

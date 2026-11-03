@@ -3,18 +3,22 @@
 # Works on macOS, Linux, WSL and Git Bash; needs only Docker on the host.
 #
 #   tools/test-in-container.sh                  all "Validate tweaks" steps
-#   tools/test-in-container.sh workers          BusyBox worker suite only
+#   tools/test-in-container.sh workers          worker suite on the CMU-like BusyBox only
 #   tools/test-in-container.sh run CMD...       one command, CI runner image
-#   tools/test-in-container.sh busybox CMD...   one command, BusyBox image
+#   tools/test-in-container.sh busybox CMD...   one command in the test image (only the CMU-like BusyBox)
 #
 # CMU_TEST_ONLY=<tweak-id> limits the worker suite to one tweak.
+# The worker suite and "busybox" use the same scripts as the CI jobs busybox and workers
+# (tools/busybox/README.md): the BusyBox is built and checked once, then reused while its files do not change.
+# On an x86 machine or an Apple Silicon Mac the ARM BusyBox runs through qemu (Docker Desktop has it); give
+# QEMU_STATIC=/path/to/qemu-arm-static if Docker cannot start ARM programs in containers.
 set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 IMAGE=mzd-tweaks-test
 
 usage() {
-    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
 }
 
@@ -49,21 +53,28 @@ run_in() {
         -v "$HOST_ROOT:/repo:ro" -w /repo "$IMAGE:$target" "$@"
 }
 
+# cmu_image: a checked CMU-like BusyBox (built only when its files changed) and the test image made from it.
+cmu_image() {
+    sh "$ROOT/tools/busybox/prepare.sh"
+    sh "$ROOT/tools/busybox/image/make-image.sh" "$ROOT/.cache/cmu-busybox/busybox" cmu-tweak-test:local
+}
+
 workers() {
-    echo "=== contract: BusyBox workers (python:3.12-alpine, CMU_TEST_BUSYBOX=1)"
-    run_in workers python tests/contract/test_workers.py
+    echo "=== workers: worker suite in the test image (only the CMU-like BusyBox, user cmu, 128 kB stack)"
+    cmu_image
+    sh "$ROOT/tools/busybox/image/run.sh" /usr/local/bin/python3 tests/contract/test_workers.py
 }
 
 case "${1:-all}" in
     all)
         status=0
         run_in ubuntu python tools/container/run-ci-steps.py || status=1
-        workers || { echo "FAILED BusyBox worker suite"; status=1; }
+        workers || { echo "FAILED worker suite on the CMU-like BusyBox"; status=1; }
         [ "$status" = 0 ] && echo "=== All checks passed in containers."
         exit "$status" ;;
     workers) workers ;;
     run) shift; [ $# -gt 0 ] || usage; run_in ubuntu "$@" ;;
-    busybox) shift; [ $# -gt 0 ] || usage; run_in workers "$@" ;;
+    busybox) shift; [ $# -gt 0 ] || usage; cmu_image; sh "$ROOT/tools/busybox/image/run.sh" "$@" ;;
     -h|--help|help) usage ;;
     *) usage ;;
 esac

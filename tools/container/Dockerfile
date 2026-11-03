@@ -17,9 +17,3 @@ RUN arch=$(dpkg --print-architecture) \
     | tar -xJ -C /usr/local --strip-components=1 --exclude='*/include' --exclude='*/share' \
  && node --version && busybox patch --help >/dev/null 2>&1
 ENV HOME=/tmp PYTHONDONTWRITEBYTECODE=1
-
-# workers target: the read-only BusyBox container of the CI worker step
-# (python:3.12-alpine with the runner's full static BusyBox mounted).
-FROM python:3.12-alpine AS workers
-COPY --from=ubuntu /usr/bin/busybox /usr/local/bin/busybox
-ENV PYTHONDONTWRITEBYTECODE=1 CMU_TEST_BUSYBOX=1

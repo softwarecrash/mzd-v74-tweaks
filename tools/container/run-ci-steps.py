@@ -1,9 +1,11 @@
 """Run the "Validate tweaks" workflow steps inside the ubuntu test container.
 
 The steps are read from .github/workflows/validate-tweaks.yml, so this list
-never drifts from CI. Package installs are skipped (the image has them) and
-the Docker worker step is skipped (tools/test-in-container.sh runs it in the
-workers container). Every step runs; a summary lists the failures.
+never drifts from CI. Package installs are skipped (the image has them). The
+jobs busybox and workers are skipped: they start Docker and ARM programs, so
+tools/test-in-container.sh runs them on the host through the same scripts the
+jobs call (tools/busybox/prepare.sh, image/make-image.sh, image/run.sh). Every
+step runs; a summary lists the failures.
 Use --list to print the step names without running them.
 """
 from pathlib import Path
@@ -18,6 +20,8 @@ WORKFLOW = REPO / '.github/workflows/validate-tweaks.yml'
 def steps():
     jobs = yaml.safe_load(WORKFLOW.read_text(encoding='utf-8'))['jobs']
     for job_id, job in jobs.items():
+        if job_id in ('busybox', 'workers'):
+            continue
         for number, step in enumerate(job.get('steps', []), 1):
             script = step.get('run')
             if not script:

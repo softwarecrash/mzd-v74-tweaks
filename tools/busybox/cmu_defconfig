@@ -1,0 +1,181 @@
+# BusyBox 1.19.2 configuration of the CMU-like build (ARM, static): only the decisions, 174 lines.
+# Each line records one decision for BusyBox's configurator; every question not decided here takes
+# BusyBox's default. tools/busybox/build.sh turns this defconfig (the decisions) into the complete .config with
+#   make defconfig KBUILD_DEFCONFIG=<this file> KCONFIG_NOTIMESTAMP=1
+# and stops if any decision is missing from the result (BusyBox drops a decision silently when the option
+# does not exist or its dependencies are not met). The compiler flags follow the CMU binary's ELF attributes
+# (ARMv7-A, VFPv3, NEON, soft-float calling convention, ARM code).
+# CONFIG_ACPID is not set
+# CONFIG_BEEP is not set
+# CONFIG_BOOTCHARTD is not set
+# CONFIG_CHAT is not set
+# CONFIG_CHPST is not set
+# CONFIG_CROND is not set
+# CONFIG_CRONTAB is not set
+# CONFIG_DC is not set
+# CONFIG_DNSD is not set
+# CONFIG_ENVDIR is not set
+# CONFIG_ENVUIDGID is not set
+# CONFIG_ETHER_WAKE is not set
+# CONFIG_EXPR_MATH_SUPPORT_64 is not set
+CONFIG_EXTRA_CFLAGS="-march=armv7-a -mfpu=neon -mfloat-abi=softfp"
+# CONFIG_FAKEIDENTD is not set
+# CONFIG_FEATURE_ACPID_COMPAT is not set
+CONFIG_FEATURE_BEEP_FREQ=0
+CONFIG_FEATURE_BEEP_LENGTH_MS=0
+CONFIG_FEATURE_BLKID_TYPE=y
+# CONFIG_FEATURE_BOOTCHARTD_BLOATED_HEADER is not set
+# CONFIG_FEATURE_BOOTCHARTD_CONFIG_FILE is not set
+# CONFIG_FEATURE_CALL_TELINIT is not set
+# CONFIG_FEATURE_CHAT_CLR_ABORT is not set
+# CONFIG_FEATURE_CHAT_IMPLICIT_CR is not set
+# CONFIG_FEATURE_CHAT_NOFAIL is not set
+# CONFIG_FEATURE_CHAT_SEND_ESCAPES is not set
+# CONFIG_FEATURE_CHAT_SWALLOW_OPTS is not set
+# CONFIG_FEATURE_CHAT_VAR_ABORT_LEN is not set
+# CONFIG_FEATURE_CROND_CALL_SENDMAIL is not set
+# CONFIG_FEATURE_CROND_D is not set
+CONFIG_FEATURE_CROND_DIR=""
+# CONFIG_FEATURE_DC_LIBM is not set
+CONFIG_FEATURE_EDITING_HISTORY=32
+# CONFIG_FEATURE_EXTRA_QUIET is not set
+# CONFIG_FEATURE_FTPD_ACCEPT_BROKEN_LIST is not set
+# CONFIG_FEATURE_FTPGETPUT_LONG_OPTIONS is not set
+# CONFIG_FEATURE_FTP_WRITE is not set
+# CONFIG_FEATURE_HTTPD_AUTH_MD5 is not set
+# CONFIG_FEATURE_HTTPD_BASIC_AUTH is not set
+# CONFIG_FEATURE_HTTPD_CGI is not set
+# CONFIG_FEATURE_HTTPD_CONFIG_WITH_SCRIPT_INTERPR is not set
+# CONFIG_FEATURE_HTTPD_ENCODE_URL_STR is not set
+# CONFIG_FEATURE_HTTPD_ERROR_PAGES is not set
+# CONFIG_FEATURE_HTTPD_GZIP is not set
+# CONFIG_FEATURE_HTTPD_PROXY is not set
+# CONFIG_FEATURE_HTTPD_RANGES is not set
+# CONFIG_FEATURE_HTTPD_SETUID is not set
+# CONFIG_FEATURE_HTTPD_SET_REMOTE_PORT_TO_ENV is not set
+CONFIG_FEATURE_HWCLOCK_ADJTIME_FHS=y
+# CONFIG_FEATURE_INITRD is not set
+# CONFIG_FEATURE_INIT_COREDUMPS is not set
+# CONFIG_FEATURE_INIT_SCTTY is not set
+# CONFIG_FEATURE_INIT_SYSLOG is not set
+# CONFIG_FEATURE_LOADFONT_PSF2 is not set
+# CONFIG_FEATURE_LZMA_FAST is not set
+# CONFIG_FEATURE_MESG_ENABLE_ONLY_GROUP is not set
+CONFIG_FEATURE_MIME_CHARSET=""
+# CONFIG_FEATURE_MINIX2 is not set
+# CONFIG_FEATURE_MOUNT_CIFS is not set
+# CONFIG_FEATURE_MOUNT_NFS is not set
+# CONFIG_FEATURE_POPMAILDIR_DELIVERY is not set
+# CONFIG_FEATURE_REFORMIME_COMPAT is not set
+# CONFIG_FEATURE_REVERSE_SEARCH is not set
+# CONFIG_FEATURE_RTMINMAX is not set
+# CONFIG_FEATURE_SEAMLESS_LZMA is not set
+# CONFIG_FEATURE_SEAMLESS_XZ is not set
+# CONFIG_FEATURE_SKIP_ROOTFS is not set
+# CONFIG_FEATURE_START_STOP_DAEMON_FANCY is not set
+# CONFIG_FEATURE_START_STOP_DAEMON_LONG_OPTIONS is not set
+# CONFIG_FEATURE_TASKSET_FANCY is not set
+# CONFIG_FEATURE_TELNETD_INETD_WAIT is not set
+# CONFIG_FEATURE_TELNETD_STANDALONE is not set
+# CONFIG_FEATURE_TELNET_AUTOLOGIN is not set
+# CONFIG_FEATURE_TELNET_TTYPE is not set
+# CONFIG_FEATURE_TFTP_BLOCKSIZE is not set
+# CONFIG_FEATURE_TFTP_GET is not set
+# CONFIG_FEATURE_TFTP_PROGRESS_BAR is not set
+# CONFIG_FEATURE_TFTP_PUT is not set
+# CONFIG_FEATURE_UDHCP_8021Q is not set
+CONFIG_FEATURE_UDHCP_PORT=y
+# CONFIG_FEATURE_UPTIME_UTMP_SUPPORT is not set
+# CONFIG_FEATURE_USE_INITTAB is not set
+CONFIG_FEATURE_VI_REGEX_SEARCH=y
+# CONFIG_FEATURE_VOLUMEID_BTRFS is not set
+# CONFIG_FEATURE_VOLUMEID_HFS is not set
+# CONFIG_FEATURE_VOLUMEID_JFS is not set
+# CONFIG_FEATURE_VOLUMEID_LINUXRAID is not set
+# CONFIG_FEATURE_VOLUMEID_LUKS is not set
+# CONFIG_FEATURE_VOLUMEID_OCFS2 is not set
+# CONFIG_FEATURE_VOLUMEID_REISERFS is not set
+# CONFIG_FEATURE_VOLUMEID_SYSV is not set
+# CONFIG_FEATURE_VOLUMEID_XFS is not set
+# CONFIG_FREERAMDISK is not set
+# CONFIG_FSCK_MINIX is not set
+# CONFIG_FTPD is not set
+# CONFIG_FTPGET is not set
+# CONFIG_FTPPUT is not set
+# CONFIG_HUSH is not set
+# CONFIG_HUSH_BASH_COMPAT is not set
+# CONFIG_HUSH_BRACE_EXPANSION is not set
+# CONFIG_HUSH_CASE is not set
+# CONFIG_HUSH_EXPORT_N is not set
+# CONFIG_HUSH_FUNCTIONS is not set
+# CONFIG_HUSH_HELP is not set
+# CONFIG_HUSH_IF is not set
+# CONFIG_HUSH_INTERACTIVE is not set
+# CONFIG_HUSH_JOB is not set
+# CONFIG_HUSH_LOCAL is not set
+# CONFIG_HUSH_LOOPS is not set
+# CONFIG_HUSH_MODE_X is not set
+# CONFIG_HUSH_RANDOM_SUPPORT is not set
+# CONFIG_HUSH_SAVEHISTORY is not set
+# CONFIG_HUSH_TICK is not set
+# CONFIG_INIT is not set
+CONFIG_INIT_TERMINAL_TYPE=""
+# CONFIG_LOADFONT is not set
+# CONFIG_LPD is not set
+# CONFIG_LPQ is not set
+# CONFIG_LPR is not set
+# CONFIG_LZMA is not set
+# CONFIG_MAKEMIME is not set
+# CONFIG_MAN is not set
+# CONFIG_MESG is not set
+# CONFIG_MICROCOM is not set
+# CONFIG_MKFS_MINIX is not set
+# CONFIG_MKFS_VFAT is not set
+# CONFIG_MT is not set
+# CONFIG_NC_SERVER is not set
+# CONFIG_PING6 is not set
+# CONFIG_PIVOT_ROOT is not set
+# CONFIG_POPMAILDIR is not set
+# CONFIG_RAIDAUTORUN is not set
+# CONFIG_READAHEAD is not set
+# CONFIG_REFORMIME is not set
+# CONFIG_RUNLEVEL is not set
+# CONFIG_RUNSV is not set
+# CONFIG_RUNSVDIR is not set
+# CONFIG_SENDMAIL is not set
+# CONFIG_SETSERIAL is not set
+# CONFIG_SETUIDGID is not set
+# CONFIG_SHA1SUM is not set
+# CONFIG_SHA256SUM is not set
+# CONFIG_SHA512SUM is not set
+# CONFIG_SH_MATH_SUPPORT_64 is not set
+# CONFIG_SOFTLIMIT is not set
+# CONFIG_START_STOP_DAEMON is not set
+CONFIG_STATIC=y
+# CONFIG_SV is not set
+# CONFIG_SVLOGD is not set
+CONFIG_SV_DEFAULT_SERVICE_DIR=""
+# CONFIG_SWITCH_ROOT is not set
+CONFIG_TASKSET=y
+CONFIG_TELINIT_PATH=""
+# CONFIG_TELNET is not set
+# CONFIG_TELNETD is not set
+# CONFIG_TFTP is not set
+# CONFIG_TFTPD is not set
+# CONFIG_TRACEROUTE6 is not set
+CONFIG_TUNE2FS=y
+# CONFIG_UBIATTACH is not set
+# CONFIG_UBIDETACH is not set
+# CONFIG_UBIMKVOL is not set
+# CONFIG_UBIRMVOL is not set
+# CONFIG_UBIRSVOL is not set
+# CONFIG_UBIUPDATEVOL is not set
+# CONFIG_UDPSVD is not set
+# CONFIG_UNLZMA is not set
+# CONFIG_UNXZ is not set
+# CONFIG_UNZIP is not set
+# CONFIG_UUDECODE is not set
+# CONFIG_UUENCODE is not set
+# CONFIG_WALL is not set
+# CONFIG_WHOIS is not set
+# CONFIG_XZ is not set

@@ -1,6 +1,6 @@
 ---
 name: run-checks
-description: Run this repository's tests, contract checks, ShellCheck, Lua or Node checks, or the BusyBox worker suite. Use whenever you want to test, validate or verify a change. All checks run in Docker containers through tools/test-in-container.sh, never on the host.
+description: Run this repository's tests, contract checks, ShellCheck, Lua or Node checks, or the worker suite on the CMU-like BusyBox. Use whenever you want to test, validate or verify a change. All checks run in Docker containers through tools/test-in-container.sh, never on the host.
 ---
 
 # Run checks in containers
@@ -15,7 +15,7 @@ real entrypoints. Run every check inside the containers.
 | Goal | Command |
 | --- | --- |
 | Everything CI runs | `sh tools/test-in-container.sh` |
-| BusyBox worker suite | `sh tools/test-in-container.sh workers` |
+| Worker suite on the CMU-like BusyBox | `sh tools/test-in-container.sh workers` |
 | Worker suite, one tweak | `CMU_TEST_ONLY=<tweak-id> sh tools/test-in-container.sh workers` |
 | One check | `sh tools/test-in-container.sh run python tests/contract/test_packages.py` |
 | One Node check | `sh tools/test-in-container.sh run node tests/installer/test-ui.cjs` |
@@ -23,9 +23,9 @@ real entrypoints. Run every check inside the containers.
 | List the CI steps | `sh tools/test-in-container.sh run python tools/container/run-ci-steps.py --list` |
 
 The steps come from `.github/workflows/validate-tweaks.yml`; nothing to keep in
-sync. The first run builds the images (needs network, a few minutes); later
-runs reuse them. The containers have no network and mount the repository
-read-only.
+sync. The first run builds the images and the CMU-like BusyBox (needs network,
+some minutes; longer under qemu); later runs reuse them. The containers have no
+network and mount the repository read-only.
 
 ## Rules
 

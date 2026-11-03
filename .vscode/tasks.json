@@ -9,7 +9,7 @@
       "problemMatcher": []
     },
     {
-      "label": "Checks: BusyBox workers (container)",
+      "label": "Checks: workers on the CMU-like BusyBox (container)",
       "type": "shell",
       "command": "sh tools/test-in-container.sh workers",
       "group": "test",

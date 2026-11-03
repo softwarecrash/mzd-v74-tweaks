@@ -10,3 +10,5 @@ __pycache__/
 /development/test-runs/local/
 /tests/transport/.test-cache/
 .DS_Store
+# Local builds of the CMU-like BusyBox (tools/busybox/build.sh)
+/.cache/
