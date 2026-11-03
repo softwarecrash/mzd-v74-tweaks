@@ -113,7 +113,7 @@ exec '''+copy_command+''' "$@"
   call('gui-hello-world','install')
   for q in [provider/'package/lib/gui-runtime/api.conf',runtime/'api.conf',persist/'mzd-tweaks/installed/gui-hello-world/package/lib/gui-runtime/api.conf']:
    write(q,'api=1\nversion=0.1.0\n')
-  for folder,inventory in [(provider,'provider.files'),(persist/'mzd-tweaks/installed/tetris','package.files')]:
+  for folder,inventory in [(provider,'provider.files'),(persist/'mzd-tweaks/installed/gui-hello-world','package.files')]:
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
   failed=call('gui-example','install',1)
   diagnostics=failed.stdout+failed.stderr+'\n'.join(p.read_text() for p in (usb/'reports/gui-example').glob('install-*/run.log'))
