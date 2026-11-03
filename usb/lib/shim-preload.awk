@@ -29,7 +29,7 @@ function xmlVisible(s,   out,at) {
     if(index(visible,"<service ")) {
         if(inService)fail("Nested or ambiguous service block.")
         inService=1; ours=(attr(visible,"name")==service)
-        if(ours){blocks++; start=NR}
+        if(ours){blocks++; start=NR; reset_val=attr(visible,"reset_board")}
         if(visible ~ /\/>[ \t]*$/) {
             if(ours)fail("Selected service has no editable body.")
             inService=0;ours=0
@@ -49,7 +49,10 @@ function xmlVisible(s,   out,at) {
 END {
     if(bad)exit 1
     if(blocks!=1 || !end || end<=start || inService || comment || preload>1 || present>1 || foreign)fail("Service/preload ownership is ambiguous.")
-    if(mode=="status"){print present ? "installed" : "uninstalled";exit 0}
+    if(mode=="status"){
+        installed = present && (no_reset ? (reset_val=="no") : 1)
+        print installed ? "installed" : "uninstalled"; exit 0
+    }
     if(mode!="install" && mode!="uninstall")fail("Invalid preload action.")
     replacement=old
     if(mode=="install" && !present)replacement=(old=="" ? library : old " " library)
@@ -64,6 +67,18 @@ END {
                 break
             }
             pos=last
+        }
+    }
+    if(no_reset==1) {
+        if(mode=="install" && !present && reset_val!="" && reset_val!="no") {
+            sub("reset_board=\"" reset_val "\"", "reset_board=\"no\"", lines[start])
+            lines[start] = lines[start] " <!-- mzd-reset-board:" reset_val " -->"
+        } else if(mode=="uninstall" && present) {
+            if(match(lines[start], / <!-- mzd-reset-board:([A-Za-z0-9_-]+) -->/)) {
+                orig_reset = substr(lines[start], RSTART+22, RLENGTH-26)
+                sub("reset_board=\"no\"", "reset_board=\"" orig_reset "\"", lines[start])
+                sub(/ <!-- mzd-reset-board:[A-Za-z0-9_-]+ -->/, "", lines[start])
+            }
         }
     }
     for(i=1;i<=NR;i++) {

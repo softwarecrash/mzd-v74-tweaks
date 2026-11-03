@@ -199,6 +199,21 @@ controller removes an old version. It is not a mutation action. Install repeats
 its compatibility check under the shared lock. A worker callback returns plain
 records only: no dialogs, mounts or writes. Workers may also define
 `mzd_bundle_patch` to dynamically configure patch components from effective settings.
+
+Bundles can configure service environment variables using `loader_env` records
+in `components.tsv` (`loader_env<TAB>NAME=VALUE<TAB>-<TAB>service<TAB>-`).
+Value strings must not contain quotes, control characters, backslashes, angle
+brackets or ampersands (`"`, `\r`, `\n`, `\`, `<`, `>`, `&`). Colon-separated
+path variables (such as `LD_LIBRARY_PATH`) are merged with existing definitions
+on installation. When uninstalled, only the tweak's declared tokens are removed;
+tokens still required by the OEM configuration or another installed tweak are
+preserved.
+
+Individual `shim` component records may specify `no_reset` in the 5th column
+instead of `-`. This sets `reset_board="no"` on the target service element to
+prevent reboot loops from unhandled exceptions, and records the original value
+so it can be restored on uninstall. Component status verification confirms that
+`reset_board="no"` remains active.
 See the [bundle example](examples/bundle/README.md) for transaction and upgrade limits.
 
 ## Shared GUI extensions

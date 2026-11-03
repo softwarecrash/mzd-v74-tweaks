@@ -31,6 +31,7 @@ mzd_bundle_validate_install() (
                     awk '/^--- /{a++;if($0!="--- target.data")bad=1} /^\+\+\+ /{b++;if($0!="+++ target.data")bad=1} END{exit bad || a!=1 || b!=1}' "$scratch/patch.test" || exit 1
                 fi
                 ;;
+            loader|loader_env) ;;
         esac
     done < "$scratch/components"
     mzd_bundle_preflight
@@ -57,15 +58,96 @@ mzd_bundle_preflight() (
     awk -F "$(printf '\t')" '$1~/^(block|warning|info)$/' "$reason"
     awk -F "$(printf '\t')" '$1=="block"{bad=1} END{exit bad}' "$reason"
 )
+mzd_bundle_loader_env_keep() (
+    real_target=$1; svc=$2; name=$3
+    stock_file="$real_target.org"
+    [ -f "$stock_file" ] || stock_file="$real_target"
+    stock_val=""
+    if [ -f "$stock_file" ]; then
+        stock_val=$(awk -v service="$svc" -v env_name="$name" -v mode="extract" \
+            -f "$ROOT/lib/loader-env.awk" "$stock_file" 2>/dev/null || :)
+    fi
+    pkg_vals=""
+    store="${MZD_PACKAGE_STORE:-/tmp/mnt/data_persist/mzd-tweaks/installed}"
+    if [ -d "$store" ]; then
+        for other_dir in "$store"/*; do
+            [ -d "$other_dir" ] || continue
+            other_id="${other_dir##*/}"
+            [ "$other_id" != "$ID" ] || continue
+            for c_tsv in "$other_dir/package/tweaks/$other_id/components.tsv" "$other_dir/components.tsv"; do
+                [ -f "$c_tsv" ] || continue
+                c_tab=$(printf '\t')
+                while IFS="$c_tab" read -r ck cd cs csv ch; do
+                    if [ "$ck" = loader_env ] && [ "$csv" = "$svc" ]; then
+                        cname=${cd%%=*}
+                        if [ "$cname" = "$name" ]; then
+                            cval=${cd#*=}
+                            pkg_vals="${pkg_vals:+$pkg_vals:}$cval"
+                        fi
+                    fi
+                done < "$c_tsv"
+                break
+            done
+        done
+    fi
+    keep="${stock_val:+$stock_val:}$pkg_vals"
+    printf '%s\n' "$keep"
+)
+mzd_bundle_no_reset_keep() (
+    svc=$1
+    store="${MZD_PACKAGE_STORE:-/tmp/mnt/data_persist/mzd-tweaks/installed}"
+    if [ -d "$store" ]; then
+        for other_dir in "$store"/*; do
+            [ -d "$other_dir" ] || continue
+            other_id="${other_dir##*/}"
+            [ "$other_id" != "$ID" ] || continue
+            for c_tsv in "$other_dir/package/tweaks/$other_id/components.tsv" "$other_dir/components.tsv"; do
+                [ -f "$c_tsv" ] || continue
+                c_tab=$(printf '\t')
+                while IFS="$c_tab" read -r ck cd cs csv ch; do
+                    if [ "$ck" = shim ] && [ "$csv" = "$svc" ]; then
+                        case "$ch" in
+                            no_reset|no_reset*)
+                                printf '1\n'
+                                exit 0
+                                ;;
+                        esac
+                    fi
+                done < "$c_tsv"
+                break
+            done
+        done
+    fi
+    printf '0\n'
+)
 mzd_bundle_transform() (
-    input=$1; operation=$2; output=$3; table=$4
+    input=$1; operation=$2; output=$3; table=$4; real_target=${5:-}
     cp "$input" "$output" || exit 1
     tab=$(printf '\t')
     while IFS="$tab" read -r kind dest source service original; do
-        [ "$kind" = shim ] || continue
-        SHIM_SERVICE=$service; SHIM_PATH=$dest
-        mzd_shim_transform "$output" "$operation" > "$output.next" || exit 1
-        mv "$output.next" "$output" || exit 1
+        case "$kind" in
+            shim)
+                SHIM_SERVICE=$service; SHIM_PATH=$dest
+                no_reset=0; [ "$original" != no_reset ] || no_reset=1
+                if [ "$operation" = uninstall ] && [ "$no_reset" = 1 ]; then
+                    if [ "$(mzd_bundle_no_reset_keep "$service")" = 1 ]; then
+                        no_reset=0
+                    fi
+                fi
+                mzd_shim_transform "$output" "$operation" "$no_reset" > "$output.next" || exit 1
+                mv "$output.next" "$output" || exit 1
+                ;;
+            loader_env)
+                env_name=${dest%%=*}
+                env_val=${dest#*=}
+                keep=""
+                if [ "$operation" = uninstall ]; then
+                    keep=$(mzd_bundle_loader_env_keep "$real_target" "$service" "$env_name")
+                fi
+                mzd_loader_env_transform "$output" "$operation" "$service" "$env_name" "$env_val" "$keep" > "$output.next" || exit 1
+                mv "$output.next" "$output" || exit 1
+                ;;
+        esac
     done < "$table"
 )
 # Build a plan on RAM for status or in the USB report for a modifying action.
@@ -77,8 +159,8 @@ mzd_bundle_plan() (
     mzd_settings_check "$HERE/manifest.conf" "$MZD_SETTINGS_FILE" || exit 1
     tab=$(printf '\t'); number=0; present=0; absent=0; evidence=0
     while IFS="$tab" read -r kind target source service original; do
-        if [ "$kind" = check ]; then
-            if [ "$requested" = install ]; then
+        if [ "$kind" = check ] || [ "$kind" = loader_env ]; then
+            if [ "$kind" = check ] && [ "$requested" = install ]; then
                 mzd_asset_readable "$target" && [ "$(mzd_hash "$target")" = "$original" ] || {
                     printf 'Unsupported native module: %s (expected MD5 %s).\n' "$target" "$original" >&2; exit 1;
                 }
@@ -132,19 +214,28 @@ mzd_bundle_plan() (
                     esac
                     cp "$folder/$direction/target.data" "$folder/after.data" || exit 1
                 else
-                    mzd_bundle_transform "$target" uninstall "$folder/removed.data" "$plan/components" || exit 1
-                    mzd_bundle_transform "$folder/removed.data" install "$folder/added.data" "$plan/components" || exit 1
+                    mzd_bundle_transform "$target" uninstall "$folder/removed.data" "$plan/components" "$target" || exit 1
+                    mzd_bundle_transform "$folder/removed.data" install "$folder/added.data" "$plan/components" "$target" || exit 1
                     if cmp -s "$target" "$folder/removed.data"; then
                         state=uninstalled
                         cp "$folder/added.data" "$folder/after.data" || exit 1
-                        mzd_bundle_transform "$folder/after.data" uninstall "$folder/inverse.data" "$plan/components" || exit 1
+                        mzd_bundle_transform "$folder/after.data" uninstall "$folder/inverse.data" "$plan/components" "$target" || exit 1
                         cmp -s "$target" "$folder/inverse.data" || { printf 'Loader insertion is not exactly reversible.\n' >&2; exit 1; }
                     else
                         # Check each own reference, allowing other preload tokens/order.
                         while IFS="$tab" read -r k d s svc h; do
-                            [ "$k" = shim ] || continue
-                            SHIM_SERVICE=$svc; SHIM_PATH=$d
-                            [ "$(mzd_shim_transform "$target" status)" = installed ] || { printf 'Partial loader configuration.\n' >&2; exit 1; }
+                            case "$k" in
+                                shim)
+                                    SHIM_SERVICE=$svc; SHIM_PATH=$d
+                                    no_reset=0; [ "$h" != no_reset ] || no_reset=1
+                                    [ "$(mzd_shim_transform "$target" status "$no_reset")" = installed ] || { printf 'Partial loader configuration.\n' >&2; exit 1; }
+                                    ;;
+                                loader_env)
+                                    env_name=${d%%=*}
+                                    env_val=${d#*=}
+                                    [ "$(mzd_loader_env_transform "$target" status "$svc" "$env_name" "$env_val")" = installed ] || { printf 'Partial loader configuration.\n' >&2; exit 1; }
+                                    ;;
+                            esac
                         done < "$plan/components"
                         state=installed; cp "$folder/removed.data" "$folder/after.data" || exit 1
                     fi
@@ -348,6 +439,7 @@ mzd_bundle_reset_main() (
         awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
     done
     while IFS="$tab" read -r kind target source service original; do
+        case "$kind" in check|loader_env) continue ;; esac
         mzd_shim_parent_ok "$target" || exit 1
         case "$kind" in
             loader|patch)

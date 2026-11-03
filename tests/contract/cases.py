@@ -10,6 +10,7 @@ CASES = {
     'tetris': 'gui-extension',
     'wallpaper-manager': 'gui-extension',
     'android-auto': 'component-bundle',
+    'carplay-hud': 'component-bundle',
     'cluster-language': 'component-bundle',
     'fuel-consumption-ending': 'component-bundle',
     'list-beep': 'shared-patch',

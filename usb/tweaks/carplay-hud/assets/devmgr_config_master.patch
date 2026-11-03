@@ -1,0 +1,11 @@
+--- target.data
++++ target.data
+@@ -70,7 +70,7 @@
+ <!-- true: accessory supports NMEA_GPHDT sentences -->
+ <config><name>CARPLAY_LOCATION_NMEA_GPHDT</name><value>FALSE</value></config>
+ <!-- Default FALSE -->
+-<config><name>NaviSupported</name><value>FALSE</value></config>
++<config><name>NaviSupported</name><value>TRUE</value></config>
+ <!-- Default 0x5555 -->
+ <config><name>NaviCompId</name><value>0x5555</value></config>
+ <!-- Default 100 -->
