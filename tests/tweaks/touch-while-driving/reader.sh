@@ -1,7 +1,8 @@
 #!/bin/sh
 # Read-only prerequisite regression; synthetic keys, never real CMU NVRAM.
 set -eu
-. "$1"
+helper=$1
+. "$helper"
 scratch=$(mktemp -d /tmp/mzd-touch-reader.XXXXXX)
 trap 'rm -rf "$scratch"' 0
 TOUCH_STATE=$scratch/state
@@ -12,8 +13,19 @@ for setter in set_speed_restriction_config.sh set_lvds_speed_restriction_config.
     printf '#!/bin/sh\nexit 90\n' > "$TOUCH_SCRIPTS/$setter"
     chmod 755 "$TOUCH_SCRIPTS/$setter"
 done
+# Each probe starts a fresh shell: fixture printf calls in this process must
+# not hide the CMU first-output-to-/dev/null bug in the prerequisite reader.
+probe() {
+    sh -c '
+        . "$1"
+        TOUCH_STATE=$2/state
+        TOUCH_NVRAM=$2/nvram
+        TOUCH_SCRIPTS=$2/scripts
+        touch_require
+    ' sh "$helper" "$scratch"
+}
 check() {
-    if touch_require > "$scratch/out" 2> "$scratch/err"; then
+    if probe > "$scratch/out" 2> "$scratch/err"; then
         [ ! -s "$scratch/out" ] && [ ! -s "$scratch/err" ]
     else
         cat "$scratch/err" >&2
@@ -32,13 +44,13 @@ for value in enable disable; do
     check
 done
 printf 'invalid\n' > "$TOUCH_NVRAM/keys/lvds_speed_restriction"
-if touch_require > "$scratch/out" 2> "$scratch/err"; then exit 1; fi
+if probe > "$scratch/out" 2> "$scratch/err"; then exit 1; fi
 grep -q 'Cannot read valid speed restriction settings' "$scratch/err"
 rm "$TOUCH_NVRAM/keys/lvds_speed_restriction"
 ln -s "$TOUCH_NVRAM/keys/bus_bcm_speed_restriction" "$TOUCH_NVRAM/keys/lvds_speed_restriction"
-if touch_require > "$scratch/out" 2> "$scratch/err"; then exit 1; fi
+if probe > "$scratch/out" 2> "$scratch/err"; then exit 1; fi
 rm "$TOUCH_NVRAM/keys/lvds_speed_restriction"
 rm "$TOUCH_SCRIPTS/set_speed_restriction_config.sh"
-if touch_require > "$scratch/out" 2> "$scratch/err"; then exit 1; fi
+if probe > "$scratch/out" 2> "$scratch/err"; then exit 1; fi
 grep -q 'Missing OEM NVRAM setter' "$scratch/err"
-printf 'TOUCH_READER_PASSED: factory ash nesting, absent/newline/NUL keys, both values, invalid data, symlinks and missing setters.\n'
+printf 'TOUCH_READER_PASSED: fresh-process prerequisites, absent/newline/NUL keys, both values, invalid data, symlinks and missing setters.\n'
