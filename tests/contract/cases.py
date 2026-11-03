@@ -8,6 +8,7 @@ CASES = {
     'wallpaper-manager': 'gui-extension',
     'android-auto': 'component-bundle',
     'cluster-language': 'component-bundle',
+    'tplink-rtl8811au': 'component-bundle',
     'list-beep': 'shared-patch',
     'list-loop': 'shared-patch',
     'shorter-delay': 'shared-patch',
