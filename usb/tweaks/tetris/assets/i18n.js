@@ -90,8 +90,8 @@ window.MzdGuiI18n.register("tetris", {
       "trafficJam": "Traffic Jam",
       "gui.label": "Tetris",
       "gui.menu.0": "Traffic Jam",
-      "gui.back": "ZURÜCK",
-      "gui.backToApplications": "ZURÜCK",
+      "gui.back": "Zurück",
+      "gui.backToApplications": "Zurück",
       "notSaved": "nicht gespeichert"
     },
     "es_ES": {

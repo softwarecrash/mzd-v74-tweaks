@@ -162,6 +162,11 @@ that pair and stops the verified owned process; ordinary GUI consumers may remai
 The final GUI consumer removes the verified shared GUI hook/runtime/registries.
 Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is retained
 separately from immutable snapshots. Unknown existing data folders are refused.
+Consumers that offer complete user-data removal must declare their module data
+directory with `config.<name>.path` in the manifest (trailing `/`). The package
+controller then removes it after successful uninstall unless `--preserve-config`
+was requested. Wallpaper Manager declares its entire module data directory,
+including imported images and settings; Update preserves it automatically.
 
 The service binds an ephemeral port on 127.0.0.1. A RAM-only descriptor supplies
 the per-start token. File-origin Opera talks through a hidden same-origin HTTP

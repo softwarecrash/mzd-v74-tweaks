@@ -128,12 +128,23 @@ exec '''+copy_command+''' "$@"
   assert 'resident:' in registry.read_text() and 'translations:' in registry.read_text()
   user_data=persist/'mzd-tweaks/gui-data/wallpaper-manager'
   write(user_data/'test-image.png','synthetic user data\n')
-  call('wallpaper-manager','uninstall');assert hook.exists() and (user_data/'test-image.png').exists()
+  write(user_data/'gallery/gallery.tsv','saved image and slideshow settings\n')
+  saved={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.0','version=0.4.1'))
+  call('wallpaper-manager','update')
+  assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
+  call('wallpaper-manager','uninstall',extra=['--preserve-config']);assert hook.exists() and (user_data/'test-image.png').exists()
   assert startup.read_bytes()!=original  # Tetris is also a service consumer now.
   call('tetris','uninstall');absent();assert startup.read_bytes()==original
-  call('wallpaper-manager','install');call('tetris','install');call('tetris','uninstall');assert hook.exists()
+  call('wallpaper-manager','install')
+  assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
+  call('tetris','install');call('tetris','uninstall');assert hook.exists()
   call('wallpaper-manager','uninstall');absent();assert startup.read_bytes()==original
-  print('WALLPAPER_PACKAGE_PASSED:',checks,'real actions; image-free public payload, mixed consumers, both removal orders and retained user data.')
+  assert not user_data.exists()
+  assert not (persist/'mzd-tweaks/config-owners/wallpaper-manager.tsv').exists()
+  call('wallpaper-manager','install');assert not (user_data/'test-image.png').exists() and not (user_data/'gallery').exists()
+  call('wallpaper-manager','uninstall');absent();assert not user_data.exists() and startup.read_bytes()==original
+  print('WALLPAPER_PACKAGE_PASSED:',checks,'real actions; Update, keep/reinstall, full data removal, clean reinstall, mixed consumers and original startup restoration.')
   raise SystemExit(0)
  if '--i18n-compat-only' in sys.argv:
   call('gui-example','install')
