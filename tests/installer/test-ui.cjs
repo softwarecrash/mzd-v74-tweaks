@@ -504,6 +504,26 @@ const touchManifest=parseConf('touch-while-driving',fs.readFileSync(path.join(RO
 assert.equal(touchManifest.preflight,true);
 assert.throws(()=>parseConf('touch-while-driving',fs.readFileSync(path.join(ROOT,'tweaks/touch-while-driving/manifest.conf'),'utf8').replace('preflight=true','preflight=yes')));
 
+// Non-bundle tweak preflight info (HUD Street Name)
+x=boot(null,false,false,false,false,false);
+x.usb.ids=['hud-street-name'];
+x.states['hud-street-name']='uninstalled';
+x.recovery['hud-street-name']='original\n';
+x.preflight['hud-street-name']=x.ok('info\tDetected compatible color Windshield HUD.\n');
+x.click('refresh');x.pump();
+x.click('tweak-hud-street-name');x.pump();
+assert(!x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Info: Detected compatible color Windshield HUD/);
+x.click('back');
+x.preflight['hud-street-name']=x.ok('block\tDetected unsupported Combiner HUD (monochrome).\n',1);
+x.click('tweak-hud-street-name');x.pump();
+assert(x.nodes.action.disabled);
+assert.match(x.nodes['dialog-description'].textContent,/Cannot install: Detected unsupported Combiner HUD/);
+
+const hudManifest=parseConf('hud-street-name',fs.readFileSync(path.join(ROOT,'tweaks/hud-street-name/manifest.conf'),'utf8'));
+assert.equal(hudManifest.preflight,true);
+assert.throws(()=>parseConf('hud-street-name',fs.readFileSync(path.join(ROOT,'tweaks/hud-street-name/manifest.conf'),'utf8').replace('preflight=true','preflight=yes')));
+
 const clusterManifest=parseConf('cluster-language',fs.readFileSync(path.join(ROOT,'tweaks/cluster-language/manifest.conf'),'utf8'));
 assert.equal(clusterManifest.settingDefs[0].key,'hud_display_language');
 assert.equal(clusterManifest.settingDefs[0].default,'off');

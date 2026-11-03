@@ -150,8 +150,14 @@ esac
                 env['TEST_HUD'] = hud
                 run(['status'], 'unavailable', reason=True)
                 run(['install'], code=1)
+                r = subprocess.run([SHELL, bp(p), 'preflight'], env=env, capture_output=True, text=True, timeout=15)
+                assert r.returncode == 1 and 'block\t' in r.stdout
+                checks += 1
             env['TEST_HUD'] = 'whud'
             run(['status'], 'uninstalled')
+            r = subprocess.run([SHELL, bp(p), 'preflight'], env=env, capture_output=True, text=True, timeout=15)
+            assert r.returncode == 0 and 'info\tDetected compatible color Windshield HUD.' in r.stdout
+            checks += 1
         for action in [[], ['--help'], ['-h']]:
             assert 'Usage:' in run(action).stdout
         run(['unknown'], code=1); run(['status', 'extra'], code=1)
@@ -356,6 +362,14 @@ esac
                 if expected is not None:assert r.stdout==expected+'\n',(id_,r.stdout,r.stderr)
                 checks+=1
             if id_ == 'hud-street-name':
+                env['TEST_HUD'] = 'whud'
+                r = subprocess.run([SHELL, bp(adapter), 'preflight-info', id_], env=env, capture_output=True, text=True, timeout=15)
+                assert r.returncode == 0 and 'info\tDetected compatible color Windshield HUD.' in r.stdout
+                checks += 1
+                env['TEST_HUD'] = 'combiner'
+                r = subprocess.run([SHELL, bp(adapter), 'preflight-info', id_], env=env, capture_output=True, text=True, timeout=15)
+                assert r.returncode == 1 and 'block\tDetected unsupported Combiner HUD (color).' in r.stdout
+                checks += 1
                 for bad_hud in ['combiner', 'unknown']:
                     env['TEST_HUD'] = 'whud'
                     managed('install'); managed('status', 'installed')
