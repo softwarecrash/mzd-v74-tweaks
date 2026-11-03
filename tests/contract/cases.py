@@ -4,6 +4,9 @@ These tests cover the shared patch-worker implementation. New implementation
 types must add their own real-entrypoint runner instead of claiming coverage.
 """
 CASES = {
+    'remove-safety-warnings': 'safety-images',
+    'snake': 'traffic-jam',
+    'minesweeper': 'traffic-jam',
     'tetris': 'gui-extension',
     'wallpaper-manager': 'gui-extension',
     'android-auto': 'component-bundle',
@@ -13,7 +16,6 @@ CASES = {
     'list-loop': 'shared-patch',
     'shorter-delay': 'shared-patch',
     'main-menu-loop': 'shared-patch',
-    'no-more-disclaimer': 'shared-patch',
     'hud-street-name': 'shared-patch',
     'fuel-consumption-values': 'shared-patch',
     'touch-while-driving': 'touch-transaction',

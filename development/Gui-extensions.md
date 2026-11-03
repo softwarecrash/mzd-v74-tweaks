@@ -162,6 +162,11 @@ that pair and stops the verified owned process; ordinary GUI consumers may remai
 The final GUI consumer removes the verified shared GUI hook/runtime/registries.
 Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is retained
 separately from immutable snapshots. Unknown existing data folders are refused.
+Consumers that offer complete user-data removal must declare their module data
+directory with `config.<name>.path` in the manifest (trailing `/`). The package
+controller then removes it after successful uninstall unless `--preserve-config`
+was requested. Wallpaper Manager declares its entire module data directory,
+including imported images and settings; Update preserves it automatically.
 
 The service binds an ephemeral port on 127.0.0.1. A RAM-only descriptor supplies
 the per-start token. File-origin Opera talks through a hidden same-origin HTTP
@@ -225,3 +230,22 @@ This requires shared provider `i18n=2`. Old immutable providers/saved consumers
 are refused before publishing a replacement receipt: uninstall their GUI
 consumers normally, then reinstall from the updated package. Existing consumers
 without translation metadata remain supported. Installer metadata is separate.
+
+## Mutable configuration paths
+
+GUI modules can declare `config.<name>.path` directly in their manifest, with
+an optional `config.<name>.source` default. A trailing path slash means a folder;
+otherwise the path is a file. The package controller manages initialization and
+Keep/Remove at Uninstall. It does not parse app-specific values. These data must
+be outside immutable installed modules and package snapshots.
+
+Lua services receive normalized paths in `context.config.<name>`. Applications
+handle empty/missing files and perform checked, atomic writes themselves. See
+Tetris `assets/service/entry.lua` and the [config example](examples/config-data/README.md).
+Config-owning GUI modules require shared runtime `config=1`.
+
+Views may use `MzdGuiModule.send(name,value)` and `onMessage(callback)` for
+module-specific resident messages. Types are prefixed `mzd-module-`; SDK adds
+the view token. The resident must still validate the active view, token, type
+and payload, and use only its own scoped `context.service` API. This does not
+expose arbitrary filesystem or shell access to view messages.

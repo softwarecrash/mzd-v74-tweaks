@@ -1,0 +1,35 @@
+cpio lists hardlinks
+du-k-works
+expand-works-like-GNU
+hostname-d-works
+mdev #maj,min and no explicit uid
+mdev $ENVVAR=regex match
+mdev add /block/sda
+mdev command
+mdev deletes /block/sda
+mdev does not stop on dash-rule
+mdev move and command
+mdev move/symlink rule '>bar/'
+mdev move/symlink rule '>bar/baz'
+mdev regexp substring match + replace
+mdev stops on first rule
+move rule does not delete node with name == device_name
+pidof -o %PPID NOP
+pidof -s
+sed NUL in command
+sed append autoinserts newline
+sed clusternewline
+sed embedded NUL
+sed n (flushes pattern space, terminates early)
+sed nonexistent label
+sed s//g (exhaustive)
+sort key range with multiple options
+sort key range with numeric option and global reverse
+strings-works-like-GNU
+tar writing into read-only dir
+taskset (set_aff, needs CAP_SYS_NICE)
+unexpand-works-like-GNU
+wget--O-overrides--P
+wget-handles-empty-path
+wget-retrieves-google-index
+wget-supports--P

@@ -27,6 +27,10 @@ jobs:
         run: python tests/contract/test_shims.py
       - name: Test settings validation, saved values and background jobs
         run: python tests/contract/test_settings.py
+      - name: Test read-only Touch prerequisites
+        run: sh tests/tweaks/touch-while-driving/reader.sh usb/tweaks/touch-while-driving/touch.sh
+      - name: Test mutable config defaults and ownership
+        run: python tests/contract/test_config_data.py
       - name: Test persistent packages, versions and owned paths
         run: python tests/contract/test_packages.py
       - name: Test automatic GUI support and saved consumer lifecycle
@@ -40,6 +44,8 @@ jobs:
           python tests/contract/test_gui_extensions.py --wallpaper-only
           python tests/contract/test_gui_extensions.py --restore-only
           python tests/contract/test_gui_extensions.py --i18n-compat-only
+          python tests/contract/test_gui_extensions.py --tetris-config-only
+          python tests/contract/test_gui_extensions.py --config-example-only
       - name: Check shell errors
         run: shellcheck --severity=error --shell=sh usb/autorun.sh usb/installer.sh usb/lib/*.sh usb/lib/gui-runtime/service/supervisor.sh usb/tweaks/*/run.sh usb/tweaks/*/reset.sh usb/tweaks/terminal/assets/terminal.sh development/examples/hello/run.sh development/examples/settings/run.sh development/examples/shim/run.sh development/examples/shim/reset.sh development/examples/shim/build.sh development/examples/bundle/run.sh development/examples/bundle/reset.sh development/examples/bundle/build.sh development/examples/gui-extension/run.sh development/examples/gui-extension/reset.sh development/examples/gui-hello-world/run.sh development/examples/gui-hello-world/reset.sh
       - name: Install full static BusyBox test applets
@@ -50,15 +56,6 @@ jobs:
           busybox diff --help
       - name: Test wallpaper storage domain with generated PNG input
         run: python tests/tweaks/wallpaper-manager/test_backend.py
-      - name: Run actual workers in a read-only, networkless BusyBox container
-        run: |
-          docker run --rm --network none --read-only --cap-drop ALL \
-            --security-opt no-new-privileges --user "$(id -u):$(id -g)" \
-            --tmpfs /tmp:rw,exec,nosuid,size=128m \
-            -e PYTHONDONTWRITEBYTECODE=1 -e CMU_TEST_BUSYBOX=1 \
-            -v "$(command -v busybox):/usr/local/bin/busybox:ro" \
-            -v "$PWD:/repo:ro" -w /repo python:3.12-alpine \
-            python tests/contract/test_workers.py
       - name: Verify all shared-target patch combinations
         run: python tests/contract/test_combinations.py
       - name: Exercise the real SSH supervisor with fake system commands
@@ -97,18 +94,67 @@ jobs:
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint
         run: python tests/contract/test_terminal.py
-  tplink-rtl8811au-release:
-    # The driver files are committed so the branch download stays ready to run.
-    # This proves they are exactly the pinned cmu150-rtl8811au release.
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  busybox:
+    # Prepares the CMU-like BusyBox 1.19.2 (ARM, static; tools/busybox/README.md) for the tweak tests:
+    # tools/busybox/prepare.sh builds it and runs all checks of the BusyBox itself, but only when the files of
+    # the build or of its checks changed (it keeps a fingerprint of them next to the program). The cache holds
+    # only a BusyBox that passed those checks (actions/cache saves only when the job succeeds), so the jobs that
+    # use it do not check it again. tools/test-in-container.sh runs the same script locally. It runs on an ARM
+    # runner, whose processor runs the 32-bit ARM build tools and BusyBox directly, without emulation.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Take the checked BusyBox of the same build and checks from the cache
+        uses: actions/cache@v4
         with:
-          python-version: '3.12'
-      - name: Committed driver files equal the pinned release
-        run: python tools/update_tplink_rtl8811au.py --check
+          path: |
+            .cache/cmu-busybox/busybox
+            .cache/cmu-busybox/checked
+          # The files of the build and of its checks (not the README): a change in any of them builds and checks again.
+          key: >-
+            cmu-busybox-${{ hashFiles('tools/busybox/prepare.sh', 'tools/busybox/build.sh',
+            'tools/busybox/in-container.sh', 'tools/busybox/source.conf', 'tools/busybox/cmu_defconfig',
+            'tools/busybox/tests/**') }}
+      - name: Build and check the CMU-like BusyBox (only if not already checked)
+        run: sh tools/busybox/prepare.sh
+      - name: Keep the logs of a failed build or check
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmu-busybox-logs
+          path: |
+            .cache/cmu-busybox/make.log
+            .cache/cmu-busybox/busybox.config
+            .cache/cmu-busybox/testsuite.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cmu-busybox
+          path: .cache/cmu-busybox/busybox
+          retention-days: 7
+  workers:
+    # The real worker entrypoints in a read-only, networkless container that holds only the CMU-like
+    # BusyBox (its sh and its applets, linked as on the CMU) and a Python for the test driver
+    # (tools/busybox/image/), run as a tweak runs on the CMU (tools/busybox/image/run.sh). It uses the BusyBox
+    # prepared and checked by the job busybox and does not check it again. It runs on an ARM runner, whose
+    # processor runs the 32-bit ARM BusyBox directly, without emulation.
+    needs: busybox
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: cmu-busybox
+          path: .cache/cmu-busybox
+      - name: Make the test image (only the CMU-like BusyBox, laid out as on the CMU, and Python for the driver)
+        run: |
+          chmod 755 .cache/cmu-busybox/busybox
+          sh tools/busybox/image/make-image.sh .cache/cmu-busybox/busybox cmu-tweak-test:local
+      - name: Run actual workers in the test image, as a tweak runs on the CMU
+        run: sh tools/busybox/image/run.sh /usr/local/bin/python3 tests/contract/test_workers.py
   launcher:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -125,9 +171,11 @@ jobs:
       - run: node tests/installer/test-gui-residents.cjs
       - run: node tests/installer/test-gui-services.cjs
       - run: node tests/tweaks/tetris/shared-sdk.cjs
+      - run: node tests/tweaks/traffic-jam/behavior.cjs
+      - run: node tests/tweaks/tetris/highscore.cjs
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs
       - run: node tests/installer/test-transport.cjs
-      - run: node tests/tweaks/no-more-disclaimer/behavior.cjs
+      - run: node tests/tweaks/remove-safety-warnings/behavior.cjs

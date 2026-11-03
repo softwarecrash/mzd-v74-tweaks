@@ -1,8 +1,9 @@
 #!/bin/sh
+if [ "${1:-}" = uninstall ] && [ "${2:-}" = --preserve-config ];then . "$(dirname "$(readlink -f "$0")")/../../lib/config-args.sh" || exit 1;fi
 set -u
 
 mzd_worker_usage() {
-    echo 'Usage: sh run.sh <install|uninstall|status>'
+    echo 'Usage: sh run.sh <install|uninstall|status|preflight>'
     echo 'No arguments or --help: show usage without changing anything.'
 }
 
@@ -17,10 +18,10 @@ case "$ACTION" in
         mzd_worker_usage
         exit 0
         ;;
-    install|uninstall|status)
+    install|uninstall|status|preflight)
         ;;
     *)
-        echo 'Unknown action. Use install, uninstall or status.' >&2
+        echo 'Unknown action. Use install, uninstall, status or preflight.' >&2
         exit 1
         ;;
 esac
@@ -29,7 +30,7 @@ SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
 ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 
-if [ "${MZD_WORKER_DIRECT:-}" != 1 ]; then
+if [ "${MZD_WORKER_DIRECT:-}" != 1 ] && [ "$ACTION" != preflight ]; then
     exec sh "$ROOT/installer.sh" action "$(basename "$HERE")" "$ACTION"
 fi
 
@@ -46,6 +47,38 @@ done
 mzd_manifest_load "$HERE/manifest.conf" || exit 1
 PATCH_FILE="$HERE/assets/change.patch"
 
+hud_check() {
+    # mzd_vehicle_hud always exits 0; it encodes dbus failures as the string 'unknown'.
+    hud=$(mzd_vehicle_hud)
+    case "$hud" in
+        WHUD_color)
+            return 0 ;;
+        CHUD_mono)
+            printf 'Detected unsupported Combiner HUD (monochrome).\n'; return 1 ;;
+        CHUD_color)
+            printf 'Detected unsupported Combiner HUD (color).\n'; return 1 ;;
+        none)
+            printf 'This vehicle has no HUD.\n'; return 1 ;;
+        unknown|*)
+            printf 'Unable to detect the HUD type and determine compatibility.\n'; return 1 ;;
+    esac
+}
+
+hud_preflight() {
+    if reason=$(hud_check); then
+        printf 'info\tDetected compatible color Windshield HUD.\n'
+        return 0
+    else
+        printf 'block\t%s\n' "$reason"
+        return 1
+    fi
+}
+
+if [ "$ACTION" = preflight ]; then
+    hud_preflight
+    exit $?
+fi
+
 mzd_check_prerequisites() {
     case "${MZD_PACKAGE_STATE:-}" in
         uninstalling|restoring)
@@ -53,18 +86,9 @@ mzd_check_prerequisites() {
     esac
     case "$ACTION" in
         status|install)
-            # mzd_vehicle_hud always exits 0; it encodes dbus failures as the string 'unknown'.
-            hud=$(mzd_vehicle_hud)
-            case "$hud" in
-                WHUD_color)
-                    printf 'Detected compatible color windshield HUD.\n' >&2
-                    return 0 ;;
-                CHUD_mono) printf 'Detected unsupported Combiner HUD (monochrome).\n' >&2 ;;
-                CHUD_color) printf 'Detected unsupported Combiner HUD (color).\n' >&2 ;;
-                none) printf 'This vehicle has no HUD.\n' >&2 ;;
-                unknown|*) printf 'Unable to detect the HUD type and determine compatibility.\n' >&2 ;;
-            esac
-            return 1 ;;
+            hud_check >&2
+            return $?
+            ;;
         *)
             return 0 ;;
     esac

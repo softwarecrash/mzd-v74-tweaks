@@ -10,7 +10,11 @@ No worker depends on interactive stdin, dialogs, a reboot or a build step.
 
 Patch/service actions: install, uninstall, status. Command actions: run, status.
 No arguments, --help or -h prints usage and exits 0 without side effects.
-Extra arguments or unsupported actions return 1 with stderr and empty stdout.
+Extra arguments or unsupported actions return 1 with stderr and empty stdout,
+except `uninstall --preserve-config` for workers declaring `config.<name>.path`.
+Source `lib/config-args.sh` before argument checks; the package controller owns
+config initialization/removal. Config-owning workers must stop their writers
+before completing Uninstall. See [mutable configs](Manifest-format.md#mutable-configuration-and-user-data).
 
 Persistent patch/service/files actions now go through the shared package
 controller, including direct public run.sh calls. It saves a self-contained

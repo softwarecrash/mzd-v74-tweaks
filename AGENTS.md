@@ -10,4 +10,6 @@ uses private RAM scratch space; require reasons for unavailable/broken.
 Use manifest.conf as the single configuration source; never source/eval it.
 Do not add checksum sidecars for project files. Preserve OEM backup fingerprints.
 Run relevant contract/UI/behavior checks. Separate isolated, emulated and vehicle
-evidence. Never publish vehicle dumps, private keys or personal logs.
+evidence. Run checks only in containers with `sh tools/test-in-container.sh`
+(skill: .github/skills/run-checks); never run tests, linters or usb/ scripts on
+the host. If Docker is unavailable, stop and tell the user. Never publish vehicle dumps, private keys or personal logs.

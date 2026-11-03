@@ -22,6 +22,10 @@ original = ''.join(line for line in original.splitlines(keepends=True) if not li
 checks = 0
 with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
     base = Path(temporary); file = base / 'manifest.conf'; driver = base / 'read.sh'
+    file = base / 'fixture/tweaks/list-beep/manifest.conf'
+    file.parent.mkdir(parents=True)
+    (base / 'fixture/lib').mkdir()
+    shutil.copyfile(ROOT / 'usb/lib/configs.awk', base / 'fixture/lib/configs.awk')
     marker = base / 'must-not-exist'
     driver.write_text('. ' + shlex.quote(bp(ROOT / 'usb/lib/manifest.sh')) + '\n'
                       'mzd_manifest_load "$1" || exit 1\nprintf \'%s\\n\' "$NAME" "$DESCRIPTION" "$APP" "$ORIGINAL" "$LOCK"\n',
@@ -91,6 +95,14 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
               ('resident wrong extension',gui+'gui_resident=assets/resident.lua\n',False),
               ('service wrong extension',gui+'gui_resident=assets/resident.js\ngui_service=assets/service.js\n',False),
               ('capability on patch',original+'gui_resident=assets/resident.js\n',False)]
+    for config_path, valid in [
+        ('/tmp/mnt/data_persist/log/', False),
+        ('/tmp/mnt/data_persist/', False),
+        ('/tmp/mnt/data_persist/mzd-tweaks/data/list-beep/', True),
+        ('/tmp/mnt/data_persist/mzd-tweaks/gui-data/list-beep/nested/', True),
+        ('/tmp/mnt/data_persist/mzd-tweaks/data/list-beep-other/', False),
+    ]:
+        cases.append(('config directory scope '+config_path, original+'config.state.path='+config_path+'\n', valid))
     for label, data, valid in cases:
         file.write_bytes(data.encode('utf-8'))
         try:

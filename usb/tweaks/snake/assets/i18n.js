@@ -1,0 +1,51 @@
+window.MzdGuiI18n.register("snake",{
+  "version": 1,
+  "languages": {
+    "en_US": {
+      "gui.menu.0": "Traffic Jam",
+      "gui.back": "Back",
+      "gui.backToApplications": "Back to Applications",
+      "score": "Score",
+      "time": "Time",
+      "highscore": "High score",
+      "bestTime": "Best time",
+      "notSaved": "not saved",
+      "flags": "Flags",
+      "continue": "Continue",
+      "newGame": "New game",
+      "exit": "Exit",
+      "paused": "Paused",
+      "won": "You won!",
+      "gameOver": "Game over",
+      "resultHint": "Press / Back: menu",
+      "snakeControls": "Tilt: steer\nPress / Back: pause",
+      "mineControls": "Tilt: move cursor\nPress: open\nTurn right: set flag\nTurn left: remove flag\nBack: pause",
+      "snakeKeys": "Keyboard: arrows steer, Enter / Esc pause",
+      "mineKeys": "Keyboard: arrows move, Enter opens, M sets flag, N removes flag, Esc pauses",
+      "gui.label": "Snake"
+    },
+    "de_DE": {
+      "gui.menu.0": "Traffic Jam",
+      "gui.back": "Zurück",
+      "gui.backToApplications": "Zurück zu Anwendungen",
+      "score": "Punkte",
+      "time": "Zeit",
+      "highscore": "Rekord",
+      "bestTime": "Bestzeit",
+      "notSaved": "nicht gespeichert",
+      "flags": "Flaggen",
+      "continue": "Fortsetzen",
+      "newGame": "Neues Spiel",
+      "exit": "Beenden",
+      "paused": "Pause",
+      "won": "Gewonnen!",
+      "gameOver": "Spiel vorbei",
+      "resultHint": "Drücken / Zurück: Menü",
+      "snakeControls": "Kippen: Richtung\nDrücken / Zurück: Pause",
+      "mineControls": "Kippen: Cursor bewegen\nDrücken: Aufdecken\nRechts drehen: Flagge setzen\nLinks drehen: Flagge entfernen\nZurück: Pause",
+      "snakeKeys": "Tastatur: Pfeile steuern, Enter / Esc Pause",
+      "mineKeys": "Tastatur: Pfeile bewegen, Enter öffnet, M setzt Flagge, N entfernt sie, Esc pausiert",
+      "gui.label": "Snake"
+    }
+  }
+});

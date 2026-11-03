@@ -176,8 +176,9 @@ mzd_bundle_plan() (
     payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$plan/components" || {
-            printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2; exit 1;
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$plan/components" || {
+            . "$ROOT/lib/config-data.sh" || exit 1
+            mzd_config_contains "$HERE" "$existing" || { printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2;exit 1; }
         }
     done
     if [ "$present" = 0 ]; then printf 'uninstalled\n'
@@ -308,7 +309,10 @@ mzd_bundle_apply() {
     verify=$(mktemp -d /tmp/mzd-bundle-verify.XXXXXX) || exit 1
     verified=$(mzd_bundle_plan "$verify" verify); code=$?; rm -rf "$verify"
     case "$ACTION:$code:$verified" in install:0:installed|uninstall:0:uninstalled) ;; *) mzd_fail 'Final component verification failed; rolling back.' ;; esac
-    if [ "$ACTION" = uninstall ] && [ -d "$payload_dir" ]; then rmdir "$payload_dir" || mzd_fail 'Payload directory is not empty.'; fi
+    if [ "$ACTION" = uninstall ] && [ -d "$payload_dir" ]; then
+        if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || mzd_fail 'Payload directory is not empty.'
+        else rmdir "$payload_dir" 2>/dev/null || :;fi
+    fi
     sync; BUNDLE_COMMITTED=1
     MZD_SUCCESS="$(printf '%s' "$ACTION" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') completed. Restart the CMU to apply the changes.
 Reports: $MZD_REPORT"
@@ -361,7 +365,7 @@ mzd_bundle_reset_main() (
     mzd_shim_parent_ok "$payload_dir" || exit 1
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$scratch/components" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2; exit 1; }
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
     done
     while IFS="$tab" read -r kind target source service original; do
         mzd_shim_parent_ok "$target" || exit 1
@@ -396,6 +400,8 @@ mzd_bundle_reset_main() (
     if [ -f "$scratch/payloads" ]; then
         while IFS= read -r target; do rm -f "$target" || exit 2; done < "$scratch/payloads"
     fi
-    if [ -d "$payload_dir" ]; then rmdir "$payload_dir" || exit 2; fi
+    if [ -d "$payload_dir" ]; then
+        if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || exit 2;else rmdir "$payload_dir" 2>/dev/null || :;fi
+    fi
     sync
 )

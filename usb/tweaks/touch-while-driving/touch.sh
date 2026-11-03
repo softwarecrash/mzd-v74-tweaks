@@ -38,7 +38,10 @@ touch_require() (
             printf 'Missing OEM NVRAM setter: %s\n' "$path" >&2; exit 1;
         }
     done
-    touch_read bus_bcm_speed_restriction >/dev/null && touch_read lvds_speed_restriction >/dev/null || {
+    # CMU BusyBox printf with a conversion can return 1 when its first output
+    # goes to /dev/null. Capture validated values through pipes instead.
+    # See development/CMU-BusyBox.md; nesting and AND-lists are not the cause.
+    checked_bus=$(touch_read bus_bcm_speed_restriction) && checked_lvds=$(touch_read lvds_speed_restriction) || {
         printf 'Cannot read valid speed restriction settings.\n' >&2; exit 1;
     }
     [ ! -L "$TOUCH_STATE" ] && [ ! -L "$(dirname "$TOUCH_STATE")" ] || {

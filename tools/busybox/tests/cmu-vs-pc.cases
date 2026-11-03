@@ -1,0 +1,61 @@
+# Commands that behave differently on the CMU than on a PC, with the CMU's answer, for check.sh (in the same
+# folder).
+#
+# Two kinds of cases:
+#   - commands that work on a PC (Ubuntu: dash, GNU tools, a modern BusyBox) but fail or give another result on
+#     the CMU. A tweak that uses one of them passes a test on a PC and breaks on the car. The BusyBox under test
+#     must answer exactly like the CMU's; if it ever accepted one (for example after a configuration change, or
+#     if a newer BusyBox were used by mistake), the tests that use it would stop catching such tweaks;
+#   - the CMU way of writing the same thing, which must work (the controls).
+#
+# Format: a header line, then the shell lines of the case (up to the next header):
+#   ### NAME | rc=N | has=TEXT      the exit code is N and the output contains TEXT
+#   ### NAME | rc=N | out=TEXT      the exit code is N and the whole output is exactly TEXT (one line)
+# The output is stdout and stderr together. Lines starting with # and empty lines between cases are skipped.
+# The expected values are the answers of the CMU's own BusyBox 1.19.2 (run under qemu-arm, 2026-11-02).
+# If a case fails, the BusyBox under test differs from the CMU's: do not change the expected value to make it
+# pass.
+# Each case runs in the BusyBox's own "sh", with PATH holding only its applets (none of the machine's tools),
+# an empty folder of its own, no input, and at most 20 seconds.
+
+# --- works on a PC, fails or differs on the CMU
+### grep-x | rc=1 | has=grep: invalid option -- 'x'
+echo ab | grep -x ab
+### grep-P | rc=1 | has=grep: invalid option -- 'P'
+echo ab | grep -P a
+### sed-E | rc=1 | has=sed: invalid option -- 'E'
+echo aa | sed -E 's/a+/X/'
+### sed-i-suffix | rc=1 | has=sed: invalid option -- '.'
+f=$(mktemp); echo a >"$f"; sed -i.bak s/a/b/ "$f"; rc=$?; rm -f "$f" "$f.bak"; exit $rc
+### sort-V | rc=2 | has=sort: invalid option -- 'V'
+printf '1\n2\n' | sort -V
+### base64-w | rc=1 | has=base64: invalid option -- 'w'
+echo a | base64 -w0
+### du-b | rc=1 | has=du: invalid option -- 'b'
+du -b /dev/null
+### patch-dry-run | rc=1 | has=patch: unrecognized option '--dry-run'
+patch --dry-run </dev/null
+### timeout-without-t | rc=127 | has=timeout: can't execute '5'
+timeout 5 true
+### sha256sum-missing | rc=127 | has=sha256sum: not found
+sha256sum /dev/null
+### arith-32bit | rc=0 | out=0
+echo $((65536*65536))
+### printf-devnull-bug | rc=0 | out=1
+printf "%s" a >/dev/null; echo $?
+### sh-arrays | rc=2 | has=syntax error: unexpected "("
+a=(1 2); echo "${a[1]}"
+
+# --- the CMU way: must work
+### timeout-t | rc=0 | out=ok
+timeout -t 5 true && echo ok
+### sed-r | rc=0 | out=X
+echo aa | sed -r 's/a+/X/'
+### readlink-f | rc=0 | out=/
+readlink -f /
+### stat-c | rc=0 | out=0
+stat -c %s /dev/null
+### date-at | rc=0 | out=1970
+date -u -d @0 +%Y
+### md5sum | rc=0 | has=d41d8cd98f00b204e9800998ecf8427e
+md5sum </dev/null

@@ -174,4 +174,23 @@ with tempfile.TemporaryDirectory(prefix='cmu-bundles-') as temporary:
     hook('finish',1);assert (payload_dir/'alpha.so').exists()
     for path in [config,second,target]:shutil.copyfile(path.with_name(path.name+'.org'),path)
     hook('finish');assert not payload_dir.exists()
+    # A mutable native config may live beside immutable shim libraries.
+    entry=store/'bundle-example'
+    assert entry.resolve().is_relative_to(persist.resolve()) and entry!=persist
+    shutil.rmtree(entry)
+    native_config=payload_dir/'preferences.conf'
+    write(folder/'manifest.conf',m+'config.preferences.path='+bp(native_config)+'\nconfig.preferences.source=assets/preferences.conf\n')
+    write(folder/'run.sh',worker);write(folder/'components.tsv',table);write(folder/'assets/preferences.conf','value=default\n')
+    call(['action','bundle-example','install']);assert native_config.read_text()=='value=default\n'
+    write(native_config,'value=user\n');call(['action','bundle-example','status'])
+    manifest=folder/'manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.0','version=0.1.1'))
+    call(['action','bundle-example','update']);assert native_config.read_text()=='value=user\n'
+    call(['action','bundle-example','uninstall','--preserve-config']);assert native_config.exists()
+    call(['action','bundle-example','install']);assert native_config.read_text()=='value=user\n'
+    call(['action','bundle-example','uninstall']);assert not payload_dir.exists()
+    # Original-file Restore retains mutable data and does not fingerprint it.
+    call(['action','bundle-example','install']);write(native_config,'value=retain-on-restore\n')
+    hook('check');hook('prepare')
+    for path in [config,second,target]:shutil.copyfile(path.with_name(path.name+'.org'),path)
+    hook('finish');assert native_config.read_text()=='value=retain-on-restore\n' and not (payload_dir/'alpha.so').exists()
     print('COMPONENT_BUNDLES_PASSED:',checks,'controller/reset checks; distinct services, mixed commit/rollback, critical payload retention, custom payload upgrades, settings config, block/warning, saved uninstall and owned reset.')

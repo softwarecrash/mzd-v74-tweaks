@@ -168,5 +168,12 @@ check('runtime files parse as ES5 without block function declarations', () => {
 });
 check('game over renders readable score and cleared-line text',()=>{const f=fixture();f.api.input('select');for(let n=0;n<100&&f.api.getState().screen!=='over';n++)f.api.input('select');const state=f.api.getState();assert.equal(state.screen,'over');assert.equal(f.elements['dialog-text'].textContent,'Score '+state.score+' - '+state.lines+' lines cleared.');assert(fs.readFileSync(path.join(GAME,'tetris.html'),'utf8').includes('<title>Tetris - Traffic Jam</title>'));});
 check('header removed and larger canvas renders at native pixel size',()=>{const f=fixture();assert(!fs.readFileSync(path.join(GAME,'tetris.html'),'utf8').includes('<header>'));assert.equal(f.elements.board.width,220);assert.equal(f.elements.board.height,440);assert.deepEqual(f.draws[0],[0,0,220,440]);assert.equal(f.elements.stage.style.transform,'none');});
+check('highscore loads, displays and saves once at game over',()=>{
+ const f=fixture(),saved=[];f.api.setHighscore(3,'');assert.equal(f.elements.highscore.textContent,'000003');
+ f.api.setScoreHandler(score=>saved.push(score));f.api.input('select');
+ for(let n=0;n<100&&f.api.getState().screen!=='over';n++)f.api.input('select');
+ const score=f.api.getState().score;assert(score>3);assert.deepEqual(saved,[score]);assert.equal(Number(f.elements.highscore.textContent),score);
+ f.api.setHighscore(undefined,'IO failed');assert.match(f.elements.highscore.textContent,/not saved/);f.api.destroy();
+});
 console.log('TETRIS_DRAFT_PASSED:',checks,'checks.');
 module.exports = {checks,fixture};

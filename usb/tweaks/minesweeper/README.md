@@ -1,0 +1,20 @@
+# Minesweeper
+
+After a mine hit, the final board stays visible with all mines revealed and the
+hit field highlighted red. Press or Back opens the result menu; Back from that
+menu returns to the final board. Gameplay and the timer remain stopped.
+
+Tilt moves the cursor, press opens a field. Turn right to set a flag, turn left to remove it. Repeated steps never toggle a flag. Back opens Pause. The first opening and its neighbors are safe; 30 mines on a 16x12 board.
+
+Own entry under Applications > Traffic Jam. The game loads only on selection.
+English/German initially; other languages fall back to English.
+
+Records live in `/tmp/mnt/data_persist/mzd-tweaks/gui-data/minesweeper/record.conf`.
+Created on the first record. No browser localStorage or USB is required.
+Normal uninstall removes the complete declared data directory; Keep and Update
+preserve it. Original GUI files are not patched. Shared support remains while
+other consumers need it. Restart after installation/removal.
+
+[Development and test instructions](../../../development/traffic-jam/README.md).
+
+First-party implementation, project CC BY-NC-SA 4.0 license. CMU playtesting pending.

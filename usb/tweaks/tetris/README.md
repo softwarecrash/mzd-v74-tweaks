@@ -68,3 +68,12 @@ The game chooses its language when opened. There is no background polling;
 reopen it after changing the Mazda language.
 Translations are initial drafts; native typography, font coverage, long labels
 and RTL scripts still need visual checks on the CMU.
+
+## High score
+
+The Lua service stores `highscore.conf` in the manifest-declared mutable state
+folder. An empty template is included in assets/config. Empty/missing files mean
+a score of zero; the service creates a missing file on the first saved record.
+Scores are saved at game over, restart or Exit, without writing every frame.
+Values are validated and published by atomic rename. Update preserves the score;
+Uninstall asks whether to keep it. The installed assets and package are immutable.

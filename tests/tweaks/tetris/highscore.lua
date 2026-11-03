@@ -1,0 +1,21 @@
+local lfs=require('lfs')
+local process=require('process')
+local fs=assert(loadfile('/experiment/package/lib/gui-runtime/service/files.lua'))().create(process)
+local factory=assert(loadfile('/experiment/package/tweaks/tetris/assets/service/entry.lua'))()
+local context={files=fs,config={state='/tmp/tetris-test/config'}}
+local service=factory(context)
+assert(service.request('score',{}).highscore==0)
+assert(service.request('score',{score=120}).highscore==120)
+local file='/tmp/tetris-test/config/highscore.conf'
+assert(fs.read(file,128)=='highscore=120\n')
+assert(service.request('score',{score=10}).highscore==120)
+assert(factory(context).request('score',{}).highscore==120)
+assert(not pcall(service.request,'score',{score=-1}))
+assert(not pcall(service.request,'score',{score='400'}))
+assert(not pcall(service.request,'score',{score=1.5}))
+assert(fs.read(file,128)=='highscore=120\n')
+fs.remove_if_exists(file);fs.write_new(file,'')
+assert(factory(context).request('score',{}).highscore==0)
+assert(service.request('score',{score=75}).highscore==75)
+for _,name in ipairs(fs.list(context.config.state))do assert(name=='highscore.conf')end
+print('TETRIS_HIGHSCORE_PASSED: absent/empty files, lazy creation, monotonic score, reload, invalid input and atomic publication.')

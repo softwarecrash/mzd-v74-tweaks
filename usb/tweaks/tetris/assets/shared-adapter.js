@@ -19,5 +19,13 @@
         document.getElementById('dialog-text').dir = direction;
         game.translate();
     }); }
+    var requestId=0;
+    function score(value){sdk.send('tetris-score',{id:++requestId,score:value});}
+    sdk.onMessage(function(data){
+        if(data.type!=='mzd-module-tetris-score-result')return;
+        game.setHighscore(data.result && data.result.highscore,data.error||'');
+    });
+    game.setScoreHandler(function(value){score(value);});
+    score(null);
     sdk.ready();
 }());

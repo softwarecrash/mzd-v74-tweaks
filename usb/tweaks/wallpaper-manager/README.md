@@ -30,7 +30,12 @@ No compiled helper is bundled; the service uses factory Lua/POSIX/LuaSocket.
 
 User data lives under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/wallpaper-manager`.
 Imported files/settings work without USB. Uninstall removes owned hooks/service
-support when their last consumer is removed, and retains user images/settings.
+support when their last consumer is removed. The manifest declares the entire
+module data directory as mutable config, including imported images, gallery
+selection, slideshow settings and ownership markers. Normal uninstall removes
+this directory; `uninstall --preserve-config` retains it. The installer asks
+whether to keep this data on uninstall, and Update always keeps it. Existing
+files are never overwritten during installation. No images are bundled.
 It does not delete or adopt unknown data directories. Imports/settings use
 journaled updates and bounded free-space/gallery limits (50 images, 50 MiB).
 Original background: `/jci/gui/common/images/background.png`.

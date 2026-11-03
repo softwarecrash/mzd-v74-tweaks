@@ -20,7 +20,7 @@ def parse(text):
         if '=' not in line:
             raise ValueError('Expected KEY=VALUE.')
         key, value = line.split('=', 1)
-        if key not in FIELDS and not key.startswith('setting.'):
+        if key not in FIELDS and not key.startswith('setting.') and not key.startswith('config.'):
             raise ValueError('Unknown manifest field: ' + key)
         if key in values:
             raise ValueError('Duplicate manifest field: ' + key)
@@ -35,6 +35,31 @@ def parse(text):
         raise ValueError('Name and description are required.')
     if not VERSION.fullmatch(values['version']) or not VERSION.fullmatch(values['firmware']):
         raise ValueError('Expected one numeric version/firmware with three components.')
+    configs=sorted({key.split('.')[1] for key in values if key.startswith('config.') and len(key.split('.'))==3})
+    if len(configs)>32 or any(not re.fullmatch(r'[a-z][a-z0-9_]{0,31}', k) for k in configs):
+        raise ValueError('Invalid config names.')
+    targets=[]
+    for key in values:
+        if key.startswith('config.'):
+            parts=key.split('.')
+            if len(values[key])>512 or len(parts)!=3 or parts[1] not in configs or parts[2] not in ['path','source']:
+                raise ValueError('Unknown config field.')
+    for name in configs:
+        target=values.get('config.'+name+'.path','');kind='dir' if target.endswith('/') else 'file';source=values.get('config.'+name+'.source','-')
+        if '//' in target:raise ValueError('Invalid config path.')
+        if kind=='dir':target=target[:-1];source=source.removesuffix('/')
+        scope=re.search(r'/mzd-tweaks/(data|gui-data|shims)(?:/([^/]+))?',target)
+        if kind=='dir' and not any(target==p or target.startswith(p+'/') for p in ['/tmp/mnt/data_persist/mzd-tweaks/'+area+'/'+values['id'] for area in ['data','gui-data']]):
+            raise ValueError('Config directory must be inside its own app data namespace.')
+        if scope and scope.group(2)!=values['id']:raise ValueError('Config overlaps another app namespace.')
+        if re.search(r'/mzd-tweaks/(installed|gui-provider|config-owners)($|/)|/mzd-tweaks$',target):raise ValueError('Config overlaps installer metadata.')
+        if values['type']=='command' or kind not in ['file','dir'] or not re.fullmatch(r'/[A-Za-z0-9_./-]+',target) or re.search(r'/\.\.?($|/)|//|/$',target):
+            raise ValueError('Invalid config type/path.')
+        if source!='-' and (not re.fullmatch(r'assets/[A-Za-z0-9_./-]+',source) or re.search(r'/\.\.?($|/)|//|/$',source)):
+            raise ValueError('Invalid config source.')
+        if any(target==p or target.startswith(p+'/') or p.startswith(target+'/') for p in targets):
+            raise ValueError('Overlapping config paths.')
+        targets.append(target)
     expected = 'run status' if values['type'] == 'command' else 'install uninstall status'
     if values['type'] not in ['command', 'patch', 'service', 'files', 'gui-extension'] or values['actions'] != expected:
         raise ValueError('Invalid type/actions.')

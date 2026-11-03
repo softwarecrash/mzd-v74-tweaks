@@ -24,6 +24,9 @@ def main():
  mode.add_argument('--recovery',action='store_true',help='Reproduce pre-persistence List Beep recovery with original CMU tools')
  mode.add_argument('--probe',action='store_true')
  mode.add_argument('--packages',action='store_true',help='Run only persistent packages with the original CMU shell')
+ mode.add_argument('--touch-reader',action='store_true',help='Exercise Touch prerequisite reads using original CMU ash')
+ mode.add_argument('--traffic-jam',action='store_true',help='Test Snake and Minesweeper records with original CMU Lua')
+ mode.add_argument('--tetris',action='store_true',help='Test Tetris high score storage using original CMU Lua modules')
  mode.add_argument('--transport',action='store_true',help='Run HTTP/process checks without repeating the saved-package roundtrip')
  args=parser.parse_args()
  sys.path.insert(0,str(EMU));import appliance
@@ -65,6 +68,15 @@ requires=
 conflicts=
 progress=true
 """)
+ add('experiment/tests/touch-reader.sh',(REPO/'tests/tweaks/touch-while-driving/reader.sh').read_bytes(),0o755)
+ if args.touch_reader:
+  fixed=(REPO/'usb/tweaks/touch-while-driving/touch.sh').read_text()
+  broken=fixed.replace('checked_bus=$(touch_read bus_bcm_speed_restriction) && checked_lvds=$(touch_read lvds_speed_restriction)', 'touch_read bus_bcm_speed_restriction >/dev/null && touch_read lvds_speed_restriction >/dev/null')
+  assert broken != fixed
+  add('experiment/tests/touch-broken.sh',broken)
+
+ add('experiment/tests/traffic-jam-records.lua',(REPO/'tests/tweaks/traffic-jam/records.lua').read_bytes())
+ add('experiment/tests/tetris-highscore.lua',(REPO/'tests/tweaks/tetris/highscore.lua').read_bytes())
  import tarfile
  with tarfile.open(WORKSPACE/'mcu_backup_20261021_203342/03_root_system.tar.gz') as archive:
   add('cmu/bin/busybox',archive.extractfile('bin/busybox').read(),0o755)
@@ -127,6 +139,7 @@ progress=true
   add('fixture/bin/mount','#!/bin/sh\nexit 0\n',0o755)
   add('fixture/bin/dbus-send','#!/bin/sh\ncase "$*" in *byte:13*) printf "   byte 1\\n" ;; *byte:26*) printf "   byte 2\\n" ;; *) exit 1 ;; esac\n',0o755)
  applets=['patch','diff','awk']
+ if args.touch_reader:applets += ['sh']
  if args.shims or args.cluster:applets += ['od','dd']
  if args.cluster:applets += ['sh','cat','cp','cmp','chmod','md5sum','cut','mktemp','readlink','dirname','rm','grep','mkdir','mv','rmdir','sync','date','du','df','sort','tr','find']
  if args.recovery:
@@ -160,7 +173,7 @@ export INSTALLER_LOG=/tmp/lua-logs
 lua() { /usr/bin/qemu-arm -L /cmu /cmu/lib/ld-linux.so.3 --library-path /cmu/lib:/cmu/usr/lib /cmu/usr/bin/lua "$@"; }
 cmush() { /usr/bin/qemu-arm -L /cmu /cmu/lib/ld-linux.so.3 --library-path /cmu/lib:/cmu/usr/lib /cmu/bin/busybox sh "$@"; }
 echo LUA_TEST_START
-"""+('lua /probe.lua\n' if args.probe else 'cmush /experiment/tests/cluster-test.sh\n' if args.cluster else 'cmush /experiment/tests/shim-test.sh\n' if args.shims else 'cmush -x /experiment/tests/settings-test.sh\n' if args.settings else 'cmush /experiment/tests/recovery-test.sh\n' if args.recovery else 'cmush /experiment/tests/package-test.sh\n' if args.packages else 'cd /experiment\nlua /experiment/tests/backend.lua\n')+"""result=$?
+"""+('cmush /experiment/tests/touch-reader.sh /experiment/package/tweaks/touch-while-driving/touch.sh\nfixed_result=$?\nif cmush /experiment/tests/touch-reader.sh /experiment/tests/touch-broken.sh >/tmp/touch-control.out 2>/tmp/touch-control.err; then\n echo TOUCH_REGRESSION_CONTROL_FAILED\n false\nelif [ \"$fixed_result\" = 0 ] && grep -q \"Cannot read valid speed restriction settings\" /tmp/touch-control.err; then\n echo TOUCH_REGRESSION_CONTROL_PASSED\nelse\n cat /tmp/touch-control.err\n false\nfi\n' if args.touch_reader else 'lua /experiment/tests/traffic-jam-records.lua\n' if args.traffic_jam else 'lua /experiment/tests/tetris-highscore.lua\n' if args.tetris else 'lua /probe.lua\n' if args.probe else 'cmush /experiment/tests/cluster-test.sh\n' if args.cluster else 'cmush /experiment/tests/shim-test.sh\n' if args.shims else 'cmush -x /experiment/tests/settings-test.sh\n' if args.settings else 'cmush /experiment/tests/recovery-test.sh\n' if args.recovery else 'cmush /experiment/tests/package-test.sh\n' if args.packages else 'cd /experiment\nlua /experiment/tests/backend.lua\n')+"""result=$?
 echo "LUA_TEST_RESULT=$result"
 sync
 poweroff -f
