@@ -19,8 +19,9 @@ with tempfile.TemporaryDirectory(prefix='tplink-loader-') as folder:
     write(bins/'insmod','#!/bin/sh\nexit 1\n')
     write(bins/'dmesg','#!/bin/sh\ni=0;while [ "$i" -lt 150 ];do printf "usb %0100d\\n" "$i";i=$((i+1));done\n')
     source=(ROOT/'usb/tweaks/tplink-rtl8811au/assets/load-wlan1.sh').read_text(encoding='utf-8')
-    source=source.replace('/data_persist/wl',bp(b/'payload')).replace('/tmp/mzd-tplink-rtl8811au',prefix)
-    source=source.replace('/proc/',bp(b/'proc')+'/').replace('/sys/',bp(b/'sys')+'/')
+    source=source.replace('/data_persist/wl',bp(b/'payload')).replace('/data_persist/log/mzd-tplink-rtl8811au',prefix)
+    source=source.replace('/proc/sys/', '@PROCSYS@/').replace('/proc/', '@PROC@/').replace('/sys/',bp(b/'sys')+'/').replace('@PROC@/',bp(b/'proc')+'/').replace('@PROCSYS@/',bp(b/'proc/sys')+'/')
+    source=source.replace('/data_persist/log',bp(b))
     write(b/'loader.sh',source)
     env=dict(os.environ,PATH=bp(bins)+':'+os.environ['PATH'])
     boot=b/'diagnostic-boot.log';dump=b/'diagnostic-dmesg.log'
@@ -29,19 +30,30 @@ with tempfile.TemporaryDirectory(prefix='tplink-loader-') as folder:
         assert result.returncode==1,(result.stdout,result.stderr)
         assert boot.stat().st_size==4096 and 'result=insmod-failed' in boot.read_text()
         assert 0<dump.stat().st_size<=8192 and len(dump.read_text().splitlines())<=40
+    # Same-boot retries keep the previous-boot slot untouched.
+    assert not Path(str(boot)+'.1').exists()
+    write(b/'proc/sys/kernel/random/boot_id','87654321-1234\n')
     write(b/'proc/modules','rtl8812au 123 0 - Live 0x0000\n')
     result=subprocess.run([SHELL,bp(b/'loader.sh')],env=env,capture_output=True,text=True,timeout=20)
     assert result.returncode==0,(result.stdout,result.stderr)
-    assert 'result=ok' in boot.read_text() and not dump.exists()
+    assert 'result=ok' in boot.read_text() and dump.exists()
+    previous=Path(str(boot)+'.1')
+    assert 'id=12345678' in previous.read_text() and previous.stat().st_size<=4096
+    assert 'id=87654321' in boot.read_text()
+    assert 'id=12345678' in dump.read_text()
+    # Another retry must not rotate away the previous boot.
+    result=subprocess.run([SHELL,bp(b/'loader.sh')],env=env,capture_output=True,text=True,timeout=20)
+    assert result.returncode==0 and 'id=12345678' in previous.read_text()
     assert (b/'proc/irq/72/smp_affinity').read_text().strip()=='2'
-    helper=(ROOT/'usb/tweaks/tplink-rtl8811au/diagnostics.sh').read_text().replace('/tmp/mzd-tplink-rtl8811au',prefix)
+    helper=(ROOT/'usb/tweaks/tplink-rtl8811au/diagnostics.sh').read_text().replace('/data_persist/log/mzd-tplink-rtl8811au',prefix)
+    helper=helper.replace('/data_persist/log',bp(b))
     write(b/'diagnostics.sh',helper)
     def cleanup():return subprocess.run([SHELL,'-c','. '+shlex.quote(bp(b/'diagnostics.sh'))+'; driver_diagnostics_remove'],capture_output=True,text=True)
     write(dump,'owned failure\n');assert cleanup().returncode==0
-    assert not boot.exists() and not dump.exists()
+    assert not boot.exists() and not dump.exists() and not previous.exists()
     if os.name!='nt':
         unrelated=b/'unrelated';write(unrelated,'keep\n');boot.symlink_to(unrelated)
         assert cleanup().returncode!=0 and unrelated.read_text()=='keep\n' and boot.is_symlink()
         result=subprocess.run([SHELL,bp(b/'loader.sh')],env=env,capture_output=True,text=True,timeout=20)
         assert result.returncode==1 and unrelated.read_text()=='keep\n'
-print('TPLINK_LOADER_PASSED: bounded overwritten RAM logs, failure/success cleanup, simulated runtime tuning and symlink refusal; no driver loaded.')
+print('TPLINK_LOADER_PASSED: bounded persistent logs, cross-boot rotation, retained failure dump and cleanup, simulated runtime tuning and symlink refusal; no driver loaded.')

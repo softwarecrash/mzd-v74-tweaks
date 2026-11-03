@@ -8,7 +8,7 @@ release v<version> and checks the archive against that checksum (and, for the
 pinned version, against PINNED_SHA256 below).
 
 --check changes nothing. The driver, config and license must equal the release;
-the loader must equal the release plus the reviewed bounded-RAM-logging delta
+the loader must equal the release plus the reviewed bounded-persistent-logging delta
 in tplink_loader.py. The service entries must match the release as well.
 
 <version> copies the unchanged release files into usb/tweaks/tplink-rtl8811au/
@@ -105,7 +105,7 @@ if check:
     for leaf, destination in FILES.items():
         if not (TWEAK / destination).is_file() or (TWEAK / destination).read_bytes() != payload[leaf]:
             fail(f'{destination} is not the {leaf} of {name}.tar.gz. Run: python tools/update_tplink_rtl8811au.py {version}')
-    print(f'{TWEAK.relative_to(ROOT)} verified against {name}.tar.gz (SHA256 {digest}) plus the explicit RAM logging adaptation.')
+    print(f'{TWEAK.relative_to(ROOT)} verified against {name}.tar.gz (SHA256 {digest}) plus the explicit persistent logging adaptation.')
     raise SystemExit(0)
 
 for leaf, destination in FILES.items():

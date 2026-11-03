@@ -19,16 +19,22 @@ DIR=/data_persist/wl
 log() { echo "load-wlan1: $*"; }
 
 # --- per-boot breadcrumb ---------------------------------------------------------------
-# Keep only the latest invocation in RAM. Logs do not survive reboot.
-# Local integration: bounded RAM diagnostics, removed by the saved uninstaller.
-BOOTLOG=/tmp/mzd-tplink-rtl8811au-boot.log
-DMESGLOG=/tmp/mzd-tplink-rtl8811au-dmesg.log
-for log_file in "$BOOTLOG" "$DMESGLOG"; do
+# Console output lives in /tmp and dies with the boot, so the worst failure -- the driver
+# simply never loading at boot -- is the one that leaves no trace at all. One line per boot
+# goes somewhere persistent instead, keyed by the kernel's boot_id. The wall clock cannot
+# key it: the unit starts at 1970 every boot, so timestamps repeat. /data_persist/log is the
+# only log location that survives a reboot.
+# Local integration: bounded persistent diagnostics, removed by the saved uninstaller.
+BOOTLOG=/data_persist/log/mzd-tplink-rtl8811au-boot.log
+DMESGLOG=/data_persist/log/mzd-tplink-rtl8811au-dmesg.log
+for log_file in "$BOOTLOG" "$BOOTLOG.1" "$DMESGLOG"; do
     if [ -L "$log_file" ] || { [ -e "$log_file" ] && { [ ! -f "$log_file" ] || [ "$(stat -c %h "$log_file")" != 1 ]; }; }; then
         echo "load-wlan1: Unsafe diagnostic path: $log_file" >&2
         exit 1
     fi
 done
+# Never follow a redirected persistent log directory.
+[ -d /data_persist/log ] && [ ! -L /data_persist/log ] || exit 1
 umask 077
 BOOT_ID=$(cut -c1-8 /proc/sys/kernel/random/boot_id 2>/dev/null)
 [ -z "$BOOT_ID" ] && BOOT_ID=noid
@@ -52,15 +58,19 @@ bc_common() {
 # Filtered dmesg, only on a failing boot: the USB and probe errors that explain why nothing
 # enumerated are otherwise gone forever. Bounded, and keyed to the boot it belongs to.
 bc_dmesg() {
-    dmesg 2>/dev/null | grep -iE 'usb|hub|8812|rtl87|wlan' | tail -40 | tail -c 8192 > "$DMESGLOG" 2>/dev/null
+    { echo "id=$BOOT_ID stage=loader result=$RESULT"; dmesg 2>/dev/null | grep -iE 'usb|hub|8812|rtl87|wlan' | tail -39; } | head -c 8192 > "$DMESGLOG" 2>/dev/null
 }
 
 RESULT="exited-early"
 breadcrumb() {
     bc_common
+    if [ -f "$BOOTLOG" ] && ! grep -q "^id=$BOOT_ID " "$BOOTLOG"; then
+        # Bound old input too, including logs left by an older loader version.
+        tail -c 4096 "$BOOTLOG" > "$BOOTLOG.1" 2>/dev/null
+    fi
     echo "id=$BOOT_ID stage=loader up=${bc_up:-?}s mod=$bc_mod bound=$bc_bound" \
          "wlans=$bc_wlans result=$RESULT usb=$bc_usb" | head -c 4096 > "$BOOTLOG" 2>/dev/null
-    if [ "$RESULT" = ok ]; then rm -f "$DMESGLOG"; else bc_dmesg; fi
+    [ "$RESULT" = ok ] || bc_dmesg
 }
 trap breadcrumb EXIT
 

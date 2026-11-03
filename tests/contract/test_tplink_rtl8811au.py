@@ -45,10 +45,10 @@ def fixture(patch, installed=False):
     return ''.join(lines)
 
 
-# Pinned release assets, plus the loader with the reproducible RAM logging adaptation.
+# Pinned release assets, plus the loader with the reproducible persistent logging adaptation.
 for name, digest in {
     'assets/rtl8812au.ko': '24bb1c986eb36c83d0fd590aea84ee87a7efeb64114fc38a9b328c503934d55c',
-    'assets/load-wlan1.sh': '8032b9337e4fa0e2460b0da8c24b5c966f060a838b06257021763f16f7333862',
+    'assets/load-wlan1.sh': 'f7b8ad224d8470abaf55781a2f503dd2d2796b75a9e67a2a08a139df8e274b40',
     'assets/dongle.conf': 'b5c884b4bb2fdc8c5b941dcbe5b3294bb0a375d1a8256442ae5d9ff4ac7cfba6',
     'LICENSE': '6d66dec8f6c253a1af2ffd858167c722b1ce3218215446172c81355d0a49e7fc',
 }.items():
@@ -106,7 +106,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-tplink-rtl8811au-') as temporary:
     payload_dir = persist / 'wl'
     diagnostic_prefix=bp(base/'mzd-tplink-rtl8811au')
     for diagnostic_source in [folder/'diagnostics.sh',folder/'assets/load-wlan1.sh']:
-        write(diagnostic_source,diagnostic_source.read_text().replace('/tmp/mzd-tplink-rtl8811au',diagnostic_prefix))
+        write(diagnostic_source,diagnostic_source.read_text().replace('/data_persist/log/mzd-tplink-rtl8811au',diagnostic_prefix).replace('/data_persist/log',bp(base)))
     m = (folder / 'manifest.conf').read_text()
     m = m.replace('/jci/sm/sm.conf', bp(config)).replace('74d9fc389b74fb01d0cfc2615a82c782', md5(stock_std.encode()))
     m = m.replace('/tmp/mnt/data_persist/wl', bp(payload_dir))
@@ -239,7 +239,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-tplink-rtl8811au-') as temporary:
     # Keep the failed receipt: the real saved uninstaller must recover it.
     state_file=store/'tplink-rtl8811au/state.conf'
     assert 'state=failed' in state_file.read_text()
-    for suffix in ['-boot.log','-dmesg.log']:write(Path(diagnostic_prefix+suffix),'owned diagnostic\n')
+    for suffix in ['-boot.log','-boot.log.1','-dmesg.log']:write(Path(diagnostic_prefix+suffix),'owned diagnostic\n')
 
     # Saved removal works with a changed cfg80211 and a broken newer USB copy.
     cfg80211.write_bytes(b'changed after install\n')
@@ -247,5 +247,5 @@ with tempfile.TemporaryDirectory(prefix='cmu-tplink-rtl8811au-') as temporary:
     call(['action', 'tplink-rtl8811au', 'uninstall'])
     assert config.read_text() == edited and second.read_text() == stock_wcp and not payload_dir.exists()
     assert not lock.exists() and gpio.read_text() == '0\n'
-    assert all(not Path(diagnostic_prefix+suffix).exists() for suffix in ['-boot.log','-dmesg.log'])
+    assert all(not Path(diagnostic_prefix+suffix).exists() for suffix in ['-boot.log','-boot.log.1','-dmesg.log'])
     print('TPLINK_RTL8811AU_PASSED:', checks, 'real package checks; release asset pins, adapter info, hand-installed driver and cfg80211 refusal, unrelated sm.conf edits preserved, executable loader mode, exact saved uninstall.')

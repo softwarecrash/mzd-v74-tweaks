@@ -27,19 +27,23 @@ information: installing with the adapter unplugged or ACC/ignition off is fine.
 1. Open **Driver > TP-Link Archer T2U RTL8811AU Driver**, select Install, then exit
    the installer and restart the CMU.
 2. With ACC/ignition on and the adapter plugged in, the driver writes its latest
-   startup result to `/tmp/mzd-tplink-rtl8811au-boot.log` (at most 4 KiB). Over SSH:
+   startup result to `/data_persist/log/mzd-tplink-rtl8811au-boot.log` (at most 4 KiB). Over SSH:
 
    ```sh
-   cat /tmp/mzd-tplink-rtl8811au-boot.log
+   cat /data_persist/log/mzd-tplink-rtl8811au-boot.log
    ```
 
    `result=ok` means the driver loaded. `wlan1` in `wlans=` means the adapter was
    found. A line without `wlan1` is normal if the CMU started with ACC/ignition
    off. On any other result, the reason is in that line and a `dmesg` extract is
-   saved as `/tmp/mzd-tplink-rtl8811au-dmesg.log` (at most 40 lines / 8 KiB).
-   Logs are overwritten, stay in RAM and disappear on reboot. A successful load
-   removes an older failure dump. Uninstall and Restore originals remove both
-   owned log files; unrelated files and linked paths are not deleted.
+   saved as `/data_persist/log/mzd-tplink-rtl8811au-dmesg.log` (at most 40 lines / 8 KiB).
+   Logs survive reboot. The kernel boot ID correlates them with AAW logs even
+   when the clock starts at 1970. On a new boot the previous breadcrumb moves to
+   `mzd-tplink-rtl8811au-boot.log.1` (also at most 4 KiB); retries in the same boot
+   replace only the current breadcrumb. The latest failure dump remains after
+   a successful boot. Total diagnostic content is bounded to 16 KiB.
+   Uninstall and Restore originals remove all three owned files; unrelated
+   files and linked paths are not deleted.
 
 Uninstall removes the boot entry and the files. Restart the CMU afterwards.
 
@@ -78,7 +82,7 @@ it.
 - Release archive `cmu150-rtl8811au-1.0.0.tar.gz`, SHA256
   `862112dcada1582716927fdf0d18c11b9f37f155e13cadd1f238fadfc9d8cf66`.
 - `assets/rtl8812au.ko` and `assets/dongle.conf` are the release files, unchanged.
-  `load-wlan1.sh` has a small local adaptation for bounded RAM logs and safe log
+  `load-wlan1.sh` has a small local adaptation for bounded persistent logs and safe log
   paths, reproduced and checked by `tools/tplink_loader.py`. Driver-loading and
   radio behavior are unchanged. The boot entry is the release's service from its
   `sm.conf.snippet`, unchanged.
