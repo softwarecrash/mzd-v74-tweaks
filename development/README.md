@@ -36,7 +36,6 @@ the paths used after copying into the USB layout.
 - [Testing and offline styling preview](Testing.md)
 - [Original CMU runtime tests](testing/Original-runtime.md)
 - [Public fixtures](testing/Fixtures.md)
-- [No More Disclaimer verification](testing/No-more-disclaimer.md)
 - [Vehicle test procedure](Vehicle-testing.md)
 - [Reviewed test runs and template](test-runs/README.md)
 - [Wiki publishing](Wiki-publishing.md)

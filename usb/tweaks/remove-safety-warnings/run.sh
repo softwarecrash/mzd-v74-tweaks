@@ -1,6 +1,5 @@
 #!/bin/sh
-if [ "${1:-}" = uninstall ] && [ "${2:-}" = --preserve-config ];then . "$(dirname "$(readlink -f "$0")")/../../lib/config-args.sh" || exit 1;fi
-# No More Disclaimer for Mazda firmware 74.00.324.
+# Remove Safety Warnings private draft for Mazda firmware 74.00.324.
 # Launcher worker; shared runtime helpers are in ../../lib/.
 #
 # Reading guide:
@@ -60,62 +59,28 @@ done
 # Metadata and execution settings have one source of truth.
 mzd_manifest_load "$HERE/manifest.conf" || exit 1
 PATCH_FILE="$HERE/assets/change.patch"
-
-# Declared dependencies/conflicts are enforced for direct CLI calls as well.
-if [ "$ACTION" = status ]; then
-    mzd_read_status
-    exit $?
-fi
-# Recheck immediately before opening a modifying session.
-mzd_action_preflight || exit 1
-
-# --- Execution flow -------------------------------------------------------
-# Open USB reports and register cleanup before acquiring a lock. Cleanup restores
-# only the mount/watchdog state changed by this invocation, including on failure.
-mzd_begin "$SELF" "$ID" mzd_system_cleanup
+. "$ROOT/lib/restore.sh" || exit 1
+. "$ROOT/lib/shim.sh" || exit 1
+. "$HERE/camera.sh" || exit 1
+if [ "$ACTION" = status ]; then warnings_status; exit $?; fi
+state=$(warnings_status) || exit 1
+case "$state" in installed|uninstalled) ;; *) printf 'Unsupported or incomplete safety-warning state; nothing changed.\n' >&2; exit 1 ;; esac
+WARNINGS_COMMITTED=0
+mzd_begin "$SELF" "$ID" warnings_cleanup
 mzd_system_begin
-mzd_require_tools awk md5sum cp cmp || exit 1
-mzd_require_assets "$SELF" "$HERE/manifest.conf" || exit 1
+mzd_require_tools awk md5sum cp cmp cut patch diff readlink dirname mv cat sync || exit 1
 mzd_validate_firmware "$FIRMWARE" || exit 1
 mzd_system_lock "$LOCK" || exit 1
-
-# Probe both patch directions on USB copies before making the target writable.
-# Keep a complete pre-change copy so rollback preserves other installed tweaks.
-CONTEXT="$MZD_REPORT/target"
-mzd_patch_prepare "$APP" "$PATCH_FILE" "$ORIGINAL" "$CONTEXT" || exit 1
-STATE=$(mzd_patch_state "$CONTEXT") || exit 1
-
-
-# Repeated install/uninstall is a successful no-op for the patch itself.
-NO_CHANGE=0
-case "$ACTION:$STATE" in
-    install:installed|uninstall:uninstalled) NO_CHANGE=1 ;;
-esac
-if [ "$NO_CHANGE" = 0 ]
-then
-    mzd_patch_validate_backup "$CONTEXT" || exit 1
-fi
-
-# Apply only this tweak's diff. Uninstall reverses that diff and keeps other
-# modifications in the same target file; it does not restore the whole OEM file.
-USB=$MZD_USB
-REPORT=$MZD_REPORT
+mzd_system_lock "$CAMERA_LOCK" || exit 1
+warnings_plan || mzd_fail 'Cannot prepare all safety-warning files; nothing changed.'
 mzd_report_start
-: # No service-specific preparation.
-if [ "$NO_CHANGE" = 0 ]
-then
+if [ "$ACTION:$startup" != install:installed ] && [ "$ACTION:$startup" != uninstall:uninstalled ]; then
     mzd_system_watchdog_disable || exit 1
-    mzd_system_remount_rw / || exit 1
-    mzd_patch_apply "$CONTEXT" "$ACTION" || exit $?
-fi
-: # No service-specific completion.
-
-# Report completion; the launcher owns dialogs and any reboot decision.
-if [ "$NO_CHANGE" = 1 ]
-then
-    MZD_SUCCESS="Requested setting is already present.
+    mount_point=$(mzd_shim_mount "$APP") || exit 1
+    mzd_system_remount_rw "$mount_point" || exit 1
+    mount_point=$(mzd_shim_mount "$CAMERA_ROOT") || exit 1
+    mzd_system_remount_rw "$mount_point" || exit 1
+    warnings_apply || mzd_fail 'Safety-warning transaction failed; restoring entry state.'
+else WARNINGS_COMMITTED=1; fi
+MZD_SUCCESS="Startup disclaimer and 46 camera warning images verified. Restart to apply.
 Reports: $MZD_REPORT"
-else
-    MZD_SUCCESS="$MZD_ACTION_LABEL completed. Other changes were preserved.
-Reports: $MZD_REPORT"
-fi

@@ -4,7 +4,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '../../..');
-const diff = fs.readFileSync(path.join(root, 'usb/tweaks/no-more-disclaimer/assets/change.patch'), 'utf8');
+const diff = fs.readFileSync(path.join(root, 'usb/tweaks/remove-safety-warnings/assets/change.patch'), 'utf8');
 let inHunk = false, before = '', after = '';
 for (const line of diff.split('\n')) {
     if (line.startsWith('@@ ')) { inHunk = true; continue; }

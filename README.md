@@ -18,10 +18,10 @@ Optional sponsor links can be placed directly after the contributor's name.
 | [Shorter List Delay](usb/tweaks/shorter-delay/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
 | [List Loop](usb/tweaks/list-loop/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
 | [Main Menu Loop](usb/tweaks/main-menu-loop/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
-| [No More Disclaimer](usb/tweaks/no-more-disclaimer/) | v74 implementation: [@piotrmocko](https://github.com/piotrmocko); patch port: [@softwarecrash](https://github.com/softwarecrash) |
 | [HUD Street Name](usb/tweaks/hud-street-name/) | v74 patch: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
 | [Fuel Consumption Values](usb/tweaks/fuel-consumption-values/) | v74 implementation: [@patrikguth](https://github.com/patrikguth) |
 | [Wallpaper Manager](usb/tweaks/wallpaper-manager/) | [@softwarecrash](https://github.com/softwarecrash) |
+| [Remove Safety Warnings](usb/tweaks/remove-safety-warnings/) | v74 disclaimer: [@piotrmocko](https://github.com/piotrmocko); camera images and integration: [@softwarecrash](https://github.com/softwarecrash) |
 | [Tetris](usb/tweaks/tetris/) | CMU game/integration: [@softwarecrash](https://github.com/softwarecrash); based on Jake Gordon and contributors (MIT) |
 | [Touchscreen While Driving](usb/tweaks/touch-while-driving/) | v74 implementation: [@softwarecrash](https://github.com/softwarecrash) |
 | [Instrument Cluster / HUD Language (test release)](usb/tweaks/cluster-language/) | shim: [@patrikguth](https://github.com/patrikguth); release: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
@@ -110,15 +110,6 @@ The launcher is the recommended option for normal use. The terminal method is us
 **Issues**:
 - **Street Information** menu is grayed out - your HUD doesn't support displaying road name
 
-### 2. `no-more-disclaimer.sh` - No More Disclaimer Mod
-**Purpose**: Removes entirely the disclaimer/warning screen that appears on the system startup. With the stock behavior it disappears in 3.5 seconds.
-
-![MZD Active Driving Display Settings](images/mzd-disclaimer.jpg)
-
-**What it does**:
-- Modifies the system application to skip disclaimer prompts
-- Provides a cleaner boot experience without interruptions
-
 ### 3. `fuel-consumption.sh` - Fuel Consumption Tweaks
 **Purpose**: Three tweaks for the Fuel Consumption app. Each one can be installed, uninstalled or skipped on its own:
 - **Bar values**: the L/100km value above every bar of both graphs. Stock firmware shows it only above "Current".
@@ -199,7 +190,6 @@ mzd-v74-tweaks/
 ├── fuel-consumption.sh                # Fuel Consumption tweaks
 ├── android-auto.sh                    # OEM Android Auto Mods installer
 ├── hud-eu-region.sh                   # HUD Street Info region tweak
-├── no-more-disclaimer.sh              # Disclaimer removal tweak
 ├── touchscreen.sh                     # Touchscreen tweak
 ├── logs-collector.sh                  # Copy running logs / change rotation size
 ├── backup-jci.sh                      # Back up /jci to a ZIP on the USB drive

@@ -173,4 +173,4 @@ jobs:
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs
       - run: node tests/installer/test-transport.cjs
-      - run: node tests/tweaks/no-more-disclaimer/behavior.cjs
+      - run: node tests/tweaks/remove-safety-warnings/behavior.cjs

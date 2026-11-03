@@ -74,7 +74,7 @@ user may select Install again. Restore requests a restart recommendation on Exit
 Back or Escape on the confirmation makes no changes. No restart is automatic.
 
 Run `python tests/contract/test_recovery.py` and `node tests/installer/test-ui.cjs`.
-The offline preview demonstrates the offer when installing No More Disclaimer;
+The offline preview demonstrates the offer when installing Main Menu Loop;
 its restore and subsequent install are simulated. This proves no vehicle behavior.
 
 ## Diagnose a missing Restore button
