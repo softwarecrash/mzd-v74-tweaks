@@ -5,6 +5,7 @@ HERE=$(dirname "$SELF")
 ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 USB_DEVICES=/sys/bus/usb/devices
 . "$ROOT/lib/bundle.sh" || exit 1
+. "$HERE/diagnostics.sh" || exit 1
 
 mzd_bundle_prerequisites() (
     # The cmu150-rtl8811au install guide adds the same boot entry and files by
@@ -49,3 +50,8 @@ mzd_bundle_prerequisites() (
     fi
 )
 mzd_bundle_main "$@"
+code=$?
+if [ "$code" = 0 ] && [ "${1:-}" = uninstall ]; then
+    driver_diagnostics_remove || code=1
+fi
+exit "$code"

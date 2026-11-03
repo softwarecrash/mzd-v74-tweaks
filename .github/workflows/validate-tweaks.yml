@@ -67,6 +67,8 @@ jobs:
         run: |
           python tests/contract/test_components.py
           python tests/contract/test_bundles.py
+          python tests/contract/test_tplink_loader.py
+          python tests/contract/test_tplink_rtl8811au.py --critical-mode-rollback
       - name: Test USB export commands and background jobs
         run: python tests/contract/test_exports.py
       - name: Test internal backup restore and owned cleanup hooks

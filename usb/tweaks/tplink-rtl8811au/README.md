@@ -24,19 +24,22 @@ information: installing with the adapter unplugged or ACC/ignition off is fine.
 
 ## Install and check
 
-1. Open **System > TP-Link Archer T2U RTL8811AU Driver**, select Install, then exit
+1. Open **Driver > TP-Link Archer T2U RTL8811AU Driver**, select Install, then exit
    the installer and restart the CMU.
-2. With ACC/ignition on and the adapter plugged in, the driver writes one line per
-   startup to `/data_persist/log/aaw-boot.log`. Over SSH:
+2. With ACC/ignition on and the adapter plugged in, the driver writes its latest
+   startup result to `/tmp/mzd-tplink-rtl8811au-boot.log` (at most 4 KiB). Over SSH:
 
    ```sh
-   tail -n 1 /data_persist/log/aaw-boot.log
+   cat /tmp/mzd-tplink-rtl8811au-boot.log
    ```
 
    `result=ok` means the driver loaded. `wlan1` in `wlans=` means the adapter was
    found. A line without `wlan1` is normal if the CMU started with ACC/ignition
    off. On any other result, the reason is in that line and a `dmesg` extract is
-   saved next to it as `aaw-boot-<id>.dmesg`.
+   saved as `/tmp/mzd-tplink-rtl8811au-dmesg.log` (at most 40 lines / 8 KiB).
+   Logs are overwritten, stay in RAM and disappear on reboot. A successful load
+   removes an older failure dump. Uninstall and Restore originals remove both
+   owned log files; unrelated files and linked paths are not deleted.
 
 Uninstall removes the boot entry and the files. Restart the CMU afterwards.
 
@@ -74,8 +77,10 @@ it.
   commit `f38166f5757aa88f2e4a15c60579caa0f77739ad`.
 - Release archive `cmu150-rtl8811au-1.0.0.tar.gz`, SHA256
   `862112dcada1582716927fdf0d18c11b9f37f155e13cadd1f238fadfc9d8cf66`.
-- `assets/rtl8812au.ko`, `assets/load-wlan1.sh` and `assets/dongle.conf` are the release
-  files, unchanged. The boot entry is the release's `load_wlan1` service from its
+- `assets/rtl8812au.ko` and `assets/dongle.conf` are the release files, unchanged.
+  `load-wlan1.sh` has a small local adaptation for bounded RAM logs and safe log
+  paths, reproduced and checked by `tools/tplink_loader.py`. Driver-loading and
+  radio behavior are unchanged. The boot entry is the release's service from its
   `sm.conf.snippet`, unchanged.
 - License: GPL-2.0-only, included as `LICENSE`. The complete source of this build
   is the repository at the commit above.

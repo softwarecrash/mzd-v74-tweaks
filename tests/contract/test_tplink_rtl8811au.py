@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 SHELL = 'C:/Program Files/Git/bin/bash.exe' if os.name == 'nt' else '/bin/sh'
@@ -44,10 +45,10 @@ def fixture(patch, installed=False):
     return ''.join(lines)
 
 
-# Unchanged files of the cmu150-rtl8811au v1.0.0 release archive.
+# Pinned release assets, plus the loader with the reproducible RAM logging adaptation.
 for name, digest in {
     'assets/rtl8812au.ko': '24bb1c986eb36c83d0fd590aea84ee87a7efeb64114fc38a9b328c503934d55c',
-    'assets/load-wlan1.sh': 'b63fe1eda2b70891ebb5c6b49c8f7defb97b4d081d9447aa2a01dccd31d065aa',
+    'assets/load-wlan1.sh': '8032b9337e4fa0e2460b0da8c24b5c966f060a838b06257021763f16f7333862',
     'assets/dongle.conf': 'b5c884b4bb2fdc8c5b941dcbe5b3294bb0a375d1a8256442ae5d9ff4ac7cfba6',
     'LICENSE': '6d66dec8f6c253a1af2ffd858167c722b1ce3218215446172c81355d0a49e7fc',
 }.items():
@@ -95,11 +96,17 @@ with tempfile.TemporaryDirectory(prefix='cmu-tplink-rtl8811au-') as temporary:
     # Loading the driver is the boot service's job, never the installer's.
     for name in ['insmod', 'rmmod', 'modprobe', 'reboot']:
         write(bins / name, '#!/bin/sh\nexit 90\n')
+    # FAT reports can expose 0777 regardless of chmod on staged files.
+    real_chmod=shlex.quote(shutil.which('busybox'))+' chmod' if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(subprocess.run([SHELL,'-c','command -v chmod'],capture_output=True,text=True,check=True).stdout.strip())
+    write(bins/'chmod','#!/bin/sh\nfor arg do destination=$arg;done\ncase "$destination" in '+shlex.quote(bp(usb/'reports'))+'/*/plan/*/after.data) exec '+real_chmod+' 777 "$destination";;esac\nexec '+real_chmod+' "$@"\n')
     env = dict(os.environ, PATH=bp(bins) + ':/usr/bin:/bin')
 
     folder = usb / 'tweaks/tplink-rtl8811au'
     shutil.copytree(TWEAK, folder)
     payload_dir = persist / 'wl'
+    diagnostic_prefix=bp(base/'mzd-tplink-rtl8811au')
+    for diagnostic_source in [folder/'diagnostics.sh',folder/'assets/load-wlan1.sh']:
+        write(diagnostic_source,diagnostic_source.read_text().replace('/tmp/mzd-tplink-rtl8811au',diagnostic_prefix))
     m = (folder / 'manifest.conf').read_text()
     m = m.replace('/jci/sm/sm.conf', bp(config)).replace('74d9fc389b74fb01d0cfc2615a82c782', md5(stock_std.encode()))
     m = m.replace('/tmp/mnt/data_persist/wl', bp(payload_dir))
@@ -186,7 +193,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-tplink-rtl8811au-') as temporary:
         assert text.count('name="load_wlan1"') == 1 and 'path="/data_persist/wl/load-wlan1.sh"' in text
     assert sorted(p.name for p in payload_dir.iterdir()) == ['dongle.conf', 'load-wlan1.sh', 'rtl8812au.ko']
     for name in ['rtl8812au.ko', 'load-wlan1.sh', 'dongle.conf']:
-        assert (payload_dir / name).read_bytes() == (TWEAK / 'assets' / name).read_bytes()
+        assert (payload_dir / name).read_bytes() == (folder / 'assets' / name).read_bytes()
     # The boot service runs the loader directly, so it must be executable; the rest is not.
     modes = {name: (payload_dir / name).stat().st_mode & 0o777 for name in ['rtl8812au.ko', 'load-wlan1.sh', 'dongle.conf']}
     assert modes == {'rtl8812au.ko': 0o644, 'load-wlan1.sh': 0o755, 'dongle.conf': 0o644}, modes
@@ -207,10 +214,38 @@ with tempfile.TemporaryDirectory(prefix='cmu-tplink-rtl8811au-') as temporary:
     r = deep(saved / 'tweaks/tplink-rtl8811au/run.sh', saved_settings, 'broken'); assert 'not executable' in r.stderr
     loader.chmod(0o755)
 
+    # FAT-like report metadata must not lose executable mode during rollback.
+    real_cp=shlex.quote(shutil.which('busybox'))+' cp' if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(subprocess.run([SHELL,'-c','command -v cp'],capture_output=True,text=True,check=True).stdout.strip())
+    real_rm=shlex.quote(shutil.which('busybox'))+' rm' if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(subprocess.run([SHELL,'-c','command -v rm'],capture_output=True,text=True,check=True).stdout.strip())
+    for command in ['cp','rm']:
+        if (bins/command).is_symlink():(bins/command).unlink()
+    write(bins/'cp','#!/bin/sh\nfor arg do destination=$arg;done\n'+real_cp+' "$@" || exit $?\ncase "$destination" in */before.data) chmod 644 "$destination";;esac\n')
+    fail_remove=base/'fail-remove';write(fail_remove,'1\n')
+    write(bins/'rm','#!/bin/sh\nfor arg do destination=$arg;done\nif [ -f '+shlex.quote(bp(fail_remove))+' ] && [ "$destination" = '+shlex.quote(bp(payload_dir/'dongle.conf'))+' ];then exit 1;fi\nexec '+real_rm+' "$@"\n')
+    critical='--critical-mode-rollback' in sys.argv
+    if critical:
+        real_chmod=shlex.quote(subprocess.run([SHELL,'-c','command -v chmod'],capture_output=True,text=True,check=True).stdout.strip())
+        write(bins/'chmod','#!/bin/sh\nfor arg do destination=$arg;done\n[ "$destination" != '+shlex.quote(bp(loader))+' ] || exit 1\nexec '+real_chmod+' "$@"\n')
+    call(['action','tplink-rtl8811au','uninstall'],2 if critical else 1)
+    if critical:
+        assert loader.exists() and not (loader.stat().st_mode & 0o111)
+        assert 'name="load_wlan1"' not in config.read_text() and 'name="load_wlan1"' not in second.read_text()
+        assert (store/'tplink-rtl8811au').exists(),'Critical failure discarded recovery package'
+        print('TPLINK_CRITICAL_PASSED: failed chmod blocks boot-reference rollback and retains recovery package.')
+        raise SystemExit(0)
+    assert loader.exists() and (loader.stat().st_mode & 0o777)==0o755
+    assert config.read_text().count('name="load_wlan1"')==1 and second.read_text().count('name="load_wlan1"')==1
+    fail_remove.unlink()
+    # Keep the failed receipt: the real saved uninstaller must recover it.
+    state_file=store/'tplink-rtl8811au/state.conf'
+    assert 'state=failed' in state_file.read_text()
+    for suffix in ['-boot.log','-dmesg.log']:write(Path(diagnostic_prefix+suffix),'owned diagnostic\n')
+
     # Saved removal works with a changed cfg80211 and a broken newer USB copy.
     cfg80211.write_bytes(b'changed after install\n')
     (folder / 'assets/rtl8812au.ko').write_bytes(b'new invalid USB version')
     call(['action', 'tplink-rtl8811au', 'uninstall'])
     assert config.read_text() == edited and second.read_text() == stock_wcp and not payload_dir.exists()
     assert not lock.exists() and gpio.read_text() == '0\n'
+    assert all(not Path(diagnostic_prefix+suffix).exists() for suffix in ['-boot.log','-dmesg.log'])
     print('TPLINK_RTL8811AU_PASSED:', checks, 'real package checks; release asset pins, adapter info, hand-installed driver and cfg80211 refusal, unrelated sm.conf edits preserved, executable loader mode, exact saved uninstall.')

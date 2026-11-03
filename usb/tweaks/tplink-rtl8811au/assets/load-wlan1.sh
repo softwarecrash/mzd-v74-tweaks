@@ -19,12 +19,17 @@ DIR=/data_persist/wl
 log() { echo "load-wlan1: $*"; }
 
 # --- per-boot breadcrumb ---------------------------------------------------------------
-# Console output lives in /tmp and dies with the boot, so the worst failure -- the driver
-# simply never loading at boot -- is the one that leaves no trace at all. One line per boot
-# goes somewhere persistent instead, keyed by the kernel's boot_id. The wall clock cannot
-# key it: the unit starts at 1970 every boot, so timestamps repeat. /data_persist/log is the
-# only log location that survives a reboot.
-BOOTLOG=${BOOTLOG:-/data_persist/log/aaw-boot.log}
+# Keep only the latest invocation in RAM. Logs do not survive reboot.
+# Local integration: bounded RAM diagnostics, removed by the saved uninstaller.
+BOOTLOG=/tmp/mzd-tplink-rtl8811au-boot.log
+DMESGLOG=/tmp/mzd-tplink-rtl8811au-dmesg.log
+for log_file in "$BOOTLOG" "$DMESGLOG"; do
+    if [ -L "$log_file" ] || { [ -e "$log_file" ] && { [ ! -f "$log_file" ] || [ "$(stat -c %h "$log_file")" != 1 ]; }; }; then
+        echo "load-wlan1: Unsafe diagnostic path: $log_file" >&2
+        exit 1
+    fi
+done
+umask 077
 BOOT_ID=$(cut -c1-8 /proc/sys/kernel/random/boot_id 2>/dev/null)
 [ -z "$BOOT_ID" ] && BOOT_ID=noid
 
@@ -47,16 +52,15 @@ bc_common() {
 # Filtered dmesg, only on a failing boot: the USB and probe errors that explain why nothing
 # enumerated are otherwise gone forever. Bounded, and keyed to the boot it belongs to.
 bc_dmesg() {
-    dmesg 2>/dev/null | grep -iE 'usb|hub|8812|rtl87|wlan' | tail -40 \
-        >> "/data_persist/log/aaw-boot-$BOOT_ID.dmesg" 2>/dev/null
+    dmesg 2>/dev/null | grep -iE 'usb|hub|8812|rtl87|wlan' | tail -40 | tail -c 8192 > "$DMESGLOG" 2>/dev/null
 }
 
 RESULT="exited-early"
 breadcrumb() {
     bc_common
     echo "id=$BOOT_ID stage=loader up=${bc_up:-?}s mod=$bc_mod bound=$bc_bound" \
-         "wlans=$bc_wlans usb=$bc_usb result=$RESULT" >> "$BOOTLOG" 2>/dev/null
-    [ "$RESULT" = ok ] || bc_dmesg
+         "wlans=$bc_wlans result=$RESULT usb=$bc_usb" | head -c 4096 > "$BOOTLOG" 2>/dev/null
+    if [ "$RESULT" = ok ]; then rm -f "$DMESGLOG"; else bc_dmesg; fi
 }
 trap breadcrumb EXIT
 

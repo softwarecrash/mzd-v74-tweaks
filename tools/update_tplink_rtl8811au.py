@@ -1,14 +1,15 @@
 """Keep the TP-Link Archer T2U RTL8811AU Driver assets equal to a cmu150-rtl8811au release.
 
-    python tools/update_tplink_rtl8811au.py --check   # CI: committed files == pinned release
+    python tools/update_tplink_rtl8811au.py --check   # CI: pinned release + explicit loader delta
     python tools/update_tplink_rtl8811au.py 1.1.0     # copy another release into the tweak
 
 Downloads cmu150-rtl8811au-<version>.tar.gz and its .sha256 from the GitHub
 release v<version> and checks the archive against that checksum (and, for the
 pinned version, against PINNED_SHA256 below).
 
---check changes nothing. It fails when a committed release file or the boot
-entry in assets/sm*.patch differs from the pinned release.
+--check changes nothing. The driver, config and license must equal the release;
+the loader must equal the release plus the reviewed bounded-RAM-logging delta
+in tplink_loader.py. The service entries must match the release as well.
 
 <version> copies the unchanged release files into usb/tweaks/tplink-rtl8811au/
 and prints the values to update by hand, including the pin below.
@@ -22,6 +23,7 @@ import re
 import sys
 import tarfile
 import urllib.request
+from tplink_loader import adapt_loader
 
 REPO = 'PingusPepan/cmu150-rtl8811au'
 # The release the committed assets come from.
@@ -97,11 +99,13 @@ for patch in ['sm.conf.patch', 'sm_WCP.conf.patch']:
     if service_block(added) != theirs:
         fail(f'The release load_wlan1 service differs from assets/{patch}. Update the patches first.')
 
+payload['load-wlan1.sh'] = adapt_loader(payload['load-wlan1.sh'])
+
 if check:
     for leaf, destination in FILES.items():
         if not (TWEAK / destination).is_file() or (TWEAK / destination).read_bytes() != payload[leaf]:
             fail(f'{destination} is not the {leaf} of {name}.tar.gz. Run: python tools/update_tplink_rtl8811au.py {version}')
-    print(f'{TWEAK.relative_to(ROOT)} matches {name}.tar.gz (SHA256 {digest}).')
+    print(f'{TWEAK.relative_to(ROOT)} verified against {name}.tar.gz (SHA256 {digest}) plus the explicit RAM logging adaptation.')
     raise SystemExit(0)
 
 for leaf, destination in FILES.items():

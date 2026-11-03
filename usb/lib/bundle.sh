@@ -1,4 +1,8 @@
 #!/bin/sh
+mzd_bundle_payload_mode() (
+    case "$1" in executable) mode=755;;file|config|shim) mode=644;;*) exit 0;;esac
+    chmod "$mode" "$2" && [ "$(stat -c %a "$2")" = "$mode" ]
+)
 # One transaction for payload files, generated configuration, shims and patches.
 # Workers may define mzd_bundle_prerequisites: data-only block/warning/info records.
 # Workers may define mzd_bundle_patch: dynamic patch configuration hook.
@@ -8,7 +12,7 @@ mzd_bundle_load() {
     done
     mzd_manifest_load "$HERE/manifest.conf" || return 1
     [ -n "$COMPONENTS" ] || return 1
-    mzd_require_tools awk cat cp cmp chmod md5sum cut mktemp readlink dirname rm patch dd od grep mkdir mv || return 1
+    mzd_require_tools awk cat cp cmp chmod stat md5sum cut mktemp readlink dirname rm patch dd od grep mkdir mv || return 1
 }
 mzd_bundle_validate_install() (
     scratch=$(mktemp -d /tmp/mzd-bundle-assets.XXXXXX) || exit 1
@@ -190,6 +194,7 @@ mzd_bundle_cleanup() (
             # do not restore any further load references to missing payloads.
             [ "$result" = 0 ] || break
             folder="$MZD_REPORT/plan/$number"; target=$(cat "$folder/target.path") || { result=1; continue; }
+            kind=$(cat "$folder/kind") || { result=1; break; }
             if [ -f "$folder/before.absent" ]; then
                 if [ ! -e "$target" ] && [ ! -L "$target" ]; then continue; fi
                 if cmp -s "$target" "$folder/after.data"; then rm -f "$target" || result=1; else result=1; fi
@@ -198,6 +203,14 @@ mzd_bundle_cleanup() (
                 mzd_restore_write "$target" "$folder/before.data" "$folder/before.data" || result=1
                 if [ -f "$MZD_REPORT/temp.path" ]; then cat "$MZD_REPORT/temp.path" >> "$MZD_REPORT/temps" || result=1; fi
             else printf 'Concurrent change prevents rollback: %s. Do NOT reboot.\n' "$target" >&4; result=1; fi
+            # FAT report archives do not retain Unix modes. Restore payload modes
+            # before the reverse-order rollback republishes any boot reference.
+            if [ "$result" = 0 ] && [ ! -f "$folder/before.absent" ]; then
+                mzd_bundle_payload_mode "$kind" "$target" || {
+                    printf 'Cannot restore payload permissions: %s. Do NOT reboot.\n' "$target" >&4
+                    result=1
+                }
+            fi
         done < "$MZD_REPORT/reverse"
     fi
     # Only unlink explicitly recorded temporaries belonging to a declared target.
@@ -288,9 +301,7 @@ mzd_bundle_apply() {
                     mzd_restore_write "$target" "$folder/after.data" "$folder/after.data" || mzd_fail 'Component write failed; rolling back.'
                     # The staged copy may sit on the FAT USB report, whose modes
                     # are fixed by the mount, so set the mode on the target itself.
-                    if [ "$kind" = executable ]; then
-                        chmod 755 "$target" && [ -x "$target" ] || mzd_fail 'Could not make the payload executable; rolling back.'
-                    fi ;;
+                    mzd_bundle_payload_mode "$kind" "$target" || mzd_fail 'Could not set payload permissions; rolling back.' ;;
             esac
         done
     done
