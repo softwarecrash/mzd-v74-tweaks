@@ -23,7 +23,7 @@ mzd_bundle_validate_install() (
             check) mzd_asset_readable "$target" && [ "$(mzd_hash "$target")" = "$original" ] || { printf 'Unsupported native module: %s (expected MD5 %s).\n' "$target" "$original" >&2; exit 1; } ;;
             shim) mzd_asset_readable "$asset_file" && mzd_shim_elf "$asset_file" || { printf 'Missing or unsupported ARM library: %s\n' "$source" >&2; exit 1; } ;;
             config) mzd_component_config "$asset_file" "$scratch/config" || exit 1 ;;
-            file) mzd_asset_readable "$asset_file" || exit 1 ;;
+            file|executable) mzd_asset_readable "$asset_file" || exit 1 ;;
             patch)
                 mzd_asset_readable "$asset_file" || exit 1
                 if command -v mzd_bundle_patch >/dev/null 2>&1; then
@@ -97,7 +97,7 @@ mzd_bundle_plan() (
         else : > "$folder/before.absent"; fi
         asset_file=$(mzd_tweak_asset "$source") || exit 1
         case "$kind" in
-            file|config|shim)
+            file|config|shim|executable)
                 case "$kind" in
                     config) mzd_component_config "$asset_file" "$folder/expected.data" || exit 1 ;;
                     *) mzd_asset_readable "$asset_file" && cp "$asset_file" "$folder/expected.data" || exit 1 ;;
@@ -106,7 +106,11 @@ mzd_bundle_plan() (
                     printf 'Unsupported ARM library: %s\n' "$source" >&2; exit 1;
                 }
                 if [ -f "$folder/before.absent" ]; then state=uninstalled
-                elif cmp -s "$target" "$folder/expected.data"; then state=installed
+                elif cmp -s "$target" "$folder/expected.data"; then
+                    [ "$kind" != executable ] || [ -x "$target" ] || {
+                        printf 'Owned executable is not executable: %s\n' "$target" >&2; exit 1;
+                    }
+                    state=installed
                 else printf 'Owned payload differs from its saved configuration: %s\n' "$target" >&2; exit 1; fi
                 cp "$folder/expected.data" "$folder/after.data" || exit 1
                 chmod 644 "$folder/after.data" || exit 1
@@ -168,7 +172,7 @@ mzd_bundle_plan() (
     payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$plan/components" || {
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$plan/components" || {
             printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2; exit 1;
         }
     done
@@ -237,7 +241,7 @@ mzd_bundle_apply() {
         target=$(cat "$folder/target.path") || exit 1
         mount_point=$(mzd_shim_mount "$target") || mzd_fail 'Unsupported internal component filesystem.'
         kind=$(cat "$folder/kind") || exit 1
-        case "$kind" in file|config|shim)
+        case "$kind" in file|config|shim|executable)
             [ "$mount_point" = "$MZD_COMPONENT_STORAGE" ] || mzd_fail 'Payload storage must be the mounted persistent partition.' ;;
         esac
         mzd_system_remount_rw "$mount_point" || exit 1
@@ -256,7 +260,7 @@ mzd_bundle_apply() {
             number=$((number+1)); folder="$MZD_REPORT/plan/$number"
             [ ! -f "$folder/noop" ] || continue
             kind=$(cat "$folder/kind"); target=$(cat "$folder/target.path")
-            case "$kind:$phase" in file:payload|config:payload|shim:payload|loader:target|patch:target) ;; *) continue ;; esac
+            case "$kind:$phase" in file:payload|config:payload|shim:payload|executable:payload|loader:target|patch:target) ;; *) continue ;; esac
             if [ -f "$folder/before.absent" ]; then
                 [ ! -e "$target" ] && [ ! -L "$target" ] || mzd_fail 'Component appeared during preparation.'
             else cmp -s "$target" "$folder/before.data" || mzd_fail 'Component changed during preparation.'; fi
@@ -277,11 +281,16 @@ mzd_bundle_apply() {
             esac
             printf '%s\n' "$number" >> "$MZD_REPORT/changed" || exit 1
             case "$kind:$ACTION" in
-                file:uninstall|config:uninstall|shim:uninstall)
+                file:uninstall|config:uninstall|shim:uninstall|executable:uninstall)
                     : > "$folder/deleting"
                     rm -f "$target" || mzd_fail 'Payload removal failed.' ;;
                 *)
-                    mzd_restore_write "$target" "$folder/after.data" "$folder/after.data" || mzd_fail 'Component write failed; rolling back.' ;;
+                    mzd_restore_write "$target" "$folder/after.data" "$folder/after.data" || mzd_fail 'Component write failed; rolling back.'
+                    # The staged copy may sit on the FAT USB report, whose modes
+                    # are fixed by the mount, so set the mode on the target itself.
+                    if [ "$kind" = executable ]; then
+                        chmod 755 "$target" && [ -x "$target" ] || mzd_fail 'Could not make the payload executable; rolling back.'
+                    fi ;;
             esac
         done
     done
@@ -341,7 +350,7 @@ mzd_bundle_reset_main() (
     mzd_shim_parent_ok "$payload_dir" || exit 1
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$scratch/components" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2; exit 1; }
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$scratch/components" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2; exit 1; }
     done
     while IFS="$tab" read -r kind target source service original; do
         mzd_shim_parent_ok "$target" || exit 1
@@ -353,7 +362,7 @@ mzd_bundle_reset_main() (
                 elif [ "$(mzd_hash "$target")" != "$original" ]; then
                     mzd_asset_readable "$target.org" && [ "$(mzd_hash "$target.org")" = "$original" ] || { printf 'Reset requires the verified OEM backup: %s\n' "$target" >&2; exit 1; }
                 fi ;;
-            file|config|shim)
+            file|config|shim|executable)
                 number=$((number+1))
                 if [ -e "$target" ] || [ -L "$target" ]; then
                     mzd_asset_readable "$target" || exit 1

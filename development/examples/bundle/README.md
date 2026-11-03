@@ -16,7 +16,10 @@ the worker writes `KEY = VALUE` records next to its libraries. The resulting
 libpatch.conf belongs to this package; an existing AA Mod config is untouched.
 The library must actually support the declared key and sibling-file lookup.
 
-Use a `file` component for fixed files or fixed configuration. Use `config` for
+Use a `file` component for fixed files or fixed configuration. Files are
+installed with mode 0644. Use `executable` for a fixed script or program that
+a service starts directly: it is installed with mode 0755, and status reports
+it broken if that mode is lost. Use `config` for
 this literal key/value format. Other formats require a separately reviewed
 renderer; do not embed shell substitutions or executable templates in metadata.
 Existing foreign settings are not imported automatically. A future explicit
@@ -33,6 +36,7 @@ line has five nonempty tab-separated fields. `-` means unused:
 | shim | private persistent .so | assets/name.so | service name | - |
 | config | private persistent config | assets/name.map | - | - |
 | file | private persistent file | assets/name | - | - |
+| executable | private persistent file, mode 0755 | assets/name | - | - |
 | patch | absolute existing target | assets/change.patch | - | original fingerprint |
 | check | absolute native module | - | - | supported fingerprint |
 

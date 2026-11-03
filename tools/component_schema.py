@@ -47,7 +47,7 @@ def read(manifest, values):
                         raise ValueError('Invalid loader record.')
                 elif not safe(source, False):
                     raise ValueError('Invalid patch source.')
-            elif kind in ('shim', 'file', 'config'):
+            elif kind in ('shim', 'file', 'config', 'executable'):
                 leaf = target[len(prefix):]
                 if not target.startswith(prefix) or not leaf or '/' in leaf or leaf.startswith('.') or md5 != '-' or not safe(source, False):
                     raise ValueError('Payload must be a direct file in its private persistent folder.')

@@ -36,7 +36,7 @@ BEGIN {
         else if(!asset(source))fail("Invalid patch asset.")
         if(mode=="paths")print "patch\t" dest
         if(mode=="catalog")print dest "\t" md5 "\t" lock
-    } else if(kind=="shim" || kind=="file" || kind=="config") {
+    } else if(kind=="shim" || kind=="file" || kind=="config" || kind=="executable") {
         leaf=substr(dest,length(prefix)+1)
         if(index(dest,prefix)!=1 || leaf=="" || leaf ~ /\// || leaf ~ /^\./ || md5!="-" || !asset(source))fail("Payload must be a direct file in this tweak's persistent folder.")
         if(kind=="shim") {
