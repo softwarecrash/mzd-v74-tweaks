@@ -185,7 +185,8 @@ The symlink checks need Linux or Windows symlink privileges; the isolated Linux
 appliance provides that without modifying the CMU.
 
 Run `python tests/contract/test_gui_extensions.py --tetris-config-only` and
-`--config-example-only` for actual consumer lifecycle tests.
+`python tests/contract/test_gui_extensions.py --config-example-only` for actual
+consumer lifecycle tests.
 `node tests/tweaks/tetris/highscore.cjs` covers the authenticated resident/view
 bridge. With the private original CMU runtime available,
 `python tests/transport/test-in-vm.py --tetris` tests real Lua/filesystem highscore

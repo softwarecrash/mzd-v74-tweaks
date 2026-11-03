@@ -220,15 +220,23 @@ config.state.source=assets/defaults/state/
 ```
 
 A trailing slash on `path` means a directory; otherwise it means a file. The
-source is optional, relative to the tweak, and must be under assets/. An empty
+source is optional, relative to the tweak, and must be under assets/. Its actual
+filesystem kind must match the destination: a file template for a file path,
+a directory template for a directory path. An empty
 file is a valid template. Installation copies only missing files; existing
 contents are never overwritten. Without a source, the app creates its own files
-when needed. Declare up to 32 names using lowercase letters, digits or underscores.
+when needed. Declare up to 32 names, each at most 32 characters, starting with
+a lowercase letter and followed by lowercase letters, digits or underscores.
 
 Mutable targets must be inside persistent storage, outside installer metadata,
 and exclusive to one tweak. Overlapping declarations and links are refused.
 Do not also register these targets as immutable component files. Declare a
 folder only when every file in that folder belongs to the app's mutable data.
+Directory declarations must be the tweak's own `mzd-tweaks/data/<id>/` or
+`mzd-tweaks/gui-data/<id>/` directory, or a subdirectory of either, directly
+under persistent storage. Shared directories such as its root or `log/` cannot
+be declared for recursive removal. Full uninstall removes every file inside a
+declared directory, including files created at runtime.
 
 Contents and missing config files do not determine installed status. Apps own
 parsing, defaults, format changes and safe writes. GUI services can access the

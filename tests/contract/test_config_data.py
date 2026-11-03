@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-config-data-') as temporary:
  folder=usb/'tweaks/demo';manifest=(ROOT/'usb/tweaks/list-beep/manifest.conf').read_text()
  manifest=re.sub('^id=.*$','id=demo',manifest,flags=re.M)
  write(folder/'manifest.conf',manifest)
- one=persist/'preferences.conf';directory=persist/'data/demo'
+ one=persist/'preferences.conf';directory=persist/'mzd-tweaks/data/demo'
  table='config.prefs.path='+bp(one)+'\nconfig.prefs.source=assets/prefs.conf\nconfig.state.path='+bp(directory)+'/\nconfig.state.source=assets/defaults\n'
  write(folder/'manifest.conf',manifest+table);write(folder/'assets/prefs.conf','key=default\n');write(folder/'assets/defaults/nested/value.conf','value=default\n')
  prefix='. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'; . '+shlex.quote(bp(usb/'lib/config-data.sh'))+'; MZD_PACKAGE_MOUNT='+shlex.quote(bp(persist))+'; '
@@ -33,5 +33,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-config-data-') as temporary:
  # Invalid/overlapping declarations are refused before mutation.
  for bad in [table+'config.unknown.type=file\n',table.replace(bp(one),bp(persist)+'/../escape'),table+'config.prefs.type=invalid\n']:
   write(folder/'manifest.conf',manifest+bad);call('preflight',1)
+ # A directory typo cannot claim the storage root, shared logs or other apps.
+ for target in [persist,persist/'log',persist/'mzd-tweaks/data',persist/'mzd-tweaks/data/other',persist/'mzd-tweaks/data/demo-other']:
+  write(folder/'manifest.conf',manifest+'config.bad.path='+bp(target)+'/\n')
+  call('remove',1);assert one.exists() and (directory/'nested/value.conf').exists()
  write(folder/'manifest.conf',manifest+table);call('remove')
  print('CONFIG_DATA_PASSED:',checks,'checks; file/directory defaults, preservation, runtime files, missing config, retained ownership, links and invalid paths.')

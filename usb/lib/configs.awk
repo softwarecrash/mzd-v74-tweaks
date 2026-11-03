@@ -28,6 +28,11 @@ END {
    rest=substr(p,at+length("/mzd-tweaks/"));split(rest,scope,"/")
    if(scope[1]~/^(data|gui-data|shims)$/ && scope[2]!=owner)fail("Config overlaps another app namespace.")
   }
+  if(t=="dir") {
+   prefix=base!=""?base:"/tmp/mnt/data_persist"
+   ownData=prefix "/mzd-tweaks/data/" owner;ownGui=prefix "/mzd-tweaks/gui-data/" owner
+   if(p!=ownData && index(p,ownData "/")!=1 && p!=ownGui && index(p,ownGui "/")!=1)fail("Config directory must be inside its own app data namespace.")
+  }
   if(base!="" && index(p,base "/")!=1)fail("Config must be inside persistent storage.")
   if(p~/\/mzd-tweaks\/(installed|gui-provider|config-owners)($|\/)/ || p~/\/mzd-tweaks$/)fail("Config overlaps installer metadata.")
   if(s!="-" && (s!~/^assets\/[A-Za-z0-9_.\/-]+$/ || s~/\/\.\.?($|\/)/ || s~/\/\// || s~/\/$/))fail("Invalid config source.")

@@ -165,7 +165,7 @@ mzd_manifest_load() {
     fi
     if [ "$mzd_manifest_configs" = 1 ];then
         mzd_config_schema="${mzd_manifest_file%/*}/../../lib/configs.awk"
-        mzd_config_result=$(awk -v mode=validate -f "$mzd_config_schema" "$mzd_manifest_file") || { mzd_manifest_error "$mzd_config_result";return 1; }
+        mzd_config_result=$(awk -v mode=validate -v base="${MZD_PACKAGE_MOUNT:-/tmp/mnt/data_persist}" -f "$mzd_config_schema" "$mzd_manifest_file") || { mzd_manifest_error "$mzd_config_result";return 1; }
     fi
     [ -z "$CONFIGS" ] || [ "$TYPE" != command ] || { mzd_manifest_error 'Command tweaks cannot own persistent config.';return 1; }
     if [ -n "$COMPONENTS" ]; then

@@ -49,6 +49,8 @@ def parse(text):
         if '//' in target:raise ValueError('Invalid config path.')
         if kind=='dir':target=target[:-1];source=source.removesuffix('/')
         scope=re.search(r'/mzd-tweaks/(data|gui-data|shims)(?:/([^/]+))?',target)
+        if kind=='dir' and not any(target==p or target.startswith(p+'/') for p in ['/tmp/mnt/data_persist/mzd-tweaks/'+area+'/'+values['id'] for area in ['data','gui-data']]):
+            raise ValueError('Config directory must be inside its own app data namespace.')
         if scope and scope.group(2)!=values['id']:raise ValueError('Config overlaps another app namespace.')
         if re.search(r'/mzd-tweaks/(installed|gui-provider|config-owners)($|/)|/mzd-tweaks$',target):raise ValueError('Config overlaps installer metadata.')
         if values['type']=='command' or kind not in ['file','dir'] or not re.fullmatch(r'/[A-Za-z0-9_./-]+',target) or re.search(r'/\.\.?($|/)|//|/$',target):

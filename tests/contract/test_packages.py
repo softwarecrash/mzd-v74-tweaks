@@ -247,7 +247,7 @@ esac
     # The global operation lock also coordinates with Restore.
     lock.mkdir();before=text();action('alpha','install',1);assert text()==before;lock.rmdir()
     # Mutable configs are outside the inventory: edited values survive Update/keep.
-    make('alpha');config=base/'persist/user-config';config_file=config/'settings.conf'
+    make('alpha');config=base/'persist/mzd-tweaks/data/alpha';config_file=config/'settings.conf'
     p=folder/'manifest.conf';write(p,p.read_text()+'config.prefs.path='+bp(config)+'/\nconfig.prefs.source=assets/defaults\n')
     write(folder/'assets/defaults/settings.conf','value=default\n')
     action('alpha','install');assert config_file.read_text()=='value=default\n'
