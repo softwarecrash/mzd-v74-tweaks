@@ -74,9 +74,15 @@ with tempfile.TemporaryDirectory(prefix='cmu-safety-images-') as directory:
         write(p,s)
     write(bins/'sync','#!/bin/sh\nexit 0\n');write(bins/'mount','#!/bin/sh\nexit 0\n')
     write(bins/'df','#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nmock 1000000 1 999999 1%% persist\\n"\n')
-    real_mv=subprocess.run([SHELL,'-c','command -v mv'],capture_output=True,text=True,check=True).stdout.strip()
+    if os.environ.get('CMU_TEST_BUSYBOX'):
+        busybox=shutil.which('busybox');assert busybox,'BusyBox requested but missing.'
+        for name in ['awk','patch','diff','cp','cmp','md5sum','cut','readlink','dirname','mktemp','mkdir','rm','cat','grep','find','sort','stat','head','tail','od','dd','tr','sed','date','du']:
+            os.symlink(busybox,bins/name)
+        real_mv=shlex.quote(bp(busybox))+' mv'
+    else:
+        real_mv=shlex.quote(subprocess.run([SHELL,'-c','command -v mv'],capture_output=True,text=True,check=True).stdout.strip())
     first=images/rows[0][0];fail=b/'fail';critical=b/'critical';tripped=b/'tripped'
-    write(bins/'mv','#!/bin/sh\nfor arg do destination=$arg; done\nif [ -f '+shlex.quote(bp(fail))+' ] && [ "$destination" = '+shlex.quote(bp(first))+' ]; then\n if [ ! -f '+shlex.quote(bp(tripped))+' ]; then : > '+shlex.quote(bp(tripped))+'; exit 1; fi\nfi\nif [ -f '+shlex.quote(bp(critical))+' ] && [ -f '+shlex.quote(bp(tripped))+' ] && [ "$destination" = '+shlex.quote(bp(target))+' ]; then exit 1; fi\nexec '+shlex.quote(real_mv)+' "$@"\n')
+    write(bins/'mv','#!/bin/sh\nfor arg do destination=$arg; done\nif [ -f '+shlex.quote(bp(fail))+' ] && [ "$destination" = '+shlex.quote(bp(first))+' ]; then\n if [ ! -f '+shlex.quote(bp(tripped))+' ]; then : > '+shlex.quote(bp(tripped))+'; exit 1; fi\nfi\nif [ -f '+shlex.quote(bp(critical))+' ] && [ -f '+shlex.quote(bp(tripped))+' ] && [ "$destination" = '+shlex.quote(bp(target))+' ]; then exit 1; fi\nexec '+real_mv+' "$@"\n')
     def call(action,code=0,direct=False):
         global checks
         args=[bp(worker/'run.sh'),action] if direct else [bp(usb/'installer.sh'),'action','remove-safety-warnings',action]
@@ -115,7 +121,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-safety-images-') as directory:
         assert not rejected.stdout and 'Symbolic link' in rejected.stderr
         assert before=={p.relative_to(b):p.read_bytes() for p in b.rglob('*') if p.is_file()}
         first.unlink();first.write_bytes(missing)
-    write(fail,'1');call('install',1,direct=True);original();fail.unlink();tripped.unlink()
+    write(fail,'1');failed=call('install',1,direct=True)
+    assert tripped.exists(),('Injected write failure was not reached.',failed.stdout,failed.stderr,[p.read_text()[-4000:] for p in usb.glob('reports/remove-safety-warnings/*/run.log')])
+    original();fail.unlink();tripped.unlink()
     call('install');status('installed')
     assert all((images/r[0]).read_bytes()==(worker/'assets'/r[2]).read_bytes() for r in rows)
     backup=Path(str(first)+'.org');kept=backup.read_bytes();backup.unlink();status('broken');backup.write_bytes(kept)
