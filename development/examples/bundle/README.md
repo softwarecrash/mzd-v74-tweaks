@@ -19,6 +19,10 @@ The library must actually support the declared key and sibling-file lookup.
 Use a `file` component for fixed files or fixed configuration. Use `config` for
 this literal key/value format. Other formats require a separately reviewed
 renderer; do not embed shell substitutions or executable templates in metadata.
+For tweaks that require interactive runtime configuration updates directly on the
+CMU (such as Android Auto Mod), prefer declaring mutable configuration
+(`config.<name>.path` and `config.<name>.source`) coupled with an in-car GUI
+extension (`gui_api=1`) and a Lua service backend rather than a static component.
 Existing foreign settings are not imported automatically. A future explicit
 import must validate each supported value against the manifest before use.
 

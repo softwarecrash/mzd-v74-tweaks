@@ -219,5 +219,15 @@ See the [bundle example](examples/bundle/README.md) for transaction and upgrade 
 ## Shared GUI extensions
 
 `type=gui-extension` uses automatically managed GUI support and a saved consumer
-snapshot. See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
+snapshot. In addition, component bundle workers (`type=files`) can declare `gui_api=1`
+to attach an in-car Applications menu view, resident script, Lua backend service,
+and translations to their package.
+
+For hybrid bundle workers, `usb/lib/bundle.sh` automatically manages the GUI lifecycle:
+it runs GUI asset, capability, and service preflight checks during `validate-install`,
+serializes with other GUI operations using `/tmp/mzd-gui-extension.lock`, calls
+`mzd_gui_mutate install`/`uninstall`, incorporates GUI status into the worker's status
+result, stops registered services, and delegates cleanup phases to `mzd_gui_reset`.
+
+See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
 first/last-consumer lifecycle, ownership rules and development limits.

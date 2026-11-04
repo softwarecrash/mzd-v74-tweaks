@@ -94,6 +94,28 @@ the installer uses your file instead of `tweaks/<tweak-id>/assets/<name>.conf`:
   on the CMU during install or update, so subsequent uninstallation remains completely
   independent of the USB drive.
 
+## In-car runtime settings (Applications menu)
+
+Starting with Android Auto Mod version 0.10.0 (installer package 0.1.0), runtime
+configuration options in `libpatch.conf` (including HUD navigation display, SD card
+speed limit routing, street names, accented character folding, GAL protocol version,
+media mute pausing, and touchscreen while driving) can be managed directly on the
+vehicle display without replugging a USB drive.
+
+Once Android Auto Mod is installed and the CMU restarts, open **Applications > Android Auto Settings**
+from the vehicle home screen. You can review and toggle options using the commander
+knob or touchscreen. Changes are saved immediately to persistent storage.
+
+### Installer settings vs. runtime settings
+
+- **Installer settings** (`resolution_dpi`, `resolution_par`): Configured in the
+  USB installer UI before installation or defined in `user/android-auto/settings.conf`.
+  Because these settings govern patch generation during installation, changing them
+  requires selecting **Uninstall**, updating your settings, and selecting **Install**.
+- **Runtime settings** (`libpatch.conf`): Can be supplied as an initial template on
+  USB via `user/android-auto/libpatch.conf`, and subsequently inspected, adjusted,
+  or restored to defaults directly on the CMU via **Applications > Android Auto Settings**.
+
 ## Updates and reinstallation
 
 When a new version of the installer or a tweak is released:
@@ -104,7 +126,9 @@ When a new version of the installer or a tweak is released:
    your saved user settings and custom `.conf` assets automatically applied.
 
 > [!NOTE]
-> For an already installed tweak, settings are saved in persistent storage on the CMU
+> For an already installed tweak, installer manifest settings are saved in persistent storage on the CMU
 > and displayed as **INSTALLED SETTINGS** (read-only) in the detail view. To change
-> settings for an already installed version, select **Uninstall**, return to the tweak,
+> installer settings for an already installed version, select **Uninstall**, return to the tweak,
 > adjust your settings (or update `user/<tweak-id>/settings.conf`), and select **Install**.
+> Runtime settings for tweaks providing an in-car GUI (such as Android Auto Settings) can be
+> adjusted directly on the CMU at any time without reinstalling.

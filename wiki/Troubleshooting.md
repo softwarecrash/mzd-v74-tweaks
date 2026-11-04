@@ -37,3 +37,16 @@ assume a failed operation left everything unchanged.
 The installed indicator is not a network connectivity test. Configure a saved
 Wi-Fi network and automatic connection in the Mazda menu. The SSH tweak enables
 Wi-Fi at each startup, but cannot make an unavailable network reachable.
+
+## Android Auto freezes, drops to native UI on calls, or needs a restart
+
+- **Soft reboot the CMU**: Press and hold **NAV + MUTE** together for about 10 seconds
+  until the screen turns black. Wait 30–90 seconds for the system to restart.
+- **Phone calls kick out or freeze AA**: In **Applications > Android Auto Settings**,
+  revert media synchronization settings to defaults (turn off **Pause media when muted**,
+  **Force play on unmute**, and **Prevent car media auto-play**). If using a wireless
+  adapter, unpair your phone from native Mazda Bluetooth so calls are handled cleanly
+  through Android Auto.
+- **Touchscreen works only when parked**: Touchscreen input while moving is governed
+  by the system-wide MZD Connect speed lock. Install the **Touchscreen While Driving**
+  tweak to enable touch input in Android Auto while driving.
