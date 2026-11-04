@@ -480,7 +480,7 @@
         }
         if (m.contract_version !== "1") throw new Error("Unsupported manifest contract version.");
         m.contract_version = 1;
-        if (m.type==="gui-extension") {
+        if (m.type==="gui-extension" || m.gui_api) {
             var menuPath=m.gui_menu_path||"", menuSegments=menuPath?menuPath.split("/"):[];
             if (menuPath.length>240 || menuSegments.length>8) throw new Error("Invalid GUI menu path.");
             for(var mi=0;mi<menuSegments.length;mi++) if (!menuSegments[mi] || menuSegments[mi]==="." || menuSegments[mi]===".." || menuSegments[mi].length>80 || trim(menuSegments[mi])!==menuSegments[mi]) throw new Error("Invalid GUI menu path.");
@@ -488,14 +488,15 @@
             if (m.gui_api!=="1" || !m.gui_label || m.gui_label.length>80 ||
                 !/^assets\/[A-Za-z0-9_./-]+[.]html$/.test(m.gui_entrypoint||"") || /(^|\/)\.\.?($|\/)/.test(m.gui_entrypoint) ||
                 m.reset_entrypoint!=="reset.sh" || m.reboot_required!=="true" || m.status_scope!=="payload" ||
-                m.target || m.oem_backup_md5 || m.lock_group || m.components || m.shim_asset || m.actions!=="install uninstall status") throw new Error("Invalid GUI extension metadata.");
+                m.actions!=="install uninstall status") throw new Error("Invalid GUI extension metadata.");
+            if (m.type === "gui-extension" && (m.target || m.oem_backup_md5 || m.lock_group || m.components || m.shim_asset)) throw new Error("Invalid GUI extension metadata.");
             ["gui_resident","gui_service","gui_translations"].forEach(function (key) {
                 var value = m[key], suffix = key === "gui_service" ? "lua" : "js";
                 if (m.hasOwnProperty(key) && !value) throw new Error("GUI capability paths cannot be empty.");
                 if (value && (!new RegExp("^assets/[A-Za-z0-9_./-]+[.]" + suffix + "$").test(value) || /(^|\/)\.\.?($|\/)/.test(value))) throw new Error("Invalid GUI capability path.");
             });
             if (m.gui_service && !m.gui_resident) throw new Error("A GUI service requires a resident controller.");
-        } else if (Object.prototype.hasOwnProperty.call(m,"gui_translations") || Object.prototype.hasOwnProperty.call(m,"gui_resident") || Object.prototype.hasOwnProperty.call(m,"gui_service") || m.gui_resident || m.gui_service || m.gui_api || m.gui_menu_path || m.gui_label || m.gui_entrypoint) throw new Error("GUI metadata requires gui-extension type.");
+        } else if (Object.prototype.hasOwnProperty.call(m,"gui_translations") || Object.prototype.hasOwnProperty.call(m,"gui_resident") || Object.prototype.hasOwnProperty.call(m,"gui_service") || m.gui_resident || m.gui_service || m.gui_api || m.gui_menu_path || m.gui_label || m.gui_entrypoint) throw new Error("GUI metadata requires gui-extension type or gui_api=1.");
         if (m.reboot_required !== "true" && m.reboot_required !== "false") throw new Error("Invalid reboot_required value.");
         m.reboot_required = m.reboot_required === "true";
         if (m.progress !== undefined && m.progress !== "true" && m.progress !== "false") throw new Error("Invalid progress value.");

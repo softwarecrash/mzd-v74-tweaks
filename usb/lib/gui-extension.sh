@@ -95,7 +95,7 @@ mzd_gui_collect() (
         [ -d "$entry" ] || continue
         [ "${entry##*/}" != "$exclude" ] || continue
         mzd_manifest_load "$entry/package/tweaks/${entry##*/}/manifest.conf" || exit 1
-        [ "$TYPE" = gui-extension ] || continue
+        [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || continue
         mzd_package_check "$entry" || exit 1
         state=$(mzd_package_state "$entry") || exit 1
         consumers="$consumers${entry##*/} "
@@ -294,7 +294,7 @@ mzd_gui_main() {
     if [ "${MZD_WORKER_DIRECT:-}" != 1 ] && [ "$ACTION" != validate-install ]; then exec sh "$ROOT/installer.sh" action "$(basename "$HERE")" "$ACTION"; fi
     for library in manifest report system packages gui-services; do . "$ROOT/lib/$library.sh" || exit 1; done
     mzd_manifest_load "$HERE/manifest.conf" || exit 1
-    [ "$TYPE" = gui-extension ] || exit 1
+    [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || exit 1
     mzd_gui_assets "$HERE" || exit 1
     if [ "$ACTION" = validate-install ]; then
         mzd_validate_firmware "$FIRMWARE" && mzd_gui_locations && mzd_gui_support && mzd_gui_capabilities && mzd_gui_services_preflight
@@ -315,7 +315,7 @@ mzd_gui_main() {
 }
 mzd_gui_reset() {
     [ "$#" = 1 ] || exit 1
-    SELF=$(readlink -f "$0") || exit 1; HERE=$(dirname "$SELF"); ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
+    SELF=$(readlink -f "$0") || exit 1; HERE=${HERE:-$(dirname "$SELF")}; ROOT=${ROOT:-$(CDPATH= cd "$HERE/../.." && pwd)} || exit 1
     for library in manifest report system packages gui-services; do . "$ROOT/lib/$library.sh" || exit 1; done
     mzd_manifest_load "$HERE/manifest.conf" || exit 1
     case "$1" in check|prepare|finish) ;; *) exit 1 ;; esac
@@ -327,7 +327,7 @@ mzd_gui_reset() {
     [ "$1" != check ] || exit 0
     [ "${ACTION:-}" = run ] && [ -d "${MZD_SYSTEM:-}" ] && [ -d "${MZD_RESET_DIR:-}" ] || exit 1
     if [ "$1" = prepare ]; then
-        mzd_system_lock "$LOCK" && mzd_system_remount_rw /tmp/mnt/data && mzd_system_remount_rw /tmp/mnt/data_persist || exit 1
+        mzd_system_lock /tmp/mzd-gui-extension.lock && mzd_system_lock "$LOCK" && mzd_system_remount_rw /tmp/mnt/data && mzd_system_remount_rw /tmp/mnt/data_persist || exit 1
         mzd_gui_mutate uninstall "$MZD_RESET_DIR" || exit $?
     else [ ! -e "$MZD_GUI_MODULES/$ID" ] || exit 1; fi
 }

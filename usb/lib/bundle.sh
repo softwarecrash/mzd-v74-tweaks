@@ -3,11 +3,15 @@
 # Workers may define mzd_bundle_prerequisites: data-only block/warning/info records.
 # Workers may define mzd_bundle_patch: dynamic patch configuration hook.
 mzd_bundle_load() {
-    for bundle_library in defines manifest report system patch restore settings components shim; do
+    for bundle_library in defines manifest report system packages patch restore settings components shim; do
         . "$ROOT/lib/$bundle_library.sh" || return 1
     done
     mzd_manifest_load "$HERE/manifest.conf" || return 1
     [ -n "$COMPONENTS" ] || return 1
+    if [ -n "${GUI_API:-}" ]; then
+        . "$ROOT/lib/gui-extension.sh" || return 1
+        . "$ROOT/lib/gui-services.sh" || return 1
+    fi
     mzd_require_tools awk cat cp cmp chmod md5sum cut mktemp readlink dirname rm patch dd od grep mkdir mv || return 1
 }
 mzd_bundle_validate_install() (
@@ -34,6 +38,13 @@ mzd_bundle_validate_install() (
             loader|loader_env) ;;
         esac
     done < "$scratch/components"
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_gui_assets "$HERE" || exit 1
+        mzd_gui_locations || exit 1
+        mzd_gui_support || exit 1
+        mzd_gui_capabilities || exit 1
+        mzd_gui_services_preflight || exit 1
+    fi
     mzd_bundle_preflight
 )
 mzd_bundle_preflight() (
@@ -315,6 +326,9 @@ mzd_bundle_apply() {
     # All mixed transactions also serialize with single-shim workers.
     mzd_system_lock /tmp/mzd-sm-config-tweak.lock || exit 1
     [ "$LOCK" = /tmp/mzd-sm-config-tweak.lock ] || mzd_system_lock "$LOCK" || exit 1
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_system_lock /tmp/mzd-gui-extension.lock || exit 1
+    fi
     mkdir "$MZD_REPORT/plan" || exit 1
     : > "$MZD_REPORT/changed"; : > "$MZD_REPORT/temps"
     state=$(mzd_bundle_plan "$MZD_REPORT/plan" "$ACTION") || mzd_fail 'Component preflight failed; nothing changed.'
@@ -340,6 +354,9 @@ mzd_bundle_apply() {
     [ "$available" -ge "$needed" ] || mzd_fail 'Insufficient persistent storage space.'
     mzd_system_watchdog_disable || exit 1
     mzd_report_start
+    if [ "$ACTION" = uninstall ] && [ -n "${GUI_API:-}" ]; then
+        mzd_gui_mutate uninstall || mzd_fail 'GUI module removal failed.'
+    fi
     # Install publishes all payloads before references. Uninstall does the reverse.
     if [ "$ACTION" = install ]; then phases='payload target'; else phases='target payload'; fi
     for phase in $phases; do
@@ -380,6 +397,9 @@ mzd_bundle_apply() {
     verify=$(mktemp -d /tmp/mzd-bundle-verify.XXXXXX) || exit 1
     verified=$(mzd_bundle_plan "$verify" verify); code=$?; rm -rf "$verify"
     case "$ACTION:$code:$verified" in install:0:installed|uninstall:0:uninstalled) ;; *) mzd_fail 'Final component verification failed; rolling back.' ;; esac
+    if [ "$ACTION" = install ] && [ -n "${GUI_API:-}" ]; then
+        mzd_gui_mutate install || mzd_fail 'GUI module installation failed; rolling back.'
+    fi
     if [ "$ACTION" = uninstall ] && [ -d "$payload_dir" ]; then
         if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || mzd_fail 'Payload directory is not empty.'
         else rmdir "$payload_dir" 2>/dev/null || :;fi
@@ -411,7 +431,14 @@ mzd_bundle_main() (
             mzd_settings_normalize "$HERE/manifest.conf" > "$scratch/settings.conf" || exit 1
             MZD_SETTINGS_FILE="$scratch/settings.conf"
         fi
-        if state=$(mzd_bundle_plan "$scratch" status 2> "$scratch/reason"); then printf '%s\n' "$state"
+        if state=$(mzd_bundle_plan "$scratch" status 2> "$scratch/reason"); then
+            if [ "$state" = installed ] && [ -n "${GUI_API:-}" ]; then
+                gui_state=$(mzd_gui_status 2> "$scratch/reason")
+                if [ "$gui_state" != installed ]; then
+                    state=$gui_state
+                fi
+            fi
+            printf '%s\n' "$state"
         else
             payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
             if [ -d "$payload_dir" ]; then printf 'broken\n'; else printf 'unavailable\n'; fi
@@ -427,6 +454,14 @@ mzd_bundle_reset_main() (
     phase=$1
     case "$phase" in check|prepare|finish) ;; *) exit 1 ;; esac
     mzd_bundle_load || exit 1
+    if [ "$phase" = check ] && [ -n "${GUI_API:-}" ]; then
+        mzd_gui_reset check || exit $?
+    fi
+    if [ "$phase" = prepare ] && [ -n "${GUI_API:-}" ]; then
+        if [ -n "$GUI_SERVICE" ]; then
+            mzd_gui_services_stop || exit 1
+        fi
+    fi
     scratch=$(mktemp -d /tmp/mzd-bundle-reset.XXXXXX) || exit 1
     trap 'rm -rf "$scratch"' 0
     mzd_components records > "$scratch/components" || exit 1
@@ -474,6 +509,10 @@ mzd_bundle_reset_main() (
     fi
     if [ -d "$payload_dir" ]; then
         if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || exit 2;else rmdir "$payload_dir" 2>/dev/null || :;fi
+    fi
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_gui_reset prepare || exit $?
+        mzd_gui_reset finish || exit $?
     fi
     sync
 )

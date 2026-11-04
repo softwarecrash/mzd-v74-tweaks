@@ -20,7 +20,7 @@ mzd_gui_capabilities() (
         [ -d "$receipt" ] || continue
         if [ "$receipt" != "$MZD_GUI_PROVIDER" ]; then
             mzd_manifest_load "$receipt/package/tweaks/${receipt##*/}/manifest.conf" || exit 1
-            [ "$TYPE" = gui-extension ] || continue
+            [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || continue
         fi
         if [ "$needs_config" = 1 ];then
             mzd_line_is config=1 "$receipt/package/lib/gui-runtime/api.conf" || {

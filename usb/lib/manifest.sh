@@ -52,7 +52,7 @@ mzd_manifest_load() {
               if(field["target"]!~/^\/[A-Za-z0-9_.\/-]+$/ || field["target"]~/\/\.\.?($|\/)/)
                   fail("Unsupported shim loader target.")
           }
-          if(field["type"]=="gui-extension") {
+          if(field["type"]=="gui-extension" || field["gui_api"]!="") {
               menu=field["gui_menu_path"]; count=split(menu,segments,"/")
               if(length(menu)>240 || count>8)fail("Invalid GUI menu path (maximum eight segments, 240 characters).")
               if(menu!="")for(i=1;i<=count;i++)
@@ -173,18 +173,22 @@ mzd_manifest_load() {
         case "${SHIM_PATH%/*}" in */shims/"$ID") ;; *) mzd_manifest_error 'Nested shim directories are unsupported.'; return 1 ;; esac
     fi
     LOCK=
-    if [ "$TYPE" = gui-extension ]; then
+    if [ "$TYPE" = gui-extension ] || [ -n "$GUI_API" ]; then
         case "$ID" in games|exit) mzd_manifest_error 'Reserved GUI extension ID.'; return 1 ;; esac
-        [ "$GUI_API:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = 1:reset.sh:true:payload ] &&
+        [ "$GUI_API:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = 1:reset.sh:true:payload ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload and restart.'; return 1; }
+        if [ "$TYPE" = gui-extension ]; then
             [ -z "$APP$ORIGINAL$LOCK_GROUP$COMPONENTS$SHIM_ASSET" ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload, restart and no patch metadata.'; return 1; }
+        fi
         [ -n "$GUI_LABEL" ] && [ "${#GUI_LABEL}" -le 80 ] || { mzd_manifest_error 'GUI label must contain 1-80 characters.'; return 1; }
         case "$GUI_RESIDENT" in ''|*.js) ;; *) mzd_manifest_error 'GUI resident must be JavaScript.'; return 1 ;; esac
         case "$GUI_SERVICE" in ''|*.lua) ;; *) mzd_manifest_error 'GUI service must be Lua.'; return 1 ;; esac
         [ -z "$GUI_SERVICE" ] || [ -n "$GUI_RESIDENT" ] || { mzd_manifest_error 'A GUI service requires a resident controller.'; return 1; }
         case "$GUI_TRANSLATIONS" in ''|*.js) ;; *) mzd_manifest_error 'GUI translations must be JavaScript.'; return 1 ;; esac
-        LOCK=/tmp/mzd-gui-extension.lock
+        if [ "$TYPE" = gui-extension ]; then
+            LOCK=/tmp/mzd-gui-extension.lock
+        fi
     elif [ -n "$GUI_API$GUI_MENU_PATH$GUI_LABEL$GUI_ENTRYPOINT$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
-        mzd_manifest_error 'GUI metadata requires gui-extension type.'; return 1
+        mzd_manifest_error 'GUI metadata requires gui-extension type or gui_api=1.'; return 1
     fi
     if [ "$TYPE" != command ] && [ "$TYPE" != gui-extension ]; then
         case "$APP" in /*) ;; *) mzd_manifest_error 'An absolute target is required.'; return 1 ;; esac

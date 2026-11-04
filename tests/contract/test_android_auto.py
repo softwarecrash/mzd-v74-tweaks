@@ -54,13 +54,17 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     usb = base / 'usb'
     internal = base / 'internal'
     persist = base / 'persist'
+    data = base / 'data'
     bins = base / 'bin'
     mounts = base / 'mounts'
     version = base / 'version'
     gpio = base / 'watchdog'
     lock = base / 'packages.lock'
-    for d in [usb, internal, persist, bins, base / 'locks']:
-        d.mkdir()
+    for d in [usb, internal, persist, data / 'integration', bins, base / 'locks']:
+        d.mkdir(parents=True)
+
+    startup = internal / 'scripts/stage_wifi.sh'
+    write(startup, '#!/bin/sh\necho original\n')
 
     store = persist / 'mzd-tweaks/installed'
     config = internal / 'sm.conf'
@@ -98,13 +102,18 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     for p in (usb / 'lib').glob('*.sh'):
         s = p.read_text().replace('/tmp/mnt/data_persist', bp(persist)).replace('/proc/mounts', bp(mounts)).replace('/jci/version.ini', bp(version))
         s = s.replace('MZD_SHIM_ROOT=/', 'MZD_SHIM_ROOT=' + shlex.quote(bp(internal)))
+        s = s.replace('MZD_GUI_STARTUP_MOUNT=/', 'MZD_GUI_STARTUP_MOUNT=' + shlex.quote(bp(internal)))
+        s = s.replace('/tmp/mnt/data', bp(data))
+        s = s.replace('/jci/scripts/stage_wifi.sh', bp(startup))
+        s = s.replace('/tmp/mzd-stage_wifi-tweak.lock', bp(base / 'locks/stage_wifi.lock'))
+        s = s.replace('/tmp/mzd-gui-extension.lock', bp(base / 'locks/gui.lock'))
         s = s.replace('/tmp/mzd-packages.lock', bp(lock))
         s = s.replace('/sys/class/gpio/Watchdog\\ Disable/value', shlex.quote(bp(gpio)))
         s = s.replace('LOCK="/tmp/mzd-$LOCK_GROUP-tweak.lock"', 'LOCK="' + bp(base / 'locks') + '/$LOCK_GROUP.lock"')
         write(p, s)
     write(version, 'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n')
     write(gpio, '0\n')
-    write(mounts, f'/dev/root {bp(internal)} relfs ro 0 0\n/dev/data {bp(persist)} relfs rw 0 0\n/dev/usb {bp(usb)} vfat rw 0 0\n')
+    write(mounts, f'/dev/root {bp(internal)} relfs ro 0 0\n/dev/data {bp(persist)} relfs rw 0 0\n/dev/usb {bp(usb)} vfat rw 0 0\n/dev/data2 {bp(data)} relfs rw 0 0\n')
 
     if os.environ.get('CMU_TEST_BUSYBOX'):
         busybox = shutil.which('busybox')
@@ -116,6 +125,11 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     write(bins / 'sync', '#!/bin/sh\nexit 0\n')
     write(bins / 'df', '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 1000000 1 900000 1%% internal\\n"\n')
     write(bins / 'mount', '#!/bin/sh\nexit 0\n')
+    for name in ['lua', 'setsid']:
+        write(bins / name, '#!/bin/sh\nexit 0\n')
+    with (usb / 'lib/gui-services.sh').open('a', encoding='utf-8') as f:
+        f.write('\nmzd_gui_services_stop() { :; }\n')
+        f.write('mzd_gui_services_start() { :; }\n')
     write(bins / 'dbus-send', '''#!/bin/sh
 case "${TEST_HUD:-whud}:$*" in
     none:*byte:13*) printf '   byte 0\\n' ;;
@@ -293,6 +307,21 @@ esac
         assert '<par>15800</par>' in text
         assert '<subscribe>TRUE</subscribe>' in text
 
+    # Verify GUI module and shared integration
+    gui_module = data / 'integration/mzd-gui-modules/android-auto'
+    assert (gui_module / 'manifest.conf').exists()
+    assert (gui_module / 'assets/view.html').exists()
+    assert (gui_module / 'assets/view.js').exists()
+    assert (gui_module / 'assets/resident.js').exists()
+    assert (gui_module / 'assets/service/entry.lua').exists()
+    assert (gui_module / 'assets/i18n.js').exists()
+    assert (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert (data / 'integration/mzd-gui-runtime').exists()
+    assert (data / 'integration/mzd-gui-registry.js').exists()
+    assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'android-auto\tassets/service/entry.lua'
+    assert '# MZD shared GUI services' in startup.read_text()
+    assert (persist / 'mzd-tweaks/gui-data/android-auto/owner').read_text() == 'MZD_GUI_DATA_V1\nandroid-auto\n'
+
     # Verify persistent package and settings
     saved = store / 'android-auto/package'
     saved_settings = (saved / 'settings.conf').read_text()
@@ -338,7 +367,7 @@ mzd_bundle_reset_main "$1"
 
     run_reset('check')
     run_reset('prepare')
-    assert len(list(archive.glob('payload-*'))) == 4
+    assert len(list(archive.glob('payload-*'))) == 3
     # Finish refuses until targets are restored to OEM hash
     run_reset('finish', 1)
 
@@ -347,6 +376,10 @@ mzd_bundle_reset_main "$1"
     assert config.read_text() == stock and second.read_text() == stock
     assert xml_std.read_text() == orig_std and xml_ucp.read_text() == orig_ucp
     assert not payload_dir.exists()
+    assert not gui_module.exists()
+    assert not (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert not (data / 'integration/mzd-gui-runtime').exists()
+    assert startup.read_text() == '#!/bin/sh\necho original\n'
     assert not lock.exists() and gpio.read_text() == '0\n'
 
     r = call(['statuses', 'android-auto'])
