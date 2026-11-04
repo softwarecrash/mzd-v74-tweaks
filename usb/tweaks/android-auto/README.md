@@ -32,6 +32,8 @@ Configurable in the installer UI or via `user/android-auto/settings.conf`:
 Once installed, an **Android Auto Settings** entry appears under the vehicle **Applications** menu.
 The interactive GUI allows managing runtime library settings directly on the CMU without replugging a USB drive:
 
+![Android Auto Settings Main Menu](../../../docs/images/android-auto-settings.gif)
+
 - **Touchscreen while driving** (`touch`) - enables touchscreen in Android Auto interface as long as touchscreen is unlocked in entire MZD Connect system with a separate tweak.
 - **Show navigation on HUD** (`hud`) - forwards turn-by-turn navigation arrows and distance from Android Auto to the head-up display (Active Driving Display). When turned off, navigation information stays on the center display only.
 - **Show speed limit with Nav SD** (`hud_transport`: `svcnavi` = ON, `vbs` = OFF) - routes HUD data through the car's built-in navigation service (`svcnavi`) so speed limit signs from the Mazda SD card remain visible alongside Android Auto directions. Turn off (`vbs`) only if your car does not have a factory navigation SD card and turns fail to display.
@@ -39,7 +41,7 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 - **Fix accented HUD letters** (`hud_fold_latin`) - replaces special accented letters (such as Vietnamese or Eastern European diacritics) with readable base letters on the head-up display. This prevents characters from appearing as blank spaces caused by the car display's limited font support.
 - **Detailed HUD turns & lanes** (`use_protocol_v1_6`) - enables the newer Android Auto navigation protocol (GAL 1.6) between your phone and the car. This sends rich navigation data to the head-up display, including lane recommendations, detailed junction maneuvers, and distance countdowns.
 - **Show roundabout exit number** (`roundabout_prepend_exit_number`) - displays which roundabout exit to take directly in front of the street name on the head-up display (for example, "(2) Main St") when exit angles are not provided by the navigation app (Waze). Compatible with windshield color HUD only.
-- **Show HUD turns within** (`hud_maneuver_max_distance_m`: `500`, `1000`, `1500`, `3000`, `5000`, `7500`, `10000`, `20000`, `0 = Unlimited`) - hides navigation arrows, the distance and the street name from the head-up display during long highway stretches when your next turn is far away, reducing clutter. Directions will reappear automatically once you get within the selected distance (or stay always visible with `0 = Unlimited`).
+- **Show HUD turns within** (`hud_maneuver_max_distance_m`: `500`, `1000`, `1500`, `3000`, `5000`, `7500`, `10000`, `20000`, `0 = Unlimited`) - hides navigation arrows, the distance and the street name from the head-up display during long highway stretches when your next turn is far away, reducing clutter. Directions will reappear automatically once you get within the selected distance (or stay always visible with `0 = Unlimited`). Displays the selected value on the right hand side and opens a dedicated single-choice submenu with checkmarks.
 - **Cluster compass always on** (`compass_always_on`) - keeps the digital compass in your instrument cluster working at all times. This fixes the issue where applying a touchscreen-while-driving tweak permanently disables the cluster compass.
 - **Allow unknown wireless adapters** (`bt_pairing_bypass_all_devices`) - allows aftermarket wireless Android Auto adapters (dongles) to connect even if their brand or model is not in the built-in recognized devices list. Enable this if your wireless adapter gets stuck while connecting.
 - **Show wireless adapter name** (`bt_pairing_show_device_notification`) - displays a temporary pop-up notification at the top of the screen showing the USB device name reported by your connected adapter. Useful for identifying an unrecognized wireless dongle.
@@ -129,13 +131,14 @@ When installing an aftermarket 10.25-inch screen (1920x720) in place of the fact
 
 - Set `resolution_par` to `15800` (factory default is `10670`) in `user/android-auto/settings.conf` or select it in the installer UI. This corrects the aspect ratio so Android Auto renders with sharp, undistorted proportions.
 
-### UI elements too small or crowded on aftermarket displays / divided screen
+### UI elements too small or crowded in divided screen mode
 
-On 10.25-inch displays or split screens, default DPI (`141`) or very low DPI (such as `103`) can either hide turn details in divided screen mode or make touch targets too small to press easily while driving.
+A very low DPI (such as `103`) can either hide turn details in divided screen mode or make touch targets too small to press easily while driving.
 
-**Solution:**
+**Solutions:**
 
 - Adjust `resolution_dpi` in `user/android-auto/settings.conf` (or via wireless adapter companion apps like AAWireless). A value of `122` provides an optimal balance where turn details remain visible on split screen while touch targets remain easy to tap.
+- On 10.25-inch aftermarket displays set DPI `153` when Pixel Aspect Ratio was corrected.
 
 ### Wireless Android Auto adapters and AI boxes (Carlinkit, P3.2, AAWireless)
 

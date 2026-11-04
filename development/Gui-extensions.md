@@ -163,6 +163,13 @@ independent registration, load/timeout/error handling and idempotent cleanup.
 A failure in one cooperative resident does not replace or close other modules.
 As with views, this is not a sandbox against hostile code or infinite loops.
 
+Because the resident persists across view openings, it can maintain in-memory state
+caches to render views instantly on subsequent opens, queue rapid consecutive user
+requests safely, and continue asynchronous persistence to its Lua backend service
+even if the driver closes the view before writes complete. When completing saves
+in the background, residents can display non-intrusive native Status Bar Notifications
+(SBN) via `framework.common.startTimedSbn` to confirm that changes were saved safely.
+
 A registered Lua entrypoint returns `function(context) ... end`. It returns a
 table with `request(operation,args)`, optional `image(kind,key)`, `tick()` and
 `close()`. Every service validates its own finite operations and argument schema;

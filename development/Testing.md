@@ -39,6 +39,7 @@ python tests/contract/test_packages.py
 python tests/contract/test_report_messages.py
 node tests/installer/test-ui.cjs
 node tests/installer/test-transport.cjs
+node tests/tweaks/android-auto/test-view.cjs
 ```
 
 The tests in `tests/installer/` use the built-in Node test runner (`node:test`): each

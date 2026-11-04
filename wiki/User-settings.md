@@ -104,7 +104,13 @@ vehicle display without replugging a USB drive.
 
 Once Android Auto Mod is installed and the CMU restarts, open **Applications > Android Auto Settings**
 from the vehicle home screen. You can review and toggle options using the commander
-knob or touchscreen. Changes are saved immediately to persistent storage.
+knob or touchscreen. The interface automatically adapts to your vehicle's selected
+language across 41 supported locales.
+
+Settings apply immediately with optimistic UI updates. If you exit the menu while
+changes are being written to persistent storage, the background resident process safely
+completes saving and displays a brief status bar notification toast ("Saving Android
+Auto settings...", "Android Auto settings saved.").
 
 ### Installer settings vs. runtime settings
 
