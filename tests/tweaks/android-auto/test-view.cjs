@@ -29,9 +29,13 @@ rootNode.style.cssText = 'old-style';
 rootNode.appendChild(frame);
 
 const document = { getElementById: () => status };
+let lastSbn = null;
 const common = {
     setSbName: v => { sb = v; },
-    setSbNameId: (app, id) => { sb = id; }
+    setSbNameId: (app, id) => { sb = id; },
+    startTimedSbn: (uiaId, sbnId, type, props) => {
+        lastSbn = { uiaId: uiaId, sbnId: sbnId, type: type, props: props };
+    }
 };
 
 const originalSend = () => {};
@@ -296,6 +300,54 @@ assert.equal(control.dataList.items[2].value, 2);
 assert.equal(control.dataList.items[2].checked, false);
 assert.equal(writes, 3);
 
+// 3b. Rapid consecutive clicks while save is in flight (queueing & race safety)
+let holdService = true;
+const heldCallbacks = [];
+const origServiceRequest = resident.service.request;
+const holdRequest = function (op, args, cb) {
+    if (holdService && op === 'set') {
+        queue.push(() => {
+            writes++;
+            savedSettings[args.key] = args.value;
+            heldCallbacks.push(() => cb(null, { success: true, settings: Object.assign({}, savedSettings) }));
+        });
+    } else {
+        origServiceRequest.call(this, op, args, cb);
+    }
+};
+resident.service.request = holdRequest;
+
+// User toggles touch to false (in flight, held)
+click(0);
+assert.equal(control.dataList.items[0].checked, false);
+assert.equal(writes, 4);
+
+// User immediately toggles hud to false while touch save is still in flight
+click(1);
+assert.equal(control.dataList.items[1].checked, false);
+// Second request was queued in view.js, not yet sent to service
+assert.equal(writes, 4);
+
+// First save completes
+holdService = false;
+heldCallbacks.shift()();
+flush(); // Processes first response, which sends the queued second request and its response
+assert.equal(writes, 5);
+resident.service.request = origServiceRequest;
+
+// Verify both settings were successfully saved and UI reflects both
+assert.equal(savedSettings.touch, false);
+assert.equal(savedSettings.hud, false);
+assert.equal(control.dataList.items[0].checked, false);
+assert.equal(control.dataList.items[1].checked, false);
+
+// Restore touch and hud to true
+click(0);
+assert.equal(savedSettings.touch, true);
+click(1);
+assert.equal(savedSettings.hud, true);
+assert.equal(writes, 7);
+
 // 4. Click distance row -> enters distance submenu
 click(7);
 assert.equal(sb, 'Show HUD turns within');
@@ -320,7 +372,7 @@ click(2);
 assert.equal(savedSettings.hud_maneuver_max_distance_m, 1000);
 assert.equal(control.dataList.items[0].checked, false);
 assert.equal(control.dataList.items[2].checked, true);
-assert.equal(writes, 4);
+assert.equal(writes, 8);
 
 // 6. Navigate back to main settings menu
 input('back');
@@ -341,7 +393,88 @@ assert.equal(fw.sendEventToMmui, originalSend, 'Original sendEventToMmui restore
 
 // Cleanup
 view.MzdGuiModule._dispose();
+flush();
+
+// 8. Test background save completion and SBN notification on exit
+lastSbn = null;
+holdService = true;
+resident.service.request = holdRequest;
+hostEvents.message({
+    source: view,
+    data: {
+        type: 'aa-request',
+        token: 'fixture-token',
+        action: 'set',
+        payload: { key: 'touch', value: false }
+    }
+});
+flush();
+assert.equal(writes, 9);
+
+// Driver leaves menu while save is in flight
+hostEvents.message({
+    source: view,
+    data: {
+        type: 'aa-native-release',
+        token: 'fixture-token',
+        savingMessage: 'Saving Android Auto settings...',
+        savedMessage: 'Android Auto settings saved.'
+    }
+});
+flush();
+
+assert.notEqual(lastSbn, null, 'Saving SBN emitted on exit while save in flight');
+assert.equal(lastSbn.uiaId, 'androidauto');
+assert.equal(lastSbn.type, 'typeD');
+assert.equal(lastSbn.props.sbnStyle, 'Style02');
+assert.equal(lastSbn.props.text1, 'Saving Android Auto settings...');
+assert.equal(lastSbn.props.imagePath1, 'common/images/icons/IcnSbnApps.png');
+
+// Background save finishes
+lastSbn = null;
+holdService = false;
+heldCallbacks.shift()();
+flush();
+
+assert.notEqual(lastSbn, null, 'Saved SBN emitted when background save finished');
+assert.equal(lastSbn.type, 'typeD');
+assert.equal(lastSbn.props.text1, 'Android Auto settings saved.');
+assert.equal(savedSettings.touch, false);
+
+// 8b. Untrusted aa-native-release is ignored
+lastSbn = null;
+hostEvents.message({
+    source: {},
+    data: {
+        type: 'aa-native-release',
+        token: 'untrusted-token',
+        savingMessage: 'Spoofed toast',
+        savedMessage: 'Spoofed toast'
+    }
+});
+assert.equal(lastSbn, null, 'Untrusted aa-native-release ignored');
+
+// 9. Re-entering view serves state immediately from resident cache
+let reloadedState = null;
+viewEvents.message = [event => {
+    if (event.data && event.data.type === 'aa-response') {
+        reloadedState = event.data.state;
+    }
+}];
+hostEvents.message({
+    source: view,
+    data: {
+        type: 'aa-request',
+        token: 'fixture-token',
+        action: 'get'
+    }
+});
+flush();
+assert.notEqual(reloadedState, null, 'Resident immediately returned cached state');
+assert.equal(reloadedState.hud_maneuver_max_distance_m, 1000);
+assert.equal(reloadedState.touch, false);
+
 hostEvents.unload();
 flush();
 
-console.log('ANDROID_AUTO_VIEW_PASSED: MZD Connect styling, styleOnOff checkboxes, distance submenu with style03 checkmarks, value display on main menu, back navigation and cleanup.');
+console.log('ANDROID_AUTO_VIEW_PASSED: MZD Connect styling, styleOnOff checkboxes, distance submenu with style03 checkmarks, value display on main menu, back navigation, SBN system toast and cleanup.');

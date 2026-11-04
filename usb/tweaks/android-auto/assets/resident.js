@@ -203,26 +203,116 @@
 window.MzdGuiResidents.register('android-auto', function (context) {
     'use strict';
     var nativeMenu = window.AaNativeMenu.create(), hostEnded = false;
+    var cachedSettings = null, cachedLoaded = false;
+    var queue = [], inFlight = false, syncing = false;
+    var lastSavedMessage = '';
+
+    function showSbn(text, isError) {
+        var fw = window.framework;
+        if (fw && fw.common && typeof fw.common.startTimedSbn === 'function') {
+            try {
+                fw.common.startTimedSbn('androidauto', 'AASettingsNotification', isError ? 'errorNotification' : 'typeD', {
+                    sbnStyle: 'Style02',
+                    imagePath1: 'common/images/icons/IcnSbnApps.png',
+                    text1: text
+                });
+            } catch (ignore) {}
+        }
+    }
+
     function frameToken(source) {
         var current = context.view();
         return current && current.source === source ? current.token : '';
     }
-    function reply(event, token, id, settings, error) {
-        if (hostEnded) { return; }
-        try {
-            event.source.postMessage({
-                type: 'aa-response',
-                token: token,
-                id: id,
-                state: settings,
-                error: error || ''
-            }, '*');
-        } catch (ignore) {}
+
+    function broadcastState(error) {
+        var current = context.view();
+        if (current && current.source && cachedSettings) {
+            try {
+                current.source.postMessage({
+                    type: 'aa-response',
+                    token: current.token,
+                    state: cachedSettings,
+                    error: error || ''
+                }, '*');
+            } catch (ignore) {}
+        }
     }
+
+    function syncFromService(cb) {
+        if (syncing) { return; }
+        syncing = true;
+        context.service.request('get', {}, function (error, result) {
+            syncing = false;
+            if (!error && result && result.settings) {
+                cachedSettings = result.settings;
+                cachedLoaded = true;
+                broadcastState('');
+            } else if (error) {
+                broadcastState(error);
+            }
+            if (cb) { cb(error, result); }
+        });
+    }
+
+    function hasQueuedKey(key) {
+        var i;
+        for (i = 0; i < queue.length; i += 1) {
+            if (queue[i].key === key) { return true; }
+        }
+        return false;
+    }
+
+    function drainQueue() {
+        if (hostEnded || inFlight || queue.length === 0) { return; }
+        var next = queue.shift();
+        inFlight = true;
+        context.service.request('set', { key: next.key, value: next.value }, function (error, result) {
+            inFlight = false;
+            if (error) {
+                queue = [];
+                if (lastSavedMessage) {
+                    showSbn('Failed to save Android Auto settings', true);
+                    lastSavedMessage = '';
+                }
+                syncFromService(function () {
+                    broadcastState(error);
+                });
+                return;
+            }
+            if (result && result.settings) {
+                for (var k in result.settings) {
+                    if (Object.prototype.hasOwnProperty.call(result.settings, k)) {
+                        if (!hasQueuedKey(k)) {
+                            cachedSettings[k] = result.settings[k];
+                        }
+                    }
+                }
+            }
+            broadcastState('');
+            if (queue.length > 0) {
+                drainQueue();
+            } else {
+                if (lastSavedMessage) {
+                    showSbn(lastSavedMessage, false);
+                    lastSavedMessage = '';
+                }
+            }
+        });
+    }
+
     function receive(event) {
         var data = event.data, token = frameToken(event.source), frames, frame, i;
-        if (data && data.type === 'aa-native-release' && nativeMenu.owns(event.source, data.token)) {
-            nativeMenu.close();
+        if (data && data.type === 'aa-native-release') {
+            if ((token && data.token === token) || (nativeMenu && nativeMenu.owns(event.source, data.token))) {
+                nativeMenu.close();
+                if (inFlight || queue.length > 0) {
+                    lastSavedMessage = data.savedMessage || 'Android Auto settings saved.';
+                    if (data.savingMessage) {
+                        showSbn(data.savingMessage, false);
+                    }
+                }
+            }
             return;
         }
         if (!token || !data || data.token !== token) { return; }
@@ -248,10 +338,31 @@ window.MzdGuiResidents.register('android-auto', function (context) {
             }
             return;
         }
-        if (data.type === 'aa-request' && typeof data.id === 'number') {
-            context.service.request(data.action, data.payload || {}, function (error, result) {
-                reply(event, token, data.id, result ? result.settings : null, error);
-            });
+        if (data.type === 'aa-request') {
+            if (data.action === 'get') {
+                if (cachedLoaded && cachedSettings) {
+                    broadcastState('');
+                } else {
+                    syncFromService();
+                }
+                return;
+            }
+            if (data.action === 'set' && data.payload && data.payload.key) {
+                if (!cachedSettings) { cachedSettings = {}; }
+                cachedSettings[data.payload.key] = data.payload.value;
+                var found = false;
+                for (i = 0; i < queue.length; i += 1) {
+                    if (queue[i].key === data.payload.key) {
+                        queue[i].value = data.payload.value;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    queue.push({ key: data.payload.key, value: data.payload.value });
+                }
+                drainQueue();
+            }
         }
     }
     var refresh = window.setInterval(function () {
@@ -267,19 +378,8 @@ window.MzdGuiResidents.register('android-auto', function (context) {
         window.clearInterval(refresh);
     });
     context.onServiceReady(function () {
-        context.service.request('get', {}, function (error, result) {
-            var current = context.view();
-            if (current && result && result.settings) {
-                try {
-                    current.source.postMessage({
-                        type: 'aa-response',
-                        token: current.token,
-                        id: 0,
-                        state: result.settings,
-                        error: error || ''
-                    }, '*');
-                } catch (ignore) {}
-            }
-        });
+        if (cachedLoaded) {
+            syncFromService();
+        }
     });
 });

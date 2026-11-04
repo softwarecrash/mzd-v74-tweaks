@@ -3,7 +3,7 @@
     var sdk = window.MzdGuiModule, status = document.getElementById('status');
     var ended = false, state = null, page = 'home', index = 0, positions = {home: 0, distance: 0}, notice = '';
     var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash);
-    var token = match ? match[1] : '', sequence = 0, pending = 0, timeout = null;
+    var token = match ? match[1] : '';
 
     var SETTINGS = [
         { key: 'touch', type: 'bool' },
@@ -98,21 +98,6 @@
         return result;
     }
 
-    function request(action, payload) {
-        if (ended) { return; }
-        pending = ++sequence;
-        post({type: 'aa-request', id: pending, action: action, payload: payload});
-        window.clearTimeout(timeout);
-        timeout = window.setTimeout(function () {
-            if (pending) {
-                pending = 0;
-                notice = tr('serviceUnavailable', 'Service unavailable. Please retry.');
-                if (status) { status.textContent = notice; }
-                render();
-            }
-        }, 15000);
-    }
-
     function open(next) {
         positions[page] = index;
         page = next;
@@ -130,12 +115,6 @@
     function back() {
         notice = '';
         if (!state || page === 'home') { return false; }
-        if (page === 'distance') {
-            page = 'home';
-            index = positions.home || 0;
-            render();
-            return true;
-        }
         page = 'home';
         index = positions.home || 0;
         render();
@@ -156,7 +135,7 @@
             if (state.hud_maneuver_max_distance_m !== selectedMeters) {
                 state.hud_maneuver_max_distance_m = selectedMeters;
                 render();
-                request('set', { key: 'hud_maneuver_max_distance_m', value: selectedMeters });
+                post({type: 'aa-request', action: 'set', payload: { key: 'hud_maneuver_max_distance_m', value: selectedMeters }});
             }
             return;
         }
@@ -165,7 +144,7 @@
             var newBool = !state[row.key];
             state[row.key] = newBool;
             render();
-            request('set', { key: row.key, value: newBool });
+            post({type: 'aa-request', action: 'set', payload: { key: row.key, value: newBool }});
             return;
         }
 
@@ -173,7 +152,7 @@
             var newTransport = (state[row.key] === 'svcnavi') ? 'vbs' : 'svcnavi';
             state[row.key] = newTransport;
             render();
-            request('set', { key: row.key, value: newTransport });
+            post({type: 'aa-request', action: 'set', payload: { key: row.key, value: newTransport }});
             return;
         }
 
@@ -221,17 +200,13 @@
             return;
         }
         if (data.type === 'aa-response') {
-            if (data.id !== 0 && data.id === pending) {
-                window.clearTimeout(timeout);
-                pending = 0;
-            }
             if (data.error) {
-                notice = tr('error', 'Failed to save');
+                notice = state ? tr('error', 'Failed to save') : tr('serviceUnavailable', 'Service unavailable. Please retry.');
                 if (status) { status.textContent = notice; }
-                request('get', {});
+                render();
             } else if (data.state) {
                 state = data.state;
-                if (status) { status.textContent = ''; }
+                if (status && !notice) { status.textContent = ''; }
                 render();
             }
         }
@@ -251,9 +226,12 @@
 
     function dispose() {
         if (ended) { return; }
-        post({type: 'aa-native-release'});
+        post({
+            type: 'aa-native-release',
+            savingMessage: tr('savingSettings', 'Saving Android Auto settings...'),
+            savedMessage: tr('savedSettings', 'Android Auto settings saved.')
+        });
         ended = true;
-        window.clearTimeout(timeout);
         window.removeEventListener('message', receive, false);
     }
 
@@ -279,5 +257,5 @@
         });
     }
 
-    request('get', {});
+    post({type: 'aa-request', action: 'get'});
 }());
