@@ -211,3 +211,9 @@ consumer lifecycle tests.
 bridge. With the private original CMU runtime available,
 `python tests/transport/test-in-vm.py --tetris` tests real Lua/filesystem highscore
 I/O under QEMU. A physical CMU visual/gameplay test remains separate evidence.
+
+## GUI extension preview and emulation
+
+For visual and interaction validation of GUI extensions before hardware deployment:
+- `sh tools/preview-menu.sh`: Generates a standalone interactive HTML preview of the tweak's menu entry and settings view in a local desktop browser.
+- `sh tools/preview-menu.sh --emu [path]`: Stages the tweak into the [mzd-emu](https://github.com/ScorpAL/mzd-emu) browser emulator using genuine `/jci` files from the CMU. See [Gui-extension-testing.md](Gui-extension-testing.md) for setup, `/jci` prerequisites, and emulator options.
