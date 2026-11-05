@@ -225,3 +225,22 @@ If you encounter a bug or an issue not covered above:
   - `libpatch.conf` (runtime configuration)
 - **Service configurations**: `/jci/sm/sm.conf` and `/jci/sm/sm_WCP.conf`
 - **System attributes**: `/etc/aap_system_attributes.xml` and `/etc/aap_system_attributes_UCP.xml`
+
+## Upstream provenance and source
+
+- Author: Vitaliy Kurokhtin (and contributors).
+- Release: https://github.com/VitaliyKurokhtin/oem-aa-mod/releases/tag/0.10.0
+- Source commit: `00122139bf3a27b79bb99f53e80dad8c15f7c56e`.
+- Release ZIP SHA256: `ba7a0c285269a87e8a199e38517de05da749a67df7ca016abb6d15e65112dc6a`.
+- Unmodified libraries SHA256:
+  - `libpatch-aap_service.so`: `b3a63c334d90be2810e2f22289e91eb71fab94de283edb4e504e00ceac656556`.
+  - `libpatch-blmjciaapa.so`: `a6b87f72ae31429cebe14eea5c6d3a4a2749d4ea643a8c73303b3437533ad5b5`.
+  - `libpatch-svcjcinavi.so`: `01f3939c764f6fb411b0898e77e88ffefb351404c81179070b2691f5406f9b56`.
+
+`source/oem-aa-mod-source.zip` contains the source snapshot at that commit,
+including the Makefile, common headers and build instructions. Use upstream's
+CMU m3-toolchain to rebuild. The source ZIP does not contain Git submodules;
+the documented toolchain must be obtained separately. The libraries are unchanged;
+the launcher integration, Applications menu settings view, and separate generated
+configuration are new.
+Upstream license: AGPL-3.0-or-later, included as LICENSE and in the source ZIP.
