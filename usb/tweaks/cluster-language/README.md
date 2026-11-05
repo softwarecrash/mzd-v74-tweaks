@@ -1,62 +1,65 @@
-# Instrument Cluster / HUD Language — test release
+# Instrument Cluster and HUD Language
 
-Standalone settings-service shim for CMU **74.00.324**. It overrides the display
-language code sent to the instrument cluster/HUD, leaving the CMU interface
-language unchanged. English may enable the HUD street-name line when the normal
-CMU language suppresses it. This also changes cluster/HUD warning text language.
-It does not install AA Mod, navigation or other AA/HUD functionality.
+Settings-service shim for CMU **74.00.324**. It changes the language code sent to
+the instrument cluster and HUD and leaves the CMU interface language unchanged.
 
-## Test with the launcher
+On some languages the HUD hides the street-name line. Choosing English can show
+it again. Tested on a Mazda 6 2019 EU with color HUD, 74.00.324A: Hungarian CMU
+with English UK shows the street name. Which other codes hide it is not known.
+The cluster/HUD warning texts follow the chosen language.
 
-1. Open **System > Instrument Cluster / HUD Language**.
-2. Choose **Cluster / HUD language = english** to force English, then select Install.
-   The default **off** passes through the normal CMU language code.
+## Use
+
+1. Open **System > Instrument Cluster and HUD Language**.
+2. Choose **Cluster / HUD language**, then select Install.
 3. Wait for Install completed, exit the installer and restart the CMU.
-4. Check CMU language, instrument-cluster/HUD text language, and street names
-   with the same navigation/AA setup used before installation.
-5. Use Uninstall and restart to remove this override. To test a different value,
-   uninstall first and install with the other choice. `off` installs the shim
-   in passthrough mode; it does not remove its loader entry.
+4. To choose another language, uninstall and install again.
 
-Own files are stored in
-`/tmp/mnt/data_persist/mzd-tweaks/shims/cluster-language/`:
-`libpatch-svcjciblmsettings.so` and generated `libpatch.conf`. The latter contains
-only the selected `hud_display_language` value from the manifest; no other
-AA Mod setting is imported or changed. Native modules must match the declared
-OEM fingerprints. Both sm.conf and sm_WCP.conf receive the jciBLMSettings preload
-entry, preserving other shims. There are no JS patches or AA Mod files here.
+**off** forwards the normal CMU language code. The list starts with the English
+variants; the others are in alphabetical order:
 
-An existing reference to another copy of this same shim blocks installation.
-Do not load two copies. Remove the old entry with its matching installer first;
-do not restore entire SM configs just to remove one existing shim. An unused
-old library/config file in the AA Mod folder is left alone.
+| Setting | Code | Setting | Code | Setting | Code |
+| --- | --- | --- | --- | --- | --- |
+| `en-uk` | 7 | `es-mx` | 6 | `pl` | 23 |
+| `en-us` | 4 | `fi` | 18 | `pt` | 13 |
+| `en-au` | 2 | `fr` | 8 | `ru` | 12 |
+| `ar` | 26 | `fr-ca` | 5 | `sk` | 20 |
+| `cs` | 19 | `hu` | 21 | `sv` | 15 |
+| `da` | 16 | `it` | 10 | `tr` | 22 |
+| `de` | 9 | `ja` | 1 | `uk` (Ukrainian) | 27 |
+| `es` | 11 | `nl` | 14 | `zh-cn`, `zh-tw` | 24, 25 |
 
-HUD absence/unknown/combiner types produce warnings, since this shim also
-changes the instrument cluster. Region and language do not gate installation:
-the override may have no visible benefit when the existing language already
-works. No speculative region/language query is used. Upstream reports a vehicle
-test on Mazda 6 2019 EU, color HUD, 74.00.324A with Hungarian CMU language and
-English override; this package still needs Piotr's own vehicle test.
+These are the codes the stock CMU sends. It sends 4 for any other language.
 
-## Upstream provenance and source
+To test another code, set **Custom language code** (1 to 255), or put
+`hud_display_code=<code>` in `user/cluster-language/settings.conf` on the USB
+drive. A value other than 0 replaces the language in the list.
 
-- Author: Patrik Guth; release supplied by Piotr Mocko.
-- Release: https://github.com/piotrmocko/oem-aa-mod/releases/tag/0.10.22
-- Change: https://github.com/VitaliyKurokhtin/oem-aa-mod/pull/43
-- Source commit: `187f331320e647063c85068b4975a83ecd87c64d`.
-- Release ZIP SHA256: `3dbdef66e4af0939617617f3cf1e5a59062b192b1f6cbe49a8cde1d260e69925`.
-- Unmodified library SHA256: `b8953d42edb9f7ada2b7b4c3742b4e382e5d9f14d2207eb0163b02587eb1d33a`.
+## Installed files
 
-`source/oem-aa-mod-source.zip` contains the source snapshot at that commit,
-including the Makefile, common headers and build instructions. Use upstream's
-CMU m3-toolchain to rebuild. The source ZIP does not contain Git submodules;
-the documented toolchain must be obtained separately. The library is unchanged;
-the launcher integration and separate generated configuration are new.
-Upstream license: AGPL-3.0-or-later, included as LICENSE and in the source ZIP.
+Own files are in `/tmp/mnt/data_persist/mzd-tweaks/shims/cluster-language/`:
+`libpatch-svcjciblmsettings.so` and the generated `libpatch.conf`. Do not edit
+that file by hand: the installer then reports the tweak as broken and refuses to
+uninstall it until the file is restored.
 
-The service has `reset_board=yes`: a library/process failure can restart the
-CMU. A copied file/header check cannot prove runtime compatibility. Never reboot
-after a critical installer error; inspect the USB report first.
+Both `sm.conf` and `sm_WCP.conf` receive the jciBLMSettings preload entry, and
+other shims are preserved. Native modules must match the declared OEM
+fingerprints. This tweak is independent of Android Auto Mod and has no JS patches.
 
-Action reports and `run.log` are saved on the originating USB under
+An existing reference to another copy of this shim blocks installation. Remove it
+with its own installer first. Do not restore entire SM configs to do that.
+
+No HUD, or an unknown or combiner HUD, gives a warning only, because the shim also
+changes the instrument cluster.
+
+## Source
+
+`src/mazda/patches/libpatch-svcjciblmsettings/`, built by `build/build.sh`.
+License: AGPL-3.0-or-later (see `LICENSE`).
+
+The service has `reset_board=yes`: a library or process failure can restart the
+CMU. Never reboot after a critical installer error; inspect the USB report first.
+
+The runtime log is `/tmp/cluster-language.log`. Action reports and `run.log` are
+saved on the originating USB under
 `reports/cluster-language/<action>-<timestamp>-<unique>/`.
