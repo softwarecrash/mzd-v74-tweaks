@@ -170,6 +170,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-bundles-') as temporary:
         assert r.returncode==code,(phase,r.stdout,r.stderr)
         checks+=1;return r
     write(payload_dir/'foreign.txt','keep me\n');hook('check',1);assert (payload_dir/'foreign.txt').exists();(payload_dir/'foreign.txt').unlink()
+    (payload_dir/'alpha.so').write_bytes(b'modified payload\n');hook('check',1);(payload_dir/'alpha.so').write_bytes(bytes(elf)+b'alpha')
     hook('check');hook('prepare');assert len(list(archive.glob('payload-*')))==3
     hook('finish',1);assert (payload_dir/'alpha.so').exists()
     for path in [config,second,target]:shutil.copyfile(path.with_name(path.name+'.org'),path)

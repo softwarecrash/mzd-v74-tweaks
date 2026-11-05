@@ -299,6 +299,15 @@ mzd_bundle_cleanup() (
             else printf 'Concurrent change prevents rollback: %s. Do NOT reboot.\n' "$target" >&4; result=1; fi
         done < "$MZD_REPORT/reverse"
     fi
+    if [ "${BUNDLE_COMMITTED:-0}" = 0 ] && [ -n "${GUI_API:-}" ] && [ -f "$MZD_REPORT/gui-transaction.path" ]; then
+        gui_tx=$(cat "$MZD_REPORT/gui-transaction.path") || result=1
+        if [ -n "$gui_tx" ] && [ -d "$gui_tx" ]; then
+            (mzd_gui_rollback "$gui_tx") || result=1
+        else
+            result=1
+        fi
+        rm -f "$MZD_REPORT/gui-transaction.path"
+    fi
     # Only unlink explicitly recorded temporaries belonging to a declared target.
     for ledger in "$MZD_REPORT/temp.path" "$MZD_REPORT/temps"; do
         [ -f "$ledger" ] || continue
@@ -348,6 +357,9 @@ mzd_bundle_apply() {
         esac
         mzd_system_remount_rw "$mount_point" || exit 1
     done
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_system_remount_rw /tmp/mnt/data || exit 1
+    fi
     needed=$(du -sk "$MZD_REPORT/plan" | awk '{print $1+1024}')
     available=$(df -Pk "$MZD_COMPONENT_STORAGE" | awk 'NR==2{print $4}')
     case "$needed:$available" in *[!0-9:]*|:*|*:) mzd_fail 'Cannot determine payload storage space.' ;; esac
@@ -405,6 +417,7 @@ mzd_bundle_apply() {
         else rmdir "$payload_dir" 2>/dev/null || :;fi
     fi
     sync; BUNDLE_COMMITTED=1
+    rm -f "$MZD_REPORT/gui-transaction.path"
     MZD_SUCCESS="$(printf '%s' "$ACTION" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') completed. Restart the CMU to apply the changes.
 Reports: $MZD_REPORT"
 }
@@ -455,7 +468,7 @@ mzd_bundle_reset_main() (
     case "$phase" in check|prepare|finish) ;; *) exit 1 ;; esac
     mzd_bundle_load || exit 1
     if [ "$phase" = check ] && [ -n "${GUI_API:-}" ]; then
-        mzd_gui_reset check || exit $?
+        (mzd_gui_reset check) || exit $?
     fi
     if [ "$phase" = prepare ] && [ -n "${GUI_API:-}" ]; then
         if [ -n "$GUI_SERVICE" ]; then

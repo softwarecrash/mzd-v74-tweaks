@@ -214,18 +214,29 @@ mzd_gui_undo() {
     done
     return "$result"
 }
+mzd_gui_rollback() {
+    GUI_TX=$1
+    [ -n "$GUI_TX" ] && [ -d "$GUI_TX" ] || return 1
+    rollback_failed=0
+    if ! mzd_gui_undo; then rollback_failed=1; fi
+    rm -f "$MZD_GUI_DATA/.mzd-gui-registry-$$"
+    if [ ! -f "$GUI_TX/had-modules-root" ]; then rmdir "$MZD_GUI_MODULES" 2>/dev/null || :; fi
+    sync
+    if [ "$rollback_failed" = 0 ]; then mzd_gui_services_start || rollback_failed=1; fi
+    [ "$rollback_failed" = 0 ] || return 1
+}
 mzd_gui_transaction_finish() {
     code=$?; trap - 0
     rollback_failed=0
     if [ "$code" != 0 ]; then
-        if ! mzd_gui_undo; then
+        if ! mzd_gui_rollback "$GUI_TX"; then
             rollback_failed=1; code=2
         fi
+        rm -f "${GUI_TX%/*}/gui-transaction.path"
     fi
     rm -f "$MZD_GUI_DATA/.mzd-gui-registry-$$"
-    if [ "$code" != 0 ] && [ ! -f "$GUI_TX/had-modules-root" ]; then rmdir "$MZD_GUI_MODULES" 2>/dev/null || :; fi
     sync
-    if [ "$rollback_failed" = 0 ]; then mzd_gui_services_start || code=2; fi
+    if [ "$rollback_failed" = 0 ] && [ "$code" = 0 ]; then mzd_gui_services_start || code=2; fi
     [ "$rollback_failed" != 1 ] || mzd_fatal 'GUI rollback failed. Do NOT reboot.'
     [ "$code" != 2 ] || mzd_fatal 'GUI operation was interrupted. Do NOT reboot; inspect the retained report.'
     exit "$code"
@@ -237,6 +248,7 @@ mzd_gui_mutate() (
     [ "$operation" != install ] || mzd_gui_capabilities || exit 1
     if [ -n "$GUI_SERVICE" ] || [ -s "$MZD_GUI_SERVICES" ]; then mzd_system_lock /tmp/mzd-stage_wifi-tweak.lock || exit 1; fi
     GUI_TX=$(mktemp -d "${2:-$MZD_REPORT}/gui-transaction.XXXXXX") || exit 1
+    printf '%s\n' "$GUI_TX" > "${2:-$MZD_REPORT}/gui-transaction.path" || exit 1
     mkdir "$GUI_TX/before" || exit 1
     : > "$GUI_TX/changed"
     [ ! -d "$MZD_GUI_MODULES" ] || : > "$GUI_TX/had-modules-root"

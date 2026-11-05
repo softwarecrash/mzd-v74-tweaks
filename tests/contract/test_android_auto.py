@@ -365,11 +365,91 @@ mzd_bundle_reset_main "$1"
         checks += 1
         return r
 
+    # Restore preflight must fail when a native payload is modified
+    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(b'modified shim payload')
+    r = run_reset('check', 1)
+    assert 'Unknown payload; reset refused' in r.stderr
+    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(orig_bytes)
+
     run_reset('check')
     run_reset('prepare')
     assert len(list(archive.glob('payload-*'))) == 3
     # Finish refuses until targets are restored to OEM hash
     run_reset('finish', 1)
+
+    # Failed loader replacement during uninstall must roll back both native and GUI components
+    real_mv = (shlex.quote(bp(shutil.which('busybox'))) + ' mv') if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(bp(shutil.which('mv') or '/bin/mv'))
+    write(bins / 'mv', f'''#!/bin/sh
+for value do case "$value" in {shlex.quote(bp(config))}.mzd-restore-*) exit 1 ;; esac; done
+exec {real_mv} "$@"
+''')
+    call(['action', 'android-auto', 'uninstall'], 1)
+    (bins / 'mv').unlink()
+
+    # Native installation remains intact
+    assert (payload_dir / 'libpatch-blmjciaapa.so').read_bytes() == (folder / 'assets/libpatch-blmjciaapa.so').read_bytes()
+    assert (payload_dir / 'libpatch-svcjcinavi.so').read_bytes() == (folder / 'assets/libpatch-svcjcinavi.so').read_bytes()
+    assert (payload_dir / 'libpatch-aap_service.so').read_bytes() == (folder / 'assets/libpatch-aap_service.so').read_bytes()
+    assert (payload_dir / 'libpatch.conf').read_text() == custom_asset_content
+    for path in [config, second]:
+        text = path.read_text()
+        assert 'libpatch-blmjciaapa.so' in text
+        assert 'libpatch-svcjcinavi.so' in text
+        assert 'libpatch-aap_service.so' in text
+    for text in [xml_std.read_text(), xml_ucp.read_text()]:
+        assert '<density>153</density>' in text
+        assert '<par>15800</par>' in text
+
+    # GUI installation remains intact
+    assert (gui_module / 'manifest.conf').exists()
+    assert (gui_module / 'assets/view.html').exists()
+    assert (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert (data / 'integration/mzd-gui-runtime').exists()
+    assert (data / 'integration/mzd-gui-registry.js').exists()
+    assert 'android-auto' in (data / 'integration/mzd-gui-registry.js').read_text()
+    assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'android-auto\tassets/service/entry.lua'
+    assert '# MZD shared GUI services' in startup.read_text()
+
+    # Deep status confirms installed state after rollback
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+    assert not lock.exists() and gpio.read_text() == '0\n'
+    assert not list(internal.glob('*.mzd-restore-*'))
+
+    # A failed native rollback followed by a successful GUI rollback must report exit code 2 and critical cleanup warning
+    failed = base / 'write-failed'
+    write(bins / 'mv', f'''#!/bin/sh
+for value do
+    case "$value" in
+        {shlex.quote(bp(second))}.mzd-restore-*)
+            touch {shlex.quote(bp(failed))}
+            exit 1
+            ;;
+        {shlex.quote(bp(config))}.mzd-restore-*)
+            [ ! -f {shlex.quote(bp(failed))} ] || exit 1
+            ;;
+    esac
+done
+exec {real_mv} "$@"
+''')
+    r = call(['action', 'android-auto', 'uninstall'], 2)
+    assert 'Cleanup failed; system state could not be fully restored. Do NOT reboot.' in r.stderr
+    (bins / 'mv').unlink()
+    failed.unlink()
+
+    # The installation remained incomplete, but GUI rollback succeeded
+    assert 'libpatch-blmjciaapa.so' not in config.read_text()
+    assert 'libpatch-blmjciaapa.so' in second.read_text()
+    assert (gui_module / 'manifest.conf').exists()
+    assert (gui_module / 'assets/view.html').exists()
+    assert (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert (data / 'integration/mzd-gui-runtime').exists()
+    assert (data / 'integration/mzd-gui-registry.js').exists()
+    assert 'android-auto' in (data / 'integration/mzd-gui-registry.js').read_text()
+    assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'android-auto\tassets/service/entry.lua'
+    assert '# MZD shared GUI services' in startup.read_text()
+
+    # Restore first loader so saved uninstall can restore baseline
+    write(config, second.read_text())
 
     # Saved uninstall restores baseline
     call(['action', 'android-auto', 'uninstall'])
