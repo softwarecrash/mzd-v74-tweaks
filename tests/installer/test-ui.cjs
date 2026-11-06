@@ -380,6 +380,7 @@ function boot(
           "utf8"
         );
       const defs = text.slice(text.indexOf("settings="));
+      const choiceDefault = /setting\.([a-z_]+)\.default=([^\r\n]+)\r?\nsetting\.\1\.options=/.exec(text);
       return ok(
         "settings_saved=" +
           (savedSettings[a[1]] ? "true" : "false") +
@@ -387,9 +388,8 @@ function boot(
           defs +
           "value.log_limit_mb=" +
           (savedSettings[a[1]] || "20") +
-          "\nvalue.compress=true\nvalue.profile=" +
-          (/setting.profile.default=([^\r\n]+)/.exec(text) || [])[1] +
-          "\n"
+          "\nvalue.compress=true\n" +
+          (choiceDefault ? "value." + choiceDefault[1] + "=" + choiceDefault[2] + "\n" : "")
       );
     }
     if (a[0] === "update-info")
@@ -3229,4 +3229,37 @@ test("AGGREGATE_RECOVERY", async (t) => {
       x.click("back");
     }
   );
+});
+
+test("LANGUAGE_LABELS", () => {
+  const fixture = fs.readFileSync(
+    path.join(ROOT, "../development/examples/settings/manifest.conf"), "utf8"
+  );
+  function openSettings(key, choices, initial) {
+    const ui = boot(null, false, false, false, true);
+    ui.savedSettings.schemaText = fixture.replace(/profile/g, key)
+      .replace("default=stock", "default=" + initial)
+      .replace("stock medium large", choices);
+    ui.nodes.tabs.children.find(n => n.textContent.indexOf("System") === 0).onclick();
+    ui.click("tweak-settings-example");
+    ui.pump();
+    return ui;
+  }
+  for (const key of ["language", "hud_display_language"]) {
+    const ui = openSettings(key, "de hu en-uk de-de off", "de");
+    const trigger = "setting-" + key + "-choice";
+    assert.equal(ui.doc.getElementById(trigger).textContent, "Deutsch");
+    ui.click(trigger);
+    const labels = ["Deutsch (selected)", "Magyar", "English (UK)", "de-de", "Off"];
+    for (const [index, label] of labels.entries()) {
+      assert.equal(ui.doc.getElementById("choice-option-" + index).textContent, label);
+    }
+    ui.click("choice-option-3");
+    assert.equal(ui.doc.getElementById(trigger).textContent, "de-de");
+    ui.click("action");
+    ui.pump();
+    assert(ui.calls.find(a => a[0] === "start-run").includes(key + "=de-de"));
+  }
+  const ui = openSettings("profile", "no yes", "no");
+  assert.equal(ui.doc.getElementById("setting-profile-choice").textContent, "No");
 });
