@@ -39,7 +39,24 @@ python tests/contract/test_packages.py
 python tests/contract/test_report_messages.py
 node tests/installer/test-ui.cjs
 node tests/installer/test-transport.cjs
+node tests/tweaks/android-auto/test-view.cjs
 ```
+
+The tests in `tests/installer/` use the built-in Node test runner (`node:test`): each
+reports its named tests and steps, and a failing step does not hide the others. CI runs
+every file of the folder in one step with `node --test "tests/installer/*.cjs"`, so a new
+test file there needs no workflow change; one file also runs with plain `node`. Give a
+pattern, not the folder (`node --test tests/installer/` fails with "Cannot find module"):
+
+```sh
+node --test "tests/installer/*.cjs"                                # run all of them
+node --test --experimental-test-coverage "tests/installer/*.cjs"   # and show the coverage
+```
+
+The coverage table at the end lists, per file, the lines, branches and functions the
+tests ran, and the numbers of the lines they never ran. It lists the test files too;
+add `--test-coverage-exclude='tests/**'` to see only the project's browser code. In a
+container: `sh tools/test-in-container.sh run node --test --experimental-test-coverage "tests/installer/*.cjs"`.
 
 The [validation workflow](../.github/workflows/validate-tweaks.yml) lists the full
 set, including BusyBox workers, patch combinations, SSH supervision, exports,
@@ -158,11 +175,14 @@ component/config-map parsers and vehicle helper with original CMU shell/awk.
 
 ## Opera startup compatibility
 
-Run `node tests/installer/test-es5.cjs` before the UI suite. It checks the runtime
-scripts/inline bootstrap as ES5 and rejects function declarations in statement
-blocks. Modern Node/Acorn accept some block-function extensions which the CMU
-Opera strict parser can reject before the first readiness event. Node 22's
-bundled Acorn parser supplies grammar parsing; no runtime npm dependency ships.
+`node tests/installer/test-es5.cjs` checks every script that CMU Opera runs (every
+`.js` file and every non-empty inline `<script>` of an `.html` page in `usb/` and
+`development/examples/`, in all subfolders) as ES5 and rejects function declarations
+in statement blocks. It checks the grammar only, not whether the browser has a
+built-in function such as `Array.prototype.includes`. Modern Node/Acorn accept some
+block-function extensions which the CMU Opera strict parser can reject before the
+first readiness event. Node 22's bundled Acorn parser supplies grammar parsing; no
+runtime npm dependency ships.
 `node tests/installer/test-startup-errors.cjs` checks independent early parse/error
 reporting through the transport iframe. Those diagnostics use event ui-error,
 never ready, and are retained in normal USB ui.log on launcher cleanup.
@@ -191,3 +211,9 @@ consumer lifecycle tests.
 bridge. With the private original CMU runtime available,
 `python tests/transport/test-in-vm.py --tetris` tests real Lua/filesystem highscore
 I/O under QEMU. A physical CMU visual/gameplay test remains separate evidence.
+
+## GUI extension preview and emulation
+
+For visual and interaction validation of GUI extensions before hardware deployment:
+- `sh tools/preview-menu.sh`: Generates a standalone interactive HTML preview of the tweak's menu entry and settings view in a local desktop browser.
+- `sh tools/preview-menu.sh --emu [path]`: Stages the tweak into the [mzd-emu](https://github.com/ScorpAL/mzd-emu) browser emulator using genuine `/jci` files from the CMU. See [Gui-extension-testing.md](Gui-extension-testing.md) for setup, `/jci` prerequisites, and emulator options.

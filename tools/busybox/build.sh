@@ -7,6 +7,7 @@
 # Result, in OUTDIR (default .cache/cmu-busybox/):
 #   busybox         the program
 #   busybox.config  the complete .config it was built with
+#   apt.log         what the installation of the compilers printed
 #   make.log        what the compiler printed
 #
 # Needs Docker. On an ARM machine whose processor runs 32-bit ARM programs (as GitHub's ubuntu-24.04-arm
@@ -48,7 +49,7 @@ sum=$(setting sha256)
 [ -n "$sum" ] || fail "source.conf has no sha256="
 
 # Never leave the result of an earlier run behind: after a failed build it would look like a new one.
-rm -f "$out/busybox" "$out/busybox.config" "$out/make.log"
+rm -f "$out/busybox" "$out/busybox.config" "$out/apt.log" "$out/make.log"
 
 say "1/8 Download the source"
 tarball=$out/download/$(basename "$url")

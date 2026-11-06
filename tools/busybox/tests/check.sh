@@ -20,6 +20,9 @@
 # the CMU's processor (cortex-a9) unless it is set already. A dynamic build also needs its libraries:
 #   QEMU_LD_PREFIX=FOLDER sh check.sh BUSYBOX
 set -u                 # no "set -e": a failed check must not stop the checks after it
+# Sort and compare in byte order, as the reference files are written, whatever the language of this machine.
+LC_ALL=C
+export LC_ALL
 
 here=$(cd "$(dirname "$0")" && pwd)   # the folder of this script, where the expected files are
 case_timeout=20                        # seconds per case: a case that hangs fails instead of blocking CI

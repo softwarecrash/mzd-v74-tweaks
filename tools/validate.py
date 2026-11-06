@@ -30,6 +30,14 @@ for folder in sorted((USB / 'tweaks').iterdir()):
         require((folder / m['reset_entrypoint']).is_file() and not (folder / m['reset_entrypoint']).is_symlink(), 'Reset hook missing or linked: ' + folder.name)
     if m['type'] in ['service', 'files', 'gui-extension']:
         require(m.get('reset_entrypoint') == 'reset.sh', 'Managed persistent extras require a reset hook: ' + folder.name)
+    if m.get('gui_entrypoint'):
+        require((folder / m['gui_entrypoint']).is_file() and not (folder / m['gui_entrypoint']).is_symlink(), 'GUI entrypoint missing or linked: ' + folder.name)
+    for key in ['gui_resident', 'gui_service', 'gui_translations']:
+        if m.get(key):
+            require((folder / m[key]).is_file() and not (folder / m[key]).is_symlink(), 'GUI asset missing or linked: ' + folder.name + ' (' + key + ')')
+    for key, val in m.items():
+        if key.startswith('config.') and key.endswith('.source') and val != '-':
+            require((folder / val).exists() and not (folder / val).is_symlink(), 'Config template source missing or linked: ' + folder.name + ' (' + val + ')')
     source = (folder / 'run.sh').read_text(encoding='utf-8')
     require(('mzd_manifest_load "$HERE/manifest.conf"' in source or (m['type']=='gui-extension' and 'mzd_gui_main "$@"' in source) or (CASES[m['id']] == 'export-command' and 'mzd_export_main "$@"' in source) or (m.get('shim_asset') and 'mzd_shim_main "$@"' in source) or (m.get('components') and 'mzd_bundle_main "$@"' in source)), 'Worker must load its manifest: ' + folder.name)
     require(not re.search(r'^(ID|FIRMWARE|APP|ORIGINAL|LOCK|REQUIRES|CONFLICTS)=', source, re.M),

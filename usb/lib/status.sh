@@ -60,9 +60,19 @@ mzd_status_dependencies() (
     done
 )
 
+# Restore retains its own target locks while verifying saved workers.
+mzd_status_lock_available() (
+    [ ! -e "$LOCK" ] && [ ! -L "$LOCK" ] && exit 0
+    [ "${MZD_PACKAGE_STATE:-}" = restoring ] &&
+        [ -d "$LOCK" ] && [ ! -L "$LOCK" ] &&
+        [ -n "$status_restore_report" ] &&
+        [ "$status_restore_system" = "$status_restore_report/system" ] &&
+        mzd_line_is "$LOCK" "$status_restore_system/locks"
+)
 mzd_read_status() (
     ACTION=${ACTION:-status}
-    [ ! -e "$LOCK" ] || mzd_fail 'Target is busy; retry status after the other operation.'
+    status_restore_report=${MZD_REPORT:-}; status_restore_system=${MZD_SYSTEM:-}
+    mzd_status_lock_available || mzd_fail 'Target is busy; retry status after the other operation.'
     mzd_require_assets "$SELF" "$HERE/manifest.conf" "$PATCH_FILE" || exit 1
     if command -v mzd_status_assets >/dev/null 2>&1; then mzd_status_assets || exit 1; fi
     [ -r /jci/version.ini ] || mzd_fail 'Cannot read the firmware version.'
@@ -112,7 +122,7 @@ mzd_read_status() (
             fi
         fi
     fi
-    [ ! -e "$LOCK" ] || mzd_fail 'Target is busy; retry status.'
+    mzd_status_lock_available || mzd_fail 'Target is busy; retry status.'
     if [ "$fast_original" = 1 ]; then
         [ "$(mzd_hash "$APP")" = "$observed" ] || mzd_fail 'Target changed during status inspection.'
     else

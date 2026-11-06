@@ -25,6 +25,13 @@ the controller before mutations and after completion. See
 [Persistent packages](Persistent-packages.md) for states, reset and first-use
 requirements. Command tweaks continue to execute from USB without installation.
 
+The launcher reads discovery metadata through one `installer.sh manifests`
+request and groups each detail view into `installer.sh details ID "section ..."`.
+These return JSON lines with each section's exit code, stdout and stderr.
+Read-only detail sections verify the data they use without acquiring the global
+package lock or reusing mutation-phase verification. Failed or truncated batches
+fall back to individual queries. Mutating operations perform their own checks.
+
 The launcher batches menu status through `installer.sh statuses "id1 id2"`.
 Without a saved installation, public status returns `uninstalled` without
 executing the worker. This means no registered installation, not a guarantee of
@@ -192,10 +199,35 @@ controller removes an old version. It is not a mutation action. Install repeats
 its compatibility check under the shared lock. A worker callback returns plain
 records only: no dialogs, mounts or writes. Workers may also define
 `mzd_bundle_patch` to dynamically configure patch components from effective settings.
+
+Bundles can configure service environment variables using `loader_env` records
+in `components.tsv` (`loader_env<TAB>NAME=VALUE<TAB>-<TAB>service<TAB>-`).
+Value strings must not contain quotes, control characters, backslashes, angle
+brackets or ampersands (`"`, `\r`, `\n`, `\`, `<`, `>`, `&`). Colon-separated
+path variables (such as `LD_LIBRARY_PATH`) are merged with existing definitions
+on installation. When uninstalled, only the tweak's declared tokens are removed;
+tokens still required by the OEM configuration or another installed tweak are
+preserved.
+
+Individual `shim` component records may specify `no_reset` in the 5th column
+instead of `-`. This sets `reset_board="no"` on the target service element to
+prevent reboot loops from unhandled exceptions, and records the original value
+so it can be restored on uninstall. Component status verification confirms that
+`reset_board="no"` remains active.
 See the [bundle example](examples/bundle/README.md) for transaction and upgrade limits.
 
 ## Shared GUI extensions
 
 `type=gui-extension` uses automatically managed GUI support and a saved consumer
-snapshot. See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
+snapshot. In addition, component bundle workers (`type=files`) can declare `gui_api=1`
+to attach an in-car Applications menu view, resident script, Lua backend service,
+and translations to their package.
+
+For hybrid bundle workers, `usb/lib/bundle.sh` automatically manages the GUI lifecycle:
+it runs GUI asset, capability, and service preflight checks during `validate-install`,
+serializes with other GUI operations using `/tmp/mzd-gui-extension.lock`, calls
+`mzd_gui_mutate install`/`uninstall`, incorporates GUI status into the worker's status
+result, stops registered services, and delegates cleanup phases to `mzd_gui_reset`.
+
+See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
 first/last-consumer lifecycle, ownership rules and development limits.

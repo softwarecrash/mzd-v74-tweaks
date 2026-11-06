@@ -170,7 +170,9 @@ same payload path. Independently managed loader files remain shareable patches.
 
 ## Removing a failed saved installation from the menu
 
-Opening a broken tweak detail view requests `installer.sh uninstall-check ID`.
+Opening a broken tweak detail view includes `uninstall-check` in the grouped
+`installer.sh details ID "... uninstall-check ..."` request. If the batch fails,
+the UI falls back to the individual `installer.sh uninstall-check ID` request.
 This is read-only and checks the snapshot inventory, recorded ownership/settings,
 state, uninstall action and dependents without executing its worker. It returns
 `available<TAB>VERSION<TAB>STATE` only when a saved uninstaller can be offered.
@@ -186,8 +188,12 @@ Install the USB version. There is no automatic reinstall or receipt deletion.
 ## Shared GUI extensions
 
 `type=gui-extension` saves each consumer independently and manages the common
-provider automatically. See [Shared GUI extensions](Gui-extensions.md) for the
-first/last-consumer lifecycle, ownership and development limits.
+provider automatically. Packages declaring `gui_api=1` (such as hybrid bundle
+workers) also register as GUI consumers, contributing to the shared provider
+lifecycle. Package payload tracking (`mzd_package_payload_paths`) automatically
+includes the tweak's GUI module files alongside its component targets.
+See [Shared GUI extensions](Gui-extensions.md) for the first/last-consumer lifecycle,
+ownership and development limits.
 
 ## Updating from USB
 

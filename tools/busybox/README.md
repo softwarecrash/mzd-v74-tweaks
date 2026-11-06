@@ -52,15 +52,16 @@ The workflow [`validate-tweaks.yml`](../../.github/workflows/validate-tweaks.yml
 | test the tweaks | `workers` (and later other tweak tests) | takes the prepared BusyBox, makes the test image with it (`image/make-image.sh`) and runs the tweak tests in that image (`image/run.sh`); does not check the BusyBox again | on every run |
 
 The cache holds only a BusyBox that passed its checks: GitHub saves the cache only when the job succeeded, so
-a BusyBox whose build or checks failed is never kept. Its key is made from the files of the build
-(`prepare.sh`, `build.sh`, `in-container.sh`, `source.conf`, `cmu_defconfig`) and of the checks (everything in `tests/`). When
+a BusyBox whose build or checks failed is never kept. Its key is the fingerprint that
+`prepare.sh --fingerprint` prints: a sha256 over the files of the build (`prepare.sh`, `build.sh`,
+`in-container.sh`, `source.conf`, `cmu_defconfig`) and of the checks (everything in `tests/`). When
 none of them changed, the job takes the BusyBox from the cache and skips the build and the checks. When one
 changed, it builds and checks again: a new or changed check always runs against the program before that
 program is used. A change of this README or of a tweak test changes nothing here.
 
-Locally `prepare.sh` does the same with a fingerprint instead of the cache: after all checks pass it writes a
-sha256 over the same files to `.cache/cmu-busybox/checked`, and the next run skips the build and the checks
-when it still matches. A failed build or check leaves no fingerprint.
+Locally `prepare.sh` does the same without the cache: after all checks pass it writes the same fingerprint to
+`.cache/cmu-busybox/checked`, and the next run skips the build and the checks when it still matches. The list of
+these files is kept only in `prepare.sh`. A failed build or check leaves no fingerprint.
 
 Where the jobs run: both jobs run on GitHub's ARM runner (`ubuntu-24.04-arm`). Its processor runs the 32-bit ARM
 compilers and BusyBox directly, without emulation, so CI needs no qemu. Measured against an x86 runner with qemu:
@@ -122,6 +123,7 @@ What it makes, in the folder given as the first argument (by default `.cache/cmu
 | --- | --- |
 | `busybox` | the built program |
 | `busybox.config` | the complete `.config` the program was built with |
+| `apt.log` | what the installation of the compilers printed |
 | `make.log` | what the compiler printed |
 | `download/` | the source tarball, kept so that the next build does not download it again |
 | `src/` | the unpacked source (read-only), made again by every build |
@@ -149,7 +151,8 @@ After step 3, `build.sh` starts a Debian squeeze armel container (`debian/eol:sq
 `linux/arm/v5`, pinned by its digest so it cannot change unnoticed) and runs `in-container.sh` in it.
 
 4. **Install the compilers.** Installs gcc 4.4.5 and eglibc 2.11.3, of the period of the CMU firmware. They
-   come from the Debian archive, so this step needs network.
+   come from the Debian archive, so this step needs network. What it prints goes to `apt.log`; if it fails, the
+   last 30 lines are shown.
 5. **Generate the configuration.** BusyBox's own configurator reads `cmu_defconfig` and writes the complete
    `.config` (`make defconfig KBUILD_DEFCONFIG=cmu_defconfig`): our decisions, and BusyBox's default for every
    other option.

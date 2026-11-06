@@ -4,7 +4,7 @@
 # yourself. What the container sees:
 #   /src            the BusyBox source, read-only
 #   /cmu_defconfig  the decisions, read-only
-#   /w              the output folder: busybox, busybox.config, make.log go there
+#   /w              the output folder: busybox, busybox.config, apt.log, make.log go there
 #   OWNER           uid:gid of the user who started build.sh; the files in /w are given back to them
 set -eu
 
@@ -19,8 +19,13 @@ trap 'chown -R "$OWNER" /w 2>/dev/null || true' EXIT
 say "4/8 Install the compilers"
 # squeeze's apt fails on IPv6 addresses: prefer IPv4.
 echo 'precedence ::ffff:0:0/96 100' >/etc/gai.conf
-apt-get update -qq
-apt-get install -y -qq --force-yes build-essential bzip2 >/dev/null 2>&1   # --force-yes: the archive keys expired
+# Their output goes to /w/apt.log (kept as the CI artifact of a failed build); on a failure its end is shown here.
+if ! { apt-get update -qq &&
+        apt-get install -y -qq --force-yes build-essential bzip2; } >/w/apt.log 2>&1; then  # --force-yes: the archive keys expired
+    echo "installing the compilers failed; the end of apt.log:" >&2
+    tail -n 30 /w/apt.log >&2
+    exit 1
+fi
 gcc --version | head -n 1
 ldd --version | head -n 1
 
@@ -61,4 +66,4 @@ fi
 
 say "8/8 Save the results"
 cp /tmp/out/busybox /w/busybox
-echo "/w/busybox, /w/busybox.config, /w/make.log"
+echo "/w/busybox, /w/busybox.config, /w/apt.log, /w/make.log"

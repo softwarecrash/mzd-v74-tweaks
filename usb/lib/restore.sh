@@ -63,6 +63,29 @@ mzd_restore_before_matches() {
         [ "$(mzd_hash "$1/before.data")" = "$(cat "$1/before.hash")" ] && cmp -s "$2" "$1/before.data"
     fi
 }
+# Old saved GUI reset hooks remove their startup block during prepare. Accept
+# only that exact deletion; every other byte and the OEM backup stay verified.
+mzd_restore_gui_block_removed() (
+    folder=$1; target=$2
+    [ "$target" = /jci/scripts/stage_wifi.sh ] &&
+        [ -f "$target" ] && [ ! -L "$target" ] &&
+        [ -f "$folder/before.data" ] &&
+        [ "$(mzd_hash "$folder/before.data")" = "$(cat "$folder/before.hash")" ] || exit 1
+    awk '
+        $0=="# MZD shared GUI services" {
+            markers++
+            if (getline <= 0 || $0!="sh /data/integration/mzd-gui-runtime/service/supervisor.sh boot >/dev/null 2>&1 &") exit 1
+            pairs++; next
+        }
+        $0=="sh /data/integration/mzd-gui-runtime/service/supervisor.sh boot >/dev/null 2>&1 &" {exit 1}
+        {print}
+        END {if(markers!=1 || pairs!=1)exit 1}
+    ' "$folder/before.data" > "$folder/without-gui.data" || exit 1
+    # awk must not silently repair a missing final newline.
+    block_bytes=$(printf '%s\n' '# MZD shared GUI services' 'sh /data/integration/mzd-gui-runtime/service/supervisor.sh boot >/dev/null 2>&1 &' | wc -c)
+    [ "$(( $(wc -c < "$folder/before.data") - $(wc -c < "$folder/without-gui.data") ))" = "$block_bytes" ] &&
+        cmp -s "$target" "$folder/without-gui.data"
+)
 mzd_restore_cleanup() (
     result=0
     if [ -f "$MZD_REPORT/temp.path" ]; then
@@ -199,7 +222,8 @@ mzd_restore_run() {
     while IFS= read -r backup; do
         index=$((index+1)); target=${backup%.org}; folder="$MZD_REPORT/files/$index"
         [ "$(mzd_hash "$folder/original.data")" = "$(cat "$folder/original.hash")" ] || mzd_fail 'USB original archive changed before restore.'
-        cmp -s "$backup" "$folder/original.data" && mzd_restore_before_matches "$folder" "$target" || mzd_fail 'A target or backup changed after preflight; restore aborted.'
+        cmp -s "$backup" "$folder/original.data" &&
+            { mzd_restore_before_matches "$folder" "$target" || mzd_restore_gui_block_removed "$folder" "$target"; } || mzd_fail 'A target or backup changed after preflight; restore aborted.'
         mount_point=$(mzd_restore_mount_for "$target") || mzd_fail 'Cannot identify target mount.'
         mzd_system_watchdog_disable || exit 1
         mzd_system_remount_rw "$mount_point" || exit 1

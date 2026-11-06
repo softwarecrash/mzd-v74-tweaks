@@ -22,6 +22,10 @@ a service starts directly: it is installed with mode 0755, and status reports
 it broken if that mode is lost. Use `config` for
 this literal key/value format. Other formats require a separately reviewed
 renderer; do not embed shell substitutions or executable templates in metadata.
+For tweaks that require interactive runtime configuration updates directly on the
+CMU (such as Android Auto Mod), prefer declaring mutable configuration
+(`config.<name>.path` and `config.<name>.source`) coupled with an in-car GUI
+extension (`gui_api=1`) and a Lua service backend rather than a static component.
 Existing foreign settings are not imported automatically. A future explicit
 import must validate each supported value against the manifest before use.
 
@@ -30,10 +34,11 @@ import must validate each supported value against the manifest before use.
 `components=components.tsv` enables the shared bundle worker. Each non-comment
 line has five nonempty tab-separated fields. `-` means unused:
 
-| Kind | Target | Source | Service | OEM MD5 |
+| Kind | Target | Source | Service | Options / OEM MD5 |
 | --- | --- | --- | --- | --- |
 | loader | absolute SM config | - | - | original fingerprint |
-| shim | private persistent .so | assets/name.so | service name | - |
+| shim | private persistent .so | assets/name.so | service name | `-` or `no_reset` |
+| loader_env | `NAME=VALUE` | - | service name | - |
 | config | private persistent config | assets/name.map | - | - |
 | file | private persistent file | assets/name | - | - |
 | executable | private persistent file, mode 0755 | assets/name | - | - |
@@ -42,7 +47,12 @@ line has five nonempty tab-separated fields. `-` means unused:
 
 Shims are inserted into their named services in every declared loader file.
 Different shims may use different services, or share a service. Existing preload
-tokens remain intact. Each patch must modify only relative `target.data` and
+tokens remain intact. Setting the 5th column to `no_reset` on a `shim` configures
+`reset_board="no"` on that service and restores the previous value on uninstall.
+`loader_env` records inject or merge environment variables (like `LD_LIBRARY_PATH`)
+into the specified service; colon-delimited path lists are merged without duplicates,
+and entries needed by OEM or other packages are preserved when uninstalled.
+Each patch must modify only relative `target.data` and
 have an exact inverse. A bundle may include several patches on distinct files;
 combine edits to the same file into one reviewed patch.
 

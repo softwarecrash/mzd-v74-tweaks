@@ -45,8 +45,17 @@ mzd_gui_module_owned() (
         else [ -f "$source/$rel" ] && cmp -s "$source/$rel" "$path" || { mzd_gui_error 'Changed module file; nothing removed.'; exit 1; }; fi
     done
 )
+# A complete module needs one content comparison, not per-file cmp plus diff.
 mzd_gui_module_complete() (
-    [ -f "$2/manifest.conf" ] && cmp -s "$1/manifest.conf" "$2/manifest.conf" && diff -r "$1/assets" "$2/assets" >/dev/null
+    source=$1; target=$2
+    mzd_package_tree_ok "$target" || exit 1
+    for path in "$target"/* "$target"/.[!.]* "$target"/..?*; do
+        [ -e "$path" ] || continue
+        case "${path##*/}" in manifest.conf|assets) ;; *) exit 1 ;; esac
+    done
+    [ -f "$target/manifest.conf" ] && [ -d "$target/assets" ] &&
+        cmp -s "$source/manifest.conf" "$target/manifest.conf" &&
+        diff -r "$source/assets" "$target/assets" >/dev/null
 )
 mzd_gui_support() (
     if [ ! -e "$MZD_GUI_PROVIDER" ]; then
@@ -71,8 +80,8 @@ mzd_gui_support() (
         diff -r "$MZD_GUI_PROVIDER/package/lib/gui-runtime" "$MZD_GUI_RUNTIME" >/dev/null &&
         cmp -s "$MZD_GUI_REGISTRY" "$MZD_GUI_PROVIDER/registry.js" || mzd_gui_error 'Deployed GUI support is missing or changed.'
 )
-mzd_gui_record() (
-    mzd_manifest_load "$1/manifest.conf" || exit 1
+# Caller has loaded this exact manifest; verification helpers use subshells.
+mzd_gui_record_loaded() (
     resident=-; service=-; translations=-
     [ -z "$GUI_RESIDENT" ] || resident="/data/integration/mzd-gui-modules/$ID/$GUI_RESIDENT"
     [ -z "$GUI_SERVICE" ] || service=$GUI_SERVICE
@@ -81,27 +90,27 @@ mzd_gui_record() (
 )
 # Caller/candidate is excluded; all other consumers come from verified receipts.
 mzd_gui_collect() (
-    exclude=$1
+    exclude=$1; consumers=' '
     for entry in "$MZD_PACKAGE_STORE"/*; do
         [ -d "$entry" ] || continue
         [ "${entry##*/}" != "$exclude" ] || continue
         mzd_manifest_load "$entry/package/tweaks/${entry##*/}/manifest.conf" || exit 1
-        [ "$TYPE" = gui-extension ] || continue
+        [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || continue
         mzd_package_check "$entry" || exit 1
         state=$(mzd_package_state "$entry") || exit 1
+        consumers="$consumers${entry##*/} "
         path="$MZD_GUI_MODULES/${entry##*/}"
         if [ "$state" = restoring ] && [ ! -e "$path" ]; then continue; fi
         [ "$state" = installed ] || [ "$state" = restoring ] || { mzd_gui_error 'Resolve incomplete GUI consumers before changing shared support.'; exit 1; }
-        mzd_gui_module_owned "$entry/package/tweaks/${entry##*/}" "$path" &&
-            mzd_gui_module_complete "$entry/package/tweaks/${entry##*/}" "$path" || exit 1
-        mzd_gui_record "$entry/package/tweaks/${entry##*/}" || exit 1
+        mzd_gui_module_complete "$entry/package/tweaks/${entry##*/}" "$path" || exit 1
+        mzd_gui_record_loaded || exit 1
     done
     for path in "$MZD_GUI_MODULES"/* "$MZD_GUI_MODULES"/.[!.]* "$MZD_GUI_MODULES"/..?*; do
         [ -e "$path" ] || [ -L "$path" ] || continue
         [ "${path##*/}" != "$exclude" ] || continue
         mzd_manifest_id "${path##*/}" && [ -d "$MZD_PACKAGE_STORE/${path##*/}" ] || { mzd_gui_error 'Unregistered GUI directory; nothing deleted.'; exit 1; }
-        mzd_manifest_load "$MZD_PACKAGE_STORE/${path##*/}/package/tweaks/${path##*/}/manifest.conf" || exit 1
-        [ "$TYPE" = gui-extension ] || exit 1
+        # Only consumers already checked above may own deployed directories.
+        case "$consumers" in *" ${path##*/} "*) ;; *) exit 1 ;; esac
     done
 )
 mzd_gui_status() (
@@ -112,7 +121,16 @@ mzd_gui_status() (
             printf 'GUI resources are busy; retry status after the other operation.\n' >&2; exit 1;
         }
     fi
-    mzd_gui_locations && mzd_gui_support && mzd_gui_module_owned "$HERE" "$MZD_GUI_MODULES/$ID" || {
+    module_complete=0
+    mzd_gui_locations && mzd_gui_support && {
+        if mzd_gui_module_complete "$HERE" "$MZD_GUI_MODULES/$ID"; then
+            module_complete=1
+        else
+            # On incomplete/changed modules retain the ownership diagnosis and
+            # allow safe removal of missing files. Healthy modules skip this scan.
+            mzd_gui_module_owned "$HERE" "$MZD_GUI_MODULES/$ID"
+        fi
+    } || {
         if [ -e "$MZD_GUI_MODULES/$ID" ] && mzd_package_check "$MZD_PACKAGE_STORE/$ID" >/dev/null 2>&1; then printf 'broken\n'; else printf 'unavailable\n'; fi
         exit 0
     }
@@ -123,7 +141,7 @@ mzd_gui_status() (
         else printf 'uninstalled\n'; fi
         exit 0
     fi
-    if ! mzd_gui_module_complete "$HERE" "$MZD_GUI_MODULES/$ID" || [ ! -e "$MZD_GUI_PROVIDER" ]; then
+    if [ "$module_complete" != 1 ] || [ ! -e "$MZD_GUI_PROVIDER" ]; then
         printf 'broken\n'; printf 'GUI module is incomplete.\n' >&2; exit 0
     fi
     if [ -n "$GUI_SERVICE" ]; then
@@ -196,18 +214,29 @@ mzd_gui_undo() {
     done
     return "$result"
 }
+mzd_gui_rollback() {
+    GUI_TX=$1
+    [ -n "$GUI_TX" ] && [ -d "$GUI_TX" ] || return 1
+    rollback_failed=0
+    if ! mzd_gui_undo; then rollback_failed=1; fi
+    rm -f "$MZD_GUI_DATA/.mzd-gui-registry-$$"
+    if [ ! -f "$GUI_TX/had-modules-root" ]; then rmdir "$MZD_GUI_MODULES" 2>/dev/null || :; fi
+    sync
+    if [ "$rollback_failed" = 0 ]; then mzd_gui_services_start || rollback_failed=1; fi
+    [ "$rollback_failed" = 0 ] || return 1
+}
 mzd_gui_transaction_finish() {
     code=$?; trap - 0
     rollback_failed=0
     if [ "$code" != 0 ]; then
-        if ! mzd_gui_undo; then
+        if ! mzd_gui_rollback "$GUI_TX"; then
             rollback_failed=1; code=2
         fi
+        rm -f "${GUI_TX%/*}/gui-transaction.path"
     fi
     rm -f "$MZD_GUI_DATA/.mzd-gui-registry-$$"
-    if [ "$code" != 0 ] && [ ! -f "$GUI_TX/had-modules-root" ]; then rmdir "$MZD_GUI_MODULES" 2>/dev/null || :; fi
     sync
-    if [ "$rollback_failed" = 0 ]; then mzd_gui_services_start || code=2; fi
+    if [ "$rollback_failed" = 0 ] && [ "$code" = 0 ]; then mzd_gui_services_start || code=2; fi
     [ "$rollback_failed" != 1 ] || mzd_fatal 'GUI rollback failed. Do NOT reboot.'
     [ "$code" != 2 ] || mzd_fatal 'GUI operation was interrupted. Do NOT reboot; inspect the retained report.'
     exit "$code"
@@ -219,6 +248,7 @@ mzd_gui_mutate() (
     [ "$operation" != install ] || mzd_gui_capabilities || exit 1
     if [ -n "$GUI_SERVICE" ] || [ -s "$MZD_GUI_SERVICES" ]; then mzd_system_lock /tmp/mzd-stage_wifi-tweak.lock || exit 1; fi
     GUI_TX=$(mktemp -d "${2:-$MZD_REPORT}/gui-transaction.XXXXXX") || exit 1
+    printf '%s\n' "$GUI_TX" > "${2:-$MZD_REPORT}/gui-transaction.path" || exit 1
     mkdir "$GUI_TX/before" || exit 1
     : > "$GUI_TX/changed"
     [ ! -d "$MZD_GUI_MODULES" ] || : > "$GUI_TX/had-modules-root"
@@ -226,7 +256,7 @@ mzd_gui_mutate() (
     mzd_gui_collect "$ID" > "$GUI_TX/records" || exit 1
     if [ "$operation" = install ]; then
         [ ! -e "$MZD_GUI_MODULES/$ID" ] || { mzd_gui_error 'Existing module must be removed by its saved worker.'; exit 1; }
-        mzd_gui_record "$HERE" >> "$GUI_TX/records" || exit 1
+        mzd_gui_record_loaded >> "$GUI_TX/records" || exit 1
     fi
     LC_ALL=C sort "$GUI_TX/records" > "$GUI_TX/sorted" || exit 1
     awk -f "$ROOT/lib/gui-registry.awk" "$GUI_TX/sorted" > "$GUI_TX/registry.js" || exit 1
@@ -276,7 +306,7 @@ mzd_gui_main() {
     if [ "${MZD_WORKER_DIRECT:-}" != 1 ] && [ "$ACTION" != validate-install ]; then exec sh "$ROOT/installer.sh" action "$(basename "$HERE")" "$ACTION"; fi
     for library in manifest report system packages gui-services; do . "$ROOT/lib/$library.sh" || exit 1; done
     mzd_manifest_load "$HERE/manifest.conf" || exit 1
-    [ "$TYPE" = gui-extension ] || exit 1
+    [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || exit 1
     mzd_gui_assets "$HERE" || exit 1
     if [ "$ACTION" = validate-install ]; then
         mzd_validate_firmware "$FIRMWARE" && mzd_gui_locations && mzd_gui_support && mzd_gui_capabilities && mzd_gui_services_preflight
@@ -297,7 +327,7 @@ mzd_gui_main() {
 }
 mzd_gui_reset() {
     [ "$#" = 1 ] || exit 1
-    SELF=$(readlink -f "$0") || exit 1; HERE=$(dirname "$SELF"); ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
+    SELF=$(readlink -f "$0") || exit 1; HERE=${HERE:-$(dirname "$SELF")}; ROOT=${ROOT:-$(CDPATH= cd "$HERE/../.." && pwd)} || exit 1
     for library in manifest report system packages gui-services; do . "$ROOT/lib/$library.sh" || exit 1; done
     mzd_manifest_load "$HERE/manifest.conf" || exit 1
     case "$1" in check|prepare|finish) ;; *) exit 1 ;; esac
@@ -309,7 +339,7 @@ mzd_gui_reset() {
     [ "$1" != check ] || exit 0
     [ "${ACTION:-}" = run ] && [ -d "${MZD_SYSTEM:-}" ] && [ -d "${MZD_RESET_DIR:-}" ] || exit 1
     if [ "$1" = prepare ]; then
-        mzd_system_lock "$LOCK" && mzd_system_remount_rw /tmp/mnt/data && mzd_system_remount_rw /tmp/mnt/data_persist || exit 1
+        mzd_system_lock /tmp/mzd-gui-extension.lock && mzd_system_lock "$LOCK" && mzd_system_remount_rw /tmp/mnt/data && mzd_system_remount_rw /tmp/mnt/data_persist || exit 1
         mzd_gui_mutate uninstall "$MZD_RESET_DIR" || exit $?
     else [ ! -e "$MZD_GUI_MODULES/$ID" ] || exit 1; fi
 }

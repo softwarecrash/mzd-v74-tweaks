@@ -54,15 +54,17 @@ run_in() {
 }
 
 # cmu_image: a checked CMU-like BusyBox (built only when its files changed) and the test image made from it.
+# The steps are joined with && because "workers || ..." below turns set -e off inside the function: without them
+# a failed build or check would be ignored.
 cmu_image() {
-    sh "$ROOT/tools/busybox/prepare.sh"
-    sh "$ROOT/tools/busybox/image/make-image.sh" "$ROOT/.cache/cmu-busybox/busybox" cmu-tweak-test:local
+    sh "$ROOT/tools/busybox/prepare.sh" &&
+        sh "$ROOT/tools/busybox/image/make-image.sh" "$ROOT/.cache/cmu-busybox/busybox" cmu-tweak-test:local
 }
 
 workers() {
     echo "=== workers: worker suite in the test image (only the CMU-like BusyBox, user cmu, 128 kB stack)"
-    cmu_image
-    sh "$ROOT/tools/busybox/image/run.sh" /usr/local/bin/python3 tests/contract/test_workers.py
+    cmu_image &&
+        sh "$ROOT/tools/busybox/image/run.sh" /usr/local/bin/python3 tests/contract/test_workers.py
 }
 
 case "${1:-all}" in
@@ -74,7 +76,7 @@ case "${1:-all}" in
         exit "$status" ;;
     workers) workers ;;
     run) shift; [ $# -gt 0 ] || usage; run_in ubuntu "$@" ;;
-    busybox) shift; [ $# -gt 0 ] || usage; cmu_image; sh "$ROOT/tools/busybox/image/run.sh" "$@" ;;
+    busybox) shift; [ $# -gt 0 ] || usage; cmu_image && sh "$ROOT/tools/busybox/image/run.sh" "$@" ;;
     -h|--help|help) usage ;;
     *) usage ;;
 esac

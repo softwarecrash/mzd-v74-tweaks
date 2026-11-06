@@ -30,3 +30,10 @@ saved uninstaller is used automatically.
 
 When leaving after changes that need a restart, select **Restart** or **Exit** to
 leave without restarting. A critical error can disable Restart; follow its message.
+
+## After installation: Applications menu extensions
+
+Certain tweaks (such as GUI extensions or interactive mods like Android Auto Mod)
+register on-screen interfaces directly under the car's native **Applications** menu.
+After restarting the CMU, open **Applications** on the vehicle home screen to access
+installed applications and in-car settings menus.

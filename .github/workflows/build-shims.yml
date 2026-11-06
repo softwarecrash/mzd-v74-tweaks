@@ -1,0 +1,92 @@
+name: Build shims
+
+# Builds the shims in src/mazda/patches/ with the m3-toolchain, so users never have to.
+#
+#  - pull request: the shipped usb/tweaks/*/assets/<name>.so must be exactly what
+#    the sources build to, and the shim tests run on it under qemu-arm.
+#  - push to development that touches the shim sources (or manual run): if the
+#    build output differs from the shipped assets, open a PR that updates them.
+#    (Needs: Settings > Actions > General > "Allow GitHub Actions to create and
+#    approve pull requests".)
+on:
+  push:
+    branches: [development]
+    paths:
+      - 'src/mazda/**'
+      - 'build/**'
+      - 'tests/tweaks/*/shim/**'
+      - '.gitmodules'
+      - '.github/workflows/build-shims.yml'
+      - '.github/actions/m3-toolchain/**'
+  pull_request:
+    branches: [development]
+    paths:
+      - 'src/mazda/**'
+      - 'build/**'
+      - 'usb/tweaks/*/assets/*.so'
+      - 'tests/tweaks/*/shim/**'
+      - '.gitmodules'
+      - '.github/workflows/build-shims.yml'
+      - '.github/actions/m3-toolchain/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-shims-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/m3-toolchain
+
+      - name: Build shims
+        run: |
+          set -euo pipefail
+          sh build/build.sh
+          for so in $(git ls-files 'usb/tweaks/*/assets/*.so'); do
+            [ -d "src/mazda/patches/$(basename "$so" .so)" ] || continue
+            file "$so"
+            file "$so" | grep -q 'ELF 32-bit.*ARM' || { echo "::error::$so is not an ARM shared object"; exit 1; }
+          done
+          git status --short usb/tweaks
+
+      - name: Test the shims under qemu-arm
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user
+          for test in tests/tweaks/*/shim/run.sh; do
+            sh "$test"
+          done
+
+      - name: Shipped shims match their sources
+        if: github.event_name == 'pull_request'
+        run: |
+          if ! git diff --exit-code --stat -- 'usb/tweaks/*/assets/*.so'; then
+            echo "::error::Rebuild with build/build.sh and commit the shim assets."
+            exit 1
+          fi
+
+      # Propose the new binaries as a PR (only if they changed).
+      - name: Open PR with updated shims
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: usb/tweaks/*/assets/*.so
+          branch: auto/update-shims
+          delete-branch: true
+          commit-message: "chore: Rebuild shims from src/mazda/patches"
+          title: "chore: Rebuild shims from src/mazda/patches"
+          body: |
+            Automatically built by the Build shims workflow with the m3-toolchain pinned by
+            the `src/mazda/m3-toolchain` submodule.

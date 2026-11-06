@@ -10,8 +10,12 @@ No downloaded modules or custom ARM executables are needed on the CMU.
 Arguments stay separate; no os.execute, io.popen or shell command concatenation.
 Both output streams are bounded at 64 KiB. A disconnect or server termination
 does not abort an active modifying worker. Only recognized read-only status
-requests have a 30-second deadline and their own process group, with TERM then
-KILL after two seconds. Install/uninstall/restore/Run are never timed out here.
+requests have a 30-second deadline (90 seconds for grouped `details`) and their
+own process group, with TERM then KILL after two seconds. This includes the
+`manifests` scan. A failed, timed-out or truncated aggregate response falls back
+to individual UI queries with their original per-query limits. Read-only details
+never acquire the global package mutation lock. Install/uninstall/restore/Run
+are never timed out here.
 
 Detailed HTTP/process diagnostics require logging=debug in installer.conf.
 Normal operation records startup/shutdown and failed worker output in RAM,

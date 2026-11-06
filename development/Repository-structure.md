@@ -11,6 +11,9 @@
 | `development/tweaks/` | Tweak-specific implementation notes |
 | `development/test-runs/` | Reviewed evidence and the manual test template |
 | `tests/` | Executable isolated, behavior and transport tests |
+| `src/mazda/patches/<name>/` | C sources of shims shipped as `usb/tweaks/*/assets/<name>.so` |
+| `src/mazda/m3-toolchain` | CMU cross-compiler submodule pinned for reproducible shim builds |
+| `build/` | Developer build scripts (`build/build.sh` rebuilds the shims) |
 | `tools/` | Validation, local styling preview and Wiki publishing tools |
 | `wiki/` | User documentation published to the GitHub Wiki |
 | `docs/` | Website sources |

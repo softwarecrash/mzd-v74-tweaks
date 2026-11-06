@@ -183,7 +183,7 @@ printf '%s\\n' "$1" > ''' + shlex.quote(bp(nvram / 'keys')) + '''/"$key"
         # A failed install retains its durable baseline for saved removal.
         mutate('uninstall'); assert not state.exists()
     # A patch write failure rolls settings back as well.
-    write(bins / 'cat', '#!/bin/sh\ncase "$1" in */target/install/target.data) exit 1 ;; esac\nexec /usr/bin/cat "$@"\n')
+    write(bins / 'cat', '#!/bin/sh\ncase "$1" in */target/install/target.data) exit 1 ;; esac\nexec /bin/cat "$@"\n')
     mutate('install', 1); values('enable', 'enable')
     (bins / 'cat').unlink(); mutate('uninstall')
     write(base / 'fail-always', '1\n'); r = mutate('install', 2)

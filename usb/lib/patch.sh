@@ -127,7 +127,13 @@ mzd_patch_validate_backup() (
     fi
   elif [ "$before" != "$original" ]
   then
-    mzd_fail 'The shared OEM .org backup is missing. Nothing changed.'
+    # A worker may reconstruct a known shared target in this private context.
+    # Only the declared OEM bytes qualify; inspection never creates .org.
+    command -v mzd_worker_original >/dev/null 2>&1 &&
+      mzd_worker_original "$context/before.data" "$context/original.data" &&
+      [ -f "$context/original.data" ] && [ ! -L "$context/original.data" ] &&
+      [ "$(mzd_hash "$context/original.data")" = "$original" ] ||
+        mzd_fail 'The shared OEM .org backup is missing. Nothing changed.'
   fi
 )
 
@@ -156,7 +162,15 @@ mzd_patch_apply() (
   backup="$target.org"
   if [ ! -e "$backup" ]
   then
-    cp -a "$target" "$backup" && sync
+    cp -a "$target" "$backup" || mzd_fail 'Cannot create the original backup.'
+    if [ "$before" != "$original" ]; then
+      # validate_backup has verified this reconstructed copy. Preserve target mode.
+      cat "$context/original.data" > "$backup" || {
+        rm -f "$backup"
+        mzd_fail 'Cannot write the reconstructed original backup.'
+      }
+    fi
+    sync
     if [ "$(mzd_hash "$backup")" != "$original" ]
     then
       rm -f "$backup"

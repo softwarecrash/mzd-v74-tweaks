@@ -103,6 +103,29 @@ mzd_worker_patch() {
     PATCH_FILE="$hook_dir/change.patch"
 }
 
+# Recognize only the exact shared GUI block. The generic helper then requires
+# the remaining bytes to match the manifest OEM checksum before accepting them.
+mzd_worker_original() (
+    source=$1; output=$2
+    marker='# MZD shared GUI services'
+    command='sh /data/integration/mzd-gui-runtime/service/supervisor.sh boot >/dev/null 2>&1 &'
+    awk -v marker="$marker" -v command="$command" '
+      $0==marker {
+        markers++
+        if(getline<=0 || $0!=command)bad=1
+        else pairs++
+        next
+      }
+      $0==command {bad=1}
+      {print}
+      END {exit(bad || markers!=1 || pairs!=1)}' "$source" > "$output" || exit 1
+    # awk prints a final newline; do not silently normalize an altered input.
+    before_size=$(wc -c < "$source") || exit 1
+    after_size=$(wc -c < "$output") || exit 1
+    block_size=$(printf '%s\n%s\n' "$marker" "$command" | wc -c) || exit 1
+    [ "$((before_size-after_size))" -eq "$block_size" ]
+)
+
 # Never replace an unknown service payload, even if the boot hook looks known.
 ssh_payload_ok() {
     if [ ! -d "$SERVICE" ] || [ -L "$SERVICE" ]

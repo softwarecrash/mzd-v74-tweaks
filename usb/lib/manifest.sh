@@ -9,8 +9,63 @@ mzd_manifest_load() {
     [ -f "$mzd_manifest_file" ] && [ ! -L "$mzd_manifest_file" ] || {
         mzd_manifest_error 'Missing manifest or symbolic link.'; return 1;
     }
-    LC_ALL=C awk '{sub(/\r$/, ""); if ($0 ~ /[[:cntrl:]]/) bad=1} END {exit bad}' "$mzd_manifest_file" || {
-        mzd_manifest_error 'Control characters are not allowed.'; return 1;
+    # Check raw literal fields together; never pass manifest values through awk -v.
+    # Settings/config schemas remain independent of these basic format checks.
+    mzd_manifest_format_error=$(LC_ALL=C awk '
+      function fail(message) {print message; exit 1}
+      function asset(path, suffix) {
+          return path ~ ("^assets/[A-Za-z0-9_./-]+[.]" suffix "$") && path !~ /(^|\/)\.\.?($|\/)/
+      }
+      function shim_records(text, limit, group, primary, count, records, i, pair) {
+          count=split(text,records," ")
+          if(count>limit)return 0
+          for(i=1;i<=count;i++) {
+              if(split(records[i],pair,":")!=2 || pair[1]!~/^\/[A-Za-z0-9_.\/-]+$/ ||
+                 pair[1]~/\/\.\.?($|\/)/ || pair[2]!~/^[0-9a-f]+$/ ||
+                 length(pair[2])!=32 || seen[group,pair[1]]++)return 0
+              if(group==1 && pair[1]==primary)return 0
+          }
+          return 1
+      }
+      {
+          sub(/\r$/, "")
+          if($0 ~ /[[:cntrl:]]/)controls=1
+          if($0 ~ /^#/)next
+          at=index($0,"=")
+          if(at)field[substr($0,1,at-1)]=substr($0,at+1)
+      }
+      END {
+          if(controls)fail("Control characters are not allowed.")
+          if(("version" in field && field["version"]!~/^[0-9]+\.[0-9]+\.[0-9]+$/) ||
+             ("firmware" in field && field["firmware"]!~/^[0-9]+\.[0-9]+\.[0-9]+$/))
+              fail("Version and firmware must have three numeric components.")
+          if(field["requires"]!~/^[a-z0-9 -]*$/ || field["conflicts"]!~/^[a-z0-9 -]*$/)
+              fail("Invalid dependency list.")
+          if(field["shim_asset"] field["shim_path"] field["shim_service"] field["shim_extra_targets"] field["shim_checks"]!="") {
+              if(field["shim_service"]!~/^[A-Za-z0-9_.-]+$/)fail("Invalid shim service name.")
+              if(field["shim_asset"]!~/^[A-Za-z0-9_.\/-]+$/ || field["shim_path"]!~/^[A-Za-z0-9_.\/-]+$/ ||
+                 field["shim_asset"]~/(^|\/)\.\.?($|\/)/ || field["shim_path"]~/(^|\/)\.\.?($|\/)/)
+                  fail("Unsupported shim path.")
+              if(!shim_records(field["shim_extra_targets"],7,1,field["target"]) ||
+                 !shim_records(field["shim_checks"],16,2,field["target"]))
+                  fail("Invalid, duplicate or excessive shim path:OEM-MD5 records.")
+              if(field["target"]!~/^\/[A-Za-z0-9_.\/-]+$/ || field["target"]~/\/\.\.?($|\/)/)
+                  fail("Unsupported shim loader target.")
+          }
+          if(field["type"]=="gui-extension" || field["gui_api"]!="") {
+              menu=field["gui_menu_path"]; count=split(menu,segments,"/")
+              if(length(menu)>240 || count>8)fail("Invalid GUI menu path (maximum eight segments, 240 characters).")
+              if(menu!="")for(i=1;i<=count;i++)
+                  if(segments[i]=="" || segments[i]=="." || segments[i]==".." || length(segments[i])>80 ||
+                     segments[i]~/^[[:space:]]|[[:space:]]$/)
+                      fail("Invalid GUI menu path (maximum eight segments, 240 characters).")
+              if(!asset(field["gui_entrypoint"],"html"))fail("GUI entrypoint must be an assets/*.html path.")
+              capability[1]="gui_resident"; capability[2]="gui_service"; capability[3]="gui_translations"
+              for(i=1;i<=3;i++)if(field[capability[i]]!="" && !asset(field[capability[i]],"(js|lua|json)"))
+                  fail("Invalid GUI capability path.")
+          }
+      }' "$mzd_manifest_file") || {
+        mzd_manifest_error "${mzd_manifest_format_error:-Cannot validate manifest format.}"; return 1;
     }
     COMPONENTS=; PAYLOAD_DIR=; SHIM_SERVICE=; SHIM_ASSET=; SHIM_PATH=; SHIM_EXTRA_TARGETS=; SHIM_CHECKS=
     GUI_API=; GUI_MENU_PATH=; GUI_LABEL=; GUI_ENTRYPOINT=; GUI_RESIDENT=; GUI_SERVICE=; GUI_TRANSLATIONS=
@@ -80,9 +135,6 @@ mzd_manifest_load() {
     [ "$CONTRACT_VERSION" = 1 ] && [ "$ENTRYPOINT" = run.sh ] || { mzd_manifest_error 'Unsupported contract or entrypoint.'; return 1; }
     mzd_manifest_id "$ID" && mzd_manifest_id "$GROUP" || { mzd_manifest_error 'Invalid ID or group.'; return 1; }
     [ -n "$NAME" ] && [ -n "$DESCRIPTION" ] || { mzd_manifest_error 'Name and description are required.'; return 1; }
-    printf '%s\n' "$VERSION" "$FIRMWARE" | awk '!/^[0-9]+\.[0-9]+\.[0-9]+$/ {bad=1} END {exit bad}' || {
-        mzd_manifest_error 'Version and firmware must have three numeric components.'; return 1;
-    }
     case "$TYPE:$ACTIONS" in
         'command:run status') ;;
         'patch:install uninstall status'|'service:install uninstall status'|'files:install uninstall status'|'gui-extension:install uninstall status') ;;
@@ -90,9 +142,6 @@ mzd_manifest_load() {
     esac
     case "$STATUS_SCOPE" in target-patch|configuration|payload|service-health) ;; *) mzd_manifest_error 'Invalid status scope.'; return 1 ;; esac
     case "$REBOOT_REQUIRED" in true|false) ;; *) mzd_manifest_error 'Expected true or false for reboot_required.'; return 1 ;; esac
-    printf '%s\n' "$REQUIRES" "$CONFLICTS" | awk '!/^[a-z0-9 -]*$/ {bad=1} END {exit bad}' || {
-        mzd_manifest_error 'Invalid dependency list.'; return 1;
-    }
     for mzd_manifest_dependency in $REQUIRES $CONFLICTS; do
         mzd_manifest_id "$mzd_manifest_dependency" || { mzd_manifest_error 'Invalid dependency ID.'; return 1; }
     done
@@ -116,45 +165,30 @@ mzd_manifest_load() {
     fi
     if [ -n "$SHIM_ASSET$SHIM_PATH$SHIM_SERVICE$SHIM_EXTRA_TARGETS$SHIM_CHECKS" ]; then
         [ "$TYPE:$RESET_ENTRYPOINT:$REBOOT_REQUIRED" = files:reset.sh:true ] || { mzd_manifest_error 'Shims require files, reset.sh and reboot_required=true.'; return 1; }
-        printf '%s\n' "$SHIM_SERVICE" | awk '!/^[A-Za-z0-9_.-]+$/ {exit 1}' || { mzd_manifest_error 'Invalid shim service name.'; return 1; }
         case "$SHIM_ASSET" in assets/*.so) ;; *) mzd_manifest_error 'Shim asset must be an assets/*.so file.'; return 1 ;; esac
-        printf '%s\n' "$SHIM_ASSET" "$SHIM_PATH" | awk '!/^[A-Za-z0-9_.\/-]+$/ || /(^|\/)\.\.?($|\/)/ {bad=1} END {exit bad}' || { mzd_manifest_error 'Unsupported shim path.'; return 1; }
         case "$SHIM_PATH" in /tmp/mnt/data_persist/mzd-tweaks/shims/"$ID"/*.so) ;;
             *) mzd_manifest_error 'Shim destination must be inside this tweak persistent shim folder.'; return 1 ;;
         esac
         case "${SHIM_PATH##*/}" in ''|.*) mzd_manifest_error 'Invalid shim filename.'; return 1 ;; esac
         case "${SHIM_PATH%/*}" in */shims/"$ID") ;; *) mzd_manifest_error 'Nested shim directories are unsupported.'; return 1 ;; esac
-        printf '%s\n' "$SHIM_EXTRA_TARGETS" "$SHIM_CHECKS" | awk -v primary="$APP" '
-          {
-            n=split($0,records," "); if((NR==1 && n>7) || (NR==2 && n>16))bad=1
-            for(i=1;i<=n;i++) {
-              if(split(records[i],pair,":")!=2 || pair[1]!~/^\/[A-Za-z0-9_.\/-]+$/ || pair[1]~/\/\.\.?($|\/)/ || pair[2]!~/^[0-9a-f]+$/ || length(pair[2])!=32 || seen[NR,pair[1]]++)bad=1
-              if(NR==1 && pair[1]==primary)bad=1
-            }
-          }
-          END {exit bad}
-        ' || { mzd_manifest_error 'Invalid, duplicate or excessive shim path:OEM-MD5 records.'; return 1; }
-        printf '%s\n' "$APP" | awk '!/^\/[A-Za-z0-9_.\/-]+$/ || /\/\.\.?($|\/)/ {exit 1}' || { mzd_manifest_error 'Unsupported shim loader target.'; return 1; }
     fi
     LOCK=
-    if [ "$TYPE" = gui-extension ]; then
+    if [ "$TYPE" = gui-extension ] || [ -n "$GUI_API" ]; then
         case "$ID" in games|exit) mzd_manifest_error 'Reserved GUI extension ID.'; return 1 ;; esac
-        [ "$GUI_API:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = 1:reset.sh:true:payload ] &&
+        [ "$GUI_API:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = 1:reset.sh:true:payload ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload and restart.'; return 1; }
+        if [ "$TYPE" = gui-extension ]; then
             [ -z "$APP$ORIGINAL$LOCK_GROUP$COMPONENTS$SHIM_ASSET" ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload, restart and no patch metadata.'; return 1; }
-        printf '%s\n' "$GUI_MENU_PATH" | LC_ALL=C awk -F/ 'length($0)>240 || NF>8 {bad=1} $0!="" {for(i=1;i<=NF;i++)if($i=="" || $i=="." || $i==".." || length($i)>80 || $i~/^[[:space:]]|[[:space:]]$/)bad=1} END {exit bad}' || { mzd_manifest_error 'Invalid GUI menu path (maximum eight segments, 240 characters).'; return 1; }
+        fi
         [ -n "$GUI_LABEL" ] && [ "${#GUI_LABEL}" -le 80 ] || { mzd_manifest_error 'GUI label must contain 1-80 characters.'; return 1; }
-        printf '%s\n' "$GUI_ENTRYPOINT" | awk '!/^assets\/[A-Za-z0-9_.\/-]+[.]html$/ || /(^|\/)\.\.?($|\/)/ {exit 1}' || { mzd_manifest_error 'GUI entrypoint must be an assets/*.html path.'; return 1; }
-        for capability in "$GUI_RESIDENT" "$GUI_SERVICE" "$GUI_TRANSLATIONS"; do
-            [ -n "$capability" ] || continue
-            printf '%s\n' "$capability" | awk '!/^assets\/[A-Za-z0-9_.\/-]+[.](js|lua|json)$/ || /(^|\/)\.\.?($|\/)/ {exit 1}' || { mzd_manifest_error 'Invalid GUI capability path.'; return 1; }
-        done
         case "$GUI_RESIDENT" in ''|*.js) ;; *) mzd_manifest_error 'GUI resident must be JavaScript.'; return 1 ;; esac
         case "$GUI_SERVICE" in ''|*.lua) ;; *) mzd_manifest_error 'GUI service must be Lua.'; return 1 ;; esac
         [ -z "$GUI_SERVICE" ] || [ -n "$GUI_RESIDENT" ] || { mzd_manifest_error 'A GUI service requires a resident controller.'; return 1; }
         case "$GUI_TRANSLATIONS" in ''|*.js) ;; *) mzd_manifest_error 'GUI translations must be JavaScript.'; return 1 ;; esac
-        LOCK=/tmp/mzd-gui-extension.lock
+        if [ "$TYPE" = gui-extension ]; then
+            LOCK=/tmp/mzd-gui-extension.lock
+        fi
     elif [ -n "$GUI_API$GUI_MENU_PATH$GUI_LABEL$GUI_ENTRYPOINT$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
-        mzd_manifest_error 'GUI metadata requires gui-extension type.'; return 1
+        mzd_manifest_error 'GUI metadata requires gui-extension type or gui_api=1.'; return 1
     fi
     if [ "$TYPE" != command ] && [ "$TYPE" != gui-extension ]; then
         case "$APP" in /*) ;; *) mzd_manifest_error 'An absolute target is required.'; return 1 ;; esac

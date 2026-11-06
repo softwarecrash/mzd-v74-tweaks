@@ -38,6 +38,9 @@
 #      "ok    474 PASS, 35 FAIL, the same failing tests as the CMU's BusyBox" or "FAIL  ..." listing tests that
 #      fail only here and tests that fail only on the CMU, and a last line "TESTSUITE failed=0|1".
 set -u                 # no "set -e": a failed check must not stop cleanup
+# Sort and compare in byte order, as the reference files are written, whatever the language of this machine.
+LC_ALL=C
+export LC_ALL
 
 here=$(cd "$(dirname "$0")" && pwd)   # the folder of this script, where testsuite-fails.txt is
 say() { printf '\n== %s\n' "$*"; }    # a step header in the output

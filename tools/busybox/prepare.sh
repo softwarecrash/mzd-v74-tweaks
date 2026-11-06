@@ -1,5 +1,6 @@
 #!/bin/sh
 # prepare.sh [OUTDIR]
+# prepare.sh --fingerprint
 # Gives a checked CMU-like BusyBox in OUTDIR (default .cache/cmu-busybox): builds it (build.sh) and runs all its
 # checks (tests/check.sh, tests/testsuite.sh), unless OUTDIR already holds a BusyBox that passed them with exactly
 # the current files of the build and of the checks. CI (the job busybox) and tools/test-in-container.sh both use
@@ -9,6 +10,9 @@
 # compares it and skips the build and the checks when nothing changed. A failed build or check leaves no
 # fingerprint, so a BusyBox that did not pass is never taken as checked.
 #
+# --fingerprint only prints the fingerprint (needs no Docker): the CI job busybox makes its cache key from it, so
+# the list of files below is the only one.
+#
 # Needs Docker. The checks run the ARM BusyBox: directly when this machine can (an ARM machine, or an x86 Linux
 # machine with qemu-user-static), otherwise inside a container (Docker Desktop on macOS and Windows runs ARM
 # programs in its Linux machine). QEMU_STATIC=/path/to/qemu-arm-static is passed on as for build.sh.
@@ -16,9 +20,6 @@ set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)    # tools/busybox
 repo=$(cd "$here/../.." && pwd)        # the repository root
-out=${1:-$repo/.cache/cmu-busybox}
-mkdir -p "$out"
-out=$(cd "$out" && pwd)
 
 say() { printf '\n=== %s\n' "$*"; }
 
@@ -30,8 +31,8 @@ host_path() { if (cd "$1" && pwd -W) >/dev/null 2>&1; then (cd "$1" && pwd -W); 
 # sha256 of the standard input, with the tool this system has (sha256sum on Linux, shasum on macOS).
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum; else shasum -a 256; fi | cut -d ' ' -f 1; }
 
-# The fingerprint: the name and the content of every file of the build and of the checks. These are the same
-# files as the cache key of the CI job busybox; change one, and the BusyBox is built and checked again.
+# The fingerprint: the name and the content of every file of the build and of the checks (the README is not one).
+# Change one, and the BusyBox is built and checked again, locally and in CI (its cache key is this fingerprint).
 fingerprint() {
     (cd "$here" && find prepare.sh build.sh in-container.sh source.conf cmu_defconfig tests -type f | LC_ALL=C sort) |
         while IFS= read -r f; do
@@ -39,6 +40,14 @@ fingerprint() {
         done | sha256
 }
 fp=$(fingerprint)
+if [ "${1:-}" = --fingerprint ]; then
+    printf '%s\n' "$fp"
+    exit 0
+fi
+
+out=${1:-$repo/.cache/cmu-busybox}
+mkdir -p "$out"
+out=$(cd "$out" && pwd)
 
 if [ -f "$out/busybox" ] && [ "$(cat "$out/checked" 2>/dev/null || true)" = "$fp" ]; then
     echo "The BusyBox in $out was already built and checked with these files; nothing to do."

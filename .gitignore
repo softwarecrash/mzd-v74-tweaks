@@ -12,3 +12,5 @@ __pycache__/
 .DS_Store
 # Local builds of the CMU-like BusyBox (tools/busybox/build.sh)
 /.cache/
+# Local checkout of mzd-emu emulator
+/mzd-emu/

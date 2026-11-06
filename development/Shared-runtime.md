@@ -42,8 +42,18 @@ OEM catalogs. config-map.awk: configuration keys mapped to normalized manifest
 settings, without duplicate defaults or evaluation.
 
 bundle.sh: mixed payload/loader/patch transactions, saved-configuration removal,
-rollback journal, reset hooks and read-only compatibility messages. See the
-[component example](examples/bundle/README.md) for the supported scope and limits.
+rollback journal, reset hooks and read-only compatibility messages. When `GUI_API`
+is declared, it automatically orchestrates GUI extension validation, mutual exclusion
+locking via `/tmp/mzd-gui-extension.lock`, installation/removal mutation, status
+aggregation, and reset service stops. See the [component example](examples/bundle/README.md)
+for the supported scope and limits.
+
+gui-extension.sh: shared Applications menu integration, GUI module publication,
+developer hook and runtime support lifecycle, asset validation and reset handling
+for standalone and hybrid GUI extensions.
+
+gui-services.sh: background service supervision, resident IPC bridge registration,
+RPC validation and lifecycle management for tweaks declaring `gui_service` and `gui_resident`.
 
 vehicle.sh: bounded read-only VBS control/HUD queries. It reports facts and
 unknown values; feature-specific compatibility policy belongs to each worker.

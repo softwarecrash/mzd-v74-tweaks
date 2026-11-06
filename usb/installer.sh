@@ -8,7 +8,18 @@ HERE=$(dirname "$SELF")
 MZD_INSTALLER_VERSION=$(mzd_installer_version "$HERE"); export MZD_INSTALLER_VERSION
 fail() { printf '%s\n' "$*" >&2; exit 1; }
 valid_id() { case "$1" in ''|*[!a-zA-Z0-9_-]*) return 1 ;; esac; }
+mzd_installer_packages_loaded=false
+# Reuse loaded function definitions inside a read-only aggregate request.
+mzd_installer_packages() {
+    [ "${mzd_installer_packages_loaded:-}" = true ] && return 0
+    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || return 1
+    mzd_installer_packages_loaded=true
+}
+mzd_installer_main() (
 case "${1:-}" in
+  manifests|details)
+    . "$HERE/lib/installer-info.sh" || exit 1
+    mzd_installer_info "$@" ;;
   restore-check|restore-original)
     case "$1:$#" in restore-check:2|restore-original:3) ;; *) fail 'Expected a tweak ID and, for Restore, the confirmation fingerprint.' ;; esac
     ROOT=$HERE
@@ -22,7 +33,7 @@ case "${1:-}" in
     /bin/sh "$HERE/tweaks/$2/run.sh" preflight ;;
   settings-info)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
-    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" && . "$HERE/lib/settings.sh" || exit 1
+    mzd_installer_packages && . "$HERE/lib/settings.sh" || exit 1
     entry="$MZD_PACKAGE_STORE/$2"
     if [ -e "$entry" ] || [ -L "$entry" ]; then
       mzd_package_check "$entry" || exit 1
@@ -39,7 +50,7 @@ case "${1:-}" in
     fi ;;
   statuses)
     shift
-    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+    mzd_installer_packages || exit 1
     if [ "$#" = 1 ]; then
       ids=$1
       set -f
@@ -50,7 +61,7 @@ case "${1:-}" in
     mzd_package_statuses "$HERE" "$@" ;;
   uninstall-check)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
-    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+    mzd_installer_packages || exit 1
     entry="$MZD_PACKAGE_STORE/$2"
     [ -d "$entry" ] && [ ! -L "$entry" ] || fail 'No saved uninstaller is available.'
     [ ! -d "$MZD_PACKAGE_LOCK" ] || fail 'Another package operation or Restore is active.'
@@ -61,19 +72,20 @@ case "${1:-}" in
     printf 'available\t%s\t%s\n' "$VERSION" "$state" ;;
   update-info)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
-    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+    mzd_installer_packages || exit 1
     mzd_package_update_info "$HERE" "$2" ;;
   config-info)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
-    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+    mzd_installer_packages || exit 1
     mzd_package_check "$MZD_PACKAGE_STORE/$2" || exit 1
     mzd_manifest_load "$MZD_PACKAGE_STORE/$2/package/tweaks/$2/manifest.conf" || exit 1
     if [ -n "$CONFIGS" ];then printf 'present\n';else printf 'none\n';fi ;;
   package-info)
     [ "$#" = 2 ] && valid_id "$2" || fail 'Expected a tweak ID.'
-    . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+    mzd_installer_packages || exit 1
     entry="$MZD_PACKAGE_STORE/$2"
     if [ -d "$entry" ] && [ ! -L "$entry" ]; then
+      mzd_package_check "$entry" || exit 1
       mzd_manifest_load "$entry/package/tweaks/$2/manifest.conf" || exit 1
       [ "$ID" = "$2" ] || exit 1
       state=$(mzd_package_state "$entry") || exit 1
@@ -105,7 +117,7 @@ case "${1:-}" in
     TWEAK="$HERE/tweaks/$2"
     if [ "$1" = action ] && { [ "$#" = 3 ] || { [ "$#" = 4 ] && [ "$3" = uninstall ] && [ "$4" = --preserve-config ]; }; }; then
       case "$3" in uninstall|status)
-        . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+        mzd_installer_packages || exit 1
         if [ -e "$MZD_PACKAGE_STORE/$2" ] || [ -L "$MZD_PACKAGE_STORE/$2" ]; then
           shift
           mzd_package_action "$HERE" "$@"
@@ -134,7 +146,7 @@ case "${1:-}" in
       # No string evaluation or shell command concatenation. Preserve the
       # worker's stdout, stderr and exit code, including critical exit code 2.
       if [ "$3" != run ]; then
-        . "$HERE/lib/manifest.sh" && . "$HERE/lib/packages.sh" || exit 1
+        mzd_installer_packages || exit 1
         mzd_manifest_load "$TWEAK/manifest.conf" || exit 1
         if [ "$TYPE" != command ]; then
           shift
@@ -203,3 +215,6 @@ case "${1:-}" in
     ;;
   *) fail 'Usage: installer.sh list | manifest ID | action ID ACTION | event EVENT DETAIL' ;;
 esac
+
+)
+mzd_installer_main "$@"

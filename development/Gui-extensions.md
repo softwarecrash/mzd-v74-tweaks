@@ -33,11 +33,29 @@ context is implicit; a path named Settings is an ordinary submenu, not the
 native Mazda Settings context.
 IDs `games` and `exit` are reserved. Include `reset_entrypoint=reset.sh`,
 `status_scope=payload`, `reboot_required=true`, and install/uninstall/status actions.
-No fake OEM target, OEM hash, lock group, shim or component declaration is allowed.
 Asset paths use ASCII letters, digits, dots, underscores, hyphens and slashes,
 without dot traversal or links; the limit is 512 asset entries.
 
-The example delegates both workers to `lib/gui-extension.sh`. The controller
+### Standalone vs. hybrid extension workers
+
+There are two patterns for authoring GUI extensions:
+
+- **Standalone GUI extensions (`type=gui-extension`)**: Used for self-contained
+  interactive applications, games or utilities. No fake OEM target, OEM hash, lock
+  group, shim or component declaration is allowed. The worker delegates directly to
+  `lib/gui-extension.sh`, and `reset.sh` delegates to the same helper.
+- **Hybrid extension workers (`type=files` + `gui_api=1`)**: Used when an in-car
+  settings or monitoring interface accompanies native shims, loaders, and binary/XML
+  patches (such as Android Auto Mod). The worker delegates to `lib/bundle.sh` and
+  declares `components=components.tsv`, `target`, `oem_backup_md5`, and `lock_group`
+  alongside the GUI extension metadata (`gui_api=1`, `gui_label`, `gui_entrypoint`, etc.).
+  `bundle.sh` automatically integrates GUI asset validation, `/tmp/mzd-gui-extension.lock`
+  synchronization, GUI mutations, status aggregation, and service cleanup.
+  Runtime settings are often coupled to a declared mutable config (`config.<name>.path`)
+  and manipulated live via a background Lua service (`gui_service`) and resident script
+  (`gui_resident`).
+
+The standalone example delegates both workers to `lib/gui-extension.sh`. The controller
 saves the module and matching helper snapshot for removal. Do not directly write
 the boot hook, registry or other extensions' folders. Keep unrelated system mutations out of a view. The optional resident/service
 capabilities below provide a narrow registered service bridge; plain views still
@@ -144,6 +162,13 @@ Closing an iframe disposes its SDK but retains its resident. Each resident has
 independent registration, load/timeout/error handling and idempotent cleanup.
 A failure in one cooperative resident does not replace or close other modules.
 As with views, this is not a sandbox against hostile code or infinite loops.
+
+Because the resident persists across view openings, it can maintain in-memory state
+caches to render views instantly on subsequent opens, queue rapid consecutive user
+requests safely, and continue asynchronous persistence to its Lua backend service
+even if the driver closes the view before writes complete. When completing saves
+in the background, residents can display non-intrusive native Status Bar Notifications
+(SBN) via `framework.common.startTimedSbn` to confirm that changes were saved safely.
 
 A registered Lua entrypoint returns `function(context) ... end`. It returns a
 table with `request(operation,args)`, optional `image(kind,key)`, `tick()` and

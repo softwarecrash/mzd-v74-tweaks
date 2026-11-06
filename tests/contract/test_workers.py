@@ -43,6 +43,9 @@ def fixture(patch, installed=False):
                 lines.append(line[1:])
     return ''.join(lines)
 
+if not os.environ.get("CMU_TEST_ONLY") or os.environ["CMU_TEST_ONLY"]=="restore-originals":
+    subprocess.run([sys.executable,str(Path(__file__).with_name("test_restore_locks.py"))],check=True)
+
 checks = 0
 for id_, runner in CASES.items():
     if os.environ.get('CMU_TEST_ONLY') and id_ != os.environ['CMU_TEST_ONLY']: continue
@@ -397,3 +400,6 @@ esac
                 assert target.read_text()==original+'// unrelated sentinel\n'
                 assert not (persist/'installed'/id_).exists()
 print('WORKER_CONTRACT_PASSED:', checks, 'real-entrypoint checks.')
+
+if not os.environ.get("CMU_TEST_ONLY") or os.environ["CMU_TEST_ONLY"]=="ssh":
+    subprocess.run([sys.executable,str(Path(__file__).with_name("test_gui_extensions.py")),"--ssh-coexist-only"],check=True)

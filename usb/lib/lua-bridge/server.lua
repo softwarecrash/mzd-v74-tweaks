@@ -122,7 +122,7 @@ local function request(client)
     trace("begin")
     -- A disconnect or SIGTERM must not abort an already-running modifying worker.
     local readonlyStatus=program=="/bin/sh" and args[1]=="./installer.sh" and
-        ((args[2]=="action" and args[4]=="status" and #args==4) or ((args[2]=="statuses" or args[2]=="config-info" or args[2]=="update-info" or args[2]=="uninstall-check" or args[2]=="restore-check" or args[2]=="settings-info" or args[2]=="preflight-info") and #args==3))
+        ((args[2]=="details" and #args==4) or (args[2]=="manifests" and #args==2) or (args[2]=="action" and args[4]=="status" and #args==4) or ((args[2]=="statuses" or args[2]=="config-info" or args[2]=="update-info" or args[2]=="uninstall-check" or args[2]=="restore-check" or args[2]=="settings-info" or args[2]=="preflight-info") and #args==3))
     local runArgs=args
     if program=="/bin/sh" and args[1]=="./installer.sh" then
         local installer=currentInstaller()
@@ -131,7 +131,7 @@ local function request(client)
             runArgs[1]=installer
         end
     end
-    local ok,result=pcall(process.run,program,runArgs,{server:getfd(),client:getfd()},trace,readonlyStatus and 30 or nil)
+    local ok,result=pcall(process.run,program,runArgs,{server:getfd(),client:getfd()},trace,readonlyStatus and (args[2]=="details" and 90 or 30) or nil)
     if ok then
         debug("result "..label.." started="..tostring(result.started).." exit="..tostring(result.exitCode)..
             " signal="..tostring(result.signal).." stdout="..#result.stdout.." stderr="..#result.stderr)

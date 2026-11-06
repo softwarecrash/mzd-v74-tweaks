@@ -31,8 +31,12 @@ jobs:
         run: sh tests/tweaks/touch-while-driving/reader.sh usb/tweaks/touch-while-driving/touch.sh
       - name: Test mutable config defaults and ownership
         run: python tests/contract/test_config_data.py
+      - name: Test package inventory batching and failure handling
+        run: python tests/contract/test_package_inventory.py
       - name: Test persistent packages, versions and owned paths
         run: python tests/contract/test_packages.py
+      - name: Test Restore with real saved workers and owned locks
+        run: python tests/contract/test_restore_locks.py
       - name: Test automatic GUI support and saved consumer lifecycle
         run: |
           python tests/contract/test_gui_extensions.py
@@ -40,6 +44,7 @@ jobs:
           python tests/contract/test_gui_extensions.py --status-only
           python tests/contract/test_gui_extensions.py --interrupt-only
           python tests/contract/test_gui_extensions.py --critical-only
+          python tests/contract/test_gui_extensions.py --ssh-coexist-only
           python tests/contract/test_gui_extensions.py --services-only
           python tests/contract/test_gui_extensions.py --wallpaper-only
           python tests/contract/test_gui_extensions.py --restore-only
@@ -66,6 +71,7 @@ jobs:
           python tests/contract/test_bundles.py
           python tests/contract/test_tplink_loader.py
           python tests/contract/test_tplink_rtl8811au.py --critical-mode-rollback
+          python tests/contract/test_android_auto.py
       - name: Test USB export commands and background jobs
         run: python tests/contract/test_exports.py
       - name: Test internal backup restore and owned cleanup hooks
@@ -89,7 +95,7 @@ jobs:
       - name: Validate factory Lua syntax
         run: |
           sudo apt-get install -y lua5.1
-          for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
+          for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua usb/tweaks/*/assets/*/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
       - name: Test Hello entrypoint
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint
@@ -117,17 +123,21 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      # The fingerprint of the files of the build and of its checks (not the README), as prepare.sh computes it:
+      # a change in any of them builds and checks again. prepare.sh holds the only list of these files.
+      - name: Fingerprint the build and check files
+        id: fingerprint
+        run: |
+          fp=$(sh tools/busybox/prepare.sh --fingerprint)
+          [ -n "$fp" ]
+          echo "value=$fp" >>"$GITHUB_OUTPUT"
       - name: Take the checked BusyBox of the same build and checks from the cache
         uses: actions/cache@v4
         with:
           path: |
             .cache/cmu-busybox/busybox
             .cache/cmu-busybox/checked
-          # The files of the build and of its checks (not the README): a change in any of them builds and checks again.
-          key: >-
-            cmu-busybox-${{ hashFiles('tools/busybox/prepare.sh', 'tools/busybox/build.sh',
-            'tools/busybox/in-container.sh', 'tools/busybox/source.conf', 'tools/busybox/cmu_defconfig',
-            'tools/busybox/tests/**') }}
+          key: cmu-busybox-${{ steps.fingerprint.outputs.value }}
       - name: Build and check the CMU-like BusyBox (only if not already checked)
         run: sh tools/busybox/prepare.sh
       - name: Keep the logs of a failed build or check
@@ -136,6 +146,7 @@ jobs:
         with:
           name: cmu-busybox-logs
           path: |
+            .cache/cmu-busybox/apt.log
             .cache/cmu-busybox/make.log
             .cache/cmu-busybox/busybox.config
             .cache/cmu-busybox/testsuite.log
@@ -165,6 +176,10 @@ jobs:
         run: |
           chmod 755 .cache/cmu-busybox/busybox
           sh tools/busybox/image/make-image.sh .cache/cmu-busybox/busybox cmu-tweak-test:local
+      - name: Test package inventory on the CMU-like BusyBox
+        run: sh tools/busybox/image/run.sh /usr/local/bin/python3 tests/contract/test_package_inventory.py
+      - name: Test package controller on the CMU-like BusyBox
+        run: sh tools/busybox/image/run.sh /usr/local/bin/python3 tests/contract/test_packages.py
       - name: Run actual workers in the test image, as a tweak runs on the CMU
         run: sh tools/busybox/image/run.sh /usr/local/bin/python3 tests/contract/test_workers.py
   launcher:
@@ -175,13 +190,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tests/installer/test-es5.cjs
-      - run: node tests/installer/test-startup-errors.cjs
-      - run: node tests/installer/test-ui.cjs
-      - run: node tests/installer/test-gui-runtime.cjs
-      - run: node tests/installer/test-gui-i18n.cjs
-      - run: node tests/installer/test-gui-residents.cjs
-      - run: node tests/installer/test-gui-services.cjs
+      # Every test file of tests/installer/ (node:test); a new file there runs without editing this list.
+      # The pattern is quoted so that Node, not the shell, expands it.
+      - name: Installer UI tests (every tests/installer/*.cjs)
+        run: node --test "tests/installer/*.cjs"
       - run: node tests/tweaks/tetris/shared-sdk.cjs
       - run: node tests/tweaks/traffic-jam/behavior.cjs
       - run: node tests/tweaks/tetris/highscore.cjs
@@ -189,5 +201,5 @@ jobs:
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs
-      - run: node tests/installer/test-transport.cjs
+      - run: node tests/tweaks/android-auto/test-view.cjs
       - run: node tests/tweaks/remove-safety-warnings/behavior.cjs

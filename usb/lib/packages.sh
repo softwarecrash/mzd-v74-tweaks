@@ -4,6 +4,24 @@ MZD_PACKAGE_STORE=/tmp/mnt/data_persist/mzd-tweaks/installed
 MZD_PACKAGE_MOUNT=/tmp/mnt/data_persist
 MZD_PACKAGE_MOUNTS=/proc/mounts
 MZD_PACKAGE_LOCK=/tmp/mzd-packages.lock
+# Never trust an inherited cache or retain its exported attribute.
+# Only an operation holding the package lock creates this RAM context.
+unset MZD_PACKAGE_CACHE
+MZD_PACKAGE_CACHE=
+mzd_package_cache_begin() {
+    MZD_PACKAGE_CACHE=$(mktemp -d /tmp/mzd-package-action.XXXXXX) || return 1
+    : > "$MZD_PACKAGE_CACHE/verified"
+}
+mzd_package_cache_clear() {
+    [ -z "${MZD_PACKAGE_CACHE:-}" ] || : > "$MZD_PACKAGE_CACHE/verified"
+}
+mzd_package_exec_worker() (
+    # USB probes and saved workers both end the current verification phase.
+    mzd_package_cache_clear || exit 1
+    sh "$@"; worker_result=$?
+    mzd_package_cache_clear || printf 'Packages: Could not clear verification cache after worker.\n' >&2
+    exit "$worker_result"
+)
 
 mzd_package_error() { printf 'Packages: %s\n' "$*" >&2; return 1; }
 mzd_package_state() (
@@ -16,6 +34,7 @@ mzd_package_state() (
     ' "$1/state.conf"
 )
 mzd_package_set_state() {
+    mzd_package_cache_clear || return 1
     printf 'format=1\nstate=%s\n' "$2" > "$1/state.next" &&
         mv "$1/state.next" "$1/state.conf" && sync
 }
@@ -30,14 +49,37 @@ mzd_package_tree_ok() (
 )
 mzd_package_inventory() (
     cd "$1" || exit 1
-    find package -type f | LC_ALL=C sort | while IFS= read -r file; do
-        case "$file" in *"$(printf '\t')"*|*'\'*) exit 1 ;; esac
-        hash=$(md5sum "$file") || exit 1
-        printf '%s\t%s\n' "${hash%% *}" "$file" || exit 1
-    done
+    # Reject delimiter-bearing names before converting find output to records.
+    mzd_package_tree_ok package || exit 1
+    scratch=$(mktemp -d /tmp/mzd-inventory.XXXXXX) || exit 1
+    trap 'rm -rf "$scratch"' 0
+    find package -type f > "$scratch/unsorted" &&
+        LC_ALL=C sort "$scratch/unsorted" > "$scratch/files" || exit 1
+    tab=$(printf '\t')
+    while IFS= read -r file; do
+        case "$file" in *"$tab"*|*'\'*) exit 1 ;; esac
+        printf '%s\000' "$file" || exit 1
+    done < "$scratch/files" > "$scratch/names" || exit 1
+    # NUL separation preserves spaces and quotes. Check xargs itself before
+    # parsing output so a missing/unreadable file cannot become a partial success.
+    hash_command=$(command -v md5sum) || exit 1
+    xargs -0 -r -n 64 "$hash_command" < "$scratch/names" > "$scratch/hashes" || exit 1
+    awk 'NR==FNR {files[++count]=$0; next}
+        {hash=substr($0,1,32); name=substr($0,35)
+         if(length(hash)!=32 || hash!~/^[0-9a-f]+$/ || substr($0,33,2)!="  " || name!=files[++done])exit 1
+         print hash "\t" name}
+        END {if(done!=count)exit 1}' "$scratch/files" "$scratch/hashes"
 )
+
 # Full verification uses RAM only; stored code never comes from the new USB.
 mzd_package_check() (
+    if [ -n "${MZD_PACKAGE_CACHE:-}" ]; then
+        while IFS= read -r verified; do [ "$verified" != "$1" ] || exit 0; done < "$MZD_PACKAGE_CACHE/verified"
+    fi
+    mzd_package_check_full "$1" || exit 1
+    [ -z "${MZD_PACKAGE_CACHE:-}" ] || printf '%s\n' "$1" >> "$MZD_PACKAGE_CACHE/verified"
+)
+mzd_package_check_full() (
     entry=$1
     mzd_package_tree_ok "$entry" || { mzd_package_error 'Saved package contains unsupported files.'; exit 1; }
     for path in "$entry"/* "$entry"/.[!.]* "$entry"/..?*; do
@@ -57,7 +99,7 @@ mzd_package_check() (
         . "$entry/package/lib/settings.sh" || exit 1
         mzd_settings_check "$entry/package/tweaks/$ID/manifest.conf" "$entry/package/settings.conf" || exit 1
     fi
-    mzd_package_paths "$entry/package/tweaks/$ID" > "$temp" && cmp -s "$temp" "$entry/paths.tsv" || {
+    mzd_package_paths_loaded "$entry/package/tweaks/$ID" > "$temp" && cmp -s "$temp" "$entry/paths.tsv" || {
         mzd_package_error 'Saved ownership record differs from its package.'; exit 1;
     }
 )
@@ -108,9 +150,10 @@ mzd_package_storage() (
     while [ "$p" != / ]; do [ ! -L "$p" ] || exit 1; p=$(dirname "$p"); done
 )
 mzd_package_payload_paths() (
-    if [ "$TYPE" = gui-extension ]; then
+    if [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ]; then
         . "${1%/tweaks/*}/lib/gui-extension.sh" || exit 1
-        mzd_gui_paths "$1"; exit $?
+        mzd_gui_paths "$1" || exit 1
+        [ "$TYPE" != gui-extension ] || exit 0
     fi
     if [ -n "${COMPONENTS:-}" ]; then mzd_components paths; exit $?; fi
     if [ -f "$1/managed-paths.tsv" ]; then
@@ -125,6 +168,10 @@ mzd_package_payload_paths() (
 )
 mzd_package_paths() (
     mzd_manifest_load "$1/manifest.conf" || exit 1
+    mzd_package_paths_loaded "$1"
+)
+# Internal helper for a caller that already loaded this exact manifest.
+mzd_package_paths_loaded() (
     mzd_package_payload_paths "$1" || exit 1
     if [ -n "$CONFIGS" ]; then
         . "${1%/tweaks/*}/lib/config-data.sh" || exit 1
@@ -197,8 +244,8 @@ mzd_package_worker_raw() (
         MZD_SETTINGS_FILE="$1/package/settings.conf"; export MZD_SETTINGS_FILE
     fi
     if [ "$2" = uninstall ] && [ "${MZD_PRESERVE_CONFIG:-0}" = 1 ] && [ -n "$CONFIGS" ]; then
-        sh "$worker" uninstall --preserve-config
-    else sh "$worker" "$2";fi
+        mzd_package_exec_worker "$worker" uninstall --preserve-config
+    else mzd_package_exec_worker "$worker" "$2";fi
 )
 # Persist the last failed modifying worker outside its immutable inventory.
 # Status only reads this record; it never opens reports or changes the package.
@@ -393,8 +440,9 @@ mzd_package_action() (
     mkdir -p "$MZD_PACKAGE_STORE" || exit 1
     mkdir "$MZD_PACKAGE_LOCK" 2>/dev/null || { mzd_package_error 'Another package operation or Restore is active.'; exit 1; }
     stage=''
-    trap 'code=$?; if [ "$code" != 0 ] && [ -n "$update_archive" ] && [ -d "$update_archive" ]; then printf "Previous version recovery snapshot retained: %s\n" "$update_archive" >&2; fi; [ -z "$settings_tmp" ] || rm -f "$settings_tmp"; [ -z "$stage" ] || rm -rf "$stage"; rmdir "$MZD_PACKAGE_LOCK" 2>/dev/null || :; exit "$code"' 0
+    trap 'code=$?; if [ "$code" != 0 ] && [ -n "$update_archive" ] && [ -d "$update_archive" ]; then printf "Previous version recovery snapshot retained: %s\n" "$update_archive" >&2; fi; [ -z "$settings_tmp" ] || rm -f "$settings_tmp"; [ -z "$stage" ] || rm -rf "$stage"; [ -z "$MZD_PACKAGE_CACHE" ] || rm -rf "$MZD_PACKAGE_CACHE"; rmdir "$MZD_PACKAGE_LOCK" 2>/dev/null || :; exit "$code"' 0
     trap 'exit 2' INT TERM
+    mzd_package_cache_begin || exit 1
     if [ "$updating" = 1 ]; then
         mzd_package_update_info "$source" "$id" >/dev/null || exit 1
         mzd_manifest_load "$source/tweaks/$id/manifest.conf" || exit 1
@@ -425,11 +473,11 @@ mzd_package_action() (
         fi
         if [ "$TYPE" = gui-extension ] && [ -n "$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
             # Refuse old providers/uninstallers before publishing a failed receipt.
-            sh "$source/tweaks/$id/run.sh" validate-install || exit 1
+            mzd_package_exec_worker "$source/tweaks/$id/run.sh" validate-install || exit 1
         fi
         if [ -n "${COMPONENTS:-}" ]; then
             # Validate replacement payloads/configuration and hardware before old removal.
-            sh "$source/tweaks/$id/run.sh" validate-install || exit 1
+            mzd_package_exec_worker "$source/tweaks/$id/run.sh" validate-install || exit 1
         fi
         mzd_package_requirements "$source/tweaks/$id" || exit 1
         if [ -n "$CONFIGS" ];then
@@ -450,7 +498,6 @@ mzd_package_action() (
         fi
         if [ "$action" = install ]; then
             [ "$state" = installed ] || { mzd_package_error 'Incomplete installation; use Uninstall or Restore before installing.'; exit 1; }
-            mzd_manifest_load "$entry/package/tweaks/$id/manifest.conf" || exit 1
             if [ "$VERSION" = "$requested" ]; then
                 previous="$entry/package/settings.conf"; [ -f "$previous" ] || previous=/dev/null
                 cmp -s "$settings_tmp" "$previous" || { mzd_package_error 'Settings differ. Uninstall the saved version before installing new settings.'; exit 1; }
@@ -475,11 +522,11 @@ mzd_package_action() (
         [ "$action" != uninstall ] || exit 0
     elif [ "$action" = uninstall ]; then
         # Never execute new uninstall code against an unrecognized old payload.
-        result=$(sh "$source/tweaks/$id/run.sh" status); code=$?
+        result=$(mzd_package_exec_worker "$source/tweaks/$id/run.sh" status); code=$?
         [ "$code" = 0 ] && [ "$result" = uninstalled ] || { mzd_package_error 'No saved uninstaller; remove the old installation with its original USB package first.'; exit 1; }
         printf 'Tweak is not installed.\n'; exit 0
     fi
-    result=$(sh "$source/tweaks/$id/run.sh" status); code=$?
+    result=$(mzd_package_exec_worker "$source/tweaks/$id/run.sh" status); code=$?
     [ "$code" = 0 ] && [ "$result" = uninstalled ] || {
         # A machine-readable hint only for a completed, blocked target check.
         # The separate recovery check still verifies OEM data and ownership.
@@ -586,14 +633,45 @@ mzd_package_manifests() (
         printf '%s\n' "$MZD_PACKAGE_STORE/$id/package/tweaks/$id/manifest.conf"
     done
 )
+# Compatibility for saved status helpers that reject Restore own target locks.
+# Verify every immutable installation path, not only the primary target.
+mzd_package_restored_paths() (
+    [ "${RESTORE_COMMITTED:-0}" = 1 ] &&
+        [ "$(mzd_package_state "$1")" = restoring ] &&
+        [ "$MZD_SYSTEM" = "$MZD_REPORT/system" ] &&
+        [ -d "$LOCK" ] && [ ! -L "$LOCK" ] &&
+        mzd_line_is "$LOCK" "$MZD_SYSTEM/locks" || exit 1
+    tab=$(printf '\t')
+    while IFS="$tab" read -r kind path; do
+        case "$kind" in
+            patch)
+                expected=$(awk -F "$tab" -v target="$path" '
+                    $1==target {if(value!="" && value!=$2)bad=1;value=$2}
+                    END {if(bad || length(value)!=32 || value!~/^[0-9a-f]+$/)exit 1;print value}' "$MZD_REPORT/catalog") || exit 1
+                [ -f "$path" ] && [ ! -L "$path" ] &&
+                    [ "$(mzd_hash "$path")" = "$expected" ] || exit 1 ;;
+            create|shim) [ ! -e "$path" ] && [ ! -L "$path" ] || exit 1 ;;
+            config-file|config-dir) : ;; # Mutable retained user data is not an installation.
+            *) exit 1 ;;
+        esac
+    done < "$1/paths.tsv"
+)
 mzd_package_forget_restored() (
+    scratch=$(mktemp -d /tmp/mzd-restored-check.XXXXXX) || exit 1
+    trap 'rm -rf "$scratch"' 0
     for entry in "$MZD_PACKAGE_STORE"/*; do
         [ -e "$entry" ] || continue
         mzd_package_check "$entry" || exit 1
         mzd_manifest_load "$entry/package/tweaks/${entry##*/}/manifest.conf" || exit 1
         # Do not forget unsupported/unrestored installations or unknown changes.
         if [ "$FIRMWARE" != "$RESTORE_FIRMWARE" ]; then continue; fi
-        result=$(mzd_package_worker "$entry" status); code=$?
+        result=$(mzd_package_worker "$entry" status 2> "$scratch/reason"); code=$?
+        if [ "$code" = 1 ] && [ -z "$result" ] &&
+            awk '$0=="ERROR: Target is busy; retry status after the other operation." {found=1} END {exit !found}' "$scratch/reason" &&
+            mzd_package_restored_paths "$entry"; then
+            result=uninstalled; code=0
+            printf 'Verified restored paths for saved worker: %s\n' "${entry##*/}"
+        else cat "$scratch/reason" >&2; fi
         if [ "$code" = 0 ] && [ "$result" = unavailable ] && [ -f "$APP" ] && [ ! -L "$APP" ]; then
             # A completely reset tweak need not be installable yet: its
             # prerequisites may have been reset in this same operation.

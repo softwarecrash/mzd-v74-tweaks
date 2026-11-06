@@ -1,0 +1,48 @@
+name: m3-toolchain
+description: >
+  Fetch the m3-toolchain (Mazda CMU cross compiler) at the commit pinned by the
+  src/mazda/m3-toolchain submodule, cached on that commit. Same approach as
+  oem-aa-mod: the toolchain is fetched as a plain directory (no live submodule),
+  so the cache has no dangling gitlink for the post-job cleanup to trip over.
+runs:
+  using: composite
+  steps:
+    - name: Resolve m3-toolchain submodule commit
+      id: toolchain
+      shell: bash
+      run: echo "sha=$(git ls-tree HEAD -- src/mazda/m3-toolchain | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+
+    - name: Cache m3-toolchain (keyed on its submodule commit)
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: src/mazda/m3-toolchain
+        key: m3-toolchain-${{ steps.toolchain.outputs.sha }}
+
+    - name: Fetch m3-toolchain (cache miss only)
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        url=$(git config -f .gitmodules submodule.src/mazda/m3-toolchain.url)
+        rm -rf src/mazda/m3-toolchain
+        git clone --filter=blob:none "$url" src/mazda/m3-toolchain
+        git -C src/mazda/m3-toolchain checkout --detach "${{ steps.toolchain.outputs.sha }}"
+        rm -rf src/mazda/m3-toolchain/.git
+
+    - name: Verify the cross compiler is present and runnable
+      shell: bash
+      run: |
+        set -euo pipefail
+        gcc=src/mazda/m3-toolchain/bin/arm-cortexa9_neon-linux-gnueabi-gcc
+        if [ ! -x "$gcc" ]; then
+          echo "::error::$gcc missing - m3-toolchain did not check out"
+          exit 1
+        fi
+        # Catches the "LFS pointer instead of binary" failure with a clear message.
+        if ! file "$gcc" | grep -q 'ELF'; then
+          echo "::error::$gcc is not an ELF binary (Git LFS blobs not pulled?)"
+          file "$gcc"
+          exit 1
+        fi
+        "$gcc" --version | head -1

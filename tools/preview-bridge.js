@@ -33,6 +33,14 @@
             return ok("cpu\t" + (1000+sample*100) + "\t" + (700+sample*70) + "\t" +
                 (args[1] === "0" ? "-" : "30") + "\ndisk\t/\t42\ndisk\t/jci\t18\ndisk\t/data\t65\ndisk\t/tmp/mnt/sdb1\t80\n");
         }
+        if(args[0]==="manifests" || args[0]==="details") {
+            var keys=args[0]==="manifests"?Object.keys(manifests):args[2].split(" ");
+            return ok(keys.map(function(key){
+                var value=process(args[0]==="manifests"?["manifest",key]:[key,id]);
+                return JSON.stringify({key:key,exitCode:value.exitCode,stdout:value.stdout,stderr:value.stderr});
+            }).join("\n")+(keys.length?"\n":""));
+        }
+        if(args[0]==="update-info")return ok("",1,"No update in the offline preview.");
         if (args[0] === "list") return ok(Object.keys(manifests).join("\n")+"\n");
         // Demonstrate an old unmanaged JS patch without touching vehicle files.
         if (args[0] === "restore-check" && window.previewRecoveryDeniedDemo && id === "list-beep")

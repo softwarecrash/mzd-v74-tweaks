@@ -7,11 +7,15 @@ mzd_bundle_payload_mode() (
 # Workers may define mzd_bundle_prerequisites: data-only block/warning/info records.
 # Workers may define mzd_bundle_patch: dynamic patch configuration hook.
 mzd_bundle_load() {
-    for bundle_library in defines manifest report system patch restore settings components shim; do
+    for bundle_library in defines manifest report system packages patch restore settings components shim; do
         . "$ROOT/lib/$bundle_library.sh" || return 1
     done
     mzd_manifest_load "$HERE/manifest.conf" || return 1
     [ -n "$COMPONENTS" ] || return 1
+    if [ -n "${GUI_API:-}" ]; then
+        . "$ROOT/lib/gui-extension.sh" || return 1
+        . "$ROOT/lib/gui-services.sh" || return 1
+    fi
     mzd_require_tools awk cat cp cmp chmod stat md5sum cut mktemp readlink dirname rm patch dd od grep mkdir mv || return 1
 }
 mzd_bundle_validate_install() (
@@ -35,8 +39,16 @@ mzd_bundle_validate_install() (
                     awk '/^--- /{a++;if($0!="--- target.data")bad=1} /^\+\+\+ /{b++;if($0!="+++ target.data")bad=1} END{exit bad || a!=1 || b!=1}' "$scratch/patch.test" || exit 1
                 fi
                 ;;
+            loader|loader_env) ;;
         esac
     done < "$scratch/components"
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_gui_assets "$HERE" || exit 1
+        mzd_gui_locations || exit 1
+        mzd_gui_support || exit 1
+        mzd_gui_capabilities || exit 1
+        mzd_gui_services_preflight || exit 1
+    fi
     mzd_bundle_preflight
 )
 mzd_bundle_preflight() (
@@ -61,15 +73,96 @@ mzd_bundle_preflight() (
     awk -F "$(printf '\t')" '$1~/^(block|warning|info)$/' "$reason"
     awk -F "$(printf '\t')" '$1=="block"{bad=1} END{exit bad}' "$reason"
 )
+mzd_bundle_loader_env_keep() (
+    real_target=$1; svc=$2; name=$3
+    stock_file="$real_target.org"
+    [ -f "$stock_file" ] || stock_file="$real_target"
+    stock_val=""
+    if [ -f "$stock_file" ]; then
+        stock_val=$(awk -v service="$svc" -v env_name="$name" -v mode="extract" \
+            -f "$ROOT/lib/loader-env.awk" "$stock_file" 2>/dev/null || :)
+    fi
+    pkg_vals=""
+    store="${MZD_PACKAGE_STORE:-/tmp/mnt/data_persist/mzd-tweaks/installed}"
+    if [ -d "$store" ]; then
+        for other_dir in "$store"/*; do
+            [ -d "$other_dir" ] || continue
+            other_id="${other_dir##*/}"
+            [ "$other_id" != "$ID" ] || continue
+            for c_tsv in "$other_dir/package/tweaks/$other_id/components.tsv" "$other_dir/components.tsv"; do
+                [ -f "$c_tsv" ] || continue
+                c_tab=$(printf '\t')
+                while IFS="$c_tab" read -r ck cd cs csv ch; do
+                    if [ "$ck" = loader_env ] && [ "$csv" = "$svc" ]; then
+                        cname=${cd%%=*}
+                        if [ "$cname" = "$name" ]; then
+                            cval=${cd#*=}
+                            pkg_vals="${pkg_vals:+$pkg_vals:}$cval"
+                        fi
+                    fi
+                done < "$c_tsv"
+                break
+            done
+        done
+    fi
+    keep="${stock_val:+$stock_val:}$pkg_vals"
+    printf '%s\n' "$keep"
+)
+mzd_bundle_no_reset_keep() (
+    svc=$1
+    store="${MZD_PACKAGE_STORE:-/tmp/mnt/data_persist/mzd-tweaks/installed}"
+    if [ -d "$store" ]; then
+        for other_dir in "$store"/*; do
+            [ -d "$other_dir" ] || continue
+            other_id="${other_dir##*/}"
+            [ "$other_id" != "$ID" ] || continue
+            for c_tsv in "$other_dir/package/tweaks/$other_id/components.tsv" "$other_dir/components.tsv"; do
+                [ -f "$c_tsv" ] || continue
+                c_tab=$(printf '\t')
+                while IFS="$c_tab" read -r ck cd cs csv ch; do
+                    if [ "$ck" = shim ] && [ "$csv" = "$svc" ]; then
+                        case "$ch" in
+                            no_reset|no_reset*)
+                                printf '1\n'
+                                exit 0
+                                ;;
+                        esac
+                    fi
+                done < "$c_tsv"
+                break
+            done
+        done
+    fi
+    printf '0\n'
+)
 mzd_bundle_transform() (
-    input=$1; operation=$2; output=$3; table=$4
+    input=$1; operation=$2; output=$3; table=$4; real_target=${5:-}
     cp "$input" "$output" || exit 1
     tab=$(printf '\t')
     while IFS="$tab" read -r kind dest source service original; do
-        [ "$kind" = shim ] || continue
-        SHIM_SERVICE=$service; SHIM_PATH=$dest
-        mzd_shim_transform "$output" "$operation" > "$output.next" || exit 1
-        mv "$output.next" "$output" || exit 1
+        case "$kind" in
+            shim)
+                SHIM_SERVICE=$service; SHIM_PATH=$dest
+                no_reset=0; [ "$original" != no_reset ] || no_reset=1
+                if [ "$operation" = uninstall ] && [ "$no_reset" = 1 ]; then
+                    if [ "$(mzd_bundle_no_reset_keep "$service")" = 1 ]; then
+                        no_reset=0
+                    fi
+                fi
+                mzd_shim_transform "$output" "$operation" "$no_reset" > "$output.next" || exit 1
+                mv "$output.next" "$output" || exit 1
+                ;;
+            loader_env)
+                env_name=${dest%%=*}
+                env_val=${dest#*=}
+                keep=""
+                if [ "$operation" = uninstall ]; then
+                    keep=$(mzd_bundle_loader_env_keep "$real_target" "$service" "$env_name")
+                fi
+                mzd_loader_env_transform "$output" "$operation" "$service" "$env_name" "$env_val" "$keep" > "$output.next" || exit 1
+                mv "$output.next" "$output" || exit 1
+                ;;
+        esac
     done < "$table"
 )
 # Build a plan on RAM for status or in the USB report for a modifying action.
@@ -81,8 +174,8 @@ mzd_bundle_plan() (
     mzd_settings_check "$HERE/manifest.conf" "$MZD_SETTINGS_FILE" || exit 1
     tab=$(printf '\t'); number=0; present=0; absent=0; evidence=0
     while IFS="$tab" read -r kind target source service original; do
-        if [ "$kind" = check ]; then
-            if [ "$requested" = install ]; then
+        if [ "$kind" = check ] || [ "$kind" = loader_env ]; then
+            if [ "$kind" = check ] && [ "$requested" = install ]; then
                 mzd_asset_readable "$target" && [ "$(mzd_hash "$target")" = "$original" ] || {
                     printf 'Unsupported native module: %s (expected MD5 %s).\n' "$target" "$original" >&2; exit 1;
                 }
@@ -140,19 +233,28 @@ mzd_bundle_plan() (
                     esac
                     cp "$folder/$direction/target.data" "$folder/after.data" || exit 1
                 else
-                    mzd_bundle_transform "$target" uninstall "$folder/removed.data" "$plan/components" || exit 1
-                    mzd_bundle_transform "$folder/removed.data" install "$folder/added.data" "$plan/components" || exit 1
+                    mzd_bundle_transform "$target" uninstall "$folder/removed.data" "$plan/components" "$target" || exit 1
+                    mzd_bundle_transform "$folder/removed.data" install "$folder/added.data" "$plan/components" "$target" || exit 1
                     if cmp -s "$target" "$folder/removed.data"; then
                         state=uninstalled
                         cp "$folder/added.data" "$folder/after.data" || exit 1
-                        mzd_bundle_transform "$folder/after.data" uninstall "$folder/inverse.data" "$plan/components" || exit 1
+                        mzd_bundle_transform "$folder/after.data" uninstall "$folder/inverse.data" "$plan/components" "$target" || exit 1
                         cmp -s "$target" "$folder/inverse.data" || { printf 'Loader insertion is not exactly reversible.\n' >&2; exit 1; }
                     else
                         # Check each own reference, allowing other preload tokens/order.
                         while IFS="$tab" read -r k d s svc h; do
-                            [ "$k" = shim ] || continue
-                            SHIM_SERVICE=$svc; SHIM_PATH=$d
-                            [ "$(mzd_shim_transform "$target" status)" = installed ] || { printf 'Partial loader configuration.\n' >&2; exit 1; }
+                            case "$k" in
+                                shim)
+                                    SHIM_SERVICE=$svc; SHIM_PATH=$d
+                                    no_reset=0; [ "$h" != no_reset ] || no_reset=1
+                                    [ "$(mzd_shim_transform "$target" status "$no_reset")" = installed ] || { printf 'Partial loader configuration.\n' >&2; exit 1; }
+                                    ;;
+                                loader_env)
+                                    env_name=${d%%=*}
+                                    env_val=${d#*=}
+                                    [ "$(mzd_loader_env_transform "$target" status "$svc" "$env_name" "$env_val")" = installed ] || { printf 'Partial loader configuration.\n' >&2; exit 1; }
+                                    ;;
+                            esac
                         done < "$plan/components"
                         state=installed; cp "$folder/removed.data" "$folder/after.data" || exit 1
                     fi
@@ -176,6 +278,7 @@ mzd_bundle_plan() (
     payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
+        case "$existing" in *.tmp) continue ;; esac
         awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$plan/components" || {
             . "$ROOT/lib/config-data.sh" || exit 1
             mzd_config_contains "$HERE" "$existing" || { printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2;exit 1; }
@@ -214,6 +317,15 @@ mzd_bundle_cleanup() (
             fi
         done < "$MZD_REPORT/reverse"
     fi
+    if [ "${BUNDLE_COMMITTED:-0}" = 0 ] && [ -n "${GUI_API:-}" ] && [ -f "$MZD_REPORT/gui-transaction.path" ]; then
+        gui_tx=$(cat "$MZD_REPORT/gui-transaction.path") || result=1
+        if [ -n "$gui_tx" ] && [ -d "$gui_tx" ]; then
+            (mzd_gui_rollback "$gui_tx") || result=1
+        else
+            result=1
+        fi
+        rm -f "$MZD_REPORT/gui-transaction.path"
+    fi
     # Only unlink explicitly recorded temporaries belonging to a declared target.
     for ledger in "$MZD_REPORT/temp.path" "$MZD_REPORT/temps"; do
         [ -f "$ledger" ] || continue
@@ -241,6 +353,9 @@ mzd_bundle_apply() {
     # All mixed transactions also serialize with single-shim workers.
     mzd_system_lock /tmp/mzd-sm-config-tweak.lock || exit 1
     [ "$LOCK" = /tmp/mzd-sm-config-tweak.lock ] || mzd_system_lock "$LOCK" || exit 1
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_system_lock /tmp/mzd-gui-extension.lock || exit 1
+    fi
     mkdir "$MZD_REPORT/plan" || exit 1
     : > "$MZD_REPORT/changed"; : > "$MZD_REPORT/temps"
     state=$(mzd_bundle_plan "$MZD_REPORT/plan" "$ACTION") || mzd_fail 'Component preflight failed; nothing changed.'
@@ -260,12 +375,18 @@ mzd_bundle_apply() {
         esac
         mzd_system_remount_rw "$mount_point" || exit 1
     done
+    if [ -n "${GUI_API:-}" ]; then
+        mzd_system_remount_rw /tmp/mnt/data || exit 1
+    fi
     needed=$(du -sk "$MZD_REPORT/plan" | awk '{print $1+1024}')
     available=$(df -Pk "$MZD_COMPONENT_STORAGE" | awk 'NR==2{print $4}')
     case "$needed:$available" in *[!0-9:]*|:*|*:) mzd_fail 'Cannot determine payload storage space.' ;; esac
     [ "$available" -ge "$needed" ] || mzd_fail 'Insufficient persistent storage space.'
     mzd_system_watchdog_disable || exit 1
     mzd_report_start
+    if [ "$ACTION" = uninstall ] && [ -n "${GUI_API:-}" ]; then
+        mzd_gui_mutate uninstall || mzd_fail 'GUI module removal failed.'
+    fi
     # Install publishes all payloads before references. Uninstall does the reverse.
     if [ "$ACTION" = install ]; then phases='payload target'; else phases='target payload'; fi
     for phase in $phases; do
@@ -309,11 +430,15 @@ mzd_bundle_apply() {
     verify=$(mktemp -d /tmp/mzd-bundle-verify.XXXXXX) || exit 1
     verified=$(mzd_bundle_plan "$verify" verify); code=$?; rm -rf "$verify"
     case "$ACTION:$code:$verified" in install:0:installed|uninstall:0:uninstalled) ;; *) mzd_fail 'Final component verification failed; rolling back.' ;; esac
+    if [ "$ACTION" = install ] && [ -n "${GUI_API:-}" ]; then
+        mzd_gui_mutate install || mzd_fail 'GUI module installation failed; rolling back.'
+    fi
     if [ "$ACTION" = uninstall ] && [ -d "$payload_dir" ]; then
         if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || mzd_fail 'Payload directory is not empty.'
         else rmdir "$payload_dir" 2>/dev/null || :;fi
     fi
     sync; BUNDLE_COMMITTED=1
+    rm -f "$MZD_REPORT/gui-transaction.path"
     MZD_SUCCESS="$(printf '%s' "$ACTION" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') completed. Restart the CMU to apply the changes.
 Reports: $MZD_REPORT"
 }
@@ -340,7 +465,42 @@ mzd_bundle_main() (
             mzd_settings_normalize "$HERE/manifest.conf" > "$scratch/settings.conf" || exit 1
             MZD_SETTINGS_FILE="$scratch/settings.conf"
         fi
-        if state=$(mzd_bundle_plan "$scratch" status 2> "$scratch/reason"); then printf '%s\n' "$state"
+        if state=$(mzd_bundle_plan "$scratch" status 2> "$scratch/reason"); then
+            if [ -n "${GUI_API:-}" ]; then
+                gui_state=$(mzd_gui_status 2> "$scratch/gui_reason") || {
+                    cat "$scratch/gui_reason" >&2
+                    exit 1
+                }
+                case "$state:$gui_state" in
+                    installed:installed)
+                        state=installed
+                        ;;
+                    uninstalled:uninstalled)
+                        state=uninstalled
+                        ;;
+                    installed:uninstalled|uninstalled:installed)
+                        printf 'Component bundle is partially installed: native %s, GUI %s.\n' "$state" "$gui_state" >&2
+                        state=broken
+                        ;;
+                    *:broken)
+                        state=broken
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                    installed:unavailable)
+                        state=broken
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                    uninstalled:unavailable)
+                        state=unavailable
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                    *)
+                        state=broken
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                esac
+            fi
+            printf '%s\n' "$state"
         else
             payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
             if [ -d "$payload_dir" ]; then printf 'broken\n'; else printf 'unavailable\n'; fi
@@ -356,6 +516,12 @@ mzd_bundle_reset_main() (
     phase=$1
     case "$phase" in check|prepare|finish) ;; *) exit 1 ;; esac
     mzd_bundle_load || exit 1
+    if [ "$phase" = check ] && [ -n "${GUI_API:-}" ]; then
+        (mzd_gui_reset check) || exit $?
+    fi
+    if [ "$phase" = prepare ] && [ -n "${GUI_API:-}" ]; then
+        (mzd_gui_reset prepare) || exit $?
+    fi
     scratch=$(mktemp -d /tmp/mzd-bundle-reset.XXXXXX) || exit 1
     trap 'rm -rf "$scratch"' 0
     mzd_components records > "$scratch/components" || exit 1
@@ -365,9 +531,11 @@ mzd_bundle_reset_main() (
     mzd_shim_parent_ok "$payload_dir" || exit 1
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
+        case "$existing" in *.tmp) continue ;; esac
         awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
     done
     while IFS="$tab" read -r kind target source service original; do
+        case "$kind" in check|loader_env) continue ;; esac
         mzd_shim_parent_ok "$target" || exit 1
         case "$kind" in
             loader|patch)
@@ -402,6 +570,9 @@ mzd_bundle_reset_main() (
     fi
     if [ -d "$payload_dir" ]; then
         if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || exit 2;else rmdir "$payload_dir" 2>/dev/null || :;fi
+    fi
+    if [ -n "${GUI_API:-}" ]; then
+        (mzd_gui_reset finish) || exit $?
     fi
     sync
 )

@@ -22,6 +22,16 @@ BEGIN {
     gsub(/^[ \t]+|[ \t]+$/, "", source)
     gsub(/^[ \t]+|[ \t]+$/, "", service)
     gsub(/^[ \t]+|[ \t]+$/, "", md5)
+    if(kind=="loader_env") {
+        eq=index(dest,"=")
+        env_name=substr(dest,1,eq-1)
+        env_val=substr(dest,eq+1)
+        if(!eq || env_name!~/^[A-Za-z_][A-Za-z0-9_]*$/ || env_val=="" || env_val ~ /["\r\n\\<>&]/ || source!="-" || service=="-" || service!~/^[A-Za-z0-9_.-]+$/ || md5!="-" || ++loader_envs>16)fail("Invalid loader environment variable.")
+        key=service ":" env_name
+        if(seen_env[key]++)fail("Duplicate service environment variable.")
+        if(mode=="records")print kind "\t" dest "\t" source "\t" service "\t" md5
+        next
+    }
     if(!path(dest))fail("Invalid target path.")
     if(kind=="check") {
         if(source!="-" || service!="-" || !hash(md5) || checks[dest]++)fail("Invalid module check.")
@@ -38,10 +48,14 @@ BEGIN {
         if(mode=="catalog")print dest "\t" md5 "\t" lock
     } else if(kind=="shim" || kind=="file" || kind=="config" || kind=="executable") {
         leaf=substr(dest,length(prefix)+1)
-        if(index(dest,prefix)!=1 || leaf=="" || leaf ~ /\// || leaf ~ /^\./ || md5!="-" || !asset(source))fail("Payload must be a direct file in this tweak's persistent folder.")
+        if(index(dest,prefix)!=1 || leaf=="" || leaf ~ /\// || leaf ~ /^\./ || !asset(source))fail("Payload must be a direct file in this tweak's persistent folder.")
         if(kind=="shim") {
-            if(service!~/^[A-Za-z0-9_.-]+$/ || dest!~/\.so$/ || source!~/\.so$/ || ++shims>16)fail("Invalid shim service or asset.")
-        } else if(service!="-")fail("Unexpected service field.")
+            if(md5!="-" && md5!="no_reset")fail("Invalid shim options.")
+            if(service=="-" || service!~/^[A-Za-z0-9_.-]+$/ || dest!~/\.so$/ || source!~/\.so$/ || ++shims>16)fail("Invalid shim service or asset.")
+        } else {
+            if(md5!="-")fail("Unexpected options field.")
+            if(service!="-")fail("Unexpected service field.")
+        }
         if(mode=="paths")print "shim\t" dest
         payload++
     } else fail("Unknown component kind.")
@@ -49,6 +63,6 @@ BEGIN {
 }
 END {
     if(bad)exit 1
-    if(main!=1 || count==0 || (shims && !loaders))fail("Primary target or loader declaration is missing.")
+    if(main!=1 || count==0 || ((shims || loader_envs) && !loaders))fail("Primary target or loader declaration is missing.")
     if(mode=="paths" && payload)print "create\t" substr(prefix,1,length(prefix)-1)
 }

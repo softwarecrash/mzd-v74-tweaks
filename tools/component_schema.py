@@ -8,8 +8,8 @@ def read(manifest, values):
     if not table.is_file() or table.is_symlink():
         raise ValueError('Missing or linked component table.')
     rows = []
-    seen, checks = set(), set()
-    primary = loaders = shims = 0
+    seen, checks, seen_env = set(), set(), set()
+    primary = loaders = shims = loader_envs = 0
     if values.get('payload_dir'):
         prefix = values['payload_dir'] + '/'
     else:
@@ -26,6 +26,25 @@ def read(manifest, values):
         if len(fields) != 5 or '\r' in line or len(rows) >= 64:
             raise ValueError('Expected at most 64 five-column component records.')
         kind, target, source, service, md5 = (f.strip() for f in fields)
+        if kind == 'loader_env':
+            if '=' not in target:
+                raise ValueError('Invalid loader environment variable.')
+            env_name, env_val = target.split('=', 1)
+            if (not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', env_name) or
+                    not env_val or
+                    any(c in env_val for c in ('"', '\r', '\n', '\\', '<', '>', '&')) or
+                    source != '-' or service == '-' or not re.fullmatch(r'[A-Za-z0-9_.-]+', service) or
+                    md5 != '-'):
+                raise ValueError('Invalid loader environment variable.')
+            key = f'{service}:{env_name}'
+            if key in seen_env:
+                raise ValueError('Duplicate service environment variable.')
+            seen_env.add(key)
+            loader_envs += 1
+            if loader_envs > 16:
+                raise ValueError('Too many loader environment variables.')
+            rows.append(fields)
+            continue
         if not safe(target):
             raise ValueError('Invalid component target.')
         if kind == 'check':
@@ -49,14 +68,19 @@ def read(manifest, values):
                     raise ValueError('Invalid patch source.')
             elif kind in ('shim', 'file', 'config', 'executable'):
                 leaf = target[len(prefix):]
-                if not target.startswith(prefix) or not leaf or '/' in leaf or leaf.startswith('.') or md5 != '-' or not safe(source, False):
+                if not target.startswith(prefix) or not leaf or '/' in leaf or leaf.startswith('.') or not safe(source, False):
                     raise ValueError('Payload must be a direct file in its private persistent folder.')
                 if kind == 'shim':
                     shims += 1
-                    if not re.fullmatch('[A-Za-z0-9_.-]+', service) or not target.endswith('.so') or not source.endswith('.so') or shims > 16:
+                    if md5 not in ('-', 'no_reset'):
+                        raise ValueError('Invalid shim options.')
+                    if service == '-' or not re.fullmatch('[A-Za-z0-9_.-]+', service) or not target.endswith('.so') or not source.endswith('.so') or shims > 16:
                         raise ValueError('Invalid shim record.')
-                elif service != '-':
-                    raise ValueError('Unexpected component service.')
+                else:
+                    if md5 != '-':
+                        raise ValueError('Unexpected options field.')
+                    if service != '-':
+                        raise ValueError('Unexpected component service.')
                 if kind == 'config':
                     mapping = folder / source
                     if not mapping.is_file() or mapping.is_symlink():
@@ -75,6 +99,6 @@ def read(manifest, values):
             else:
                 raise ValueError('Unknown component kind.')
         rows.append(fields)
-    if primary != 1 or not rows or (shims and not loaders):
+    if primary != 1 or not rows or ((shims or loader_envs) and not loaders):
         raise ValueError('Missing primary target or shim loader.')
     return rows
