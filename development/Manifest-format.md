@@ -192,7 +192,7 @@ first/last-consumer lifecycle, ownership rules and development limits.
 ### Choice control behavior
 
 For choice settings named `language` or ending in `_language`, the installer
-displays known language tokens using a fixed language-name list (for example,
+displays known language tokens using the editable list in `usb/ui/language-names.js` (for example,
 `de` as `Deutsch`). Matching is exact: unknown tokens such as `de-de` remain
 unchanged. Only the label changes; workers receive the original token.
 

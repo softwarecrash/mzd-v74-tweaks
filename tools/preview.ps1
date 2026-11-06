@@ -22,6 +22,7 @@ $json = ConvertTo-Json -InputObject $manifests -Compress
 $json = $json.Replace('<', '\u003c')
 $html = [System.IO.File]::ReadAllText((Join-Path $ui 'index-template.html'))
 $css = [System.IO.File]::ReadAllText((Join-Path $ui 'style.css'))
+$languages = [System.IO.File]::ReadAllText((Join-Path $ui 'language-names.js'))
 $app = [System.IO.File]::ReadAllText((Join-Path $ui 'app.js'))
 $mock = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'preview-bridge.js'))
 $settingsScript = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot 'preview-navigation.js'))
@@ -34,6 +35,7 @@ $installerVersion = [System.IO.File]::ReadAllText((Join-Path $repo 'usb/VERSION'
 if ($installerVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+$') { throw 'Invalid installer VERSION.' }
 $html = $html.Replace('@INSTALLER_VERSION@', $installerVersion)
 $html = $html.Replace('@ORIGIN@', 'preview').Replace('@TOKEN@', 'preview')
+$html = $html.Replace('<script src="language-names.js"></script>', "<script>$languages</script>")
 $html = $html.Replace('<script src="app.js"></script>', "<script>window.previewManifests=$json;window.previewSettingsDemo=$settingsDemo;window.previewBrokenUninstallDemo=$brokenUninstallDemo;window.previewRecoveryDemo=$recoveryDemo;window.previewRecoveryDeniedDemo=$recoveryDeniedDemo;</script><script>$settingsScript</script><script>$mock</script><script>$app</script>")
 $html = $html.Replace('<title>MZD Tweaks</title>', '<title>MZD Tweaks - OFFLINE PREVIEW</title>')
 $previewPath = Join-Path ([System.IO.Path]::GetTempPath()) 'cmu-tweaks-preview.html'

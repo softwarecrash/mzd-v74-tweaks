@@ -139,7 +139,7 @@ PORT=$(sed -n '1p' "$STATE/ready"); TOKEN=$(sed -n '2p' "$STATE/ready")
 case "$PORT" in ''|*[!0-9]*) fail 'Invalid adapter port.' ;; esac
 case "$TOKEN" in ''|*[!0-9a-f]*) fail 'Invalid adapter token.' ;; esac
 mkdir "$STATE/ui" || exit 1
-cp "$HERE/ui/style.css" "$HERE/ui/app.js" "$STATE/ui/" || fail 'Cannot copy menu assets.'
+cp "$HERE/ui/style.css" "$HERE/ui/language-names.js" "$HERE/ui/app.js" "$STATE/ui/" || fail 'Cannot copy menu assets.'
 sed -e "s|@INSTALLER_VERSION@|$MZD_INSTALLER_VERSION|g" -e "s|@ORIGIN@|http://127.0.0.1:$PORT|g" -e "s|@TOKEN@|$TOKEN|g" "$HERE/ui/index-template.html" > "$STATE/ui/index.html" || fail 'Cannot prepare menu.'
 checkpoint 'Launching Secondary Opera'
 (

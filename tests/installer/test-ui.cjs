@@ -242,6 +242,7 @@ function boot(
       this.SetKeyboardFocus = (...a) => calls.push(["focus", ...a]);
     }
   };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, "ui/language-names.js"), "utf8"), ctx);
   vm.runInNewContext(
     fs.readFileSync(path.join(ROOT, "ui/app.js"), "utf8"),
     ctx,
