@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const window = {}, calls = [], outcomes = [];
+vm.runInNewContext(fs.readFileSync('usb/tweaks/speedometer/assets/preferences.js','utf8'),{window});
+const client = new window.SpeedometerPreferences((args,callback)=>calls.push({args,callback}));
+client.load((error,value)=>{assert.equal(error,null);assert.equal(value.language,'de_DE');});
+calls.shift().callback(null,{language:'de_DE'});
+const value={speedUnit:'kmh'};
+client.save(value,error=>outcomes.push(error));value.speedUnit='mph';
+client.save({speedUnit:'mph'},error=>outcomes.push(error));
+client.save({speedUnit:'auto'},error=>outcomes.push(error));
+assert.equal(calls.length,1);assert.equal(calls[0].args.values.speedUnit,'kmh','Request must own its snapshot.');
+calls.shift().callback(null);assert.equal(calls.length,1);assert.equal(calls[0].args.values.speedUnit,'auto','Intermediate changes must coalesce.');
+calls.shift().callback('write failed');assert.equal(outcomes.at(-1),'write failed');
+client.save({speedUnit:'mph'},error=>outcomes.push(error));calls.shift().callback(null);assert.equal(outcomes.at(-1),null);
+console.log('SPEEDOMETER_PREFERENCES_CLIENT_PASSED: saved startup values, serialized writes, immutable snapshots, coalescing and failure recovery.');

@@ -3,14 +3,14 @@
     var own = Object.prototype.hasOwnProperty;
     function finite(value) { return typeof value === 'number' && isFinite(value); }
     function choice(value, values, fallback) { return values.indexOf(value) >= 0 ? value : fallback; }
-    function settings(value, designs) {
+    function settings(value, designs, languages) {
         value = value || {};
-        return {version:1,design:choice(value.design,designs,'bm2014'),speedUnit:choice(value.speedUnit,['auto','kmh','mph'],'auto'),tempUnit:choice(value.tempUnit,['auto','C','F'],'auto'),animated:value.animated !== false};
+        return {version:1,language:choice(value.language,['auto'].concat(languages || ['en_US','de_DE']),'auto'),design:choice(value.design,designs,'bm2014'),speedUnit:choice(value.speedUnit,['auto','kmh','mph'],'auto'),tempUnit:choice(value.tempUnit,['auto','C','F'],'auto'),animated:value.animated !== false};
     }
-    function display(data, config, t) {
-        data = data || {};
-        var speedUnit = config.speedUnit === 'auto' ? choice(data.speedUnit,['kmh','mph'],'kmh') : config.speedUnit;
-        var tempUnit = config.tempUnit === 'auto' ? choice(data.tempUnit,['C','F'],'C') : config.tempUnit;
+    function display(data, config, t, system) {
+        data = data || {}; system = system || {};
+        var speedUnit = config.speedUnit === 'auto' ? choice(system.speedUnit || data.speedUnit,['kmh','mph'],'kmh') : config.speedUnit;
+        var tempUnit = config.tempUnit === 'auto' ? choice(system.tempUnit || data.tempUnit,['C','F'],'C') : config.tempUnit;
         function value(key, conversion, digits) {
             return own.call(data,key) && finite(data[key]) ? (data[key] * conversion).toFixed(digits).replace('.',t('decimal')) : '--';
         }

@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = Path(__file__).resolve().parent
+SOURCE = ROOT / 'usb/tweaks/speedometer'
 EMU = ROOT / 'private/emulator/mzd-emu'
 base = EMU / 'data/integration'
 assert (EMU / 'jci/gui/index.html').is_file(), 'Prepare the private MZD emulator first.'

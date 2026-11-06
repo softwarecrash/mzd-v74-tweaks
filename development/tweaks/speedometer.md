@@ -3,7 +3,8 @@
 Issue: https://github.com/softwarecrash/mzd-v74-tweaks/issues/62
 Branch: `feature/issue-62-speedometer`
 Starting development commit: `0ee2b43b04129425cd4b5a0f93266b34d340aad6`.
-Sources reviewed on 2026-11-06. Planning/research only; no installable tweak yet.
+Sources reviewed on 2026-11-06. Browser draft and initial read-only Lua adapter;
+installable package prepared; no hardware validation yet.
 
 ## Requested scope
 
@@ -30,13 +31,18 @@ unit conversion, settings and one i18n dictionary for both gauge and menu labels
 Do not import the other tweaks bundled with old speedometer installers; those
 remain separate existing packages in this project.
 
-The first browser-only implementation lives in `development/speedometer/`.
+The installable implementation now lives in `usb/tweaks/speedometer/`;
+`development/speedometer/` retains emulator staging and technical notes.
 Its demo provider has explicit start/stop lifecycle and does not access the CMU.
 The prototype uses the shared GUI SDK and native Mazda List2 settings menu in
 the emulator, browser-only saved choices, and English/German from one dictionary.
 Live skin switching, unit conversion, missing-data display and timer cleanup
-are covered by `tests/tweaks/speedometer/preview.cjs`. Real Lua transport and
-manifest-managed CMU persistence remain subsequent work.
+are covered by `tests/tweaks/speedometer/preview.cjs`. The initial Lua adapter and serialized service transport are now present, with
+fixture checks for conversions, expiry and lifecycle. Automatic unit/language selection now uses a read-only Mazda localization
+snapshot on opening, with explicit manual overrides. Real-CMU validation and
+real-CMU persistence verification remain subsequent work; the config lifecycle
+is implemented and tested in synthetic package fixtures. See the
+prototype README for source fields, scaling assumptions and remaining limits.
 
 ## Sources linked in the issue
 

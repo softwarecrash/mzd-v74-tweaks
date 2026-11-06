@@ -1,10 +1,11 @@
+@font-face{font-family:SpeedoInstrument;src:url('/jci/fonts/TipperarySemiboldItalic.ttf');font-style:italic}
 @font-face{font-family:SpeedoMazda;src:url('/jci/fonts/Tipperary.ttf')}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050607;color:#eee;font-family:SpeedoMazda,Arial,sans-serif}
 #stage{position:absolute;width:800px;height:480px;overflow:hidden;transform-origin:0 0;-o-transform-origin:0 0}
 canvas{display:block;width:800px;height:480px}
 button{font:18px SpeedoMazda,Arial,sans-serif;color:#eee;background:#151719;border:1px solid #68696a;padding:7px 14px;cursor:pointer}
-#settings{position:absolute;right:20px;top:13px;border-color:#505254;background:#101113}
-#demo{position:absolute;left:22px;top:20px;color:#dfa65e;font-size:14px;letter-spacing:1px}
+#settings{display:none}
+#demo{display:none}
 #fallback-menu{display:none;position:absolute;left:0;top:0;width:800px;height:480px;background:#090a0b url('/jci/gui/common/images/background.png') center center}
 #fallback-menu h1{height:48px;margin:0;padding:14px 32px 0;font-size:25px;font-weight:normal;border-bottom:2px solid #ba1e15}
 #menu-rows{margin:8px 32px} .menu-row{height:54px;line-height:54px;padding:0 16px;border-bottom:1px solid #444;font-size:21px;cursor:pointer}

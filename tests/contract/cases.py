@@ -8,6 +8,7 @@ CASES = {
     'snake': 'traffic-jam',
     'minesweeper': 'traffic-jam',
     'tetris': 'gui-extension',
+    'speedometer': 'gui-extension',
     'wallpaper-manager': 'gui-extension',
     'android-auto': 'component-bundle',
     'cluster-language': 'component-bundle',

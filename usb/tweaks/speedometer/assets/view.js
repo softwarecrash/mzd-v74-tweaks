@@ -1,0 +1,186 @@
+(function () {
+    'use strict';
+    var sdk = window.MzdGuiModule, model = window.SpeedometerModel, skins = window.SpeedometerSkins;
+    var source, data = null, ended = false, initialized = false, page = 'gauge', focus = 0;
+    var storageKey = 'mzd-speedometer-design-preview-v1', language = 'en_US', context = document.getElementById('gauge').getContext('2d');
+    var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash), token = match ? match[1] : '';
+    var live = window.location.protocol === 'file:' || /[?&]data=cmu(?:&|$)/.test(window.location.search), requestId = 0, pendingRequest = null;
+    var preferenceSerial = 0, pendingPreference = null, loadingPreferences = live, preferenceError = '';
+    var preferences = new window.SpeedometerPreferences(function (args,callback) {
+        var id = ++preferenceSerial, timeout;
+        timeout = window.setTimeout(function () {
+            if (pendingPreference && pendingPreference.id === id) { pendingPreference = null; callback('Settings request timed out.'); }
+        },10000);
+        pendingPreference = {id:id,callback:callback,timer:timeout};
+        post({type:'speedo-preferences',id:id,values:args.values});
+    });
+    var system = {language:'en_US'}, systemPending = null, systemRead = {}, systemTimer = null;
+    var nativeMenu = !!token, config, stored = null, languageMatch = /[?&]lang=([a-zA-Z_]+)/.exec(window.location.search);
+    source = live ? new window.SpeedometerLive(function (callback) {
+        var id = ++requestId, timeout;
+        timeout = window.setTimeout(function () {
+            if (pendingRequest && pendingRequest.id === id) { pendingRequest = null; callback('Data request timed out.'); }
+        },5000);
+        pendingRequest = {id:id,callback:callback,timer:timeout};
+        post({type:'speedo-sample',id:id});
+    }) : new window.SpeedometerDemo();
+    function t(key) { var all = window.SpeedometerLanguages, dictionary = all[language] || all[language.split('_')[0] === 'de' ? 'de_DE' : 'en_US']; return dictionary[key] || all.en_US[key] || key; }
+    function post(value) { value.token = token; window.parent.postMessage(value,'*'); }
+    function designIds() { return skins.list().map(function (skin) { return skin.id; }); }
+    try { if (!live) { stored = JSON.parse(window.localStorage.getItem(storageKey) || 'null'); } } catch (ignore) {}
+    config = model.settings(stored,designIds(),Object.keys(window.SpeedometerLanguages));
+    function applyLanguage() {
+        language = config.language === 'auto' ? system.language : config.language;
+        document.documentElement.lang = language.replace('_','-');
+    }
+    applyLanguage();
+    function finishSystemRead() {
+        if (!systemPending) { return; }
+        if (systemPending.language) { systemRead.language = true; }
+        if (systemPending.speedUnit) { systemRead.speedUnit = true; }
+        if (systemPending.tempUnit) { systemRead.tempUnit = true; }
+        window.clearTimeout(systemTimer); systemTimer = null; systemPending = null;
+    }
+    function finishStartup() {
+        if (ended || initialized || loadingPreferences || systemPending) { return; }
+        applyLanguage(); initialized = true; start();
+        document.getElementById('stage').style.visibility = 'visible';
+    }
+    function requestSystem() {
+        var fields = {language:config.language === 'auto' && !systemRead.language,speedUnit:config.speedUnit === 'auto' && !systemRead.speedUnit,tempUnit:config.tempUnit === 'auto' && !systemRead.tempUnit};
+        if (!token || systemPending || (!fields.language && !fields.speedUnit && !fields.tempUnit)) { return; }
+        systemPending = fields;
+        systemTimer = window.setTimeout(function () {
+            if (ended) { return; }
+            finishSystemRead(); finishStartup();
+        },5000);
+        post({type:'speedo-system-settings',fields:fields});
+    }
+    function save() {
+        if (live) {
+            preferences.save(config,function (error) {
+                preferenceError = error ? 'settingsNotSaved' : '';
+                if (!ended && page !== 'gauge') { renderMenu(); }
+            });
+        } else { try { window.localStorage.setItem(storageKey,JSON.stringify(config)); } catch (ignore) {} }
+    }
+    function fit() {
+        var scale = Math.min((window.innerWidth || 800)/800,(window.innerHeight || 480)/480), stage = document.getElementById('stage');
+        stage.style.transform = scale === 1 ? 'none' : 'scale('+scale+')'; stage.style.OTransform = stage.style.transform;
+        stage.style.left = Math.max(0,((window.innerWidth || 800)-800*scale)/2)+'px'; stage.style.top = Math.max(0,((window.innerHeight || 480)-480*scale)/2)+'px';
+    }
+    function renderGauge() {
+        if (ended || !initialized || page !== 'gauge') { return; }
+        skins.get(config.design).draw(context,model.display(data,config,t,system),t);
+        document.getElementById('settings').textContent = t('settings'); document.getElementById('demo').textContent = t(loadingPreferences ? 'loadingSettings' : live ? data && data.available ? 'live' : 'unavailable' : 'demo');
+        document.getElementById('gauge').setAttribute('aria-label',t('title')+' - '+t(live ? 'live' : 'demo'));
+    }
+    function start() { source.start(function (value) { data = value; renderGauge(); },config.animated); }
+    function rows() {
+        var result = [], values, i;
+        if (page === 'settings') {
+            var settings = [{id:'design',label:t('design'),detail:t(skins.get(config.design).labelKey),caret:true},
+                {id:'speed',label:t('speedUnits'),detail:t(config.speedUnit),caret:true},
+                {id:'temperature',label:t('temperatureUnits'),detail:config.tempUnit === 'auto' ? t('auto') : t(config.tempUnit === 'F' ? 'fahrenheit' : 'celsius'),caret:true},
+                {id:'language',label:t('language'),detail:config.language === 'auto' ? t('auto') : t('language.'+config.language),caret:true},
+                {id:'return',label:t('back')}];
+            if (preferenceError) { settings.splice(0,0,{id:'settingsError',label:t(preferenceError),disabled:true}); }
+            if (!live) { settings.splice(4,0,{id:'animated',label:t('animate'),detail:t(config.animated ? 'on' : 'off')}); }
+            return settings;
+        }
+        if (page === 'language') {
+            values = ['auto'].concat(Object.keys(window.SpeedometerLanguages));
+            for (i = 0; i < values.length; i += 1) { result.push({id:values[i],label:t(values[i] === 'auto' ? 'auto' : 'language.'+values[i]),radio:true,checkable:true,checked:config.language === values[i]}); }
+        } else if (page === 'design') {
+            values = skins.list(); for (i = 0; i < values.length; i += 1) { result.push({id:values[i].id,label:t(values[i].labelKey),radio:true,checkable:true,checked:config.design === values[i].id}); }
+        } else {
+            values = page === 'speed' ? ['auto','kmh','mph'] : ['auto','C','F'];
+            for (i = 0; i < values.length; i += 1) { result.push({id:values[i],label:t(values[i] === 'C' ? 'celsius' : values[i] === 'F' ? 'fahrenheit' : values[i]),radio:true,checkable:true,checked:(page === 'speed' ? config.speedUnit : config.tempUnit) === values[i]}); }
+        }
+        result.push({id:'return',label:t('back')});
+        return result;
+    }
+    function renderMenu() {
+        var list = rows(), title = t(page === 'settings' ? 'settings' : page === 'speed' ? 'speedUnits' : page === 'temperature' ? 'temperatureUnits' : page === 'language' ? 'language' : 'design');
+        var root = document.getElementById('menu-rows'), i, row, label, detail;
+        document.getElementById('settings').textContent = t('settings');
+        if (focus >= list.length) { focus = 0; }
+        if (nativeMenu) { post({type:'speedo-native-render',menu:{page:page,title:title,rows:list,index:focus}}); return; }
+        document.getElementById('fallback-menu').style.display = 'block'; document.getElementById('menu-title').textContent = title;
+        document.getElementById('menu-back').textContent = t('back'); root.innerHTML = '';
+        for (i = 0; i < list.length; i += 1) {
+            row = document.createElement('div'); row.className = 'menu-row'+(i === focus ? ' selected' : ''); row.setAttribute('role','button');
+            label = document.createElement('span'); label.textContent = (list[i].checkable && list[i].checked ? '\u2713 ' : '')+list[i].label; row.appendChild(label);
+            detail = document.createElement('span'); detail.className = 'menu-detail'; detail.textContent = list[i].detail || ''; row.appendChild(detail);
+            row.onclick = (function (position) { return function () { choose(position); }; }(i)); root.appendChild(row);
+        }
+    }
+    function open(next) { source.stop(); page = next; focus = 0; renderMenu(); }
+    function resume() {
+        if (nativeMenu) { post({type:'speedo-native-release'}); }
+        document.getElementById('fallback-menu').style.display = 'none'; page = 'gauge'; start();
+    }
+    function back() { if (page === 'gauge') { return false; } if (page === 'settings') { resume(); } else { open('settings'); } return true; }
+    function choose(position) {
+        var row = rows()[position]; if (!row || row.disabled || ended) { return; } focus = position;
+        if (row.id === 'return') { back(); return; }
+        if (page === 'settings') {
+            if (row.id === 'animated') { config.animated = !config.animated; save(); renderMenu(); return; }
+            open(row.id); return;
+        }
+        if (page === 'language') { config.language = row.id; applyLanguage(); } else if (page === 'design') { config.design = row.id; } else if (page === 'speed') { config.speedUnit = row.id; } else { config.tempUnit = row.id; }
+        save(); requestSystem(); renderMenu();
+    }
+    function input(action, phase) {
+        if (ended) { return false; }
+        if (!initialized) { return action !== 'back'; }
+        if (action === 'back') { return phase === 'press' ? page !== 'gauge' : back(); }
+        if (page === 'gauge') { if (action === 'select' && phase !== 'press') { open('settings'); } return true; }
+        if (nativeMenu) { post({type:'speedo-native-input',action:action,phase:phase}); return true; }
+        if (phase === 'press') { return true; }
+        if (action === 'select') { choose(focus); }
+        else if (['up','down','rotateLeft','rotateRight'].indexOf(action) >= 0) { focus = (focus + (action === 'up' || action === 'rotateLeft' ? -1 : 1)+rows().length)%rows().length; renderMenu(); }
+        return true;
+    }
+    function receive(event) {
+        var value = event.data;
+        if (event.source !== window.parent || !value || value.token !== token || ended) { return; }
+        if (value.type === 'speedo-preferences-result' && pendingPreference && pendingPreference.id === value.id) {
+            var preference = pendingPreference; pendingPreference = null; window.clearTimeout(preference.timer); preference.callback(value.error || null,value.result);
+        }
+        if (value.type === 'speedo-system-settings-result' && systemPending && value.settings) {
+            finishSystemRead();
+            if (value.settings.speedUnit === 'kmh' || value.settings.speedUnit === 'mph') { system.speedUnit = value.settings.speedUnit; }
+            if (value.settings.tempUnit === 'C' || value.settings.tempUnit === 'F') { system.tempUnit = value.settings.tempUnit; }
+            if (typeof value.settings.language === 'string' && /^[a-z]{2,3}(_[a-zA-Z]{2})?$/.test(value.settings.language)) { system.language = value.settings.language; }
+            applyLanguage(); requestSystem(); finishStartup(); if (page === 'gauge') { renderGauge(); } else { renderMenu(); }
+        }
+        if (value.type === 'speedo-sample-result' && pendingRequest && pendingRequest.id === value.id) {
+            var pending = pendingRequest; pendingRequest = null; window.clearTimeout(pending.timer); pending.callback(value.error || null,value.result);
+        }
+        if (value.type === 'speedo-native-error') { nativeMenu = false; renderMenu(); }
+        if (value.type === 'speedo-native-select') { choose(value.index); }
+        if (value.type === 'speedo-native-focus') { focus = value.index; }
+    }
+    function dispose() {
+        if (ended) { return; } source.stop(); window.clearTimeout(systemTimer);
+        if (pendingPreference) { window.clearTimeout(pendingPreference.timer); pendingPreference = null; }
+        if (pendingRequest) { window.clearTimeout(pendingRequest.timer); pendingRequest = null; }
+        if (nativeMenu) { post({type:'speedo-native-release'}); } ended = true;
+        window.removeEventListener('message',receive,false); window.removeEventListener('resize',fit,false);
+    }
+    document.getElementById('settings').onclick = function () { open('settings'); };
+    document.getElementById('menu-back').onclick = back;
+    window.addEventListener('message',receive,false); window.addEventListener('resize',fit,false); window.addEventListener('unload',dispose,false);
+    if (sdk) { sdk.onInput(input); sdk.onDispose(dispose); sdk.ready(); }
+    fit();
+    if (!token && languageMatch) { system.language = languageMatch[1]; applyLanguage(); }
+    if (live) {
+        preferences.load(function (error,value) {
+            if (ended) { return; }
+            loadingPreferences = false; preferenceError = error ? 'settingsLoadFailed' : '';
+            config = model.settings(error ? null : value,designIds(),Object.keys(window.SpeedometerLanguages));
+            applyLanguage(); requestSystem(); finishStartup();
+        });
+    } else { requestSystem(); finishStartup(); }
+}());
