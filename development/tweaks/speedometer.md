@@ -68,8 +68,9 @@ is available from the vehicle.
 2. Establish read-only firmware-74 data sources for vehicle/GPS speed and useful
    optional values, then determine units and realistic update rates. Keep this
    transport separate from rendering. Do not infer units from UI language alone.
-3. Read/poll data only while the view needs it; stop timers/subscriptions on exit.
-   Reuse the factory runtime and existing Lua bridge if a backend is needed.
+3. Use the existing shared Lua service bridge instead of the legacy websocketd
+   server. Read/poll data only while the view needs it; stop timers/subscriptions
+   on exit. This is a selective rebuild, not a compatibility-focused old port.
 4. Declare mutable settings using the existing manifest config mechanism, with
    settings owned by the app and Keep/Remove behavior owned by the installer.
 5. Build emulator fixtures with explicitly simulated data while layouts are being
@@ -137,9 +138,45 @@ Do not copy the patch unchanged:
 - **romangarms/Mazda-CASDK-Apps:** accessible dashboard examples and field usage;
   inspect chosen implementation files before deciding to reuse them.
 
-The missing inputs are the two forum posts above and the full specific v74 port
-package/version linked there, if any. The two-file CPU archive does not establish
-which v74 registration/startup adjustments that port makes.
+## Sid Meyer v74 package
+
+The user supplied `Speedometer_74.00.324_UA_Sid_Meyer.zip` privately. Reviewed its
+135 archive entries and installer/source differences on 2026-11-06 without running
+the installer. This supplies the previously missing complete v74 package; its
+filename targets 74.00.324, and the installer credits Sid Meyer for v74 support
+and Ukrainian translation in 2023. Actual vehicle compatibility is not established
+merely by the archive name or static inspection.
+
+Comparison against the existing local AIO reference found:
+
+- `speedometer.js`, `speedometer.sh`, `_speedometerApp.js` and
+  `speedometer-startup.js` match byte-for-byte. The separate CPU-fix archive is a
+  delta on this same data/rendering baseline, not an unrelated implementation.
+- `speedometerUpdate.js` adds Ukrainian (`UA`) label translations and language
+  selection. The SpeedBar template mainly normalizes `Km/h` labels to `km/h`.
+- The app CSS has different bytes but identical decoded lines, so it is not a
+  substantive styling change in this comparison.
+- Bundled configuration selects Ukrainian, metric units, bar mode and the small
+  status-bar speedometer; it includes layout/controller/theme configuration files.
+  These are reference defaults, not our selected BM-2014 design requirements.
+- `run.sh` introduces a v74 compatibility group and selects `systemApp.74.js`.
+  Its normal deployment also installs the old websocketd/jQuery/Cufon stack,
+  changes Opera settings and starts websocketd on port 9969 from `stage_wifi.sh`.
+- Compared with our private OEM 74.00.324 systemApp, the bundled v74 file changes
+  application-menu allowlists and replaces the disclaimer lifecycle with the
+  immediate acknowledgement sequence. It is not a speedometer-only OEM change.
+- The installer permanently disables watchdog settings in `sm.conf`, enables
+  Opera user JavaScript/file XHR, and can stop all websocketd processes. Those
+  broad installer actions are not needed for our shared GUI/Lua implementation.
+
+Keep this complete package private as a reproducible source/reference. Selectively
+reuse verified field definitions, unit handling and controller ideas; replace
+registration, transport and rendering with our existing helper, Lua bridge and
+BM-2014 view. No package script or binary was executed or installed during review.
+
+The two forum post bodies remain inaccessible. The full package is now available,
+but forum-specific instructions, reported limitations and any later fixes remain
+unverified until those posts can be read.
 
 ## Open decisions
 
