@@ -23,6 +23,21 @@ five styles now. The selected concept image is retained privately with the other
 design drafts. It is not a finished UI asset or evidence that every shown value
 is available from the vehicle.
 
+Clarification: BM 2014 is the first **skin**, not the application's architecture.
+The gauge is designable, with a registry of independent renderers. Users select
+and change their design in the running app's settings. All designs share data,
+unit conversion, settings and one i18n dictionary for both gauge and menu labels.
+Do not import the other tweaks bundled with old speedometer installers; those
+remain separate existing packages in this project.
+
+The first browser-only implementation lives in `development/speedometer/`.
+Its demo provider has explicit start/stop lifecycle and does not access the CMU.
+The prototype uses the shared GUI SDK and native Mazda List2 settings menu in
+the emulator, browser-only saved choices, and English/German from one dictionary.
+Live skin switching, unit conversion, missing-data display and timer cleanup
+are covered by `tests/tweaks/speedometer/preview.cjs`. Real Lua transport and
+manifest-managed CMU persistence remain subsequent work.
+
 ## Sources linked in the issue
 
 1. [Trevelopment/MZD-AIO](https://github.com/Trevelopment/MZD-AIO)
