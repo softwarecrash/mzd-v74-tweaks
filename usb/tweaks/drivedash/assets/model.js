@@ -5,7 +5,7 @@
     function choice(value, values, fallback) { return values.indexOf(value) >= 0 ? value : fallback; }
     function settings(value, designs, languages) {
         value = value || {};
-        return {version:1,language:choice(value.language,['auto'].concat(languages || ['en_US','de_DE']),'auto'),design:choice(value.design,designs,'bm2014'),speedUnit:choice(value.speedUnit,['auto','kmh','mph'],'auto'),tempUnit:choice(value.tempUnit,['auto','C','F'],'auto'),animated:value.animated !== false};
+        return {version:1,language:choice(value.language,['auto'].concat(languages || ['en_US','de_DE']),'auto'),design:choice(value.design,designs,'oem-style'),speedUnit:choice(value.speedUnit,['auto','kmh','mph'],'auto'),tempUnit:choice(value.tempUnit,['auto','C','F'],'auto'),animated:value.animated !== false};
     }
     function display(data, config, t, system) {
         data = data || {}; system = system || {};

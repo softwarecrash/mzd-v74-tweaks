@@ -36,4 +36,4 @@ modules.append({'id': 'drivedash', 'menuPath': '', 'label': 'DriveDash',
 registry.write_text('window.mzdGuiRegistry=' + json.dumps({'api': 1, 'modules': modules}) + ';\n', encoding='utf-8', newline='\n')
 (base / '.gui-helper-test-owner').write_text('Private browser emulator fixture only.\n', encoding='utf-8')
 print('STAGED: Applications > DriveDash (simulated data only).')
-print('http://localhost:8080/jci/gui/index.html?test=drivedash-bm2014')
+print('http://localhost:8080/jci/gui/index.html?test=drivedash-oem-style')

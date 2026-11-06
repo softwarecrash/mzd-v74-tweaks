@@ -1,4 +1,4 @@
-/* BM-inspired instrument skin. LCD segments use local vector geometry. */
+/* OEM-style instrument skin. LCD segments use local vector geometry. */
 (function () {
     'use strict';
     var PI = Math.PI;
@@ -55,7 +55,7 @@
         line(ctx,83,180,236,160,'#8b9096',0.6); line(ctx,85,346,236,356,'#70777d',0.6);
         ctx.restore();
     }
-    window.DriveDashSkins.register({id:'bm2014',labelKey:'design.bm2014',draw:function (ctx,m,t) {
+    window.DriveDashSkins.register({id:'oem-style',labelKey:'design.oem-style',draw:function (ctx,m,t) {
         var cx = 400, cy = 249, i, a, c, s, g, now = new Date(), time;
         ctx.clearRect(0,0,800,480);
         g = ctx.createRadialGradient(400,230,50,400,230,470); g.addColorStop(0,'#171b21'); g.addColorStop(0.55,'#06090d'); g.addColorStop(1,'#010203'); ctx.fillStyle = g; ctx.fillRect(0,0,800,480);

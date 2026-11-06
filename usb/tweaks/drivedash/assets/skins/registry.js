@@ -7,6 +7,6 @@
             records['$'+skin.id] = skin; skins.push(skin);
         },
         list:function () { return skins.slice(0); },
-        get:function (id) { return records['$'+id] || records.$bm2014; }
+        get:function (id) { return records['$'+id] || records['$oem-style']; }
     };
 }(window));

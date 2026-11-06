@@ -1,7 +1,7 @@
 # DriveDash
 
 A configurable instrument display for firmware 74.00.324. Install through the USB
-launcher, restart, then open Applications > DriveDash. The BM 2014-inspired
+launcher, restart, then open Applications > DriveDash. The OEM-style
 skin is the first interchangeable design; no other AIO tweaks are bundled.
 
 Press the commander knob (Enter in the emulator) for settings. Tilt/rotate to

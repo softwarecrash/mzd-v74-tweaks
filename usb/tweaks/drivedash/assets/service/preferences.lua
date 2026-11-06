@@ -1,7 +1,7 @@
 -- The manifest-declared config is mutable; module assets remain immutable.
 local M={}
 local keys={'version','design','language','speedUnit','tempUnit','animated'}
-local function defaults()return {version=1,design='bm2014',language='auto',speedUnit='auto',tempUnit='auto',animated=true}end
+local function defaults()return {version=1,design='oem-style',language='auto',speedUnit='auto',tempUnit='auto',animated=true}end
 local function valid(value)
     assert(type(value)=='table','Invalid settings.')
     for key in pairs(value)do

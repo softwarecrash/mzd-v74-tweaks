@@ -25,7 +25,7 @@ value=model.normalize({batteryPercent:254,rpm:NaN,gpsLatitudeDeg:999});
 assert.equal(value.batteryPercent,null);assert.equal(value.rpm,null);assert.equal(value.gpsLatitudeDeg,null);
 for(const f of model.fields)assert(Object.hasOwn(value,f.key),f.key);
 assert.equal(value.gpsDirection,null);assert.equal(value.gpsFixValid,null);
-const config=window.DriveDashModel.settings({speedUnit:'mph',tempUnit:'F'},['bm2014']);
+const config=window.DriveDashModel.settings({speedUnit:'mph',tempUnit:'F'},['oem-style']);
 const display=window.DriveDashModel.display({intakeC:20,gpsAltitudeM:100,gpsSpeedKph:160.9344,driveAvgL100:10,elapsedSeconds:3661,gearNumber:3,leverPosition:4},config,k=>({decimal:'.'}[k]||k));
 assert.equal(display.data.intakeC,20);assert.equal(display.formatted.intakeC,'68');assert.equal(display.formatted.gpsAltitudeM,'328');
 assert.equal(display.formatted.gpsSpeedKph,'100');assert.equal(display.formatted.driveAvgL100,'23.5');assert.equal(display.formatted.elapsedSeconds,'1:01:01');

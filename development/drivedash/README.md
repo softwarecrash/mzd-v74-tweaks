@@ -6,14 +6,14 @@ CMU data adapter. The installable package and single asset source now live in
 The normal browser emulator remains explicitly marked DEMO; native reads have
 not yet been verified on hardware.
 
-The first skin is inspired by the Mazda 3 BM (2014) instrument cluster. The
+The first skin is named **OEM Style**, inspired by Mazda instrument clusters. The
 application is skin-independent: `skins/registry.js` manages renderers, and each
 renderer receives the same normalized display model and translation function.
 Additional skins register an ID, translation key and `draw(context, model, t)`.
 The settings design list comes from this registry. Selecting a skin applies it
 without closing the app. Selections remain in their settings page with the
 selected radio value marked. Back returns to the settings overview, then to the
-gauge. Only BM 2014 is supplied initially.
+gauge. Only OEM Style is supplied initially.
 
 `model.js` owns normalized data and unit conversion. `demo.js` is an explicitly
 simulated provider with start/stop lifecycle. `live.js` pulls snapshots through

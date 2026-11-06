@@ -9,7 +9,7 @@ const source = name => fs.readFileSync(path.join(root, name), 'utf8');
 const acornKey = Object.keys(process.binding('natives')).find(k => k.endsWith('acorn/dist/acorn'));
 const parser = new Module('drivedash-es5');
 parser._compile(process.binding('natives')[acornKey], 'drivedash-es5.js');
-for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/bm2014.js', 'demo.js', 'live.js', 'preferences.js', 'view.js', 'resident.js']) {
+for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'view.js', 'resident.js']) {
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
@@ -41,7 +41,7 @@ function fixture(native, live, initial, deferred) {
     };
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
-    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/bm2014.js', 'demo.js', 'live.js', 'preferences.js', 'view.js']) vm.runInContext(source(name), context);
+    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'view.js']) vm.runInContext(source(name), context);
     if (live && !deferred) { const load = messages.find(m=>m.type==='drivedash-preferences'); assert.ok(load); events.message({source:parent,data:{type:'drivedash-preferences-result',token:'preview-token',id:load.id,result:initial || {}}}); }
     if (native && !deferred && messages.some(m=>m.type==='drivedash-system-settings')) events.message({source:parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'mph',tempUnit:'F'}}});
     return {window, context, nodes, events, intervals, texts, messages, saved, input, dispose,timeouts};
@@ -49,21 +49,21 @@ function fixture(native, live, initial, deferred) {
 
 const f = fixture(false), model = f.window.DriveDashModel;
 const tr = key => f.window.DriveDashLanguages.en_US[key] || key;
-let config = model.settings({speedUnit:'mph',tempUnit:'F'}, ['bm2014']);
+let config = model.settings({speedUnit:'mph',tempUnit:'F'}, ['oem-style']);
 let value = model.display({speedKph:88,rpm:2400,outsideC:22,coolantC:90,tripKm:123.4,avgL100:6.7},config,tr);
 assert.equal(value.speed,'55'); assert.equal(value.outside,'72'); assert.equal(value.coolant,'194');
 assert.equal(value.averageUnit,'mpg');
-let auto = model.settings({},['bm2014']);
+let auto = model.settings({},['oem-style']);
 let automatic = model.display({speedKph:88,outsideC:22,speedUnit:'kmh',tempUnit:'C'},auto,tr,{speedUnit:'mph',tempUnit:'F'});
 assert.equal(automatic.speed,'55');assert.equal(automatic.outside,'72');
-let manual = model.display({speedKph:88,outsideC:22},model.settings({speedUnit:'kmh',tempUnit:'C'},['bm2014']),tr,{speedUnit:'mph',tempUnit:'F'});
+let manual = model.display({speedKph:88,outsideC:22},model.settings({speedUnit:'kmh',tempUnit:'C'},['oem-style']),tr,{speedUnit:'mph',tempUnit:'F'});
 assert.equal(manual.speed,'88');assert.equal(manual.outside,'22');
 value = model.display({engineLoadPercent:43,batteryPercent:81},config,tr);
 assert.equal(value.engineLoad,43);assert.equal(value.battery,81);
 value = model.display({},config,tr);
 assert.equal(value.engineLoad,null);assert.equal(value.battery,null);
 assert.equal(value.speed,'--'); assert.equal(value.rpm,null); assert.equal(value.outside,'--');
-assert.equal(model.settings({speedUnit:'bad',tempUnit:'bad',design:'bad'},['bm2014']).design,'bm2014');
+assert.equal(model.settings({speedUnit:'bad',tempUnit:'bad',design:'bad'},['oem-style']).design,'oem-style');
 assert.equal(f.nodes.demo.textContent,'DEMOWERTE'); assert.ok(f.texts.includes('Außen'));
 assert.ok(f.texts.includes('123,4 km'));
 for (const dictionary of Object.values(f.window.DriveDashLanguages)) { assert.equal(dictionary['gui.label'],'DriveDash'); assert.equal(dictionary.title,'DriveDash'); }
@@ -146,7 +146,7 @@ const mixed = fixture(true,false,{language:'de_DE',speedUnit:'auto',tempUnit:'C'
 const mixedRequest = mixed.messages.find(m=>m.type==='drivedash-system-settings');
 assert.equal(mixedRequest.fields.language,false);assert.equal(mixedRequest.fields.speedUnit,true);assert.equal(mixedRequest.fields.tempUnit,false);
 mixed.dispose();
-const savedLive = fixture(true,true,{version:1,language:'en_US',design:'bm2014',speedUnit:'mph',tempUnit:'F',animated:true});
+const savedLive = fixture(true,true,{version:1,language:'en_US',design:'oem-style',speedUnit:'mph',tempUnit:'F',animated:true});
 assert.equal(savedLive.messages.filter(m=>m.type==='drivedash-system-settings').length,0,'Read persistent choices before querying automatic settings.');
 assert.equal(savedLive.nodes.settings.textContent,'Settings');
 savedLive.nodes.settings.onclick();

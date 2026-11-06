@@ -9,7 +9,7 @@ local fs={exists=function(p)return content[p]~=nil or dirs[p]end,read=function(p
  remove_if_exists=function(p)content[p]=nil end,sync_directory=function(p)assert(p=='/config')end}
 local store=factory.create(fs,path,function(p)dirs[p]=true;return true end)
 local defaults=store.request({});assert(defaults.language=='auto' and defaults.speedUnit=='auto' and not content[path])
-local value={version=1,design='bm2014',language='de_DE',speedUnit='mph',tempUnit='F',animated=false}
+local value={version=1,design='oem-style',language='de_DE',speedUnit='mph',tempUnit='F',animated=false}
 store.request({values=value});local saved=content[path]
 assert(store.request({}).language=='de_DE' and store.request({}).animated==false)
 assert(factory.create(fs,path,function()error('Unexpected mkdir')end).request({}).speedUnit=='mph')
