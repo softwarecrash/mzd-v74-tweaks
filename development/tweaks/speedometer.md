@@ -14,6 +14,15 @@ Sources reviewed on 2026-11-06. Planning/research only; no installable tweak yet
 - Additional settings and visual mockups will follow from the issue author.
   Do not treat upstream layouts/features as an agreed final specification.
 
+### Initial design decision (2026-11-06)
+
+Use concept **02: Mazda 3 BM / 2014 instrument cluster** for initial development:
+central tachometer with integrated digital speed, silver outlines, white markings
+and restrained red accents. Other concepts remain ideas for later; do not build
+five styles now. The selected concept image is retained privately with the other
+design drafts. It is not a finished UI asset or evidence that every shown value
+is available from the vehicle.
+
 ## Sources linked in the issue
 
 1. [Trevelopment/MZD-AIO](https://github.com/Trevelopment/MZD-AIO)
@@ -69,9 +78,72 @@ Sources reviewed on 2026-11-06. Planning/research only; no installable tweak yet
 6. Validate real CMU data separately from browser appearance. No on-vehicle
    compatibility or performance claim has been established by this research.
 
+## User-supplied v74 speedometer CPU fix
+
+Reviewed the private `speedometer-cpu-fix.zip` on 2026-11-06 without executing it.
+It contains only `speedometer.sh` and `speedometer.js`, under the legacy
+`/jci/gui/apps/_speedometer/` layout. It is not a complete installer or full v74
+port. Keep the archive and extracted review copy private.
+
+Both files were compared with the matching files in the existing local AIO
+reference (`app/files/tweaks/config/speedometer/`). The relevant differences are:
+
+- GPS response parsing uses one awk process instead of five per response.
+- JavaScript tracks sockets by stream and closes them on foreground/background
+  transitions. A one-second supervisor reconnects missing sockets.
+- Foreground uses four streams: speed, RPM/distance, GPS and environmental values.
+- Background uses one `statsBg` stream every two seconds. It reads speed, RPM,
+  distance and GPS, retaining trip statistics without polling temperatures/fuel.
+- Foreground vehicle/RPM/GPS loops sleep 0.5 seconds; environmental reads sleep
+  three seconds. These sleeps are additional to command execution time.
+
+Useful principles to incorporate later: group related reads, avoid repeated
+parsing processes, collect only needed values, and explicitly own/stop transports.
+This is a static review, not a CPU benchmark or confirmed real-CMU fix.
+
+Do not copy the patch unchanged:
+
+- Foreground detection compares `framework.getCurrentApp()` with `_speedometer`.
+  Our shared extension uses the Applications host and view lifecycle; use those
+  lifecycle callbacks instead of the legacy app ID or an always-fast fallback.
+- The patch still polls in the background and leaves other JS timers running.
+  Decide explicitly whether background trip recording is wanted. If not, stop
+  data collection and rendering when the view closes.
+- Existing rendering still creates jQuery animation work even when the speed
+  animation option is disabled and invokes Cufon. The new BM view should not
+  inherit this rendering stack or redraw hidden elements.
+- A retry every second has no backoff; D-Bus calls lack an explicit reply timeout.
+  Add bounded failure handling appropriate to the new data bridge.
+- Average speed currently averages samples. Changing between fast foreground and
+  slow background sampling weights the two periods differently; use elapsed time
+  if preserving trip statistics across those modes.
+- Socket closure stopping child shell loops depends on the old websocketd setup,
+  which is not included in the supplied archive. Verify cleanup in our own runtime.
+
+## Ready-made code available for selective porting
+
+- **AIO classic implementation:** the local `_speedometer` tree includes the app,
+  two templates, CSS/images, startup/configuration code, data shell script and
+  update logic. Data source names, conversions and field handling are useful;
+  legacy registration, global status-bar patches and watchdog/Opera changes are
+  not the installation model for the new tweak.
+- **Private CPU fix:** a small delta on that AIO data/rendering code, not an
+  independent application. Apply its relevant ideas to the new lifecycle later.
+- **CASDK simple speedometer:** a separate complete UI example using SDK vehicle
+  subscriptions. It is a reference for gauge/controller logic, not a requirement
+  to install CASDK.
+- **Trevelopment/MZD_Speedometer:** accessible upstream configuration, controls,
+  installer and layout reference. No additional access is needed for these files.
+- **romangarms/Mazda-CASDK-Apps:** accessible dashboard examples and field usage;
+  inspect chosen implementation files before deciding to reuse them.
+
+The missing inputs are the two forum posts above and the full specific v74 port
+package/version linked there, if any. The two-file CPU archive does not establish
+which v74 registration/startup adjustments that port makes.
+
 ## Open decisions
 
-- Final display styles/mockups and fields beyond speed.
+- Fields beyond speed/RPM and later styles beyond the selected BM-2014 concept.
 - Exact CMU APIs, value units, permissions and sampling behavior on 74.00.324.
 - Automatic unit selection behavior when CMU settings change.
 - Whether any upstream UI/assets will actually be reused or the view is new.
