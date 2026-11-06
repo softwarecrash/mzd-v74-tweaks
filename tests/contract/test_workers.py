@@ -58,7 +58,7 @@ for id_, runner in CASES.items():
         subprocess.run([sys.executable,str(Path(__file__).with_name('test_gui_extensions.py')),'--'+id_+'-only'],check=True)
         continue
     if runner == 'gui-extension':
-        subprocess.run([sys.executable,str(Path(__file__).with_name('test_gui_extensions.py')),{'wallpaper-manager':'--wallpaper-only','tetris':'--tetris-only','speedometer':'--speedometer-only'}[id_]],check=True)
+        subprocess.run([sys.executable,str(Path(__file__).with_name('test_gui_extensions.py')),{'wallpaper-manager':'--wallpaper-only','tetris':'--tetris-only','drivedash':'--drivedash-only'}[id_]],check=True)
         continue
     if runner == 'touch-transaction':
         subprocess.run([sys.executable, str(Path(__file__).with_name('test_touch.py'))], check=True)

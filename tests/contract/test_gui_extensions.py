@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
   if id_=='second-example':s=s.replace('gui_label=Example GUI page','gui_label=Second "page" </script>')
   write(p,s)
  shutil.copytree(ROOT/'usb/tweaks/tetris',usb/'tweaks/tetris')
- shutil.copytree(ROOT/'usb/tweaks/speedometer',usb/'tweaks/speedometer')
+ shutil.copytree(ROOT/'usb/tweaks/drivedash',usb/'tweaks/drivedash')
  for game_id in ['snake','minesweeper']:shutil.copytree(ROOT/'usb/tweaks'/game_id,usb/'tweaks'/game_id)
  shutil.copytree(ROOT/'usb/tweaks/wallpaper-manager',usb/'tweaks/wallpaper-manager')
  shutil.copytree(ROOT/'development/examples/gui-hello-world',usb/'tweaks/gui-hello-world')
@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
    write(dest/'assets/resident.js','window.MzdGuiResidents.register("'+id_+'",function () {});\n')
    write(dest/'assets/service.lua','return function() return {request=function()return {}end}end\n')
   write(b/'startup','#!/bin/sh\n# unrelated SSH hook\necho original\n')
- if '--speedometer-only' in sys.argv or '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or traffic_profile:
+ if '--drivedash-only' in sys.argv or '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or traffic_profile:
   write(b/'startup','#!/bin/sh\necho original\n')
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
@@ -82,7 +82,7 @@ if [ "$destination" = '''+shlex.quote(bp(base/'mzd-gui-runtime'))+''' ] && [ -f 
 exec '''+copy_command+''' "$@"
 ''')
  write(bins/'rm','#!/bin/sh\nfor arg do destination=$arg; done\nif [ "$destination" = '+shlex.quote(bp(base/'mzd-gui-runtime'))+' ] && [ -f '+shlex.quote(bp(b/'fail-remove'))+' ]; then '+remove_command+' -f '+shlex.quote(bp(b/'fail-remove'))+'; exit 1; fi\nexec '+remove_command+' "$@"\n')
- if traffic_profile or any(flag in sys.argv for flag in ['--speedometer-only','--services-only','--wallpaper-only','--tetris-only','--tetris-config-only','--ssh-coexist-only']):
+ if traffic_profile or any(flag in sys.argv for flag in ['--drivedash-only','--services-only','--wallpaper-only','--tetris-only','--tetris-config-only','--ssh-coexist-only']):
   # CMU BusyBox does not decode the literal backslash-t passed through -F.
   # Reject that nonportable form even when the host awk would accept it.
   write(bins/'awk','#!/bin/sh\nif [ \"$1\" = -F ] && [ \"$2\" = '+shlex.quote(r'\t')+' ]; then printf \"Unsupported CMU awk field separator.\\n\" >&2; exit 1; fi\nexec '+awk_command+' \"$@\"\n')
@@ -274,30 +274,30 @@ exec '''+copy_command+''' "$@"
   call('tetris','uninstall');assert not score.exists();absent()
   print('TETRIS_CONFIG_LIFECYCLE_PASSED:',checks,'real actions; template, edited highscore, Update, keep/reinstall and full removal.')
   raise SystemExit(0)
- if '--speedometer-only' in sys.argv:
+ if '--drivedash-only' in sys.argv:
   startup=b/'startup';original=startup.read_bytes()
-  settings=persist/'mzd-tweaks/gui-data/speedometer/settings.conf'
-  deep('speedometer','uninstalled')
-  write(version,'unsupported firmware\n');deep('speedometer','unavailable');write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n')
-  write(hook,'foreign hook\n');deep('speedometer','unavailable');call('speedometer','install',1);assert hook.read_text()=='foreign hook\n';hook.unlink()
-  call('speedometer','install');deep('speedometer','installed')
+  settings=persist/'mzd-tweaks/gui-data/drivedash/settings.conf'
+  deep('drivedash','uninstalled')
+  write(version,'unsupported firmware\n');deep('drivedash','unavailable');write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n')
+  write(hook,'foreign hook\n');deep('drivedash','unavailable');call('drivedash','install',1);assert hook.read_text()=='foreign hook\n';hook.unlink()
+  call('drivedash','install');deep('drivedash','installed')
   assert 'language=auto\n' in settings.read_text()
-  assert 'speedometer' in (base/'mzd-gui-services.tsv').read_text()
+  assert 'drivedash' in (base/'mzd-gui-services.tsv').read_text()
   edited='version=1\ndesign=bm2014\nlanguage=de_DE\nspeedUnit=mph\ntempUnit=F\nanimated=true\n'
-  write(settings,edited);deep('speedometer','installed')
-  manifest=usb/'tweaks/speedometer/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.2','version=0.1.3'))
-  call('speedometer','update');assert settings.read_text()==edited
-  call('tetris','install');call('speedometer','uninstall',extra=['--preserve-config']);assert settings.read_text()==edited and hook.exists()
+  write(settings,edited);deep('drivedash','installed')
+  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.2','version=0.1.3'))
+  call('drivedash','update');assert settings.read_text()==edited
+  call('tetris','install');call('drivedash','uninstall',extra=['--preserve-config']);assert settings.read_text()==edited and hook.exists()
   call('tetris','uninstall');absent();assert startup.read_bytes()==original and settings.read_text()==edited
-  call('speedometer','install');assert settings.read_text()==edited
-  call('speedometer','uninstall');absent();assert not settings.parent.exists() and startup.read_bytes()==original
-  assert not (persist/'mzd-tweaks/config-owners/speedometer.tsv').exists()
-  call('speedometer','install');assert 'speedUnit=auto\n' in settings.read_text()
-  installed_view=modules/'speedometer/assets/view.html';original_view=installed_view.read_bytes();installed_view.unlink();deep('speedometer','broken');installed_view.write_bytes(original_view)
+  call('drivedash','install');assert settings.read_text()==edited
+  call('drivedash','uninstall');absent();assert not settings.parent.exists() and startup.read_bytes()==original
+  assert not (persist/'mzd-tweaks/config-owners/drivedash.tsv').exists()
+  call('drivedash','install');assert 'speedUnit=auto\n' in settings.read_text()
+  installed_view=modules/'drivedash/assets/view.html';original_view=installed_view.read_bytes();installed_view.unlink();deep('drivedash','broken');installed_view.write_bytes(original_view)
   # Saved removal must remain self-contained when the USB assets are gone.
-  shutil.rmtree(usb/'tweaks/speedometer/assets')
-  call('speedometer','uninstall');absent();assert not settings.parent.exists() and startup.read_bytes()==original
-  print('SPEEDOMETER_PACKAGE_PASSED:',checks,'real actions; prerequisite refusal, mutable settings, Update, mixed consumers, preserve/reinstall, full cleanup and saved removal.')
+  shutil.rmtree(usb/'tweaks/drivedash/assets')
+  call('drivedash','uninstall');absent();assert not settings.parent.exists() and startup.read_bytes()==original
+  print('DRIVEDASH_PACKAGE_PASSED:',checks,'real actions; prerequisite refusal, mutable settings, Update, mixed consumers, preserve/reinstall, full cleanup and saved removal.')
   raise SystemExit(0)
  if '--tetris-only' in sys.argv:
   deep('tetris','uninstalled');call('tetris','install');deep('tetris','installed');original_hook=hook.read_bytes()
