@@ -661,7 +661,7 @@ echo "Generated preview HTML at: $PREVIEW_HTML"
 if [ "$TAKE_SCREENSHOT" -eq 1 ]; then
     CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     if [ ! -x "$CHROME_BIN" ]; then
-        CHROME_BIN=$(which google-chrome || which chromium || true)
+        CHROME_BIN=$(command -v google-chrome 2>/dev/null || command -v chromium 2>/dev/null || true)
     fi
     if [ -z "$CHROME_BIN" ] || [ ! -x "$CHROME_BIN" ]; then
         echo "Error: Google Chrome or Chromium executable not found." >&2

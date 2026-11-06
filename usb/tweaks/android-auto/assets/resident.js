@@ -26,7 +26,10 @@
             selection = null;
             destroyList();
             session = null;
-            if (fw.sendEventToMmui === old.backWrapper) {
+            if (typeof options.onClose === 'function') {
+                try { options.onClose(); } catch (ignore) {}
+            }
+            if (fw && fw.sendEventToMmui === old.backWrapper) {
                 fw.sendEventToMmui = old.originalSend;
             }
             if (old.container.parentNode) {
@@ -35,7 +38,7 @@
             old.frame.style.display = old.display;
             old.root.style.cssText = old.css;
             old.root.className = old.className;
-            if (fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
+            if (fw && typeof fw.getCurrentApp === 'function' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
                 app = fw.getAppInstance('system');
                 if (!app._currentContextTemplate || !app._currentContextTemplate.divElt || app._currentContextTemplate.divElt.style.visibility !== 'hidden') {
                     if (app._currentContextTemplate && app._currentContextTemplate.list2Ctrl) {
@@ -96,6 +99,9 @@
                 throw new Error('Invalid native menu.');
             }
             attach(frame, token);
+            if (typeof options.onOpen === 'function') {
+                try { options.onOpen(); } catch (ignore) {}
+            }
             current = session;
             if (fw.common && fw.common.setSbName) {
                 fw.common.setSbName(menu.title.replace(/[.]png/gi, ''));
@@ -191,195 +197,223 @@
                 return session && session.source === source && session.token === token;
             },
             check: function () {
-                if (session && (!document.documentElement.contains(session.frame) || global.framework.getCurrentApp() !== 'system' || global.framework.getCurrCtxtId() !== 'Applications')) {
+                if (session && (!document.documentElement.contains(session.frame) || !global.framework || typeof global.framework.getCurrentApp !== 'function' || global.framework.getCurrentApp() !== 'system' || global.framework.getCurrCtxtId() !== 'Applications')) {
                     close();
                 }
             }
         };
     }
-    global.AaNativeMenu = {create: create};
-}(window));
 
-window.MzdGuiResidents.register('android-auto', function (context) {
-    'use strict';
-    var nativeMenu = window.AaNativeMenu.create(), hostEnded = false;
-    var cachedSettings = null, cachedLoaded = false;
-    var queue = [], inFlight = false, syncing = false;
-    var lastSavedMessage = '';
-
-    function showSbn(text, isError) {
-        var fw = window.framework;
-        if (fw && fw.common && typeof fw.common.startTimedSbn === 'function') {
-            try {
-                fw.common.startTimedSbn('androidauto', 'AASettingsNotification', isError ? 'errorNotification' : 'typeD', {
-                    sbnStyle: 'Style02',
-                    imagePath1: 'common/images/icons/IcnSbnApps.png',
-                    text1: text
-                });
-            } catch (ignore) {}
-        }
-    }
-
-    function frameToken(source) {
-        var current = context.view();
-        return current && current.source === source ? current.token : '';
-    }
-
-    function broadcastState(error) {
-        var current = context.view();
-        if (current && current.source && cachedSettings) {
-            try {
-                current.source.postMessage({
-                    type: 'aa-response',
-                    token: current.token,
-                    state: cachedSettings,
-                    error: error || ''
-                }, '*');
-            } catch (ignore) {}
-        }
-    }
-
-    function syncFromService(cb) {
-        if (syncing) { return; }
-        syncing = true;
-        context.service.request('get', {}, function (error, result) {
-            syncing = false;
-            if (!error && result && result.settings) {
-                cachedSettings = result.settings;
-                cachedLoaded = true;
-                broadcastState('');
-            } else if (error) {
-                broadcastState(error);
+    global.MzdGuiResidents.register('android-auto', function (context) {
+        'use strict';
+        var refreshTimer = null;
+        function startPolling() {
+            if (!refreshTimer) {
+                refreshTimer = global.setInterval(function () {
+                    nativeMenu.check();
+                }, 500);
             }
-            if (cb) { cb(error, result); }
+        }
+        function stopPolling() {
+            if (refreshTimer) {
+                global.clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+        }
+
+        var nativeMenu = create({
+            onOpen: startPolling,
+            onClose: stopPolling
         });
-    }
+        var hostEnded = false;
+        var cachedSettings = null, cachedLoaded = false;
+        var queue = [], inFlight = false, syncing = false;
+        var syncCallbacks = [];
+        var lastSavedMessage = '', lastErrorMessage = '';
 
-    function hasQueuedKey(key) {
-        var i;
-        for (i = 0; i < queue.length; i += 1) {
-            if (queue[i].key === key) { return true; }
-        }
-        return false;
-    }
-
-    function drainQueue() {
-        if (hostEnded || inFlight || queue.length === 0) { return; }
-        var next = queue.shift();
-        inFlight = true;
-        context.service.request('set', { key: next.key, value: next.value }, function (error, result) {
-            inFlight = false;
-            if (error) {
-                queue = [];
-                if (lastSavedMessage) {
-                    showSbn('Failed to save Android Auto settings', true);
-                    lastSavedMessage = '';
-                }
-                syncFromService(function () {
-                    broadcastState(error);
-                });
-                return;
+        function showSbn(text, isError) {
+            var fw = global.framework;
+            if (fw && fw.common && typeof fw.common.startTimedSbn === 'function') {
+                try {
+                    fw.common.startTimedSbn('androidauto', 'AASettingsNotification', isError ? 'errorNotification' : 'typeD', {
+                        sbnStyle: 'Style02',
+                        imagePath1: 'common/images/icons/IcnSbnApps.png',
+                        text1: text
+                    });
+                } catch (ignore) {}
             }
-            if (result && result.settings) {
-                for (var k in result.settings) {
-                    if (Object.prototype.hasOwnProperty.call(result.settings, k)) {
-                        if (!hasQueuedKey(k)) {
-                            cachedSettings[k] = result.settings[k];
+        }
+
+        function frameToken(source) {
+            var current = context.view();
+            return current && current.source === source ? current.token : '';
+        }
+
+        function broadcastState(error) {
+            var current = context.view();
+            if (current && current.source && (cachedSettings || error)) {
+                try {
+                    current.source.postMessage({
+                        type: 'aa-response',
+                        token: current.token,
+                        state: cachedSettings,
+                        error: error || ''
+                    }, '*');
+                } catch (ignore) {}
+            }
+        }
+
+        function syncFromService(cb) {
+            if (cb) { syncCallbacks.push(cb); }
+            if (syncing) { return; }
+            syncing = true;
+            context.service.request('get', {}, function (error, result) {
+                var cbs, i;
+                syncing = false;
+                if (!error && result && result.settings) {
+                    cachedSettings = result.settings;
+                    cachedLoaded = true;
+                    broadcastState('');
+                } else if (error) {
+                    broadcastState(error);
+                }
+                cbs = syncCallbacks;
+                syncCallbacks = [];
+                for (i = 0; i < cbs.length; i += 1) {
+                    try {
+                        cbs[i](error, result);
+                    } catch (ignore) {}
+                }
+            });
+        }
+
+        function hasQueuedKey(key) {
+            var i;
+            for (i = 0; i < queue.length; i += 1) {
+                if (queue[i].key === key) { return true; }
+            }
+            return false;
+        }
+
+        function drainQueue() {
+            if (hostEnded || inFlight || queue.length === 0) { return; }
+            var next = queue.shift();
+            inFlight = true;
+            context.service.request('set', { key: next.key, value: next.value }, function (error, result) {
+                inFlight = false;
+                if (error) {
+                    queue = [];
+                    if (lastSavedMessage || lastErrorMessage) {
+                        showSbn(lastErrorMessage || 'Failed to save Android Auto settings', true);
+                        lastSavedMessage = '';
+                        lastErrorMessage = '';
+                    }
+                    syncFromService(function () {
+                        broadcastState(error);
+                    });
+                    return;
+                }
+                if (result && result.settings) {
+                    for (var k in result.settings) {
+                        if (Object.prototype.hasOwnProperty.call(result.settings, k)) {
+                            if (!hasQueuedKey(k)) {
+                                cachedSettings[k] = result.settings[k];
+                            }
                         }
                     }
                 }
-            }
-            broadcastState('');
-            if (queue.length > 0) {
-                drainQueue();
-            } else {
-                if (lastSavedMessage) {
-                    showSbn(lastSavedMessage, false);
-                    lastSavedMessage = '';
-                }
-            }
-        });
-    }
-
-    function receive(event) {
-        var data = event.data, token = frameToken(event.source), frames, frame, i;
-        if (data && data.type === 'aa-native-release') {
-            if ((token && data.token === token) || (nativeMenu && nativeMenu.owns(event.source, data.token))) {
-                nativeMenu.close();
-                if (inFlight || queue.length > 0) {
-                    lastSavedMessage = data.savedMessage || 'Android Auto settings saved.';
-                    if (data.savingMessage) {
-                        showSbn(data.savingMessage, false);
+                broadcastState('');
+                if (queue.length > 0) {
+                    drainQueue();
+                } else {
+                    if (lastSavedMessage) {
+                        showSbn(lastSavedMessage, false);
+                        lastSavedMessage = '';
+                        lastErrorMessage = '';
                     }
                 }
-            }
-            return;
+            });
         }
-        if (!token || !data || data.token !== token) { return; }
-        if (data.type === 'aa-native-render' || data.type === 'aa-native-input') {
-            frames = document.getElementsByTagName('iframe');
-            for (i = 0; i < frames.length; i += 1) {
-                if (frames[i].contentWindow === event.source) { frame = frames[i]; }
-            }
-            if (!frame) { return; }
-            try {
-                if (data.type === 'aa-native-render') {
-                    nativeMenu.render(frame, token, data.menu);
-                } else {
-                    nativeMenu.input(frame, token, data.action, data.phase);
-                }
-            } catch (failure) {
-                nativeMenu.close();
-                event.source.postMessage({
-                    type: 'aa-native-error',
-                    token: token,
-                    message: String(failure.message || failure)
-                }, '*');
-            }
-            return;
-        }
-        if (data.type === 'aa-request') {
-            if (data.action === 'get') {
-                if (cachedLoaded && cachedSettings) {
-                    broadcastState('');
-                } else {
-                    syncFromService();
+
+        function receive(event) {
+            var data = event.data, token = frameToken(event.source), frames, frame, i;
+            if (data && data.type === 'aa-native-release') {
+                if ((token && data.token === token) || (nativeMenu && nativeMenu.owns(event.source, data.token))) {
+                    nativeMenu.close();
+                    if (inFlight || queue.length > 0) {
+                        lastSavedMessage = data.savedMessage || 'Android Auto settings saved.';
+                        lastErrorMessage = data.errorMessage || 'Failed to save Android Auto settings';
+                        if (data.savingMessage) {
+                            showSbn(data.savingMessage, false);
+                        }
+                    }
                 }
                 return;
             }
-            if (data.action === 'set' && data.payload && data.payload.key) {
-                if (!cachedSettings) { cachedSettings = {}; }
-                cachedSettings[data.payload.key] = data.payload.value;
-                var found = false;
-                for (i = 0; i < queue.length; i += 1) {
-                    if (queue[i].key === data.payload.key) {
-                        queue[i].value = data.payload.value;
-                        found = true;
-                        break;
+            if (!token || !data || data.token !== token) { return; }
+            if (data.type === 'aa-native-render' || data.type === 'aa-native-input') {
+                frames = document.getElementsByTagName('iframe');
+                for (i = 0; i < frames.length; i += 1) {
+                    if (frames[i].contentWindow === event.source) { frame = frames[i]; }
+                }
+                if (!frame) { return; }
+                try {
+                    if (data.type === 'aa-native-render') {
+                        nativeMenu.render(frame, token, data.menu);
+                    } else {
+                        nativeMenu.input(frame, token, data.action, data.phase);
                     }
+                } catch (failure) {
+                    nativeMenu.close();
+                    event.source.postMessage({
+                        type: 'aa-native-error',
+                        token: token,
+                        message: String(failure.message || failure)
+                    }, '*');
                 }
-                if (!found) {
-                    queue.push({ key: data.payload.key, value: data.payload.value });
+                return;
+            }
+            if (data.type === 'aa-request') {
+                if (data.action === 'get') {
+                    if (cachedLoaded && cachedSettings) {
+                        broadcastState('');
+                    } else {
+                        syncFromService();
+                    }
+                    return;
                 }
-                drainQueue();
+                if (data.action === 'set' && data.payload && data.payload.key) {
+                    if (!cachedSettings) { cachedSettings = {}; }
+                    cachedSettings[data.payload.key] = data.payload.value;
+                    var found = false;
+                    for (i = 0; i < queue.length; i += 1) {
+                        if (queue[i].key === data.payload.key) {
+                            queue[i].value = data.payload.value;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        queue.push({ key: data.payload.key, value: data.payload.value });
+                    }
+                    drainQueue();
+                }
             }
         }
-    }
-    var refresh = window.setInterval(function () {
-        nativeMenu.check();
-    }, 500);
-    context.onMessage(receive);
-    context.onViewClose(function () {
-        nativeMenu.close();
+        context.onMessage(receive);
+        context.onViewClose(function () {
+            nativeMenu.close();
+            stopPolling();
+        });
+        context.onDispose(function () {
+            hostEnded = true;
+            nativeMenu.close();
+            stopPolling();
+        });
+        context.onServiceReady(function () {
+            if (cachedLoaded) {
+                syncFromService();
+            }
+        });
     });
-    context.onDispose(function () {
-        hostEnded = true;
-        nativeMenu.close();
-        window.clearInterval(refresh);
-    });
-    context.onServiceReady(function () {
-        if (cachedLoaded) {
-            syncFromService();
-        }
-    });
-});
+}(window));

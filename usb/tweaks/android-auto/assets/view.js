@@ -229,7 +229,8 @@
         post({
             type: 'aa-native-release',
             savingMessage: tr('savingSettings', 'Saving Android Auto settings...'),
-            savedMessage: tr('savedSettings', 'Android Auto settings saved.')
+            savedMessage: tr('savedSettings', 'Android Auto settings saved.'),
+            errorMessage: tr('saveError', tr('error', 'Failed to save Android Auto settings'))
         });
         ended = true;
         window.removeEventListener('message', receive, false);

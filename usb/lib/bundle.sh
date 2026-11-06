@@ -270,6 +270,7 @@ mzd_bundle_plan() (
     payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
+        case "$existing" in *.tmp) continue ;; esac
         awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$plan/components" || {
             . "$ROOT/lib/config-data.sh" || exit 1
             mzd_config_contains "$HERE" "$existing" || { printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2;exit 1; }
@@ -445,11 +446,39 @@ mzd_bundle_main() (
             MZD_SETTINGS_FILE="$scratch/settings.conf"
         fi
         if state=$(mzd_bundle_plan "$scratch" status 2> "$scratch/reason"); then
-            if [ "$state" = installed ] && [ -n "${GUI_API:-}" ]; then
-                gui_state=$(mzd_gui_status 2> "$scratch/reason")
-                if [ "$gui_state" != installed ]; then
-                    state=$gui_state
-                fi
+            if [ -n "${GUI_API:-}" ]; then
+                gui_state=$(mzd_gui_status 2> "$scratch/gui_reason") || {
+                    cat "$scratch/gui_reason" >&2
+                    exit 1
+                }
+                case "$state:$gui_state" in
+                    installed:installed)
+                        state=installed
+                        ;;
+                    uninstalled:uninstalled)
+                        state=uninstalled
+                        ;;
+                    installed:uninstalled|uninstalled:installed)
+                        printf 'Component bundle is partially installed: native %s, GUI %s.\n' "$state" "$gui_state" >&2
+                        state=broken
+                        ;;
+                    *:broken)
+                        state=broken
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                    installed:unavailable)
+                        state=broken
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                    uninstalled:unavailable)
+                        state=unavailable
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                    *)
+                        state=broken
+                        cat "$scratch/gui_reason" >&2
+                        ;;
+                esac
             fi
             printf '%s\n' "$state"
         else
@@ -471,9 +500,7 @@ mzd_bundle_reset_main() (
         (mzd_gui_reset check) || exit $?
     fi
     if [ "$phase" = prepare ] && [ -n "${GUI_API:-}" ]; then
-        if [ -n "$GUI_SERVICE" ]; then
-            mzd_gui_services_stop || exit 1
-        fi
+        (mzd_gui_reset prepare) || exit $?
     fi
     scratch=$(mktemp -d /tmp/mzd-bundle-reset.XXXXXX) || exit 1
     trap 'rm -rf "$scratch"' 0
@@ -484,6 +511,7 @@ mzd_bundle_reset_main() (
     mzd_shim_parent_ok "$payload_dir" || exit 1
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
+        case "$existing" in *.tmp) continue ;; esac
         awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
     done
     while IFS="$tab" read -r kind target source service original; do
@@ -524,8 +552,7 @@ mzd_bundle_reset_main() (
         if [ -z "${CONFIGS:-}" ];then rmdir "$payload_dir" || exit 2;else rmdir "$payload_dir" 2>/dev/null || :;fi
     fi
     if [ -n "${GUI_API:-}" ]; then
-        mzd_gui_reset prepare || exit $?
-        mzd_gui_reset finish || exit $?
+        (mzd_gui_reset finish) || exit $?
     fi
     sync
 )

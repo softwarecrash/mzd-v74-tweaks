@@ -69,6 +69,7 @@ jobs:
         run: |
           python tests/contract/test_components.py
           python tests/contract/test_bundles.py
+          python tests/contract/test_android_auto.py
       - name: Test USB export commands and background jobs
         run: python tests/contract/test_exports.py
       - name: Test internal backup restore and owned cleanup hooks
@@ -92,7 +93,7 @@ jobs:
       - name: Validate factory Lua syntax
         run: |
           sudo apt-get install -y lua5.1
-          for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
+          for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua usb/tweaks/*/assets/*/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
       - name: Test Hello entrypoint
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint

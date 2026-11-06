@@ -94,6 +94,7 @@ const fw = {
     }
 };
 
+let intervalsStarted = 0, intervalsCleared = 0;
 const host = {
     location: { hostname: 'localhost', origin: undefined },
     framework: fw,
@@ -104,8 +105,8 @@ const host = {
         return timer;
     },
     clearTimeout: n => timers.delete(n),
-    setInterval: f => { host.refresh = f; return 1; },
-    clearInterval: () => {}
+    setInterval: f => { intervalsStarted++; host.refresh = f; return intervalsStarted; },
+    clearInterval: () => { intervalsCleared++; delete host.refresh; }
 };
 
 const parent = {
@@ -200,6 +201,8 @@ const hostContext = {
 
 // Run resident script
 vm.runInNewContext(fs.readFileSync(path.join(aaRoot, 'assets/resident.js'), 'utf8'), hostContext);
+assert.equal(host.AaNativeMenu, undefined, 'No global namespace pollution');
+assert.equal(intervalsStarted, 0, 'Polling interval not started at resident registration');
 
 // Run SDK
 vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/sdk.js'), 'utf8'), { window: view });
@@ -257,6 +260,7 @@ function input(action, phase = 'step') {
 
 // 1. Initial load
 flush();
+assert.equal(intervalsStarted, 1, 'Polling interval started on view open');
 assert.equal(sb, 'Android Auto Settings');
 assert.equal(control.dataList.items.length, 15);
 
@@ -309,7 +313,13 @@ const holdRequest = function (op, args, cb) {
         queue.push(() => {
             writes++;
             savedSettings[args.key] = args.value;
-            heldCallbacks.push(() => cb(null, { success: true, settings: Object.assign({}, savedSettings) }));
+            heldCallbacks.push(err => {
+                if (err) {
+                    cb(err);
+                } else {
+                    cb(null, { success: true, settings: Object.assign({}, savedSettings) });
+                }
+            });
         });
     } else {
         origServiceRequest.call(this, op, args, cb);
@@ -388,6 +398,8 @@ assert.equal(control.dataList.items[7].hasCaret, true);
 input('back');
 // Runtime calls onViewClose when view requests close
 resident.closed();
+assert.equal(intervalsCleared, 1, 'Polling interval cleared on view close');
+assert.equal(host.refresh, undefined, 'Polling callback removed');
 assert.equal(control, null, 'List control destroyed on close');
 assert.equal(fw.sendEventToMmui, originalSend, 'Original sendEventToMmui restored');
 
@@ -453,6 +465,135 @@ hostEvents.message({
     }
 });
 assert.equal(lastSbn, null, 'Untrusted aa-native-release ignored');
+
+// 8c. Localized error SBN emitted when background save fails
+lastSbn = null;
+holdService = true;
+resident.service.request = holdRequest;
+hostEvents.message({
+    source: view,
+    data: {
+        type: 'aa-request',
+        token: 'fixture-token',
+        action: 'set',
+        payload: { key: 'force_street_name', value: true }
+    }
+});
+flush();
+hostEvents.message({
+    source: view,
+    data: {
+        type: 'aa-native-release',
+        token: 'fixture-token',
+        savingMessage: 'Enregistrement...',
+        savedMessage: 'Enregistré.',
+        errorMessage: 'Échec de l’enregistrement'
+    }
+});
+flush();
+assert.equal(lastSbn.props.text1, 'Enregistrement...');
+lastSbn = null;
+holdService = false;
+heldCallbacks.shift()('disk error');
+flush();
+assert.notEqual(lastSbn, null, 'Error SBN emitted when background save failed');
+assert.equal(lastSbn.type, 'errorNotification');
+assert.equal(lastSbn.props.text1, 'Échec de l’enregistrement');
+
+// 8d. Concurrency: callbacks in syncFromService are queued and all invoked
+let pendingServiceCb = null;
+let getRequests = 0;
+resident.service.request = (op, args, cb) => {
+    if (op === 'get') {
+        getRequests++;
+        pendingServiceCb = cb;
+    } else if (op === 'set') {
+        queue.push(() => {
+            cb('set error');
+        });
+    }
+};
+// Trigger first failure which calls syncFromService(cb1)
+hostEvents.message({
+    source: view,
+    data: {
+        type: 'aa-request',
+        token: 'fixture-token',
+        action: 'set',
+        payload: { key: 'touch', value: true }
+    }
+});
+flush();
+assert.equal(getRequests, 1, 'First get request started');
+assert.notEqual(pendingServiceCb, null, 'Service get request in flight');
+
+// Trigger a second event while get is still in flight (calls syncFromService without a second get request)
+resident.reconnected();
+assert.equal(getRequests, 1, 'Second sync call queued without duplicate request');
+
+// Now resolve the in-flight get request
+let broadcastCount = 0;
+viewEvents.message = [event => {
+    if (event.data && event.data.type === 'aa-response') {
+        broadcastCount++;
+    }
+}];
+pendingServiceCb(null, { success: true, settings: Object.assign({}, savedSettings) });
+flush();
+assert.equal(broadcastCount >= 1, true, 'Queued sync completed and broadcast state');
+
+// 8e. Initial get failure broadcasts error to view even when cachedSettings is null
+{
+    let errorReceived = null;
+    const testView = {
+        location: { hash: '#mzdgui=err-token' },
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        postMessage: data => {
+            if (data.type === 'aa-response') {
+                errorReceived = data.error;
+            }
+        }
+    };
+    let freshHostEvents;
+    const testHostContext = {
+        window: {
+            MzdGuiResidents: {
+                register(id, fn) {
+                    fn({
+                        view: () => ({ source: testView, token: 'err-token' }),
+                        onMessage: fn => { freshHostEvents = fn; },
+                        onViewClose: () => {},
+                        onDispose: () => {},
+                        onServiceReady: () => {},
+                        service: {
+                            request(op, args, cb) {
+                                if (op === 'get') {
+                                    cb('Initial connection failed');
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        },
+        document: hostContext.document
+    };
+    vm.runInNewContext(fs.readFileSync(path.join(aaRoot, 'assets/resident.js'), 'utf8'), testHostContext);
+    freshHostEvents({
+        source: testView,
+        data: { type: 'aa-request', token: 'err-token', action: 'get' }
+    });
+    assert.equal(errorReceived, 'Initial connection failed', 'Error broadcast when cachedSettings is null');
+}
+
+// 8f. NativeMenu check is exception-safe when framework is temporarily undefined
+assert.doesNotThrow(() => {
+    const origFw = host.framework;
+    delete host.framework;
+    if (host.refresh) { host.refresh(); }
+    host.framework = origFw;
+}, 'check does not throw when framework is undefined');
 
 // 9. Re-entering view serves state immediately from resident cache
 let reloadedState = null;

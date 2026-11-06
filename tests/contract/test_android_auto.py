@@ -306,6 +306,8 @@ esac
         assert '<real_density>153</real_density>' in text
         assert '<par>15800</par>' in text
         assert '<subscribe>TRUE</subscribe>' in text
+    config_patched = config.read_text()
+    second_patched = second.read_text()
 
     # Verify GUI module and shared integration
     gui_module = data / 'integration/mzd-gui-modules/android-auto'
@@ -340,42 +342,38 @@ esac
     assert 'payload differs' in r.stderr
     (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(orig_bytes)
 
-    # Reset hook check
-    saved_tweak = saved / 'tweaks/android-auto'
-    archive = base / 'reset-archive'
-    archive.mkdir()
-    system = base / 'reset-system'
-    system.mkdir()
-    write(system / 'mounts', '')
-    write(system / 'locks', '')
-    reset_script = base / 'reset-hook.sh'
-    write(reset_script, f'''ROOT={shlex.quote(bp(saved))}
-HERE={shlex.quote(bp(saved_tweak))}
-MZD_SETTINGS_FILE={shlex.quote(bp(saved / 'settings.conf'))}
-ACTION=run
-MZD_RESET_DIR={shlex.quote(bp(archive))}
-MZD_SYSTEM={shlex.quote(bp(system))}
-. "$ROOT/lib/bundle.sh"
-mzd_bundle_reset_main "$1"
-''')
-    def run_reset(phase, expected=0):
-        global checks
-        r = subprocess.run([SHELL, bp(reset_script), phase], env=env, capture_output=True, text=True, timeout=20)
-        assert r.returncode == expected, (phase, r.returncode, r.stdout, r.stderr)
-        checks += 1
-        return r
+    # Status aggregation: native installed but GUI uninstalled -> broken
+    temp_gui = base / 'temp-gui-module'
+    state_conf = store / 'android-auto/state.conf'
+    orig_state = state_conf.read_text()
+    gui_module.rename(temp_gui)
+    state_conf.unlink()
+    r = deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'broken')
+    assert 'partially installed: native installed, GUI uninstalled' in r.stderr
+    write(state_conf, orig_state)
+    temp_gui.rename(gui_module)
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
 
-    # Restore preflight must fail when a native payload is modified
-    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(b'modified shim payload')
-    r = run_reset('check', 1)
-    assert 'Unknown payload; reset refused' in r.stderr
-    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(orig_bytes)
+    # Status aggregation: native uninstalled but GUI installed -> broken
+    temp_payload = base / 'temp-payload'
+    payload_dir.rename(temp_payload)
+    config.write_text(stock)
+    second.write_text(stock)
+    xml_std.write_text(orig_std)
+    xml_ucp.write_text(orig_ucp)
+    r = deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'broken')
+    assert 'partially installed: native uninstalled, GUI installed' in r.stderr
+    temp_payload.rename(payload_dir)
+    config.write_text(config_patched)
+    second.write_text(second_patched)
+    xml_std.write_text(std_patched)
+    xml_ucp.write_text(ucp_patched)
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
 
-    run_reset('check')
-    run_reset('prepare')
-    assert len(list(archive.glob('payload-*'))) == 3
-    # Finish refuses until targets are restored to OEM hash
-    run_reset('finish', 1)
+    # Ignored *.tmp staging files in payload_dir must not fail status check
+    (payload_dir / 'staging.tmp').write_text('temporary staging payload')
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+    (payload_dir / 'staging.tmp').unlink()
 
     # Failed loader replacement during uninstall must roll back both native and GUI components
     real_mv = (shlex.quote(bp(shutil.which('busybox'))) + ' mv') if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(bp(shutil.which('mv') or '/bin/mv'))
@@ -465,6 +463,72 @@ exec {real_mv} "$@"
     r = call(['statuses', 'android-auto'])
     assert 'android-auto\tuninstalled\t\n' in r.stdout
 
+    # Reinstall to test reset hook lifecycle
+    call(['action', 'android-auto', 'install'])
+    saved_tweak = saved / 'tweaks/android-auto'
+    archive = base / 'reset-archive'
+    if archive.exists():
+        shutil.rmtree(archive)
+    archive.mkdir()
+    system = base / 'reset-system'
+    if not system.exists():
+        system.mkdir()
+    write(system / 'mounts', '')
+    write(system / 'locks', '')
+    reset_script = base / 'reset-hook.sh'
+    write(reset_script, f'''ROOT={shlex.quote(bp(saved))}
+HERE={shlex.quote(bp(saved_tweak))}
+MZD_SETTINGS_FILE={shlex.quote(bp(saved / 'settings.conf'))}
+ACTION=run
+MZD_RESET_DIR={shlex.quote(bp(archive))}
+MZD_SYSTEM={shlex.quote(bp(system))}
+. "$ROOT/lib/bundle.sh"
+mzd_bundle_reset_main "$1"
+''')
+    def run_reset(phase, expected=0):
+        global checks
+        r = subprocess.run([SHELL, bp(reset_script), phase], env=env, capture_output=True, text=True, timeout=20)
+        assert r.returncode == expected, (phase, r.returncode, r.stdout, r.stderr)
+        checks += 1
+        return r
+
+    # Restore preflight must fail when a native payload is modified
+    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(b'modified shim payload')
+    r = run_reset('check', 1)
+    assert 'Unknown payload; reset refused' in r.stderr
+    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(orig_bytes)
+
+    # Ignored *.tmp in payload_dir must not fail reset check
+    (payload_dir / 'staging.tmp').write_text('temporary staging payload')
+    run_reset('check')
+    (payload_dir / 'staging.tmp').unlink()
+
+    run_reset('check')
+    run_reset('prepare')
+    assert len(list(archive.glob('payload-*'))) == 3
+    # During prepare phase, GUI module is uninstalled and archived
+    assert not gui_module.exists()
+    # Finish refuses until targets are restored to OEM hash
+    run_reset('finish', 1)
+
+    # Restoring OEM backups allows finish to succeed
+    for path in [config, second]:
+        shutil.copyfile(path.with_name(path.name + '.org'), path)
+    for path in [xml_std, xml_ucp]:
+        shutil.copyfile(path.with_name(path.name + '.org'), path)
+    run_reset('finish')
+    assert not (payload_dir / 'libpatch-blmjciaapa.so').exists()
+    assert (payload_dir / 'libpatch.conf').exists()
+    assert not gui_module.exists()
+    shutil.rmtree(store / 'android-auto')
+    (payload_dir / 'libpatch.conf').unlink()
+    payload_dir.rmdir()
+    for lock_file in (base / 'locks').glob('*.lock'):
+        if lock_file.is_dir():
+            shutil.rmtree(lock_file)
+        else:
+            lock_file.unlink()
+
     # Test installation with explicit command-line settings overriding user defaults
     call(['action', 'android-auto', 'install', 'resolution_dpi=103', 'resolution_par=10670'])
     std_103 = xml_std.read_text()
@@ -483,5 +547,75 @@ exec {real_mv} "$@"
     call(['action', 'android-auto', 'uninstall'])
     assert xml_std.read_text() == orig_std and xml_ucp.read_text() == orig_ucp
     assert config.read_text() == stock and second.read_text() == stock and not payload_dir.exists()
+
+    # Verify Lua config serializer line matching, staging directory and error cleanup
+    lua = shutil.which('lua5.1') or shutil.which('lua')
+    if lua:
+        entry_path = bp(ROOT / "usb/tweaks/android-auto/assets/service/entry.lua")
+        conf_path = bp(base / "test_libpatch.conf")
+        gui_data = base / "test_gui_data"
+        gui_data.mkdir(exist_ok=True)
+        gui_data_dir = bp(gui_data)
+        lua_code = f'''
+package.preload["lfs"] = function() return {{ mkdir = function() end }} end
+local factory = assert(loadfile("{entry_path}"))()
+local conf = "{conf_path}"
+local staging = "{gui_data_dir}"
+local content = "touch = true\\nhud = true\\n"
+local written_paths = {{}}
+local removed_paths = {{}}
+local files = {{
+    exists = function(p)
+        if p == staging then return true end
+        local f = io.open(p, "r"); if f then f:close(); return true end; return false
+    end,
+    read = function(p) local f = io.open(p, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end,
+    write_new = function(p, c)
+        table.insert(written_paths, p)
+        local f = assert(io.open(p, "w")); f:write(c); f:close()
+    end,
+    rename = function(src, dst) assert(os.rename(src, dst)) end,
+    remove_if_exists = function(p)
+        table.insert(removed_paths, p)
+        os.remove(p)
+    end,
+    random = function() return "123" end,
+    sync_directory = function() end
+}}
+files.write_new(conf, content)
+
+-- 1. Test repeated set operations do not cause newline bloat
+local service = factory({{ files = files, data = staging, config = {{ libpatch = conf }} }})
+for i = 1, 5 do
+    service.request("set", {{ key = "touch", value = (i % 2 == 0) }})
+end
+local res = files.read(conf)
+local _, newlines = res:gsub("\\n", "\\n")
+assert(newlines == 2, "Unexpected newline count after sets: " .. tostring(newlines) .. " in: " .. res)
+
+-- Verify staging writes were directed to staging directory outside payload
+local used_staging = false
+for _, p in ipairs(written_paths) do
+    if p:find(staging, 1, true) then used_staging = true end
+end
+assert(used_staging, "Expected temporary writes in staging directory")
+
+-- 2. Test save operation with multiple keys does not cause newline bloat
+service.request("save", {{ settings = {{ touch = true, hud = false, force_street_name = true }} }})
+local res_save = files.read(conf)
+local _, newlines_save = res_save:gsub("\\n", "\\n")
+assert(newlines_save == 3, "Unexpected newline count after save: " .. tostring(newlines_save) .. " in: " .. res_save)
+
+-- 3. Test failure during write/rename cleans up temporary file
+files.rename = function(src, dst) error("Simulated disk error during rename") end
+local ok, err = pcall(function()
+    service.request("set", {{ key = "touch", value = false }})
+end)
+assert(not ok, "Expected operation to fail on rename error")
+assert(#removed_paths > 0, "Temporary staging file should be cleaned up on failure")
+'''
+        r = subprocess.run([lua, '-e', lua_code], capture_output=True, text=True)
+        assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+        checks += 1
 
     print('ANDROID_AUTO_PASSED:', checks, 'real package checks; shims, XML patch hook, user settings defaults and asset overrides, saved uninstall.')

@@ -87,31 +87,36 @@ return function(context)
 
         local updated_keys = {}
         local lines = {}
-        for line in content:gmatch('([^\r\n]*)\r?\n?') do
-            if #line > 0 or #lines > 0 then
-                local clean = line:match('^%s*([^#]+)')
-                local matched_key = nil
-                if clean then
-                    local k = clean:match('^([A-Za-z0-9_]+)%s*=')
-                    if k then
-                        k = k:lower():match('^%s*(.-)%s*$')
-                        if updates[k] ~= nil then
-                            matched_key = k
-                            updated_keys[k] = true
-                            local val = updates[k]
-                            if type(val) == 'boolean' then
-                                val = val and 'true' or 'false'
-                            else
-                                val = tostring(val)
-                            end
-                            table.insert(lines, k .. ' = ' .. val)
+        if #content > 0 and content:sub(-1) ~= '\n' then
+            content = content .. '\n'
+        end
+        for line in content:gmatch('([^\r\n]*)\r?\n') do
+            local clean = line:match('^%s*([^#]+)')
+            local matched_key = nil
+            if clean then
+                local k = clean:match('^([A-Za-z0-9_]+)%s*=')
+                if k then
+                    k = k:lower():match('^%s*(.-)%s*$')
+                    if updates[k] ~= nil then
+                        matched_key = k
+                        updated_keys[k] = true
+                        local val = updates[k]
+                        if type(val) == 'boolean' then
+                            val = val and 'true' or 'false'
+                        else
+                            val = tostring(val)
                         end
+                        table.insert(lines, k .. ' = ' .. val)
                     end
                 end
-                if not matched_key then
-                    table.insert(lines, line)
-                end
             end
+            if not matched_key then
+                table.insert(lines, line)
+            end
+        end
+
+        while #lines > 0 and lines[#lines] == '' do
+            table.remove(lines)
         end
 
         -- Append any keys that weren't already present in the file
@@ -126,15 +131,20 @@ return function(context)
             end
         end
 
-        local new_content = table.concat(lines, '\n') .. '\n'
+        local new_content = #lines > 0 and (table.concat(lines, '\n') .. '\n') or ''
         local dir = path:match('^(.*)/')
         if dir and not fs.exists(dir) then
             lfs.mkdir(dir)
         end
 
-        local tmp = path .. '.' .. fs.random() .. '.tmp'
-        fs.write_new(tmp, new_content)
-        local ok, err = pcall(fs.rename, tmp, path)
+        local staging_dir = (context.data and fs.exists(context.data) and context.data)
+            or (fs.exists('/tmp/mnt/data_persist/mzd-tweaks/gui-data/android-auto') and '/tmp/mnt/data_persist/mzd-tweaks/gui-data/android-auto')
+        local tmp = (staging_dir and (staging_dir .. '/libpatch.conf.' .. fs.random() .. '.tmp'))
+            or (path .. '.' .. fs.random() .. '.tmp')
+        local ok, err = pcall(function()
+            fs.write_new(tmp, new_content)
+            fs.rename(tmp, path)
+        end)
         if not ok then
             fs.remove_if_exists(tmp)
             error(err)
