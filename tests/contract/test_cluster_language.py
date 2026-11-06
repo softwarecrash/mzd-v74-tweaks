@@ -31,8 +31,10 @@ assert len(set(codes))==len(codes) and all(1<=code<=255 for code in codes)
 assert len(table)==26
 manifest=(ROOT/'usb/tweaks/cluster-language/manifest.conf').read_text()
 options=re.search(r'^setting\.hud_display_language\.options=(.*)$',manifest,re.M).group(1).split(' ')
-assert options==['off']+[name for name,code in table]
-assert options[1:4]==['en-uk','en-us','en-au'] and options[4:]==sorted(options[4:]) and len(options)<=64
+assert options[0]=='off' and sorted(options[1:])==sorted(name for name,code in table) and len(options)<=64
+assert options[1:4]==['en-uk','en-us','en-au']
+labels=re.search(r'^setting\.hud_display_language\.labels=(.*)$',manifest,re.M).group(1).split('|')
+assert len(labels)==len(options) and labels[4:]==sorted(labels[4:])
 with tempfile.TemporaryDirectory(prefix='cmu-cluster-') as temporary:
     base=Path(temporary);usb=base/'usb';internal=base/'internal';persist=base/'persist'
     bins=base/'bin';mounts=base/'mounts';version=base/'version';gpio=base/'watchdog';lock=base/'packages.lock'

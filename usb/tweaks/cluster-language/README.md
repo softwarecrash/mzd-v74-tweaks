@@ -15,8 +15,8 @@ The cluster/HUD warning texts follow the chosen language.
 3. Wait for Install completed, exit the installer and restart the CMU.
 4. To choose another language, uninstall and install again.
 
-**off** forwards the normal CMU language code. The list starts with the English
-variants; the others are in alphabetical order:
+**Off** forwards the normal CMU language code. The list shows full language names,
+with the English variants first. The settings file uses these values:
 
 | Setting | Code | Setting | Code | Setting | Code |
 | --- | --- | --- | --- | --- | --- |

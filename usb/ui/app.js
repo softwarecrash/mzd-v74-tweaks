@@ -301,7 +301,7 @@
         }
         for(key in raw)if(Object.prototype.hasOwnProperty.call(raw,key) && key.indexOf("setting.")===0) {
             parts=key.split(".");d=known["$"+parts[1]];
-            if(parts.length!==3 || !d || "type label default min max step unit help options asset asset_source asset_when".split(" ").indexOf(parts[2])===-1 || unescape(encodeURIComponent(raw[key])).length>(parts[2]==="options"?4096:256))throw new Error("Invalid setting field: "+key);
+            if(parts.length!==3 || !d || "type label default min max step unit help options labels asset asset_source asset_when".split(" ").indexOf(parts[2])===-1 || unescape(encodeURIComponent(raw[key])).length>(parts[2]==="options" || parts[2]==="labels"?4096:256))throw new Error("Invalid setting field: "+key);
             d[parts[2]]=raw[key];
         }
         for(i=0;i<defs.length;i++) {
@@ -315,7 +315,11 @@
                 for(n=0;n<d.choices.length;n++) {
                     key=d.choices[n];if(!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(key) || known["$"+key])throw new Error("Invalid choices.");known["$"+key]=true;
                 }
-            } else if(d.options!==undefined)throw new Error("Unexpected options.");
+                if(d.labels!==undefined) {
+                    d.choiceLabels=d.labels.split("|");
+                    if(d.choiceLabels.length!==d.choices.length || d.choiceLabels.indexOf("")!==-1)throw new Error("Invalid choice labels.");
+                }
+            } else if(d.options!==undefined || d.labels!==undefined)throw new Error("Unexpected options.");
             if(d.asset!==undefined || d.asset_source!==undefined || d.asset_when!==undefined) {
                 if(d.type!=="choice" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*\.(conf|key)$/.test(d.asset || "") ||
                     !/^[A-Za-z0-9][A-Za-z0-9_.-]*\.(conf|key)$/.test(d.asset_source || "") ||
@@ -342,7 +346,7 @@
     }
     function settingDisplay(d,value) {
         if(d.type==="boolean")return value==="true"?"On":"Off";
-        if(d.type==="choice")return value.charAt(0).toUpperCase()+value.substring(1);
+        if(d.type==="choice")return d.choiceLabels?d.choiceLabels[d.choices.indexOf(value)]:value.charAt(0).toUpperCase()+value.substring(1);
         return value;
     }
     function closeChoice(restore) {
