@@ -21,6 +21,8 @@
             gear:typeof data.gear === 'string' ? data.gear : '--',outside:temperature('outsideC'),coolant:temperature('coolantC'),tempUnit:t(tempUnit === 'F' ? 'fahrenheit' : 'celsius'),
             trip:value('tripKm',speedUnit === 'mph' ? 1/1.609344 : 1,1),tripUnit:t(speedUnit === 'mph' ? 'mi' : 'km'),
             average:finite(data.avgL100) && data.avgL100 > 0 ? (speedUnit === 'mph' ? 235.214583/data.avgL100 : data.avgL100).toFixed(1).replace('.',t('decimal')) : '--',averageUnit:t(speedUnit === 'mph' ? 'mpg' : 'l100'),
+            engineLoad:finite(data.engineLoadPercent) ? Math.max(0,Math.min(100,data.engineLoadPercent)) : null,
+            battery:finite(data.batteryPercent) ? Math.max(0,Math.min(100,data.batteryPercent)) : null,
             fuel:finite(data.fuelPercent) ? Math.max(0,Math.min(100,data.fuelPercent)) : null};
     }
     global.SpeedometerModel = {settings:settings,display:display};
