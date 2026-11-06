@@ -9,7 +9,7 @@ const source = name => fs.readFileSync(path.join(root, name), 'utf8');
 const acornKey = Object.keys(process.binding('natives')).find(k => k.endsWith('acorn/dist/acorn'));
 const parser = new Module('speedometer-es5');
 parser._compile(process.binding('natives')[acornKey], 'speedometer-es5.js');
-for (const name of ['i18n.js', 'model.js', 'skins/registry.js', 'skins/bm2014.js', 'demo.js', 'live.js', 'preferences.js', 'view.js', 'resident.js']) {
+for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/bm2014.js', 'demo.js', 'live.js', 'preferences.js', 'view.js', 'resident.js']) {
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
@@ -41,7 +41,7 @@ function fixture(native, live, initial, deferred) {
     };
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
-    for (const name of ['i18n.js', 'model.js', 'skins/registry.js', 'skins/bm2014.js', 'demo.js', 'live.js', 'preferences.js', 'view.js']) vm.runInContext(source(name), context);
+    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/bm2014.js', 'demo.js', 'live.js', 'preferences.js', 'view.js']) vm.runInContext(source(name), context);
     if (live && !deferred) { const load = messages.find(m=>m.type==='speedo-preferences'); assert.ok(load); events.message({source:parent,data:{type:'speedo-preferences-result',token:'preview-token',id:load.id,result:initial || {}}}); }
     if (native && !deferred && messages.some(m=>m.type==='speedo-system-settings')) events.message({source:parent,data:{type:'speedo-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'mph',tempUnit:'F'}}});
     return {window, context, nodes, events, intervals, texts, messages, saved, input, dispose,timeouts};
@@ -58,7 +58,10 @@ let automatic = model.display({speedKph:88,outsideC:22,speedUnit:'kmh',tempUnit:
 assert.equal(automatic.speed,'55');assert.equal(automatic.outside,'72');
 let manual = model.display({speedKph:88,outsideC:22},model.settings({speedUnit:'kmh',tempUnit:'C'},['bm2014']),tr,{speedUnit:'mph',tempUnit:'F'});
 assert.equal(manual.speed,'88');assert.equal(manual.outside,'22');
+value = model.display({engineLoadPercent:43,batteryPercent:81},config,tr);
+assert.equal(value.engineLoad,43);assert.equal(value.battery,81);
 value = model.display({},config,tr);
+assert.equal(value.engineLoad,null);assert.equal(value.battery,null);
 assert.equal(value.speed,'--'); assert.equal(value.rpm,null); assert.equal(value.outside,'--');
 assert.equal(model.settings({speedUnit:'bad',tempUnit:'bad',design:'bad'},['bm2014']).design,'bm2014');
 assert.equal(f.nodes.demo.textContent,'DEMOWERTE'); assert.ok(f.texts.includes('Außen'));

@@ -187,6 +187,7 @@ jobs:
       - run: node tests/tweaks/tetris/highscore.cjs
       - name: Test speedometer view, preferences and read-only collector
         run: |
+          node tests/tweaks/speedometer/data.cjs
           node tests/tweaks/speedometer/preview.cjs
           node tests/tweaks/speedometer/system.cjs
           node tests/tweaks/speedometer/native-menu.cjs
@@ -197,6 +198,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y lua5.1
           lua5.1 tests/tweaks/speedometer/collector.lua
+          lua5.1 tests/tweaks/speedometer/gps.lua
           lua5.1 tests/tweaks/speedometer/preferences.lua
           lua5.1 tests/tweaks/speedometer/service.lua
           for file in usb/tweaks/speedometer/assets/service/*.lua; do luac5.1 -p "$file"; done

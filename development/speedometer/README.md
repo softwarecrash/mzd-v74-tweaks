@@ -90,13 +90,14 @@ sh tools/test-in-container.sh run node tests/tweaks/speedometer/preview.cjs
 fixed fields using `/jci/smdb/smdb-read` and the existing argv-only process runner.
 The shared host has already loaded the runner; the factory reuses
 `package.loaded.process`. The host and its scoped require facade are unchanged.
-There is no new executable, shell loop, websocketd, SMDB write or GPS query.
+There is no new executable, shell loop, websocketd or SMDB write. A bounded
+read-only LDS GPS query occupies one secondary sampling slot.
 The factory performs no reads at startup and registers no tick callback.
 The manifest declares the resident, service, translations and owned config
 directory. Its config template includes the shared data ownership marker, so
 seeded defaults and the existing GUI lifecycle agree on the directory owner.
 
-A sample reads speed and RPM, plus one rotating secondary field. Repeated
+A sample reads speed and RPM, plus one rotating secondary field or GPS group. Repeated
 requests within 500 ms reuse the result. Each command receives a one-second deadline
 (the shared runner additionally allows its existing TERM/KILL cleanup grace).
 Valid readings survive two consecutive failed attempts; the third failure
@@ -121,6 +122,8 @@ names confirmed in the private v74 SMDB XML. They still require real-CMU checks:
 | TotAvlFuelE (vdm_vdt_history_data) | 1000 / raw L/100 km; zero rejected; matches the stored Mazda average |
 | TransmChangeLeverPosition | 1/2/3/4 to P/R/N/D |
 | TransmissionGearPosition | 1..6 as fallback when lever is unavailable |
+| EngineLoad | raw percent, valid range 0..100 |
+| Battery_StateOfCharge | raw / 2 percent, valid range 0..200; 254/255 unavailable |
 | FuelGaugePosition | approximate bars using the initial AIO reference maximum 184; not calibrated litres |
 
 Missing fields with no prior reading show `--`. Three consecutive read failures
@@ -171,3 +174,14 @@ JCI library path, independent of the launching service's inherited environment.
 This is per-command environment setup, not a global system or shared-service edit.
 The 0.1.1 failure-count behavior is covered with original ARM Lua/modules under
 QEMU as well as the real shared Lua HTTP service and bounded synthetic reads.
+
+Engine load and battery SOC are now wired to the live collector. Their raw scaling
+follows the legacy speedometer reference; on-vehicle plausibility remains to be
+verified. Both use the same slow-field rotation and three-failure retention.
+
+## Shared data contract
+
+See [Data-model.md](Data-model.md) for the complete skin API, normalized fields,
+unit formatting, view-local statistics and open vehicle checks. `tripKm` remains
+an unverified vehicle counter; checking it against driving and reset behavior is
+explicitly pending.

@@ -17,7 +17,25 @@
         function temperature(key) {
             return finite(data[key]) ? String(Math.round(tempUnit === 'F' ? data[key] * 9 / 5 + 32 : data[key])) : '--';
         }
-        return {source:data.source || 'unavailable',speed:value('speedKph',speedUnit === 'mph' ? 1/1.609344 : 1,0),speedUnit:t(speedUnit),rpm:finite(data.rpm) ? Math.max(0,Math.min(8000,data.rpm)) : null,
+        var canonical = global.SpeedometerData.normalize(data), formatted = {}, units = {}, descriptors = global.SpeedometerData.fields, i, f, v, factor, unit, digits;
+        function duration(seconds) {
+            var n = Math.floor(seconds), h = Math.floor(n/3600), m = Math.floor(n/60)%60, sec = n%60;
+            return (h > 0 ? h+':'+('0'+m).slice(-2) : String(m))+':'+('0'+sec).slice(-2);
+        }
+        for (i = 0; i < descriptors.length; i += 1) {
+            f = descriptors[i]; v = canonical[f.key]; factor = 1; unit = ''; digits = 0;
+            if (f.unit === 'kmh') { factor = speedUnit === 'mph' ? 1/1.609344 : 1; unit = t(speedUnit); }
+            else if (f.unit === 'distance') { factor = speedUnit === 'mph' ? 1/1.609344 : 1; unit = t(speedUnit === 'mph' ? 'mi' : 'km'); digits = 1; }
+            else if (f.unit === 'height') { factor = speedUnit === 'mph' ? 3.280839895 : 1; unit = t(speedUnit === 'mph' ? 'ft' : 'm'); }
+            else if (f.unit === 'temperature') { unit = t(tempUnit === 'F' ? 'fahrenheit' : 'celsius'); if (v !== null && tempUnit === 'F') { v = v*9/5+32; } }
+            else if (f.unit === 'economy') { digits = 1; unit = t(speedUnit === 'mph' ? 'mpg' : 'l100'); if (v !== null && speedUnit === 'mph') { v = v > 0 ? 235.214583/v : null; } }
+            else if (f.unit === 'percent') { unit = '%'; }
+            else if (f.unit === 'degrees') { digits = f.key.indexOf('Latitude') >= 0 || f.key.indexOf('Longitude') >= 0 ? 5 : 0; unit = '\u00b0'; }
+            else if (f.unit === 'rpm') { unit = t('rpm'); }
+            units[f.key] = unit;
+            formatted[f.key] = v === null ? '--' : f.unit === 'duration' ? duration(v) : (v*factor).toFixed(digits).replace('.',t('decimal'));
+        }
+        return {data:canonical,formatted:formatted,units:units,source:data.source || 'unavailable',speed:value('speedKph',speedUnit === 'mph' ? 1/1.609344 : 1,0),speedUnit:t(speedUnit),rpm:finite(data.rpm) ? Math.max(0,Math.min(8000,data.rpm)) : null,
             gear:typeof data.gear === 'string' ? data.gear : '--',outside:temperature('outsideC'),coolant:temperature('coolantC'),tempUnit:t(tempUnit === 'F' ? 'fahrenheit' : 'celsius'),
             trip:value('tripKm',speedUnit === 'mph' ? 1/1.609344 : 1,1),tripUnit:t(speedUnit === 'mph' ? 'mi' : 'km'),
             average:finite(data.avgL100) && data.avgL100 > 0 ? (speedUnit === 'mph' ? 235.214583/data.avgL100 : data.avgL100).toFixed(1).replace('.',t('decimal')) : '--',averageUnit:t(speedUnit === 'mph' ? 'mpg' : 'l100'),

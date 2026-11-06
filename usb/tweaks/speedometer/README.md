@@ -40,7 +40,8 @@ deadline and an explicit JCI library path. Two consecutive read failures retain
 the last value; the third clears it. Success resets the failure counter. A session
 idle for ten seconds resets the cache. Opening settings or leaving
 stops new requests. One already executing request may finish within its deadline.
-There is no background trip recorder, legacy websocketd or GPS polling.
+There is no background trip recorder or legacy websocketd. GPS uses one bounded
+read-only LDS query in the secondary rotation while the instrument is open.
 
 Speed/RPM, temperatures, vehicle trip counter and stored average consumption use
 the native SMDB fields. Initial stationary real-car readings confirmed RPM and
@@ -57,3 +58,8 @@ it cannot establish vehicle sensor scaling or freshness. The main instrument
 view omits the diagnostic captions; the browser preview remains simulated.
 
 Developer details and checks: [prototype notes](../../../development/speedometer/README.md).
+
+Designs share a [normalized data model](../../../development/speedometer/Data-model.md),
+including additional temperatures, consumption counters, GPS and view-session
+statistics. The BM layout displays only a subset. Vehicle trip-counter behavior
+and the GPS heading reference still need on-car verification.

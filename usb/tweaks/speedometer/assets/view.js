@@ -1,6 +1,7 @@
 (function () {
     'use strict';
     var sdk = window.MzdGuiModule, model = window.SpeedometerModel, skins = window.SpeedometerSkins;
+    var session = window.SpeedometerData.createSession();
     var source, data = null, ended = false, initialized = false, page = 'gauge', focus = 0;
     var storageKey = 'mzd-speedometer-design-preview-v1', language = 'en_US', context = document.getElementById('gauge').getContext('2d');
     var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash), token = match ? match[1] : '';
@@ -75,7 +76,7 @@
         document.getElementById('settings').textContent = t('settings'); document.getElementById('demo').textContent = t(loadingPreferences ? 'loadingSettings' : live ? data && data.available ? 'live' : 'unavailable' : 'demo');
         document.getElementById('gauge').setAttribute('aria-label',t('title')+' - '+t(live ? 'live' : 'demo'));
     }
-    function start() { source.start(function (value) { data = value; renderGauge(); },config.animated); }
+    function start() { source.start(function (value) { data = session.update(value); renderGauge(); },config.animated); }
     function rows() {
         var result = [], values, i;
         if (page === 'settings') {
@@ -115,7 +116,7 @@
             row.onclick = (function (position) { return function () { choose(position); }; }(i)); root.appendChild(row);
         }
     }
-    function open(next) { source.stop(); page = next; focus = 0; renderMenu(); }
+    function open(next) { source.stop(); session.pause(); page = next; focus = 0; renderMenu(); }
     function resume() {
         if (nativeMenu) { post({type:'speedo-native-release'}); }
         document.getElementById('fallback-menu').style.display = 'none'; page = 'gauge'; start();
@@ -163,7 +164,7 @@
         if (value.type === 'speedo-native-focus') { focus = value.index; }
     }
     function dispose() {
-        if (ended) { return; } source.stop(); window.clearTimeout(systemTimer);
+        if (ended) { return; } source.stop(); session.pause(); window.clearTimeout(systemTimer);
         if (pendingPreference) { window.clearTimeout(pendingPreference.timer); pendingPreference = null; }
         if (pendingRequest) { window.clearTimeout(pendingRequest.timer); pendingRequest = null; }
         if (nativeMenu) { post({type:'speedo-native-release'}); } ended = true;
