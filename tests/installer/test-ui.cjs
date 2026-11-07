@@ -2383,6 +2383,9 @@ test("CLUSTER_MANIFEST_UI", async (t) => {
       );
       assert.equal(clusterManifest.settingDefs[0].key, "hud_display_language");
       assert.equal(clusterManifest.settingDefs[0].default, "off");
+      assert.equal(clusterManifest.settingDefs[0].choices.slice(0, 4).join(" "), "off en-uk en-us en-au");
+      assert.equal(clusterManifest.settingDefs[0].choiceLabels[1], "English (UK)");
+      assert.equal(clusterManifest.settingDefs[0].choiceLabels.length, clusterManifest.settingDefs[0].choices.length);
       assert.equal(clusterManifest.components, "components.tsv");
     }
   );

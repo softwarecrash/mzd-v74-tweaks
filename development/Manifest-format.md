@@ -101,7 +101,7 @@ setting.profile.options=stock medium large
   digits or underscores; at most 32 characters. Order follows `settings=`.
 - Each needs `type`, `label` and `default`. Optional `help` explains the field.
   Individual declaration values are limited to 256 UTF-8 bytes, except
-  `options`, which allows 4096 UTF-8 bytes.
+  `options` and `labels`, which allow 4096 UTF-8 bytes.
 - `number`: canonical nonnegative integer, `min`, `max`, positive `step`, optional
   `unit`. Values must be in range and `(value-min)` divisible by step. Numeric
   fields are limited to 2147483647; leading zeros and floating-point values are
@@ -109,7 +109,10 @@ setting.profile.options=stock medium large
 - `boolean`: exactly `true` or `false`; no numeric fields or options.
 - `choice`: `options` is a single-space-separated list of at most 64 unique
   tokens, each 1-32 lowercase letters/digits/underscore/hyphen, starting with a
-  letter or digit. The default must be an option. No numeric fields.
+  letter or digit. The default must be an option. No numeric fields. Optional
+  `labels` gives the GUI text of each option: a `|`-separated list in the same
+  order, for example `labels=Off|English (UK)`. Without it the GUI capitalizes
+  the token. The stored value is always the token.
 - Undeclared/duplicate keys, unknown declaration fields, invalid defaults,
   control characters and multiline supplied values fail validation.
 - There is no free-form text/path setting in this initial contract. Definitions

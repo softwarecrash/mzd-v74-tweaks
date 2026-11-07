@@ -3,7 +3,7 @@ import re
 
 NAME = re.compile(r'[a-z][a-z0-9_]{0,31}')
 TOKEN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
-FIELDS = {'type', 'label', 'default', 'min', 'max', 'step', 'unit', 'help', 'options'}
+FIELDS = {'type', 'label', 'default', 'min', 'max', 'step', 'unit', 'help', 'options', 'labels'}
 
 
 def integer(value):
@@ -19,7 +19,7 @@ def definitions(raw):
         if not key.startswith('setting.'):
             continue
         parts = key.split('.')
-        if len(parts) != 3 or parts[1] not in result or parts[2] not in FIELDS or len(value.encode('utf-8')) > (4096 if parts[2] == 'options' else 256):
+        if len(parts) != 3 or parts[1] not in result or parts[2] not in FIELDS or len(value.encode('utf-8')) > (4096 if parts[2] in ('options', 'labels') else 256):
             raise ValueError('Invalid setting field: ' + key)
         result[parts[1]][parts[2]] = value
     for name, d in result.items():
@@ -35,7 +35,11 @@ def definitions(raw):
             options = d.get('options', '').split(' ')
             if len(options) > 64 or len(set(options)) != len(options) or any(not TOKEN.fullmatch(o) for o in options):
                 raise ValueError('Invalid choices: ' + name)
-        elif 'options' in d:
+            if 'labels' in d:
+                labels = d['labels'].split('|')
+                if len(labels) != len(options) or not all(labels):
+                    raise ValueError('Labels must match the choices: ' + name)
+        elif 'options' in d or 'labels' in d:
             raise ValueError('Options on non-choice setting: ' + name)
         if not valid(d, d['default']):
             raise ValueError('Invalid default: ' + name)
