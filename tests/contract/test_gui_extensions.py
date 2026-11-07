@@ -187,7 +187,7 @@ exec '''+copy_command+''' "$@"
    user_data=persist/'mzd-tweaks/gui-data'/game_id
    owner=(user_data/'owner').read_bytes();write(user_data/'record.conf','best=42\n')
    assert (user_data/'record.conf').read_text()=='best=42\n'
-   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.1','version=0.1.2'))
+   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.2','version=0.1.3'))
    call(game_id,'update');assert (user_data/'record.conf').read_text()=='best=42\n' and (user_data/'owner').read_bytes()==owner
    call(game_id,'uninstall',extra=['--preserve-config']);assert (user_data/'record.conf').exists() and hook.exists()
    call(game_id,'install');assert (user_data/'record.conf').read_text()=='best=42\n'
@@ -267,7 +267,7 @@ exec '''+copy_command+''' "$@"
   score=persist/'mzd-tweaks/data/tetris/highscore.conf'
   assert score.exists() and score.read_text()==''
   write(score,'highscore=1234\n')
-  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.0','version=0.5.1'))
+  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.1','version=0.5.2'))
   call('tetris','update');assert score.read_text()=='highscore=1234\n'
   call('tetris','uninstall',extra=['--preserve-config']);assert score.exists();absent()
   call('tetris','install');assert score.read_text()=='highscore=1234\n'

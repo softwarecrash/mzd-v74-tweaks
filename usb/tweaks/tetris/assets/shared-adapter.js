@@ -3,6 +3,8 @@
     'use strict';
     var game = window.MzdTetris, sdk = window.MzdGuiModule;
     if (!game || !sdk) { throw new Error('Tetris GUI integration is incomplete'); }
+    if (sdk.setLayout) { sdk.setLayout('with-status-bar'); }
+    if (sdk.onSuspend && sdk.onResume) { sdk.onSuspend(game.suspend); sdk.onResume(game.resumeView); }
     sdk.onInput(function (action, phase) {
         if (action === 'back') {
             if (phase !== 'press') { game.release('back'); game.input('back'); }

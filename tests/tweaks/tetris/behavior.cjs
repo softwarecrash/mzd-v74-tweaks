@@ -79,10 +79,10 @@ function fixture(options = {}) {
             getElementsByTagName(){return this.children;}, getContext(){return canvas;},
             set innerHTML(value){this.children=[];}, get innerHTML(){return '';}};
     }
-    const document = {querySelectorAll(){return [];},onwheel: null, hidden: false, documentElement:{clientWidth:800,clientHeight:480},
+    const document = {querySelectorAll(){return [];},onwheel: null, hidden: false, documentElement:{clientWidth:800,clientHeight:416},
         getElementById(id){if(!ids.has(id))return null;const node=elements[id]||(elements[id]=element());if(id==='board'){node.width=Number(boardSize[1]);node.height=Number(boardSize[2]);}return node;}, createElement(tag){const e=element();e.tagName=tag.toUpperCase();return e;},
         addEventListener(name, fn){listeners[name] = fn;}, removeEventListener(name){delete listeners[name];}};
-    const window = {innerWidth:800,innerHeight:480, setInterval(fn){frame=fn;return 1;}, clearInterval(){cancelled=true;},
+    const window = {innerWidth:800,innerHeight:416, setInterval(fn){frame=fn;return 1;}, clearInterval(){cancelled=true;},
         addEventListener(name,fn){windowListeners[name]=fn;},removeEventListener(name){delete windowListeners[name];}};
     if (options.sharedGui) window.MzdGuiModule = {};
     function Clock(){this.getTime=()=>now;}
@@ -132,7 +132,7 @@ check('OEM Back release and M/N keep all pause buttons visible', () => {
         assert(f.elements.menu.children.every(e=>e.tagName==='DIV' && e.className.includes('menu-entry')));
     }
 });
-check('scales 800x480 and cleans up all input handlers/timer', () => {
+check('scales 800x416 and cleans up all input handlers/timer', () => {
     const f=fixture(); f.window.innerWidth=1600;f.window.innerHeight=960;f.windowListeners.resize();
     assert.equal(f.elements.stage.style.transform,'none');
     f.window.innerWidth=400;f.window.innerHeight=240;f.windowListeners.resize();
@@ -167,7 +167,7 @@ check('runtime files parse as ES5 without block function declarations', () => {
     for(const name of ['engine.js','app.js'])walk(parser.exports.parse(fs.readFileSync(path.join(GAME,name),'utf8'),{ecmaVersion:5}),null,null);
 });
 check('game over renders readable score and cleared-line text',()=>{const f=fixture();f.api.input('select');for(let n=0;n<100&&f.api.getState().screen!=='over';n++)f.api.input('select');const state=f.api.getState();assert.equal(state.screen,'over');assert.equal(f.elements['dialog-text'].textContent,'Score '+state.score+' - '+state.lines+' lines cleared.');assert(fs.readFileSync(path.join(GAME,'tetris.html'),'utf8').includes('<title>Tetris - Traffic Jam</title>'));});
-check('header removed and larger canvas renders at native pixel size',()=>{const f=fixture();assert(!fs.readFileSync(path.join(GAME,'tetris.html'),'utf8').includes('<header>'));assert.equal(f.elements.board.width,220);assert.equal(f.elements.board.height,440);assert.deepEqual(f.draws[0],[0,0,220,440]);assert.equal(f.elements.stage.style.transform,'none');});
+check('status-bar layout keeps the playfield at native pixel size',()=>{const f=fixture();assert(!fs.readFileSync(path.join(GAME,'tetris.html'),'utf8').includes('<header>'));assert.equal(f.elements.board.width,190);assert.equal(f.elements.board.height,380);assert.deepEqual(f.draws[0],[0,0,190,380]);assert.equal(f.elements.stage.style.transform,'none');});
 check('highscore loads, displays and saves once at game over',()=>{
  const f=fixture(),saved=[];f.api.setHighscore(3,'');assert.equal(f.elements.highscore.textContent,'000003');
  f.api.setScoreHandler(score=>saved.push(score));f.api.input('select');

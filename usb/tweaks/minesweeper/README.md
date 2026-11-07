@@ -18,3 +18,9 @@ other consumers need it. Restart after installation/removal.
 [Development and test instructions](../../../development/traffic-jam/README.md).
 
 First-party implementation, project CC BY-NC-SA 4.0 license. CMU playtesting pending.
+
+The playfield uses 800x416 below the original Mazda status bar. A phone call
+suspends the view, clears held input and stops its game timer. Returning to the
+same Applications context restores the current board/menu; a running game
+returns paused and requires Continue. Home, music, navigation or a new
+Applications visit closes the view normally.

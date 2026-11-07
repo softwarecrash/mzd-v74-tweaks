@@ -10,7 +10,17 @@ f.windowListeners.message({source:parent,data:{type:'mzd-gui-language',token:'te
 assert.equal(f.elements.menu.children[0].textContent,'Start');assert.equal(f.elements.menu.children[1].textContent,'Beenden');
 input('select','press');input('select','press');assert.equal(f.api.getState().score,0);input('select','release');input('select','press');input('select','release');assert(f.api.getState().score>0);
 input('back','press');assert.equal(f.api.getState().screen,'play');input('back','step');assert.equal(f.api.getState().screen,'pause');assert(!sent.some(x=>x.type==='mzd-gui-close'));assert.equal(f.elements.menu.children[0].textContent,'Fortsetzen');
-input('back','step');assert.equal(f.api.getState().screen,'play');input('back','step');input('down','press');input('down','release');input('down','press');input('down','release');input('select','press');assert(sent.some(x=>x.type==='mzd-gui-close'),'Exit must return to shared menu');
+input('back','step');assert.equal(f.api.getState().screen,'play');
+assert(sent.some(x=>x.type==='mzd-gui-layout'&&x.message==='with-status-bar'));
+assert(sent.some(x=>x.type==='mzd-gui-lifecycle'&&x.message==='phone'));
+input('left','press');
+f.windowListeners.message({source:parent,data:{type:'mzd-gui-suspend',token:'test-token'}});
+assert.equal(f.api.getState().screen,'pause');assert(f.cancelled());
+const callState=JSON.stringify(f.api.getState());f.step(10000);input('select','press');assert.equal(JSON.stringify(f.api.getState()),callState);
+f.windowListeners.message({source:parent,data:{type:'mzd-gui-resume',token:'test-token'}});
+assert.equal(f.api.getState().screen,'pause','call return must not auto-continue');
+input('select','press');input('select','release');assert.equal(f.api.getState().screen,'play');
+input('back','step');input('down','press');input('down','release');input('down','press');input('down','release');input('select','press');assert(sent.some(x=>x.type==='mzd-gui-close'),'Exit must return to shared menu');
 f.window.MzdGuiModule._dispose();assert(f.cancelled());assert.equal(Object.keys(f.listeners).length,0);assert.equal(Object.keys(f.windowListeners).length,0);
 const payload=path.join(root,'usb/tweaks/tetris/assets');assert(!fs.existsSync(path.join(payload,'developer_mode_GuiConfig.js')));assert(!fs.existsSync(path.join(payload,'mzd-games')));assert(fs.readFileSync(path.join(payload,'tetris.html'),'utf8').includes('mzd-gui-runtime/sdk.js'));assert(!fs.readFileSync(path.join(payload,'style.css'),'utf8').includes('oem-preview/'));
 console.log('TETRIS_SHARED_SDK_PASSED: actual SDK and game, press/release latching, Back pause/resume, Exit, disposal and module-only package.');
