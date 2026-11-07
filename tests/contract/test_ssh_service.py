@@ -73,7 +73,11 @@ case "$1:$2" in
 -S:MZD_AIO_SSH) [ -f {shlex.quote(bp(chain))} ] || exit 1; echo '-A MZD_AIO_SSH -j ACCEPT' ;;
 -N:MZD_AIO_SSH) : > {shlex.quote(bp(chain))} ;;
 -A:MZD_AIO_SSH) exit 0 ;;
--I:INPUT) : > {shlex.quote(bp(jump))} ;;
+-I:INPUT)
+    [ ! -f {shlex.quote(bp(temp / 'fail-firewall'))} ] || exit 1
+    : > {shlex.quote(bp(temp / 'firewall-entered'))}
+    while [ -f {shlex.quote(bp(temp / 'hold-firewall'))} ]; do sleep .1; done
+    : > {shlex.quote(bp(jump))} ;;
 -D:INPUT) [ -f {shlex.quote(bp(jump))} ] || exit 1; rm {shlex.quote(bp(jump))} ;;
 -F:MZD_AIO_SSH) exit 0 ;;
 -X:MZD_AIO_SSH) rm -f {shlex.quote(bp(chain))} ;;
@@ -113,6 +117,7 @@ PIDFILE=$(awk '$1=="PidFile" {{print $2}}' "$CFG")
 mkdir -p {shlex.quote(bp(proc))}/$$
 printf '%s\000' /usr/sbin/sshd -D -e -f "$CFG" > {shlex.quote(bp(proc))}/$$/cmdline
 printf '%s\n' "$$" > "$PIDFILE"
+cp "$CFG" {shlex.quote(bp(temp / 'last-config'))}
 printf 'start\n' >> {shlex.quote(bp(starts))}
 printf 'fixture daemon ready\n'
 /usr/bin/readlink /proc/self/fd/5 5>&2 > {shlex.quote(bp(temp / 'daemon-stderr'))}
@@ -121,6 +126,12 @@ trap 'exit 0' TERM INT
 N=0
 while [ "$N" -lt 60 ]; do sleep 1; N=$((N+1)); done
 ''')
+    # The CMU's key parser is an external prerequisite, represented here by a
+    # controlled validator. No network authentication or real private key is used.
+    test_key = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCTest fixture\n'
+    write(bins / 'ssh-keygen', '#!/bin/sh\n[ "$1" = -l ] && [ "$2" = -f ] || exit 92\n' +
+          '[ ! -f ' + shlex.quote(bp(temp / 'reject-key')) + ' ] || exit 1\n' +
+          'test "$(cat "$3")" = ' + shlex.quote(test_key.strip()) + '\n')
     wifi_calls = temp / 'wifi-calls'
     write(bins / 'dbus-send', f'''#!/bin/sh
 printf '%s\\n' "$*" >> {shlex.quote(bp(wifi_calls))}
@@ -152,10 +163,39 @@ esac
     assert failed.returncode == 1 and 'fixture sshd: host key cannot be loaded' in failed.stderr, failed
     assert not ram.exists() and account.read_text() == original
     (temp / 'fail-daemon').unlink()
+    write(temp / 'fail-firewall', 'fail')
+    run('boot', 1, 'Could not allow port 22 through the firewall')
+    assert not ram.exists() and account.read_text() == original
+    (temp / 'fail-firewall').unlink()
+    starts.unlink()
+    assert 'PasswordAuthentication yes' in (temp / 'last-config').read_text()
+    assert 'PubkeyAuthentication no' in (temp / 'last-config').read_text()
+    def auth(key, password):
+        write(service / 'settings.conf', 'ssh_key='+key+'\nssh_password='+password+'\n')
+    auth('ignore', 'disabled'); run('check', 1, 'only be disabled with an installed public key')
+    auth('install', 'disabled'); run('check', 1, 'Provide a public key')
+    write(service / 'authorized_keys.conf', '-----BEGIN PRIVATE KEY-----\n')
+    run('check', 1, 'Expected one OpenSSH public key')
+    auth('ignore', 'enabled'); run('check', 0, 'prerequisites checked')
+    auth('install', 'disabled'); write(service / 'authorized_keys.conf', test_key)
+    write(temp / 'reject-key', 'unsupported'); run('check', 1, 'invalid or its type is unsupported')
+    (temp / 'reject-key').unlink()
+    auth('install', 'enabled'); run('check', 0, 'prerequisites checked')
+    auth('install', 'disabled'); run('check', 0, 'prerequisites checked')
+    assert not ram.exists() and account.read_text() == original
+    write(temp / 'hold-firewall', 'hold')
     startup = temp / 'ssh-start.log'
     with startup.open('wb') as stream:
         background = subprocess.Popen([args.bash, str(service / 'service.sh'), 'boot', str(usb)], stdout=stream, stderr=subprocess.STDOUT)
     try:
+        for _ in range(80):
+            if (temp / 'firewall-entered').exists(): break
+            time.sleep(.1)
+        else: raise AssertionError('Supervisor did not reach firewall setup')
+        assert (ram / 'daemon.pid').exists(), 'Readiness test must have a live daemon.'
+        run('status', 1, 'not running')
+        assert not (ram / 'ready').exists(), 'PID files alone must not publish readiness.'
+        (temp / 'hold-firewall').unlink()
         for _ in range(20):
             result = subprocess.run([args.bash, str(service / 'service.sh'), 'status'], capture_output=True, timeout=10)
             if result.returncode == 0: break
@@ -171,6 +211,10 @@ esac
         assert reader_stdout.read_text().strip() == '/dev/null'
         assert reader_stderr.read_text().strip() == '/dev/null'
         assert 'SSH startup phase: launch sshd' in startup.read_text()
+        assert 'PasswordAuthentication no' in (ram / 'sshd_config').read_text()
+        assert 'PubkeyAuthentication yes' in (ram / 'sshd_config').read_text()
+        assert (ram / 'authorized_keys.conf').read_text() == test_key
+        assert (ram / 'authorized_keys.conf').stat().st_mode & 0o777 == 0o600
         runtime_logs = list((usb / 'reports/ssh').glob('runtime-*/run.log'))
         assert any('fixture daemon ready' in p.read_text() for p in runtime_logs)
         assert all(p.read_text().startswith('Start: ') for p in runtime_logs), 'runtime log starts with the time line'
@@ -207,7 +251,8 @@ esac
         assert not chain.exists() and not jump.exists()
         assert list((usb / 'reports/ssh').glob('runtime-*/run.log'))
     finally:
+        (temp / 'hold-firewall').unlink(missing_ok=True)
         if background.poll() is None:
             subprocess.run([args.bash, str(service / 'service.sh'), 'stop'], capture_output=True, timeout=20)
             background.wait(timeout=10)
-print('Passed: absent/disabled/disconnected WLAN, later address arrival/loss without service restart, target grep limitation, OEM port 36000 coexistence, occupied port 22 rejection, duplicate start, RAM password overlay, failed-start rollback, firewall reset recovery, owned-process stop, detached pipeline descriptors, startup diagnostics and USB-only logs. No real sshd, mounts or firewall used.')
+print('Passed: absent/disabled/disconnected WLAN, later address arrival/loss without service restart, target grep limitation, OEM port 36000 coexistence, occupied port 22 rejection, duplicate start, RAM password overlay, failed-start rollback, firewall reset recovery, owned-process stop, detached pipeline descriptors, firewall-gated readiness, validated optional public-key and password-only/key-only modes, startup diagnostics and USB-only logs. No real sshd, mounts or firewall used.')

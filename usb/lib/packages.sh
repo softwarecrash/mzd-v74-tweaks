@@ -357,6 +357,10 @@ mzd_package_stage() (
         mzd_settings_check "$stage/package/tweaks/$id/manifest.conf" "${MZD_SETTINGS_FILE:-}" || exit 1
         cp "$MZD_SETTINGS_FILE" "$stage/package/settings.conf" && cmp -s "$MZD_SETTINGS_FILE" "$stage/package/settings.conf" || exit 1
     fi
+    # Validate effective settings and overridden assets before old removal.
+    if [ "${PREFLIGHT:-false}" = true ]; then
+        mzd_package_exec_worker "$stage/package/tweaks/$id/run.sh" preflight >/dev/null || exit 1
+    fi
     mzd_package_inventory "$stage" > "$stage/package.files" || exit 1
     mzd_package_set_state "$stage" prepared
 )

@@ -1,7 +1,12 @@
 # SSH Access
 
-Enable SSH on port **22**. Login: **cmu / jci**. Supported firmware: **74.00.324**.
+Enable SSH on port **22**. Default login: **cmu / jci**. Supported firmware: **74.00.324**.
 Choose Install or Uninstall in the installer.
+
+Installation waits for the owned supervisor, SSH daemon and initial firewall
+setup to be ready, up to 15 seconds. A fast startup continues immediately;
+no Wi-Fi address is required. A startup failure or timeout retains diagnostics
+and rolls back the new boot hook and runtime changes.
 
 Wi-Fi is automatically enabled at every startup, even if it was switched off.
 Configure a saved network and automatic connection in the Mazda menu first.
@@ -25,3 +30,28 @@ Action reports and `run.log` are saved on the originating USB under
 
 Optional SSH runtime logs use `reports/ssh/runtime-<timestamp>-<unique>/run.log`
 on an attached USB containing the matching `mzd-ssh-log-marker.txt`.
+
+## Optional public-key login
+
+The installer offers **SSH public key: Ignore / Install** (default Ignore) and
+**Password login: Enabled / Disabled** (default Enabled).
+
+Place one OpenSSH public key in `user/ssh/authorized_keys.conf` on the USB and
+select Install. This uses the existing `.conf` override mechanism: the key is
+copied into the saved package and does not depend on the USB remaining inserted.
+Do not copy a private key. No bundled key is provided. The CMU's own `ssh-keygen`
+validates the key; types unsupported by its factory OpenSSH are refused.
+
+Password login can be disabled only with a valid key selected for installation.
+Invalid combinations fail before installing the startup hook or changing the
+account overlay. Ignore leaves key authentication disabled, even if a key file
+is supplied. Password login remains enabled by default.
+
+Authentication configuration and the selected key are copied into the owned RAM
+runtime at startup. Factory account files and factory authorized-key files are
+not rewritten. Uninstall and Restore originals remove the owned service key,
+settings and RAM files. The original source key on USB is left untouched.
+To change these installed options, uninstall and reinstall. Updates retain the
+installed option values, as with other installer settings. For key-enabled
+updates, supply the public key on USB again. A missing/invalid replacement key
+refuses the update before removing the working installation.

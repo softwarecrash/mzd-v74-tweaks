@@ -231,3 +231,7 @@ result, stops registered services, and delegates cleanup phases to `mzd_gui_rese
 
 See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
 first/last-consumer lifecycle, ownership rules and development limits.
+
+Tweaks with `preflight=true` also run their read-only preflight against the
+staged effective settings and overridden assets before publication or replacement
+of an installed package. A rejected candidate leaves the installed worker intact.

@@ -60,7 +60,7 @@ for scenario in ['current','saved-old-status','saved-old-status-warning','mixed-
     path=usb/'tweaks/restore-originals/manifest.conf';write(path,path.read_text().replace('target=/jci','target='+str(internal)))
     write(usb/'tweaks/ssh/assets/service.sh',f'''#!/bin/sh
 case "$1" in
- check) exit 0;;
+ check|check-auth) exit 0;;
  boot) mkdir -p {running};touch {running}/owned;;
  status) [ -f {running}/owned ];;
  stop) rm -f {running}/owned;rmdir {running};;

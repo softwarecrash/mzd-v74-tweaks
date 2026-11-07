@@ -3,3 +3,5 @@ create	/tmp/mnt/resources/mzd-tweaks/ssh/service.sh
 create	/tmp/mnt/resources/mzd-tweaks/ssh/sshd_config
 create	/tmp/mnt/resources/mzd-tweaks/ssh/password.hash
 create	/tmp/mnt/resources/mzd-tweaks/ssh/enabled
+create	/tmp/mnt/resources/mzd-tweaks/ssh/authorized_keys.conf
+create	/tmp/mnt/resources/mzd-tweaks/ssh/settings.conf
