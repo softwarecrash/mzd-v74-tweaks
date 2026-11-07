@@ -69,6 +69,8 @@ jobs:
         run: |
           python tests/contract/test_components.py
           python tests/contract/test_bundles.py
+          python tests/contract/test_tplink_loader.py
+          python tests/contract/test_tplink_rtl8811au.py --critical-mode-rollback
           python tests/contract/test_android_auto.py
       - name: Test USB export commands and background jobs
         run: python tests/contract/test_exports.py
@@ -98,6 +100,18 @@ jobs:
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint
         run: python tests/contract/test_terminal.py
+  tplink-rtl8811au-release:
+    # The driver files are committed so the branch download stays ready to run.
+    # This proves they are exactly the pinned cmu150-rtl8811au release.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Committed driver files equal the pinned release
+        run: python tools/update_tplink_rtl8811au.py --check
   busybox:
     # Prepares the CMU-like BusyBox 1.19.2 (ARM, static; tools/busybox/README.md) for the tweak tests:
     # tools/busybox/prepare.sh builds it and runs all checks of the BusyBox itself, but only when the files of

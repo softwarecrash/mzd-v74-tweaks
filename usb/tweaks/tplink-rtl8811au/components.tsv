@@ -1,0 +1,7 @@
+# kind	target	source	service	oem-md5
+patch	/jci/sm/sm.conf	assets/sm.conf.patch	-	74d9fc389b74fb01d0cfc2615a82c782
+patch	/jci/sm/sm_WCP.conf	assets/sm_WCP.conf.patch	-	030e918f5d6edcd62d196ee37b86fe99
+file	/tmp/mnt/data_persist/wl/rtl8812au.ko	assets/rtl8812au.ko	-	-
+executable	/tmp/mnt/data_persist/wl/load-wlan1.sh	assets/load-wlan1.sh	-	-
+file	/tmp/mnt/data_persist/wl/dongle.conf	assets/dongle.conf	-	-
+check	/lib/modules/3.0.35/kernel/net/wireless/cfg80211.ko	-	-	7fc7fe6f63774b82465318ee86fd6542
