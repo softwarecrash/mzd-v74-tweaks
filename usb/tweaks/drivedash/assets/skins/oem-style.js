@@ -55,22 +55,14 @@
         line(ctx,83,180,236,160,'#8b9096',0.6); line(ctx,85,346,236,356,'#70777d',0.6);
         ctx.restore();
     }
-    window.DriveDashSkins.register({id:'oem-style',labelKey:'design.oem-style',draw:function (ctx,m,t) {
-        var cx = 400, cy = 249, i, a, c, s, g, now = new Date(), time;
-        ctx.clearRect(0,0,800,480);
-        g = ctx.createRadialGradient(400,230,50,400,230,470); g.addColorStop(0,'#171b21'); g.addColorStop(0.55,'#06090d'); g.addColorStop(1,'#010203'); ctx.fillStyle = g; ctx.fillRect(0,0,800,480);
-        time = ('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2);
-        /* Enlarge the instrument uniformly; keep its circular geometry intact. */
-        ctx.save(); ctx.translate(400,235); ctx.scale(1.16,1.16); ctx.translate(-400,-249);
+    function drawBackground(ctx) {
+        var cx = 400, cy = 249, i, a, c, s, g;
+        ctx.clearRect(0,0,800,416);
+        g = ctx.createRadialGradient(400,230,50,400,230,470); g.addColorStop(0,'#171b21'); g.addColorStop(0.55,'#06090d'); g.addColorStop(1,'#010203'); ctx.fillStyle = g; ctx.fillRect(0,0,800,416);
+        ctx.save(); ctx.translate(400,208); ctx.scale(1.02,1.02); ctx.translate(-400,-249);
         pod(ctx,true); pod(ctx,false);
-        text(ctx,t('outside'),160,207,14,'#90999f'); text(ctx,m.outside+m.tempUnit,160,234,23);
         line(ctx,105,248,211,248,'#252c32',0.7);
-        text(ctx,m.gear,161,290,40); text(ctx,t('trip'),160,316,13,'#90999f'); text(ctx,m.trip+' '+m.tripUnit,160,339,20);
-        text(ctx,t('coolant'),640,207,14,'#90999f'); text(ctx,m.coolant+m.tempUnit,640,234,23);
         line(ctx,589,248,695,248,'#252c32',0.7);
-        text(ctx,t('average'),640,263,13,'#90999f'); text(ctx,m.average+' '+m.averageUnit,640,284,19);
-        text(ctx,t('fuel'),640,321,12,'#90999f');
-        for (i = 0; i < 8; i += 1) { ctx.fillStyle = m.fuel !== null && i < Math.round(m.fuel*8/100) ? '#cbd4cf' : '#20272b'; ctx.fillRect(592+i*12,332,9,5); }
         /* Outer rolled rim and a wide, recessed black instrument tube. */
         ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10; circle(ctx,cx,cy,184,'#080b0f'); ctx.restore();
         g = ctx.createLinearGradient(270,65,535,431); g.addColorStop(0,'#5c636b'); g.addColorStop(0.12,'#d1d5d8'); g.addColorStop(0.23,'#32383e'); g.addColorStop(0.6,'#090c10'); g.addColorStop(0.88,'#50575f'); g.addColorStop(1,'#20262c'); circle(ctx,cx,cy,182,g);
@@ -83,15 +75,6 @@
         arc(ctx,cx,cy,166,PI*2/3,PI*2,'#080c10',9);
         arc(ctx,cx,cy,169.2,PI*2/3,PI*2,'#374149',0.7);
         arc(ctx,cx,cy,162.8,PI*2/3,PI*2,'#020406',0.8);
-        if (m.engineLoad !== null && m.engineLoad > 0) {
-            a = PI*2/3+PI*4/3*m.engineLoad/100;
-            arc(ctx,cx,cy,166,PI*2/3,a,'#3c4950',7);
-            arc(ctx,cx,cy,168.4,PI*2/3,a,'#718087',1.2);
-            arc(ctx,cx,cy,163.6,PI*2/3,a,'#1a252c',1);
-            if (m.engineLoad > 80) {
-                arc(ctx,cx,cy,166,PI*2/3+PI*4/3*0.8,a,'#8e352c',5);
-            }
-        }
         /* BM sweep: zero lower-left, five at twelve o'clock, eight at the right. */
         arc(ctx,cx,cy,135,PI*2/3,PI*2,'#424a50',20);
         arc(ctx,cx,cy,147,PI*2/3,PI*2,'#d94728',2);
@@ -108,15 +91,7 @@
             line(ctx,cx+c*(i%5 === 0 ? 124 : 136),cy+s*(i%5 === 0 ? 124 : 136),cx+c*145,cy+s*145,i >= 33 ? '#f0432b' : '#e1e6e4',i%5 === 0 ? 2.5 : 0.8);
             if (i%5 === 0) { scaleNumber(ctx,String(i/5),cx+c*108,cy+s*108+9); }
         }
-        text(ctx,time,cx,cy-43,18,'#c6cecd');
-        text(ctx,'x1000',454,245,11,'#98a1a6'); text(ctx,t('rpm'),454,260,11,'#98a1a6');
-        if (m.rpm !== null) {
-            a = PI*2/3+PI*4/3*m.rpm/8000; ctx.save(); ctx.translate(cx,cy); ctx.rotate(a);
-            ctx.shadowColor = '#ef2b10'; ctx.shadowBlur = 5; ctx.beginPath(); ctx.moveTo(-20,-2.5); ctx.lineTo(137,-0.8); ctx.lineTo(137,0.8); ctx.lineTo(-20,2.5); ctx.closePath(); ctx.fillStyle = '#f73c21'; ctx.fill();
-            ctx.shadowBlur = 0; line(ctx,17,-0.7,133,-0.7,'#ffb08a',0.8); ctx.restore();
-        }
-        g = ctx.createLinearGradient(cx,cy-16,cx,cy+16); g.addColorStop(0,'#414a52'); g.addColorStop(0.2,'#171d24'); g.addColorStop(1,'#020406');
-        ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3; circle(ctx,cx,cy,16,g); ctx.restore(); circle(ctx,cx,cy,12,'#0b1117');
+        text(ctx,'x1000',454,245,11,'#98a1a6');
         /* Compact automotive battery centred below speed, inside the dial rings. */
         ctx.save(); ctx.translate(cx,cy+132); ctx.scale(0.66,0.66);
         ctx.strokeStyle = '#879397'; ctx.lineWidth = 1.2;
@@ -126,11 +101,48 @@
         line(ctx,-21,-10,-15,-10,'#879397',1);
         line(ctx,15,-10,21,-10,'#879397',1);
         line(ctx,18,-13,18,-7,'#879397',1);
-        text(ctx,m.battery === null ? '--' : Math.round(m.battery)+'%',0,8,15,'#c0cacb');
         ctx.restore();
         /* Compact LCD inset: bevelled segment geometry, no font dependency. */
         ctx.beginPath(); ctx.moveTo(414,296); ctx.lineTo(520,296); ctx.lineTo(508,359); ctx.lineTo(402,359); ctx.closePath(); ctx.fillStyle = '#020507'; ctx.fill(); ctx.strokeStyle = '#5b6468'; ctx.lineWidth = 0.8; ctx.stroke();
         line(ctx,416,298,518,298,'#171f25',2);
+        ctx.restore();
+    }
+    var background = typeof window.Image === 'function' ? new window.Image() : null;
+    if (background) { background.src = 'skins/oem-style-background.png'; }
+    window.DriveDashSkins.register({id:'oem-style',labelKey:'design.oem-style',drawBackground:drawBackground,draw:function (ctx,m,t) {
+        var cx = 400, cy = 249, i, a, g;
+        ctx.clearRect(0,0,800,416);
+        if (background && background.complete && background.width === 800 && background.height === 416) {
+            ctx.drawImage(background,0,0);
+        } else { drawBackground(ctx); }
+        ctx.save(); ctx.translate(400,208); ctx.scale(1.02,1.02); ctx.translate(-400,-249);
+        text(ctx,t('outside'),160,207,14,'#90999f'); text(ctx,m.outside+m.tempUnit,160,234,23);
+        if (m.gear && m.gear !== '--') { text(ctx,m.gear,161,290,40); }
+        text(ctx,t('trip'),160,316,13,'#90999f'); text(ctx,m.trip+' '+m.tripUnit,160,339,20);
+        text(ctx,t('coolant'),640,207,14,'#90999f'); text(ctx,m.coolant+m.tempUnit,640,234,23);
+        text(ctx,t('average'),640,263,13,'#90999f'); text(ctx,m.average+' '+m.averageUnit,640,284,19);
+        text(ctx,t('fuel'),640,321,12,'#90999f');
+        for (i = 0; i < 8; i += 1) { ctx.fillStyle = m.fuel !== null && i < Math.round(m.fuel*8/100) ? '#cbd4cf' : '#20272b'; ctx.fillRect(592+i*12,332,9,5); }
+        if (m.engineLoad !== null && m.engineLoad > 0) {
+            a = PI*2/3+PI*4/3*m.engineLoad/100;
+            arc(ctx,cx,cy,166,PI*2/3,a,'#3c4950',7);
+            arc(ctx,cx,cy,168.4,PI*2/3,a,'#718087',1.2);
+            arc(ctx,cx,cy,163.6,PI*2/3,a,'#1a252c',1);
+            if (m.engineLoad > 80) {
+                arc(ctx,cx,cy,166,PI*2/3+PI*4/3*0.8,a,'#8e352c',5);
+            }
+        }
+        text(ctx,t('rpm'),454,260,11,'#98a1a6');
+        if (m.rpm !== null) {
+            a = PI*2/3+PI*4/3*m.rpm/8000; ctx.save(); ctx.translate(cx,cy); ctx.rotate(a);
+            ctx.shadowColor = '#ef2b10'; ctx.shadowBlur = 5; ctx.beginPath(); ctx.moveTo(-20,-2.5); ctx.lineTo(137,-0.8); ctx.lineTo(137,0.8); ctx.lineTo(-20,2.5); ctx.closePath(); ctx.fillStyle = '#f73c21'; ctx.fill();
+            ctx.shadowBlur = 0; line(ctx,17,-0.7,133,-0.7,'#ffb08a',0.8); ctx.restore();
+        }
+        g = ctx.createLinearGradient(cx,cy-16,cx,cy+16); g.addColorStop(0,'#414a52'); g.addColorStop(0.2,'#171d24'); g.addColorStop(1,'#020406');
+        ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3; circle(ctx,cx,cy,16,g); ctx.restore(); circle(ctx,cx,cy,12,'#0b1117');
+        ctx.save(); ctx.translate(cx,cy+132); ctx.scale(0.66,0.66);
+        text(ctx,m.battery === null ? '--' : Math.round(m.battery)+'%',0,8,15,'#c0cacb');
+        ctx.restore();
         numerals(ctx,m.speed,462,340,35); text(ctx,m.speedUnit,460,353,11,'#a1aba8');
         ctx.restore();
     }});

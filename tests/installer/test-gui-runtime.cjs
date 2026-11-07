@@ -1,17 +1,17 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const runtime=fs.readFileSync('usb/lib/gui-runtime/runtime.js','utf8'),sdk=fs.readFileSync('usb/lib/gui-runtime/sdk.js','utf8');
 function harness(failStartup=false,unavailable=false,extraModules=[]){
- const listeners={},timeouts=new Map(),delays=new Map(),intervals=new Map(),controls=[];let selecting=false;let serial=0,context='Applications',disposed=0;
+ const listeners={},timeouts=new Map(),delays=new Map(),intervals=new Map(),controls=[];let selecting=false;let serial=0,context='Applications',currentApp='system',sequence=66,disposed=0;
  function node(tag){const e={tag,style:{},children:[],parentNode:null,appendChild(c){this.children.push(c);c.parentNode=this;},removeChild(c){this.children.splice(this.children.indexOf(c),1);c.parentNode=null;}};Object.defineProperty(e,'innerHTML',{set(){for(const c of this.children)c.parentNode=null;this.children=[];}});if(tag==='iframe')e.contentWindow={postMessage(){},focus(){},MzdGuiModule:{_dispose(){disposed++;}}};return e;}
  const baseTemplate={divElt:{style:{visibility:'visible'}},list2Ctrl:{setLineNumbers(){this.restored=true;}}};const app={_currentContextTemplate:baseTemplate,_masterApplicationDataList:{items:[{stock:true}]},_applicationsCtxtWiseAppNames:{Applications:['stock']}};
  function System(){}System.prototype._initApplicationsDataList=function(){return 17;};System.prototype._updateApplicationStructure=function(){return 18;};
- let sbName='Applications';const sent=[],fw={common:{setSbName(name){sbName=name;},setSbNameId(uia,id){sbName=id;}},getCurrentApp:()=> 'system',getCurrCtxtId:()=>context,getAppInstance(){if(failStartup)throw Error('startup failure');return app;},sendEventToMmui(){sent.push([...arguments]);return 19;}};
+ let sbName='Applications';const sent=[],fw={common:{setSbName(name){sbName=name;},setSbNameId(uia,id){sbName=id;}},_frameworkState:'idle',getCurrentApp:()=> currentApp,getCurrCtxtId:()=>context,getCurrCtxtSeqNo:()=>sequence,getAppInstance(){if(failStartup)throw Error('startup failure');return app;},sendEventToMmui(){sent.push([...arguments]);return 19;}};
  fw.instantiateControl=function(uia,parent,name,properties){const c={name,properties,divElt:node('native-list'),events:[],handleControllerEvent(event){this.events.push(event);}};controls.push(c);parent.appendChild(c.divElt);return c;};fw.destroyControl=function(c){assert(!selecting,'native callback must finish before control destruction');c.destroyed=true;if(c.divElt.parentNode)c.divElt.parentNode.removeChild(c.divElt);};
  const original={init:System.prototype._initApplicationsDataList,structure:System.prototype._updateApplicationStructure,send:fw.sendEventToMmui};
  const win={framework:unavailable?undefined:fw,systemApp:System,mzdGuiRegistry:{api:1,modules:[{id:'one',menuPath:'',label:'One',entrypoint:'/data/integration/mzd-gui-modules/one/assets/view.html'},{id:'two',menuPath:'Games',label:'Two',entrypoint:'/data/integration/mzd-gui-modules/two/assets/view.html'}].concat(extraModules)},addEventListener(k,f){(listeners[k]||(listeners[k]=[])).push(f);},removeEventListener(k,f){listeners[k]=(listeners[k]||[]).filter(x=>x!==f);},setTimeout(f,ms){timeouts.set(++serial,f);delays.set(serial,ms);return serial;},clearTimeout(id){timeouts.delete(id);},setInterval(f){intervals.set(++serial,f);return serial;},clearInterval(id){intervals.delete(id);}};
  const doc={body:node('body'),createElement:node,activeElement:{focus(){}}};vm.runInNewContext(runtime,{window:win,document:doc});
  function event(k,data){for(const fn of [...(listeners[k]||[])])fn(data);}
- return {win,doc,app,original,System,sent,listeners,timeouts,intervals,controls,choose(index){const c=controls.filter(x=>!x.destroyed).at(-1);selecting=true;try{c.properties.selectCallback(c,c.properties.dataList.items[index].appData,{});}finally{selecting=false;}for(const [id,fn] of [...timeouts])if(delays.get(id)===0){timeouts.delete(id);fn();}},title(){return sbName;},open(id){fw.sendEventToMmui('system','MzdGui.Open.'+(id==='games'?'menu.0':'module.'+id));},context(v){context=v;},event,get disposed(){return disposed;},frame(){return doc.body.children[0] && doc.body.children[0].children.find(x=>x.tag==='iframe');}};
+ return {win,doc,app,original,System,sent,listeners,timeouts,intervals,controls,choose(index){const c=controls.filter(x=>!x.destroyed).at(-1);selecting=true;try{c.properties.selectCallback(c,c.properties.dataList.items[index].appData,{});}finally{selecting=false;}for(const [id,fn] of [...timeouts])if(delays.get(id)===0){timeouts.delete(id);fn();}},title(){return sbName;},open(id){fw.sendEventToMmui('system','MzdGui.Open.'+(id==='games'?'menu.0':'module.'+id));},context(v,app='system',seq=sequence){context=v;currentApp=app;sequence=seq;},event,get disposed(){return disposed;},frame(){return doc.body.children[0] && doc.body.children[0].children.find(x=>x.tag==='iframe');}};
 }
 let h=harness();assert.equal(h.doc.body.children.length,0,'no view loaded at boot');assert.equal(h.app._masterApplicationDataList.items.length,3);assert.equal(h.System.prototype._initApplicationsDataList.call(h.app),17);assert.equal(h.app._masterApplicationDataList.items.length,3,'no duplicate rows');assert.equal(h.win.framework.sendEventToMmui('system','NativeEvent'),19);assert.deepEqual(h.sent,[['system','NativeEvent']]);
 h.open('one');let f=h.frame();assert(f);let token=f.src.split('#mzdgui=')[1];h.event('message',{source:{},data:{type:'mzd-gui-ready',token}});assert.equal(h.timeouts.size,1,'foreign source rejected');h.event('message',{source:f.contentWindow,data:{type:'mzd-gui-ready',token:'wrong'}});assert.equal(h.timeouts.size,1);h.event('message',{source:f.contentWindow,data:{type:'mzd-gui-ready',token}});assert.equal(h.timeouts.size,0);h.event('message',{source:f.contentWindow,data:{type:'mzd-gui-error',token,message:'test error'}});assert.equal(h.doc.body.children.length,0);assert.equal(h.intervals.size,0);assert.equal(h.disposed,1);
@@ -80,3 +80,95 @@ translatedApi.input('select','press');exampleLocale='de_DE';exampleReady('de_DE'
 assert.equal(translatedNodes.heading.textContent,'Hallo Welt');assert.equal(translatedNodes['counter-label'].textContent,'Zähler');assert.equal(translatedNodes.close.textContent,'Zurück');assert.equal(translatedNodes.count.textContent,'1');assert.equal(translatedNodes.input.textContent,'Eingabe: select / press');assert.equal(translatedDocument.documentElement.lang,'de-DE');
 assert.equal(translatedApi.input('back','step'),false);translatedApi.dispose();assert.equal(translatedNodes.close.onclick,null);
 console.log('HELLO_WORLD_I18N_PASSED: actual dictionary/view, German labels, retained counter, normalized input diagnostics and default Back/disposal.');
+
+// Opt-in status-bar layout uses the authenticated SDK path; other views stay fullscreen.
+{
+ const h=harness(); h.open('one'); const frame=h.frame(), root=frame.parentNode;
+ const token=frame.src.split('#mzdgui=')[1], events={};
+ const parent={postMessage(data){h.event('message',{source:frame.contentWindow,data});}};
+ const child=frame.contentWindow;
+ child.parent=parent;child.location={hash:'#mzdgui='+token};
+ child.addEventListener=(name,fn)=>events[name]=fn;child.removeEventListener=name=>delete events[name];
+ vm.runInNewContext(sdk,{window:child});
+ h.event('message',{source:{},data:{type:'mzd-gui-layout',token,message:'with-status-bar'}});
+ assert.notEqual(root.style.top,'64px','foreign frame cannot change layout');
+ child.MzdGuiModule.setLayout('with-status-bar');
+ assert.equal(root.style.top,'64px');assert.equal(root.style.height,'416px');
+ assert.equal(root.style.zIndex,'9','view covers side chrome (8), below status bar (10)');assert.equal(frame.style.height,'416px');assert.equal(h.title(),'One');
+ child.MzdGuiModule.setLayout('invalid');assert.equal(root.style.height,'416px');
+ child.MzdGuiModule.setLayout('fullscreen');assert.equal(root.style.top,'0px');assert.equal(frame.style.height,'480px');
+ child.MzdGuiModule.close();assert.equal(h.title(),'Applications');assert.equal(h.doc.body.children.length,0);
+ h.open('games');h.choose(0);assert(h.frame().style.cssText.includes('height:480px'),'next view retains default fullscreen');
+}
+console.log('GUI_STATUS_BAR_LAYOUT_PASSED: real SDK/runtime opt-in, viewport, title restoration, invalid/foreign requests and unchanged fullscreen defaults.');
+
+// Actual runtime + SDK: retain one opted-in view across a phone interruption.
+function callFixture(optIn=true) {
+ const h=harness();h.open('one');const frame=h.frame(), child=frame.contentWindow, events={};
+ const token=frame.src.split('#mzdgui=')[1], parent={postMessage(data){h.event('message',{source:child,data});}};
+ let suspended=0,resumed=0,disposed=0;
+ child.parent=parent;child.location={hash:'#mzdgui='+token};
+ child.addEventListener=(name,fn)=>events[name]=fn;child.removeEventListener=name=>delete events[name];
+ child.postMessage=data=>{if(events.message)events.message({source:parent,data});};
+ vm.runInNewContext(sdk,{window:child});
+ child.MzdGuiModule.onDispose(()=>disposed++);
+ if(optIn){child.MzdGuiModule.onSuspend(()=>suspended++);child.MzdGuiModule.onResume(()=>resumed++);}
+ child.MzdGuiModule.ready();
+ return {h,frame,child,events,token,parent,tick(){for(const fn of [...h.intervals.values()])fn();},get disposed(){return disposed;},get suspended(){return suspended;},get resumed(){return resumed;}};
+}
+{
+ const c=callFixture();let input=0,consumed=0;c.child.MzdGuiModule.onInput(()=>{input++;return true;});
+ c.h.context('ActiveCall','phone',67);c.tick();c.tick();
+ assert.equal(c.suspended,1);assert.equal(c.disposed,0);assert.equal(c.frame.parentNode.style.display,'none');
+ const key={keyCode:13,preventDefault(){consumed++;},stopImmediatePropagation(){consumed++;}};
+ c.h.event('keydown',key);c.events.keydown(key);assert.equal(input,0);assert.equal(consumed,0,'phone input must be released');
+ c.h.context('Applications','system',66);c.h.win.framework._frameworkState='transition';c.tick();assert.equal(c.resumed,0);
+ const replacement={divElt:{style:{visibility:'visible'}},list2Ctrl:{setLineNumbers(){}}};c.h.app._currentContextTemplate=replacement;
+ c.h.win.framework._frameworkState='idle';c.tick();c.tick();
+ assert.equal(c.resumed,1);assert.equal(c.h.frame(),c.frame,'same iframe and state retained');assert.equal(replacement.divElt.style.visibility,'hidden');
+ c.child.MzdGuiModule.close();assert.equal(c.disposed,1);assert.equal(replacement.divElt.style.visibility,'visible');
+}
+for(const [context,app,seq] of [['Home','system',68],['NowPlaying','usbaudio',68],['Map','navigation',68],['Applications','system',68],['RecentCalls','phone',68]]) {
+ const c=callFixture();c.h.context('IncomingCall','phone',67);c.tick();assert.equal(c.suspended,1);
+ c.h.context(context,app,seq);c.tick();assert.equal(c.resumed,0);assert.equal(c.h.doc.body.children.length,0);assert.equal(c.disposed,1);
+}
+{
+ const c=callFixture(false);c.h.context('ActiveCall','phone',67);c.tick();assert.equal(c.h.doc.body.children.length,0,'non-opted-in views still close');
+}
+{
+ const c=callFixture();delete c.h.win.framework.getCurrCtxtSeqNo;c.child.MzdGuiModule.close();c.h.open('one');
+ const frame=c.h.frame(), token=frame.src.split('#mzdgui=')[1];
+ c.h.event('message',{source:frame.contentWindow,data:{type:'mzd-gui-lifecycle',token,message:'phone'}});
+ c.h.event('message',{source:frame.contentWindow,data:{type:'mzd-gui-ready',token}});
+ c.h.context('ActiveCall','phone',67);c.tick();assert.equal(c.h.doc.body.children.length,0,'unknown return identity must close safely');
+}
+console.log('GUI_PHONE_LIFECYCLE_PASSED: actual SDK/runtime suspend/resume, same-frame state, native input release, transition readiness, template replacement, deliberate navigation, no sequence and opt-in only.');
+
+// Mazda ready/displayed callbacks prevent the Applications flash on return.
+{
+ const c=callFixture(false);let readyCalls=0,displayedCalls=0;
+ const originalReady=function(value){readyCalls++;assert.equal(value,'ready-argument');return 17;};
+ const originalDisplayed=function(value){displayedCalls++;assert.equal(value,'displayed-argument');return 18;};
+ const entry={readyFunction:originalReady,displayedFunction:originalDisplayed};
+ c.h.app._contextTable={Applications:entry};
+ c.child.MzdGuiModule.onSuspend(()=>{});c.child.MzdGuiModule.onResume(()=>{});
+ c.h.context('ActiveCall','phone',67);c.tick();
+ c.h.context('Applications','system',66);c.h.win.framework._frameworkState='transition';
+ const template={divElt:{className:'List2Tmplt',style:{visibility:'visible'}},list2Ctrl:{setLineNumbers(){}}};
+ c.h.app._currentContext={ctxtId:'Applications',contextSeq:66};c.h.app._currentContextTemplate=template;
+ assert.equal(entry.readyFunction('ready-argument'),17);assert.equal(readyCalls,1);
+ assert(template.divElt.className.includes('MzdGuiReturnMask'),'list masked before its transition begins');
+ assert.equal(c.frame.parentNode.style.display,'none','phone remains in front until transition ends');
+ c.h.win.framework._frameworkState='idle';
+ assert.equal(entry.displayedFunction('displayed-argument'),18);assert.equal(displayedCalls,1);
+ assert.equal(c.frame.parentNode.style.display,'','resume is immediate, without waiting for the polling interval');
+ assert.equal(template.divElt.style.visibility,'hidden');assert(!template.divElt.className.includes('MzdGuiReturnMask'));
+ c.child.MzdGuiModule.close();assert.equal(entry.readyFunction,originalReady);assert.equal(entry.displayedFunction,originalDisplayed);
+ assert.equal(template.divElt.style.visibility,'visible');
+}
+{
+ const c=callFixture(false), entry={readyFunction(){}};c.h.app._contextTable={Applications:entry};
+ c.child.MzdGuiModule.onSuspend(()=>{});c.child.MzdGuiModule.close();
+ assert(!Object.hasOwn(entry,'displayedFunction'),'temporary callback removed exactly on close');
+}
+console.log('GUI_PHONE_RETURN_TRANSITION_PASSED: masked incoming list, immediate displayed callback, original callback delegation and exact hook cleanup.');

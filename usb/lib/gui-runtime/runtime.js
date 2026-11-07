@@ -53,6 +53,7 @@
     function close(restore) {
         var old = active;
         if (!old) { return; } active = null;
+        releaseReturnHooks(old);
         window.clearTimeout(old.timeout); window.clearTimeout(old.selectionTimer); window.clearInterval(old.monitor);
         if (old.module && window.MzdGuiResidents) { window.MzdGuiResidents.view(old.module.id,null); }
         if (old.languageCleanup) { old.languageCleanup(); }
@@ -128,7 +129,7 @@
         disposeMenu(session);
         active.root.className = ''; active.root.style.zIndex = '10000'; active.root.style.background = '#000'; active.root.style.overflow = 'hidden';
         active.root.style.left = '0px'; active.root.style.top = '0px'; active.root.style.width = '800px'; active.root.style.height = '480px'; active.root.style.backgroundPosition = '0 0';
-        active.root.innerHTML = ''; active.frame = frame; active.module = module; active.keys = {};
+        active.root.innerHTML = ''; active.frame = frame; active.module = module; active.keys = {}; active.phoneLifecycle = false; active.ready = false;
         active.token = 'v1-' + new Date().getTime() + '-' + String(Math.random()).replace(/\D/g,'');
         frame.style.cssText = 'display:block;width:800px;height:480px;border:0;background:#000;'; frame.title = module.label;
         frame.onerror = guarded(function () { if (active === session && active.frame === frame) { failed('View failed to load'); } });
@@ -136,21 +137,122 @@
         frame.src = module.entrypoint + '#mzdgui=' + active.token; active.root.appendChild(frame);
         if (window.MzdGuiResidents) { window.MzdGuiResidents.view(module.id,{source:frame.contentWindow,frame:frame,token:active.token}); }
     }
+    function layout(mode) {
+        if (!active || !active.frame || !applications() || ['fullscreen','with-status-bar'].indexOf(mode) < 0) { return; }
+        var status = mode === 'with-status-bar', height = status ? 416 : 480;
+        active.root.style.top = status ? '64px' : '0px';
+        // Mazda side chrome is layer 8; status/notifications start at layer 10.
+        active.root.style.height = height+'px'; active.root.style.zIndex = status ? '9' : '10000';
+        active.frame.style.height = height+'px';
+        if (fw.common && typeof fw.common.setSbName === 'function') {
+            active.sbChanged = true; fw.common.setSbName(label(active.module));
+        }
+    }
     function failed(message) {
         note(message);
         if (!active) { return; }
+        if (active.suspended) { close(false); return; }
         try { if (active.parent) { submenu(message + ' - select an entry to retry'); } else { close(true); } }
         catch (error) { note(String(error)); close(false); }
+    }
+    function clearReturnMask(session) {
+        if (session.returnMask) {
+            session.returnMask.className = session.returnMask.className.replace(/(?:^|\s)MzdGuiReturnMask(?=\s|$)/g,'');
+            session.returnMask = null;
+        }
+    }
+    function releaseReturnHooks(session) {
+        clearReturnMask(session);
+        var hooks = session.returnHooks;
+        if (!hooks) { return; }
+        if (hooks.entry.readyFunction === hooks.ready) { hooks.entry.readyFunction = hooks.oldReady; }
+        if (hooks.entry.displayedFunction === hooks.displayed) {
+            if (hooks.hadDisplayed) { hooks.entry.displayedFunction = hooks.oldDisplayed; }
+            else { delete hooks.entry.displayedFunction; }
+        }
+        session.returnHooks = null;
+    }
+    function watchReturn(session) {
+        var app = fw.getAppInstance('system'), entry = app._contextTable && app._contextTable.Applications;
+        if (!entry || session.returnHooks) { return; }
+        var hooks = {entry:entry,oldReady:entry.readyFunction,oldDisplayed:entry.displayedFunction,hadDisplayed:Object.prototype.hasOwnProperty.call(entry,'displayedFunction')};
+        hooks.ready = function () {
+            var result = typeof hooks.oldReady === 'function' ? hooks.oldReady.apply(this,arguments) : undefined;
+            try {
+                var current = app._currentContext, template = app._currentContextTemplate, style;
+                if (active === session && session.suspended && current && current.ctxtId === 'Applications' && String(current.contextSeq) === session.contextSeq && template && template.divElt) {
+                    clearReturnMask(session);
+                    style = session.returnMaskStyle;
+                    if (!style || style.parentNode !== session.root) {
+                        style = document.createElement('style');
+                        style.textContent = '.MzdGuiReturnMask,.MzdGuiReturnMask *{visibility:hidden!important}';
+                        session.root.appendChild(style); session.returnMaskStyle = style;
+                    }
+                    session.returnMask = template.divElt;
+                    template.divElt.className = (template.divElt.className || '')+' MzdGuiReturnMask';
+                }
+            } catch (error) { note('Return preparation: '+error); close(false); }
+            return result;
+        };
+        hooks.displayed = function () {
+            var result = typeof hooks.oldDisplayed === 'function' ? hooks.oldDisplayed.apply(this,arguments) : undefined;
+            try { if (active === session && session.suspended) { checkContext(); } }
+            catch (error) { note('Return completion: '+error); close(false); }
+            return result;
+        };
+        session.returnHooks = hooks; entry.readyFunction = hooks.ready; entry.displayedFunction = hooks.displayed;
+    }
+    function contextSequence() {
+        var value = typeof fw.getCurrCtxtSeqNo === 'function' ? fw.getCurrCtxtSeqNo() : null;
+        return (typeof value === 'number' || typeof value === 'string') && /^\d+$/.test(String(value)) ? String(value) : null;
+    }
+    function phoneCall() {
+        return fw.getCurrentApp() === 'phone' && ['IncomingCall','ActiveCall','ActiveCallDTMF','ActiveCall1','ActiveCall1DTMF','ActiveCall2','ActiveCall2DTMF','ActiveCallMerged','ActiveCallMergedDTMF','BTMultipleCall','MultipleCallWaiting'].indexOf(fw.getCurrCtxtId()) >= 0;
+    }
+    function checkContext() {
+        var session = active, template;
+        if (!session) { return; }
+        if (!applications()) {
+            if (!session.phoneLifecycle || !session.frame || !session.ready || session.contextSeq === null || !phoneCall()) { close(false); return; }
+            if (!session.suspended) {
+                session.suspended = true; session.keys = {};
+                // Release native settings and resident access before hiding the root.
+                if (window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,null); }
+                session.root.style.display = 'none';
+                if (typeof session.frame.blur === 'function') { session.frame.blur(); }
+                if (typeof window.focus === 'function') { window.focus(); }
+                session.frame.contentWindow.postMessage({type:'mzd-gui-suspend',token:session.token},'*');
+                note('View suspended for phone: '+session.module.id);
+            }
+            return;
+        }
+        if (!session.suspended) { return; }
+        // A new Applications visit is deliberate navigation, not the return stack.
+        if (contextSequence() !== session.contextSeq) { close(false); return; }
+        if (fw._frameworkState && fw._frameworkState !== 'idle') { return; }
+        template = fw.getAppInstance('system')._currentContextTemplate;
+        if (!template || !template.divElt) { return; }
+        if (template !== session.baseTemplate) {
+            if (session.baseTemplate && session.baseTemplate.divElt) { session.baseTemplate.divElt.style.visibility = session.baseVisibility; }
+            session.baseTemplate = template; session.baseVisibility = template.divElt.style.visibility;
+        }
+        template.divElt.style.visibility = 'hidden';
+        clearReturnMask(session);
+        session.suspended = false; session.keys = {}; session.root.style.display = '';
+        if (window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,{source:session.frame.contentWindow,frame:session.frame,token:session.token}); }
+        session.frame.contentWindow.postMessage({type:'mzd-gui-resume',token:session.token},'*');
+        session.frame.contentWindow.focus();
+        note('View resumed after phone: '+session.module.id);
     }
     function open(id) {
         var n, root, session, baseTemplate;
         if (active || !applications()) { return; }
         root = document.createElement('div'); root.style.cssText = 'position:absolute;left:0;top:0;width:800px;height:480px;overflow:hidden;z-index:10000;background:#000 url(/jci/gui/common/images/background.png);';
         baseTemplate = fw.getAppInstance('system')._currentContextTemplate;
-        session = {root:root,focus:document.activeElement,frame:null,module:null,keys:{},timeout:null,monitor:null,baseTemplate:baseTemplate}; active = session;
+        session = {contextSeq:contextSequence(),suspended:false,phoneLifecycle:false,root:root,focus:document.activeElement,frame:null,module:null,keys:{},timeout:null,monitor:null,baseTemplate:baseTemplate}; active = session;
         if (baseTemplate && baseTemplate.divElt) { session.baseVisibility = baseTemplate.divElt.style.visibility; baseTemplate.divElt.style.visibility = 'hidden'; }
         document.body.appendChild(root);
-        session.monitor = window.setInterval(guarded(function () { if (active === session && !applications()) { close(false); } }),250);
+        session.monitor = window.setInterval(guarded(function () { if (active === session) { checkContext(); } }),250);
         for (n = 0; n < groups.length; n += 1) { if (id === 'menu.'+groups[n].id) { active.parent = groups[n].path; submenu(''); return; } }
         for (n = 0; n < modules.length; n += 1) { if ('module.'+modules[n].id === id && !modules[n].menuPath) { launch(modules[n]); return; } }
         close(true);
@@ -171,20 +273,21 @@
     }
     function down(event) {
         var code = event.keyCode || event.which, action = {37:'left',39:'right',38:'up',40:'down',13:'select',77:'rotateRight',78:'rotateLeft',27:'back'}[code];
-        if (!active) { return; }
+        if (!active || active.suspended || !applications()) { return; }
         if (code === 8) { stop(event); return; }
         if (!action) { return; } stop(event);
         try { if (!active.keys[code]) { active.keys[code] = action; input(action,'press'); } } catch (error) { failed(String(error)); }
     }
     function up(event) {
         var code = event.keyCode || event.which, action;
-        if (!active) { return; }
+        if (!active || active.suspended || !applications()) { return; }
         if (code === 8) { stop(event); input('back','step'); return; }
         action = active.keys[code]; if (action) { stop(event); delete active.keys[code]; input(action,'release'); }
     }
     function receive(event) {
         var data = event.data;
         if (!active || !active.frame || event.source !== active.frame.contentWindow || !data || data.token !== active.token) { return; }
+        if (active.suspended && data.type !== 'mzd-gui-error') { return; }
         if (active.module && window.MzdGuiResidents) { window.MzdGuiResidents.message(active.module.id,event); }
         if (data.type === 'mzd-gui-language-request' && active.module) {
             if (active.languageCleanup) { active.languageCleanup(); }
@@ -194,7 +297,9 @@
             if (window.MzdGuiI18n) { active.languageCleanup = window.MzdGuiI18n.load(active.module.id,deliver); }
             else { deliver({language:'en_US',direction:'ltr',texts:{}}); }
         }
-        if (data.type === 'mzd-gui-ready') { window.clearTimeout(active.timeout); try { active.frame.contentWindow.focus(); } catch (ignore) {} }
+        if (data.type === 'mzd-gui-lifecycle' && data.message === 'phone') { active.phoneLifecycle = true; watchReturn(active); }
+        else if (data.type === 'mzd-gui-layout') { layout(data.message); }
+        else if (data.type === 'mzd-gui-ready') { active.ready = true; window.clearTimeout(active.timeout); try { active.frame.contentWindow.focus(); } catch (ignore) {} }
         else if (data.type === 'mzd-gui-close') { if (active.parent) { submenu(''); } else { close(true); } }
         else if (data.type === 'mzd-gui-error') { failed(String(data.message || 'Module error').substring(0,512)); }
     }

@@ -9,16 +9,18 @@ const source = name => fs.readFileSync(path.join(root, name), 'utf8');
 const acornKey = Object.keys(process.binding('natives')).find(k => k.endsWith('acorn/dist/acorn'));
 const parser = new Module('drivedash-es5');
 parser._compile(process.binding('natives')[acornKey], 'drivedash-es5.js');
-for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'view.js', 'resident.js']) {
+for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
-function fixture(native, live, initial, deferred) {
+function fixture(native, live, initial, deferred, bitmap=false) {
     const timeouts = new Map(); let timeoutId = 0;
-    const events = {}, intervals = new Map(), texts = [], messages = [], saved = {};
+    const stats = {bitmapDraws:0};
+    const events = {}, intervals = new Map(), texts = [], labels = [], messages = [], saved = {};
     if (initial) saved['mzd-drivedash-design-preview-v1']=JSON.stringify(initial);
     const drawing = new Proxy({}, {get(target, key) {
-        if (key === 'fillText') return value => texts.push(value);
+        if (key === 'drawImage') return () => {stats.bitmapDraws++;};
+        if (key === 'fillText') return (value,x,y) => {texts.push(value);labels.push({value,x,y});};
         if (key === 'createRadialGradient' || key === 'createLinearGradient') return () => ({addColorStop() {}});
         return target[key] || (() => {});
     }});
@@ -31,23 +33,27 @@ function fixture(native, live, initial, deferred) {
     for (const id of ['stage', 'gauge', 'settings', 'demo', 'fallback-menu', 'menu-title', 'menu-rows', 'menu-back']) nodes[id] = node();
     nodes.stage.style.visibility='hidden';
     const parent = {postMessage: data => messages.push(data)};
-    let input, dispose;
-    const window = {parent, innerWidth: 800, innerHeight: 480, location: {hash: native ? '#mzdgui=preview-token' : '', search: live ? '?lang=de_DE&data=cmu' : '?lang=de_DE'},
+    let input, dispose, suspend, resume;
+    const window = {parent, innerWidth: 800, innerHeight: 416, location: {hash: native ? '#mzdgui=preview-token' : '', search: live ? '?lang=de_DE&data=cmu' : '?lang=de_DE'},
         localStorage: {getItem: key => saved[key] || null, setItem: (key, value) => {saved[key] = value;}},
         addEventListener: (name, fn) => {events[name] = fn;}, removeEventListener: name => {delete events[name];},
         setTimeout: fn => {timeouts.set(++timeoutId,fn);return timeoutId;},clearTimeout: id => {timeouts.delete(id);},
         setInterval: fn => {const id = intervals.size+1; intervals.set(id, fn); return id;}, clearInterval: id => intervals.delete(id),
-        MzdGuiModule: {onInput: fn => {input = fn;}, onDispose: fn => {dispose = fn;}, ready() {}, loadLanguage: fn => fn('de_DE', 'ltr')}
+        MzdGuiModule: {onSuspend: fn => {suspend=fn;}, onResume: fn => {resume=fn;}, setLayout: value => messages.push({type:'layout',value}), onInput: fn => {input = fn;}, onDispose: fn => {dispose = fn;}, ready() {}, loadLanguage: fn => fn('de_DE', 'ltr')}
     };
+    if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
-    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'view.js']) vm.runInContext(source(name), context);
+    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
     if (live && !deferred) { const load = messages.find(m=>m.type==='drivedash-preferences'); assert.ok(load); events.message({source:parent,data:{type:'drivedash-preferences-result',token:'preview-token',id:load.id,result:initial || {}}}); }
     if (native && !deferred && messages.some(m=>m.type==='drivedash-system-settings')) events.message({source:parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'mph',tempUnit:'F'}}});
-    return {window, context, nodes, events, intervals, texts, messages, saved, input, dispose,timeouts};
+    return {window, context, nodes, stats, events, intervals, texts, labels, messages, saved, input, dispose, suspend, resume,timeouts};
 }
 
 const f = fixture(false), model = f.window.DriveDashModel;
+assert.equal(f.messages[0].type,'layout');assert.equal(f.messages[0].value,'with-status-bar');
+assert.equal(f.nodes.stage.style.top,'0px');assert.equal(f.nodes.stage.style.transform,'none');
+assert.ok(!f.texts.some(value=>/^\d{2}:\d{2}$/.test(String(value))),'Only the original Mazda bar displays the clock');
 const tr = key => f.window.DriveDashLanguages.en_US[key] || key;
 let config = model.settings({speedUnit:'mph',tempUnit:'F'}, ['oem-style']);
 let value = model.display({speedKph:88,rpm:2400,outsideC:22,coolantC:90,tripKm:123.4,avgL100:6.7},config,tr);
@@ -174,3 +180,42 @@ assert.equal(fallback.nodes.stage.style.visibility,'visible');assert.equal(fallb
 fallback.events.message({source:fallback.window.parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE'}}});
 assert.equal(fallback.nodes.settings.textContent,'Settings');fallback.dispose();
 console.log('DRIVEDASH_PREVIEW_PASSED: ES5, missing data, conversions, shared i18n, live skin switch, saved browser choices, native menu messages and timer cleanup.');
+
+const phone=fixture(true);assert.equal(phone.intervals.size,1);
+phone.suspend();assert.equal(phone.intervals.size,0);phone.resume();assert.equal(phone.intervals.size,1);
+phone.input('select','press');phone.input('select','release');assert.equal(phone.intervals.size,0);
+let before=phone.messages.filter(m=>m.type==='drivedash-native-render').length;
+phone.suspend();phone.resume();assert.equal(phone.intervals.size,0,'settings must remain paused after call');
+assert.equal(phone.messages.filter(m=>m.type==='drivedash-native-render').length,before+1,'settings rebuilt after resident release');
+phone.dispose();phone.resume();assert.equal(phone.intervals.size,0);
+console.log('DRIVEDASH_PHONE_PASSED: demand-driven data stops during calls, resumes on gauge, settings retained/rebuilt, no restart after disposal.');
+
+const gearView=fixture(false), skin=gearView.window.DriveDashSkins.get('oem-style');
+let labelStart=gearView.labels.length;
+skin.draw(gearView.nodes.gauge.getContext('2d'),model.display({},config,tr),tr);
+assert(!gearView.labels.slice(labelStart).some(label=>label.x===161&&label.y===290),'unavailable gear has no placeholder');
+labelStart=gearView.labels.length;
+skin.draw(gearView.nodes.gauge.getContext('2d'),model.display({gear:'3'},config,tr),tr);
+assert(gearView.labels.slice(labelStart).some(label=>label.x===161&&label.y===290&&label.value==='3'),'valid gear remains visible');
+gearView.window.innerWidth=1600;gearView.window.innerHeight=832;gearView.events.resize();
+assert.equal(gearView.nodes.stage.style.transform,'none','native canvas is never enlarged by CSS');gearView.dispose();
+console.log('DRIVEDASH_RENDER_PASSED: missing gear omitted, valid gear shown and no CSS upscaling.');
+
+const png=fs.readFileSync(path.join(root,'skins/oem-style-background.png'));
+assert.equal(png.toString('hex',0,8),'89504e470d0a1a0a');assert.equal(png.readUInt32BE(16),800);assert.equal(png.readUInt32BE(20),416);
+const raster=fixture(false,false,null,false,true);assert(raster.stats.bitmapDraws>0,'loaded native-size bitmap is actually used');
+const movingNeedle=raster.window.DriveDashNeedle;assert.equal(typeof movingNeedle,'function');raster.dispose();
+console.log('DRIVEDASH_BITMAP_PASSED: native-size PNG and loaded-image rendering path, with vector fallback covered by the other view fixtures.');
+
+const liveNeedle=fixture(true,true);
+let request=liveNeedle.messages.filter(m=>m.type==='drivedash-sample').at(-1);
+function rpmReply(rpm){liveNeedle.events.message({source:liveNeedle.window.parent,data:{type:'drivedash-sample-result',token:'preview-token',id:request.id,result:{source:'cmu',available:true,rpm,speedKph:0}}});}
+rpmReply(1000);
+const [pollId,poll]=[...liveNeedle.timeouts][0];liveNeedle.timeouts.delete(pollId);poll();
+request=liveNeedle.messages.filter(m=>m.type==='drivedash-sample').at(-1);rpmReply(3000);
+assert(liveNeedle.timeouts.size>=2,'polling and needle redraw timers are separate');
+const sampleCount=liveNeedle.messages.filter(m=>m.type==='drivedash-sample').length;
+liveNeedle.suspend();assert.equal(liveNeedle.timeouts.size,0,'phone suspension stops both timer types');
+assert.equal(liveNeedle.messages.filter(m=>m.type==='drivedash-sample').length,sampleCount,'animation does not request extra samples');
+liveNeedle.dispose();assert.equal(liveNeedle.timeouts.size,0);
+console.log('DRIVEDASH_ANIMATION_LIFECYCLE_PASSED: interpolation timer is separate from sensor polling and both stop during phone suspension.');

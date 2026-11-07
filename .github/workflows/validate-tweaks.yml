@@ -189,6 +189,7 @@ jobs:
         run: |
           node tests/tweaks/drivedash/data.cjs
           node tests/tweaks/drivedash/preview.cjs
+          node tests/tweaks/drivedash/needle.cjs
           node tests/tweaks/drivedash/system.cjs
           node tests/tweaks/drivedash/native-menu.cjs
           node tests/tweaks/drivedash/live.cjs

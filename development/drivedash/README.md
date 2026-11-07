@@ -61,6 +61,16 @@ then Applications > DriveDash. Standalone preview is served at
 `http://localhost:8080/data/integration/mzd-gui-modules/drivedash/assets/view.html`.
 The standalone preview can use `?lang=de_DE` or `?lang=en_US`.
 
+DriveDash requests the shared `with-status-bar` layout: the original Mazda
+status bar stays above an 800x416 view. OEM Style keeps its dial circular and
+uses the Mazda clock instead of drawing a separate system-time clock. Other
+GUI consumers keep their fullscreen layout until they opt in separately.
+DriveDash opts into phone interruption handling: data polling pauses during a
+call, and the same view/settings page resumes only when Mazda returns to the
+original Applications context. Home, music, navigation and a new Applications
+visit continue to close the view. Phone return was confirmed on the bench CMU. The user accepted the remaining
+brief appearance of native side chrome during the return transition.
+
 Press the commander knob or Enter to open the native Mazda
 settings list. Rotate/M/N or Up/Down changes selection; Select confirms. Back
 returns from settings to the gauge; Back on the gauge returns to Applications.
@@ -185,3 +195,16 @@ See [Data-model.md](Data-model.md) for the complete skin API, normalized fields,
 unit formatting, view-local statistics and open vehicle checks. `tripKm` remains
 an unverified vehicle counter; checking it against driving and reset behavior is
 explicitly pending.
+
+## CMU rendering
+
+OEM Style ships an 800x416 antialiased PNG for fixed instrument geometry. It is
+rendered once with threefold supersampling and reduced to native size by the
+authoring tool `render-background.cjs` (development-only `@napi-rs/canvas` 1.1.0;
+pass the private Mazda fonts directory). No renderer package or font files are
+installed on the CMU. The original vector routine remains as a load-error fallback.
+Texts, data and needle remain dynamic. Needle movement interpolates only the
+displayed RPM for 350 ms with redraws at most every 50 ms while moving; measured
+samples, statistics and service polling remain unchanged. Settings, phone
+suspension and disposal cancel the redraw timer. The cleaner fixed instrument outlines were confirmed visually on the bench CMU.
+Needle motion with changing real vehicle RPM and CPU behavior still need checks.

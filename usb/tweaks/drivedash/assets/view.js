@@ -2,7 +2,8 @@
     'use strict';
     var sdk = window.MzdGuiModule, model = window.DriveDashModel, skins = window.DriveDashSkins;
     var session = window.DriveDashData.createSession();
-    var source, data = null, ended = false, initialized = false, page = 'gauge', focus = 0;
+    var needle = new window.DriveDashNeedle(), needleTimer = null;
+    var source, data = null, ended = false, suspended = false, initialized = false, page = 'gauge', focus = 0;
     var storageKey = 'mzd-drivedash-design-preview-v1', language = 'en_US', context = document.getElementById('gauge').getContext('2d');
     var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash), token = match ? match[1] : '';
     var live = window.location.protocol === 'file:' || /[?&]data=cmu(?:&|$)/.test(window.location.search), requestId = 0, pendingRequest = null;
@@ -43,7 +44,7 @@
         window.clearTimeout(systemTimer); systemTimer = null; systemPending = null;
     }
     function finishStartup() {
-        if (ended || initialized || loadingPreferences || systemPending) { return; }
+        if (ended || suspended || initialized || loadingPreferences || systemPending) { return; }
         applyLanguage(); initialized = true; start();
         document.getElementById('stage').style.visibility = 'visible';
     }
@@ -66,17 +67,25 @@
         } else { try { window.localStorage.setItem(storageKey,JSON.stringify(config)); } catch (ignore) {} }
     }
     function fit() {
-        var scale = Math.min((window.innerWidth || 800)/800,(window.innerHeight || 480)/480), stage = document.getElementById('stage');
+        var scale = Math.min(1,(window.innerWidth || 800)/800,(window.innerHeight || 416)/416), stage = document.getElementById('stage');
         stage.style.transform = scale === 1 ? 'none' : 'scale('+scale+')'; stage.style.OTransform = stage.style.transform;
-        stage.style.left = Math.max(0,((window.innerWidth || 800)-800*scale)/2)+'px'; stage.style.top = Math.max(0,((window.innerHeight || 480)-480*scale)/2)+'px';
+        stage.style.left = Math.max(0,((window.innerWidth || 800)-800*scale)/2)+'px'; stage.style.top = Math.max(0,((window.innerHeight || 416)-416*scale)/2)+'px';
     }
     function renderGauge() {
-        if (ended || !initialized || page !== 'gauge') { return; }
-        skins.get(config.design).draw(context,model.display(data,config,t,system),t);
+        if (ended || suspended || !initialized || page !== 'gauge') { return; }
+        var now = new Date().getTime(), display = model.display(data,config,t,system);
+        display.rpm = needle.value(now);
+        skins.get(config.design).draw(context,display,t);
+        if (needle.moving(now) && needleTimer === null) {
+            needleTimer = window.setTimeout(function () { needleTimer = null; renderGauge(); },50);
+        }
         document.getElementById('settings').textContent = t('settings'); document.getElementById('demo').textContent = t(loadingPreferences ? 'loadingSettings' : live ? data && data.available ? 'live' : 'unavailable' : 'demo');
         document.getElementById('gauge').setAttribute('aria-label',t('title')+' - '+t(live ? 'live' : 'demo'));
     }
-    function start() { source.start(function (value) { data = session.update(value); renderGauge(); },config.animated); }
+    function stopNeedle() { window.clearTimeout(needleTimer); needleTimer = null; needle.reset(); }
+    function start() { source.start(function (value) {
+        data = session.update(value); needle.set(data && data.rpm,new Date().getTime()); renderGauge();
+    },config.animated); }
     function rows() {
         var result = [], values, i;
         if (page === 'settings') {
@@ -102,6 +111,7 @@
         return result;
     }
     function renderMenu() {
+        if (ended || suspended) { return; }
         var list = rows(), title = t(page === 'settings' ? 'settings' : page === 'speed' ? 'speedUnits' : page === 'temperature' ? 'temperatureUnits' : page === 'language' ? 'language' : 'design');
         var root = document.getElementById('menu-rows'), i, row, label, detail;
         document.getElementById('settings').textContent = t('settings');
@@ -116,9 +126,10 @@
             row.onclick = (function (position) { return function () { choose(position); }; }(i)); root.appendChild(row);
         }
     }
-    function open(next) { source.stop(); session.pause(); page = next; focus = 0; renderMenu(); }
+    function open(next) { source.stop(); stopNeedle(); session.pause(); page = next; focus = 0; renderMenu(); }
     function resume() {
         if (nativeMenu) { post({type:'drivedash-native-release'}); }
+        if (sdk && sdk.setLayout) { sdk.setLayout('with-status-bar'); }
         document.getElementById('fallback-menu').style.display = 'none'; page = 'gauge'; start();
     }
     function back() { if (page === 'gauge') { return false; } if (page === 'settings') { resume(); } else { open('settings'); } return true; }
@@ -133,7 +144,7 @@
         save(); requestSystem(); renderMenu();
     }
     function input(action, phase) {
-        if (ended) { return false; }
+        if (ended || suspended) { return false; }
         if (!initialized) { return action !== 'back'; }
         if (action === 'back') { return phase === 'press' ? page !== 'gauge' : back(); }
         if (page === 'gauge') { if (action === 'select' && phase !== 'press') { open('settings'); } return true; }
@@ -164,7 +175,7 @@
         if (value.type === 'drivedash-native-focus') { focus = value.index; }
     }
     function dispose() {
-        if (ended) { return; } source.stop(); session.pause(); window.clearTimeout(systemTimer);
+        if (ended) { return; } source.stop(); stopNeedle(); session.pause(); window.clearTimeout(systemTimer);
         if (pendingPreference) { window.clearTimeout(pendingPreference.timer); pendingPreference = null; }
         if (pendingRequest) { window.clearTimeout(pendingRequest.timer); pendingRequest = null; }
         if (nativeMenu) { post({type:'drivedash-native-release'}); } ended = true;
@@ -173,6 +184,16 @@
     document.getElementById('settings').onclick = function () { open('settings'); };
     document.getElementById('menu-back').onclick = back;
     window.addEventListener('message',receive,false); window.addEventListener('resize',fit,false); window.addEventListener('unload',dispose,false);
+    if (sdk && sdk.setLayout) { sdk.setLayout('with-status-bar'); }
+    if (sdk && sdk.onSuspend && sdk.onResume) {
+        sdk.onSuspend(function () { suspended = true; source.stop(); stopNeedle(); session.pause(); });
+        sdk.onResume(function () {
+            if (ended) { return; } suspended = false;
+            if (sdk.setLayout) { sdk.setLayout('with-status-bar'); }
+            if (!initialized) { finishStartup(); }
+            else if (page === 'gauge') { start(); } else { renderMenu(); }
+        });
+    }
     if (sdk) { sdk.onInput(input); sdk.onDispose(dispose); sdk.ready(); }
     fit();
     if (!token && languageMatch) { system.language = languageMatch[1]; applyLanguage(); }

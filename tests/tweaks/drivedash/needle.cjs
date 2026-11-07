@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const window={};vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/needle.js','utf8'),{window});
+const needle=new window.DriveDashNeedle();
+assert.equal(needle.value(0),null);needle.set(1000,0);assert.equal(needle.value(0),1000);
+needle.set(3000,100);assert.equal(needle.value(100),1000);assert(needle.moving(100));
+const middle=needle.value(275);assert.equal(middle,2000);assert.equal(needle.value(450),3000);assert(!needle.moving(450));
+needle.set(5000,500);const partial=needle.value(600);needle.set(2000,600);
+assert.equal(needle.value(600),partial,'new samples retarget from the currently displayed position');
+assert.equal(needle.value(950),2000);needle.set(null,1000);assert.equal(needle.value(1000),null);assert(!needle.moving(1000));
+needle.set(1000,1100);needle.set(3000,1200);assert.equal(needle.value(1),3000);assert(!needle.moving(1),'clock rollback cannot leave an endless redraw loop');
+needle.reset();needle.set(9000,1100);assert.equal(needle.value(1100),8000);needle.reset();assert.equal(needle.value(1200),null);
+console.log('DRIVEDASH_NEEDLE_PASSED: first value, smooth intermediate value, exact endpoint, continuous retargeting, missing data, bounds and reset.');
