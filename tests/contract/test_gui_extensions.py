@@ -160,7 +160,9 @@ exec '''+copy_command+''' "$@"
   owner_bytes=(user_data/'owner').read_bytes();(user_data/'owner').write_bytes(owner_bytes.rstrip(b'\n'));deep('gui-example','broken');(user_data/'owner').write_bytes(owner_bytes);deep('gui-example','installed')
   write(user_data/'user-file','keep user data\n')
   call('second-example','install');assert startup.read_text().count('# MZD shared GUI services')==1
+  hook_before=hook.read_bytes();hook.unlink()
   call('gui-example','uninstall');assert hook.exists() and startup.read_bytes()!=original and (user_data/'user-file').exists()
+  assert hook.read_bytes()==hook_before
   call('second-example','uninstall');assert hook.exists() and startup.read_bytes()==original and not (base/'mzd-gui-services.tsv').read_text()
   call('gui-hello-world','uninstall');absent();assert not (base/'mzd-gui-services.tsv').exists()
   # Old immutable providers and saved uninstallers must be removed explicitly.

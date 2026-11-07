@@ -463,6 +463,18 @@ exec {real_mv} "$@"
     r = call(['statuses', 'android-auto'])
     assert 'android-auto\tuninstalled\t\n' in r.stdout
 
+    # A missing shared GUI boot hook must not block native or GUI cleanup
+    call(['action', 'android-auto', 'install'])
+    (data / 'integration/developer_mode_GuiConfig.js').unlink()
+    call(['action', 'android-auto', 'uninstall'])
+    assert config.read_text() == stock and second.read_text() == stock
+    assert xml_std.read_text() == orig_std and xml_ucp.read_text() == orig_ucp
+    assert not payload_dir.exists()
+    assert not gui_module.exists()
+    assert not (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert not (data / 'integration/mzd-gui-runtime').exists()
+    assert startup.read_text() == '#!/bin/sh\necho original\n'
+
     # Reinstall to test reset hook lifecycle
     call(['action', 'android-auto', 'install'])
     saved_tweak = saved / 'tweaks/android-auto'
@@ -492,6 +504,8 @@ mzd_bundle_reset_main "$1"
         checks += 1
         return r
 
+    # Restore preflight and preparation tolerate a missing shared GUI boot hook
+    (data / 'integration/developer_mode_GuiConfig.js').unlink()
     # Restore preflight must fail when a native payload is modified
     (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(b'modified shim payload')
     r = run_reset('check', 1)
@@ -508,6 +522,7 @@ mzd_bundle_reset_main "$1"
     assert len(list(archive.glob('payload-*'))) == 3
     # During prepare phase, GUI module is uninstalled and archived
     assert not gui_module.exists()
+    assert not (data / 'integration/developer_mode_GuiConfig.js').exists()
     # Finish refuses until targets are restored to OEM hash
     run_reset('finish', 1)
 

@@ -83,8 +83,11 @@ in addition to package-controller serialization.
 Unknown developer hooks, links, unregistered module folders and changed owned
 files cause refusal. The helper does not chain, adopt or overwrite foreign hooks.
 An existing separately managed hook therefore needs an explicit migration; it
-cannot be silently adopted. Status remains read-only. Backups and write verification
-support rollback for caught failures. Reports retain transaction backups. A
+cannot be silently adopted. Removal and Restore also tolerate a missing generated
+boot hook when the saved provider and remaining shared support verify; if other
+consumers remain, the hook is restored from that verified provider snapshot.
+Status remains read-only. Backups and write verification support rollback for
+caught failures. Reports retain transaction backups. A
 rollback failure returns critical severity and says not to reboot. Power loss
 cannot be handled by a running shell trap and is not yet proven recoverable.
 
