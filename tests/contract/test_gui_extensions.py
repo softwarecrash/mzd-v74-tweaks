@@ -229,7 +229,7 @@ exec '''+copy_command+''' "$@"
   write(user_data/'test-image.png','synthetic user data\n')
   write(user_data/'gallery/gallery.tsv','saved image and slideshow settings\n')
   saved={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
-  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.0','version=0.4.1'))
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.1','version=0.4.2'))
   call('wallpaper-manager','update')
   assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
   call('wallpaper-manager','uninstall',extra=['--preserve-config']);assert hook.exists() and (user_data/'test-image.png').exists()

@@ -130,6 +130,7 @@
     }
     function dispose() { if (ended) { return; } post({type:'wallpaper-native-release'}); ended = true; window.clearTimeout(timeout); window.removeEventListener('message',receive,false); }
     if (!sdk) { status.textContent = tr('openApps','Open through Applications.'); return; }
+    sdk.setLayout('with-status-bar');
     window.addEventListener('message',receive,false); sdk.onInput(input); sdk.onDispose(dispose); sdk.ready();
     if (sdk.loadLanguage) { sdk.loadLanguage(function (language, direction) {
         document.documentElement.lang = language.replace('_','-'); status.dir = direction;
