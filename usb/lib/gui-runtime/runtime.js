@@ -19,15 +19,6 @@
         }
         return item.label;
     }
-    function backLabel(path, fallback) {
-        var i;
-        if (window.MzdGuiI18n) { for (i = 0; i < modules.length; i += 1) {
-            if (modules[i].translations && (modules[i].menuPath === path || modules[i].menuPath.indexOf(path+'/') === 0)) {
-                return window.MzdGuiI18n.text(modules[i].id,path.indexOf('/') >= 0 ? 'gui.back' : 'gui.backToApplications',fallback);
-            }
-        } }
-        return fallback;
-    }
     function entries() {
         var result = [], n;
         for (n = 0; n < modules.length; n += 1) {
@@ -106,8 +97,7 @@
         if (control) { try { fw.destroyControl(control); } catch (error) { note('List cleanup: ' + error); } }
     }
     function selectEntry(item) {
-        if (item.id === 'exit') { menuBack(); }
-        else if (item.kind === 'menu') { active.parent = item.path; submenu(''); }
+        if (item.kind === 'menu') { active.parent = item.path; submenu(''); }
         else { launch(item); }
     }
     function submenu(message) {
@@ -129,10 +119,9 @@
         }
         for (n = 0; n < groups.length; n += 1) { if (groups[n].parentPath === session.parent) { session.list.push(groups[n]); } }
         for (n = 0; n < modules.length; n += 1) { if (modules[n].menuPath === session.parent) { session.list.push(modules[n]); } }
-        session.list.push({id:'exit',label:backLabel(session.parent,session.parent.indexOf('/') >= 0 ? 'Back' : 'Back to Applications')});
         for (n = 0; n < session.list.length; n += 1) {
             item = session.list[n];
-            items.push({appData:{mzdGuiItem:item},text1Id:null,text1:item.id === 'exit' ? item.label : label(item),itemStyle:'style01',hasCaret:item.kind === 'menu',disabled:false});
+            items.push({appData:{mzdGuiItem:item},text1Id:null,text1:label(item),itemStyle:'style01',hasCaret:item.kind === 'menu',disabled:false});
         }
         if (typeof fw.instantiateControl !== 'function' || typeof fw.destroyControl !== 'function') { throw new Error('Mazda list API unavailable'); }
         control = fw.instantiateControl('system',root,'List2Ctrl',{

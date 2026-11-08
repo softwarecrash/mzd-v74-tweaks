@@ -987,6 +987,7 @@ test("submenu hands focus to the OEM Back arrow and restores Applications", () =
   h.app._currentContextTemplate.handleControllerEvent = event => { restored = event === "acceptFocusFromLeft"; };
   h.open("games");
   const list = h.controls.at(-1);
+  assert(list.properties.dataList.items.every(row => row.appData.mzdGuiItem.id !== "exit"), "no redundant Back row");
   list.handleControllerEvent = function(event) {
     this.events.push(event);
     if (event === "leftStart") return "giveFocusLeft";
