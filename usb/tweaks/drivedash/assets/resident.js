@@ -13,6 +13,30 @@
                 }, '*');
             }
         }
+        function backButton() {
+            var common = global.framework && global.framework.common;
+            return common && common.leftBtn && common.leftBtn.btnInstance ? common.leftBtn : null;
+        }
+        function releaseBackButton() {
+            var button = backButton();
+            if (button && button.btnInstance.hasFocus) { button.handleControllerEvent('lostFocus'); }
+        }
+        function dispatch(control, event) {
+            var button = backButton(), response;
+            if (button && button.btnInstance.hasFocus) {
+                response = button.handleControllerEvent(event);
+                if (response === 'giveFocusRight' && control.handleControllerEvent('acceptFocusFromLeft') === 'consumed') {
+                    button.handleControllerEvent('lostFocus');
+                }
+                return response;
+            }
+            response = control.handleControllerEvent(event);
+            if (response === 'giveFocusLeft' && button) {
+                button.handleControllerEvent('acceptFocusFromRight');
+                control.handleControllerEvent('lostFocus');
+            }
+            return response;
+        }
         function destroyList() {
             if (session && session.control) {
                 try { global.framework.destroyControl(session.control); } catch (ignore) {}
@@ -39,7 +63,9 @@
             old.root.style.cssText = old.css;
             old.root.className = old.className;
             if (fw && typeof fw.getCurrentApp === 'function' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
+                releaseBackButton();
                 app = fw.getAppInstance('system');
+                if (app._currentContextTemplate && typeof app._currentContextTemplate.handleControllerEvent === 'function') { app._currentContextTemplate.handleControllerEvent('acceptFocusFromLeft'); }
                 if (!app._currentContextTemplate || !app._currentContextTemplate.divElt || app._currentContextTemplate.divElt.style.visibility !== 'hidden') {
                     if (app._currentContextTemplate && app._currentContextTemplate.list2Ctrl) {
                         app._currentContextTemplate.list2Ctrl.setLineNumbers();
@@ -164,6 +190,7 @@
                         }, 0);
                     }
                 });
+                releaseBackButton();
                 session.control.handleControllerEvent('acceptFocusInit');
             }
             session.page = menu.page;
@@ -179,13 +206,13 @@
             } else {
                 if (['up', 'down', 'left', 'right', 'select'].indexOf(action) < 0) { return; }
                 if (phase === 'step') {
-                    control.handleControllerEvent(action + 'Start');
+                    dispatch(control,action + 'Start');
                     event = action;
                 } else {
                     event = phase === 'press' ? action + 'Start' : action;
                 }
             }
-            control.handleControllerEvent(event);
+            dispatch(control,event);
             capture = control.getContextCapture();
             send('drivedash-native-focus', capture.focussedItem);
         }

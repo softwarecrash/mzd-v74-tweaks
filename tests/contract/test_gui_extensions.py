@@ -310,7 +310,7 @@ exec '''+copy_command+''' "$@"
   assert 'drivedash' in (base/'mzd-gui-services.tsv').read_text()
   edited='version=1\ndesign=oem-style\nlanguage=de_DE\nspeedUnit=mph\ntempUnit=F\nanimated=true\n'
   write(settings,edited);deep('drivedash','installed')
-  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.4','version=0.1.5'))
+  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.5','version=0.1.6'))
   call('drivedash','update');assert settings.read_text()==edited
   call('tetris','install');call('drivedash','uninstall',extra=['--preserve-config']);assert settings.read_text()==edited and hook.exists()
   call('tetris','uninstall');absent();assert startup.read_bytes()==original and settings.read_text()==edited
