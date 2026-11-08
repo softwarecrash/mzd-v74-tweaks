@@ -82,11 +82,11 @@ f.window.DriveDashSkins.register({id:'alternative',labelKey:'Alternative',draw()
 assert.throws(() => f.window.DriveDashSkins.register({id:'alternative',draw() {}}));
 f.nodes.settings.onclick(); assert.equal(f.intervals.size,0);
 f.nodes['menu-rows'].children[0].onclick();
-assert.equal(f.nodes['menu-rows'].children.length,3);
-assert.equal(f.nodes['menu-rows'].children.at(-1).children[0].textContent,'Zur\u00fcck');
+assert.equal(f.nodes['menu-rows'].children.length,2);
+assert(!f.nodes['menu-rows'].children.some(row=>row.children[0].textContent==='Zur\u00fcck'));
 f.nodes['menu-rows'].children[1].onclick();
 assert.equal(alternativeDraws,0); assert.equal(f.intervals.size,0);
-f.nodes['menu-rows'].children.at(-1).onclick(); // Design -> settings, still paused.
+f.input('back','step'); // Design -> settings, still paused.
 assert.equal(f.intervals.size,0);
 f.nodes['menu-back'].onclick(); // Settings -> gauge.
 assert.ok(alternativeDraws>0); assert.equal(f.intervals.size,1);
@@ -105,9 +105,10 @@ assert.equal(n.intervals.size,0);
 const render = n.messages.find(m => m.type==='drivedash-native-render');
 assert.equal(render.menu.title,'Einstellungen'); assert.equal(render.menu.rows[0].label,'Design');
 assert.notEqual(n.nodes['fallback-menu'].style.display,'block');
-n.events.message({source:{},data:{type:'drivedash-native-select',token:'preview-token',index:render.menu.rows.findIndex(row => row.id==='return')}});
+assert(!render.menu.rows.some(row=>row.id==='return'));
+n.events.message({source:{},data:{type:'mzd-gui-input',token:'preview-token',action:'back',phase:'step'}});
 assert.equal(n.intervals.size,0);
-n.events.message({source:n.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:render.menu.rows.findIndex(row => row.id==='return')}});
+n.input('back','step');
 assert.equal(n.intervals.size,1);
 assert.ok(n.messages.some(m => m.type==='drivedash-native-release'));
 assert.equal(n.input('back','step'),false);

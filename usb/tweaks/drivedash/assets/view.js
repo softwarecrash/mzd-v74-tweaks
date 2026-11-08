@@ -92,8 +92,7 @@
             var settings = [{id:'design',label:t('design'),detail:t(skins.get(config.design).labelKey),caret:true},
                 {id:'speed',label:t('speedUnits'),detail:t(config.speedUnit),caret:true},
                 {id:'temperature',label:t('temperatureUnits'),detail:config.tempUnit === 'auto' ? t('auto') : t(config.tempUnit === 'F' ? 'fahrenheit' : 'celsius'),caret:true},
-                {id:'language',label:t('language'),detail:config.language === 'auto' ? t('auto') : t('language.'+config.language),caret:true},
-                {id:'return',label:t('back')}];
+                {id:'language',label:t('language'),detail:config.language === 'auto' ? t('auto') : t('language.'+config.language),caret:true}];
             if (preferenceError) { settings.splice(0,0,{id:'settingsError',label:t(preferenceError),disabled:true}); }
             if (!live) { settings.splice(4,0,{id:'animated',label:t('animate'),detail:t(config.animated ? 'on' : 'off')}); }
             return settings;
@@ -107,7 +106,6 @@
             values = page === 'speed' ? ['auto','kmh','mph'] : ['auto','C','F'];
             for (i = 0; i < values.length; i += 1) { result.push({id:values[i],label:t(values[i] === 'C' ? 'celsius' : values[i] === 'F' ? 'fahrenheit' : values[i]),radio:true,checkable:true,checked:(page === 'speed' ? config.speedUnit : config.tempUnit) === values[i]}); }
         }
-        result.push({id:'return',label:t('back')});
         return result;
     }
     function renderMenu() {
@@ -135,7 +133,6 @@
     function back() { if (page === 'gauge') { return false; } if (page === 'settings') { resume(); } else { open('settings'); } return true; }
     function choose(position) {
         var row = rows()[position]; if (!row || row.disabled || ended) { return; } focus = position;
-        if (row.id === 'return') { back(); return; }
         if (page === 'settings') {
             if (row.id === 'animated') { config.animated = !config.animated; save(); renderMenu(); return; }
             open(row.id); return;
