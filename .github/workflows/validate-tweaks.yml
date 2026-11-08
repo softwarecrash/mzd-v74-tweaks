@@ -69,6 +69,7 @@ jobs:
         run: |
           python tests/contract/test_components.py
           python tests/contract/test_bundles.py
+          python tests/contract/test_android_auto.py
       - name: Test USB export commands and background jobs
         run: python tests/contract/test_exports.py
       - name: Test internal backup restore and owned cleanup hooks
@@ -92,7 +93,7 @@ jobs:
       - name: Validate factory Lua syntax
         run: |
           sudo apt-get install -y lua5.1
-          for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
+          for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua usb/tweaks/*/assets/*/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
       - name: Test Hello entrypoint
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint
@@ -175,13 +176,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node tests/installer/test-es5.cjs
-      - run: node tests/installer/test-startup-errors.cjs
-      - run: node tests/installer/test-ui.cjs
-      - run: node tests/installer/test-gui-runtime.cjs
-      - run: node tests/installer/test-gui-i18n.cjs
-      - run: node tests/installer/test-gui-residents.cjs
-      - run: node tests/installer/test-gui-services.cjs
+      # Every test file of tests/installer/ (node:test); a new file there runs without editing this list.
+      # The pattern is quoted so that Node, not the shell, expands it.
+      - name: Installer UI tests (every tests/installer/*.cjs)
+        run: node --test "tests/installer/*.cjs"
       - run: node tests/tweaks/tetris/shared-sdk.cjs
       - run: node tests/tweaks/traffic-jam/behavior.cjs
       - run: node tests/tweaks/tetris/highscore.cjs
@@ -207,5 +205,5 @@ jobs:
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs
-      - run: node tests/installer/test-transport.cjs
+      - run: node tests/tweaks/android-auto/test-view.cjs
       - run: node tests/tweaks/remove-safety-warnings/behavior.cjs

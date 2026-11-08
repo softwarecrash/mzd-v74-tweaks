@@ -19,6 +19,7 @@ real entrypoints. Run every check inside the containers.
 | Worker suite, one tweak | `CMU_TEST_ONLY=<tweak-id> sh tools/test-in-container.sh workers` |
 | One check | `sh tools/test-in-container.sh run python tests/contract/test_packages.py` |
 | One Node check | `sh tools/test-in-container.sh run node tests/installer/test-ui.cjs` |
+| All installer UI checks | `sh tools/test-in-container.sh run node --test "tests/installer/*.cjs"` |
 | A command under BusyBox | `sh tools/test-in-container.sh busybox <command>` |
 | List the CI steps | `sh tools/test-in-container.sh run python tools/container/run-ci-steps.py --list` |
 

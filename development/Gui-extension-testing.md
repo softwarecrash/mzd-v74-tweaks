@@ -8,14 +8,80 @@ each level; Games uses the same path logic.
 
 ## Browser emulator
 
-Use a complete private firmware GUI copy, including its images, `/jci/fonts/`
-and the emulator boot videos under `/jci/resources/`. A partial analysis dump
-can boot to a blank view despite successful script requests. Check completeness
-against the original archive before diagnosing extension code. Expose a sibling `/data/` directory
-through the emulator's existing limited HTTP mounts. Put the helper boot file at
-`/data/integration/developer_mode_GuiConfig.js`, with its runtime, data registry
-and two neutral modules in their documented locations. This is a browser fixture,
-not evidence that the persistent shell package was installed correctly.
+Visual and interactive testing of GUI extensions can be performed using
+[mzd-emu](https://github.com/ScorpAL/mzd-emu), a browser-based Mazda Connect
+(JCI Opera) emulator. It executes the authentic client-side Opera GUI framework,
+including the native `List2Ctrl` list control factory, textures, fonts, and status
+bar notifications (`SBN`), allowing you to test multicontroller navigation and
+layout without flashing files to a vehicle CMU.
+
+### Obtaining the emulator and prerequisites
+
+1. **Clone `mzd-emu`**:
+   Get the emulator from [https://github.com/ScorpAL/mzd-emu](https://github.com/ScorpAL/mzd-emu).
+   You can clone it directly inside this repository as `mzd-emu` (it is listed in
+   `.gitignore` so it will not be committed or tracked), or keep it alongside as
+   a sibling directory:
+   ```sh
+   # Option A: Clone locally inside this repository (ignored by git)
+   git clone https://github.com/ScorpAL/mzd-emu.git mzd-emu
+
+   # Option B: Clone alongside this repository
+   git clone https://github.com/ScorpAL/mzd-emu.git ../mzd-emu
+   ```
+
+2. **Copy the `/jci` folder from the CMU**:
+   The emulator requires a complete, genuine `/jci` folder copied from a Mazda Connect
+   CMU firmware image or vehicle dump. Place the `/jci` directory directly inside the
+   `mzd-emu` directory so that `mzd-emu/jci/` exists (including `/jci/gui/`,
+   `/jci/fonts/`, and boot resources under `/jci/resources/`).
+   > [!IMPORTANT]
+   > The OEM `/jci` files contain proprietary Mazda/Johnson Controls code, textures,
+   > and fonts. A partial analysis dump can boot to a blank view despite successful
+   > HTTP requests. Ensure `/jci` is complete before diagnosing extension code.
+
+3. **Install emulator dependencies**:
+   ```sh
+   cd <path-to-mzd-emu>
+   npm install
+   ```
+
+### Staging and running via `tools/preview-menu.sh --emu`
+
+The `tools/preview-menu.sh` helper automates staging GUI extension assets into the
+emulator and starting it:
+
+```sh
+# Run with default emulator location:
+sh tools/preview-menu.sh --emu
+
+# Specify an explicit path to mzd-emu:
+sh tools/preview-menu.sh --emu ./mzd-emu
+sh tools/preview-menu.sh --emu /path/to/mzd-emu
+
+# Test another tweak extension (default: android-auto):
+sh tools/preview-menu.sh --tweak <id> --emu
+```
+
+**Path resolution**:
+When `--emu` is invoked without a path argument, the script resolves the emulator
+location in the following order:
+1. `MZD_EMU_DIR` environment variable (if set).
+2. `./mzd-emu` inside the repository root (if the directory exists).
+3. `../mzd-emu` alongside the repository root (default behavior).
+
+**What the tool does**:
+- Stages the shared GUI runtime (`usb/lib/gui-runtime/`) into
+  `<mzd-emu>/data/integration/mzd-gui-runtime/`.
+- Stages the target tweak manifest, assets, and translations into
+  `<mzd-emu>/data/integration/mzd-gui-modules/<id>/`.
+- Generates `<mzd-emu>/data/integration/mzd-gui-registry.js` using `usb/lib/gui-registry.awk`.
+- Starts the emulator with `npm start`.
+
+This provides faithful visual and interaction validation (e.g. testing `List2Ctrl`
+scrolling, focus, multicontroller inputs, and status bar toast notifications) before
+hardware testing. Note that this is a browser fixture, not evidence that the
+persistent shell package was installed correctly on hardware.
 
 1. Boot to the ordinary home screen; open Applications. Both neutral entries
    appear once. No extension view should have loaded before selection.

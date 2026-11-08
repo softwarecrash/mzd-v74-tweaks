@@ -7,11 +7,25 @@ mzd_shim_targets() (
     for pair in $SHIM_EXTRA_TARGETS; do printf '%s\n' "$pair"; done
 )
 mzd_shim_transform() (
-    input=$1; mode=$2
+    input=$1; mode=$2; no_reset=${3:-0}
     output=$(mktemp /tmp/mzd-shim-transform.XXXXXX) || exit 1
     trap 'rm -f "$output"' 0
     # Do not capture file bytes in a shell variable: that strips trailing newlines.
-    if awk -v service="$SHIM_SERVICE" -v library="$SHIM_PATH" -v mode="$mode" -f "$ROOT/lib/shim-preload.awk" "$input" > "$output"; then
+    if awk -v service="$SHIM_SERVICE" -v library="$SHIM_PATH" -v mode="$mode" \
+        -v no_reset="$no_reset" \
+        -f "$ROOT/lib/shim-preload.awk" "$input" > "$output"; then
+        cat "$output"
+    else
+        cat "$output" >&2; exit 1
+    fi
+)
+mzd_loader_env_transform() (
+    input=$1; mode=$2; service=$3; env_name=$4; env_value=$5; keep=${6:-}
+    output=$(mktemp /tmp/mzd-loader-env-transform.XXXXXX) || exit 1
+    trap 'rm -f "$output"' 0
+    if awk -v service="$service" -v env_name="$env_name" -v env_value="$env_value" -v mode="$mode" \
+        -v keep="$keep" \
+        -f "$ROOT/lib/loader-env.awk" "$input" > "$output"; then
         cat "$output"
     else
         cat "$output" >&2; exit 1

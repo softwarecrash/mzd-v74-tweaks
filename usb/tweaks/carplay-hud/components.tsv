@@ -1,0 +1,6 @@
+# kind	target	source	service	oem-md5
+loader	/jci/sm/sm.conf	-	-	74d9fc389b74fb01d0cfc2615a82c782
+loader	/jci/sm/sm_WCP.conf	-	-	030e918f5d6edcd62d196ee37b86fe99
+loader_env	LD_LIBRARY_PATH=/jci/lib:/usr/lib	-	jciCARPLAY	-
+shim	/tmp/mnt/data_persist/mzd-tweaks/shims/carplay-hud/libpatch-blmjcicarplay.so	assets/libpatch-blmjcicarplay.so	jciCARPLAY	no_reset
+patch	/etc/devmgr_config_master.xml	assets/devmgr_config_master.patch	-	ee189da9e09388adb7cec4f49563cdbb

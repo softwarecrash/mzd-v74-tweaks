@@ -54,13 +54,17 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     usb = base / 'usb'
     internal = base / 'internal'
     persist = base / 'persist'
+    data = base / 'data'
     bins = base / 'bin'
     mounts = base / 'mounts'
     version = base / 'version'
     gpio = base / 'watchdog'
     lock = base / 'packages.lock'
-    for d in [usb, internal, persist, bins, base / 'locks']:
-        d.mkdir()
+    for d in [usb, internal, persist, data / 'integration', bins, base / 'locks']:
+        d.mkdir(parents=True)
+
+    startup = internal / 'scripts/stage_wifi.sh'
+    write(startup, '#!/bin/sh\necho original\n')
 
     store = persist / 'mzd-tweaks/installed'
     config = internal / 'sm.conf'
@@ -98,13 +102,18 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     for p in (usb / 'lib').glob('*.sh'):
         s = p.read_text().replace('/tmp/mnt/data_persist', bp(persist)).replace('/proc/mounts', bp(mounts)).replace('/jci/version.ini', bp(version))
         s = s.replace('MZD_SHIM_ROOT=/', 'MZD_SHIM_ROOT=' + shlex.quote(bp(internal)))
+        s = s.replace('MZD_GUI_STARTUP_MOUNT=/', 'MZD_GUI_STARTUP_MOUNT=' + shlex.quote(bp(internal)))
+        s = s.replace('/tmp/mnt/data', bp(data))
+        s = s.replace('/jci/scripts/stage_wifi.sh', bp(startup))
+        s = s.replace('/tmp/mzd-stage_wifi-tweak.lock', bp(base / 'locks/stage_wifi.lock'))
+        s = s.replace('/tmp/mzd-gui-extension.lock', bp(base / 'locks/gui.lock'))
         s = s.replace('/tmp/mzd-packages.lock', bp(lock))
         s = s.replace('/sys/class/gpio/Watchdog\\ Disable/value', shlex.quote(bp(gpio)))
         s = s.replace('LOCK="/tmp/mzd-$LOCK_GROUP-tweak.lock"', 'LOCK="' + bp(base / 'locks') + '/$LOCK_GROUP.lock"')
         write(p, s)
     write(version, 'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n')
     write(gpio, '0\n')
-    write(mounts, f'/dev/root {bp(internal)} relfs ro 0 0\n/dev/data {bp(persist)} relfs rw 0 0\n/dev/usb {bp(usb)} vfat rw 0 0\n')
+    write(mounts, f'/dev/root {bp(internal)} relfs ro 0 0\n/dev/data {bp(persist)} relfs rw 0 0\n/dev/usb {bp(usb)} vfat rw 0 0\n/dev/data2 {bp(data)} relfs rw 0 0\n')
 
     if os.environ.get('CMU_TEST_BUSYBOX'):
         busybox = shutil.which('busybox')
@@ -116,6 +125,11 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     write(bins / 'sync', '#!/bin/sh\nexit 0\n')
     write(bins / 'df', '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 1000000 1 900000 1%% internal\\n"\n')
     write(bins / 'mount', '#!/bin/sh\nexit 0\n')
+    for name in ['lua', 'setsid']:
+        write(bins / name, '#!/bin/sh\nexit 0\n')
+    with (usb / 'lib/gui-services.sh').open('a', encoding='utf-8') as f:
+        f.write('\nmzd_gui_services_stop() { :; }\n')
+        f.write('mzd_gui_services_start() { :; }\n')
     write(bins / 'dbus-send', '''#!/bin/sh
 case "${TEST_HUD:-whud}:$*" in
     none:*byte:13*) printf '   byte 0\\n' ;;
@@ -292,6 +306,23 @@ esac
         assert '<real_density>153</real_density>' in text
         assert '<par>15800</par>' in text
         assert '<subscribe>TRUE</subscribe>' in text
+    config_patched = config.read_text()
+    second_patched = second.read_text()
+
+    # Verify GUI module and shared integration
+    gui_module = data / 'integration/mzd-gui-modules/android-auto'
+    assert (gui_module / 'manifest.conf').exists()
+    assert (gui_module / 'assets/view.html').exists()
+    assert (gui_module / 'assets/view.js').exists()
+    assert (gui_module / 'assets/resident.js').exists()
+    assert (gui_module / 'assets/service/entry.lua').exists()
+    assert (gui_module / 'assets/i18n.js').exists()
+    assert (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert (data / 'integration/mzd-gui-runtime').exists()
+    assert (data / 'integration/mzd-gui-registry.js').exists()
+    assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'android-auto\tassets/service/entry.lua'
+    assert '# MZD shared GUI services' in startup.read_text()
+    assert (persist / 'mzd-tweaks/gui-data/android-auto/owner').read_text() == 'MZD_GUI_DATA_V1\nandroid-auto\n'
 
     # Verify persistent package and settings
     saved = store / 'android-auto/package'
@@ -311,12 +342,137 @@ esac
     assert 'payload differs' in r.stderr
     (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(orig_bytes)
 
-    # Reset hook check
+    # Status aggregation: native installed but GUI uninstalled -> broken
+    temp_gui = base / 'temp-gui-module'
+    state_conf = store / 'android-auto/state.conf'
+    orig_state = state_conf.read_text()
+    gui_module.rename(temp_gui)
+    state_conf.unlink()
+    r = deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'broken')
+    assert 'partially installed: native installed, GUI uninstalled' in r.stderr
+    write(state_conf, orig_state)
+    temp_gui.rename(gui_module)
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+
+    # Status aggregation: native uninstalled but GUI installed -> broken
+    temp_payload = base / 'temp-payload'
+    payload_dir.rename(temp_payload)
+    config.write_text(stock)
+    second.write_text(stock)
+    xml_std.write_text(orig_std)
+    xml_ucp.write_text(orig_ucp)
+    r = deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'broken')
+    assert 'partially installed: native uninstalled, GUI installed' in r.stderr
+    temp_payload.rename(payload_dir)
+    config.write_text(config_patched)
+    second.write_text(second_patched)
+    xml_std.write_text(std_patched)
+    xml_ucp.write_text(ucp_patched)
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+
+    # Ignored *.tmp staging files in payload_dir must not fail status check
+    (payload_dir / 'staging.tmp').write_text('temporary staging payload')
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+    (payload_dir / 'staging.tmp').unlink()
+
+    # Failed loader replacement during uninstall must roll back both native and GUI components
+    real_mv = (shlex.quote(bp(shutil.which('busybox'))) + ' mv') if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(bp(shutil.which('mv') or '/bin/mv'))
+    write(bins / 'mv', f'''#!/bin/sh
+for value do case "$value" in {shlex.quote(bp(config))}.mzd-restore-*) exit 1 ;; esac; done
+exec {real_mv} "$@"
+''')
+    call(['action', 'android-auto', 'uninstall'], 1)
+    (bins / 'mv').unlink()
+
+    # Native installation remains intact
+    assert (payload_dir / 'libpatch-blmjciaapa.so').read_bytes() == (folder / 'assets/libpatch-blmjciaapa.so').read_bytes()
+    assert (payload_dir / 'libpatch-svcjcinavi.so').read_bytes() == (folder / 'assets/libpatch-svcjcinavi.so').read_bytes()
+    assert (payload_dir / 'libpatch-aap_service.so').read_bytes() == (folder / 'assets/libpatch-aap_service.so').read_bytes()
+    assert (payload_dir / 'libpatch.conf').read_text() == custom_asset_content
+    for path in [config, second]:
+        text = path.read_text()
+        assert 'libpatch-blmjciaapa.so' in text
+        assert 'libpatch-svcjcinavi.so' in text
+        assert 'libpatch-aap_service.so' in text
+    for text in [xml_std.read_text(), xml_ucp.read_text()]:
+        assert '<density>153</density>' in text
+        assert '<par>15800</par>' in text
+
+    # GUI installation remains intact
+    assert (gui_module / 'manifest.conf').exists()
+    assert (gui_module / 'assets/view.html').exists()
+    assert (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert (data / 'integration/mzd-gui-runtime').exists()
+    assert (data / 'integration/mzd-gui-registry.js').exists()
+    assert 'android-auto' in (data / 'integration/mzd-gui-registry.js').read_text()
+    assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'android-auto\tassets/service/entry.lua'
+    assert '# MZD shared GUI services' in startup.read_text()
+
+    # Deep status confirms installed state after rollback
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+    assert not lock.exists() and gpio.read_text() == '0\n'
+    assert not list(internal.glob('*.mzd-restore-*'))
+
+    # A failed native rollback followed by a successful GUI rollback must report exit code 2 and critical cleanup warning
+    failed = base / 'write-failed'
+    write(bins / 'mv', f'''#!/bin/sh
+for value do
+    case "$value" in
+        {shlex.quote(bp(second))}.mzd-restore-*)
+            touch {shlex.quote(bp(failed))}
+            exit 1
+            ;;
+        {shlex.quote(bp(config))}.mzd-restore-*)
+            [ ! -f {shlex.quote(bp(failed))} ] || exit 1
+            ;;
+    esac
+done
+exec {real_mv} "$@"
+''')
+    r = call(['action', 'android-auto', 'uninstall'], 2)
+    assert 'Cleanup failed; system state could not be fully restored. Do NOT reboot.' in r.stderr
+    (bins / 'mv').unlink()
+    failed.unlink()
+
+    # The installation remained incomplete, but GUI rollback succeeded
+    assert 'libpatch-blmjciaapa.so' not in config.read_text()
+    assert 'libpatch-blmjciaapa.so' in second.read_text()
+    assert (gui_module / 'manifest.conf').exists()
+    assert (gui_module / 'assets/view.html').exists()
+    assert (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert (data / 'integration/mzd-gui-runtime').exists()
+    assert (data / 'integration/mzd-gui-registry.js').exists()
+    assert 'android-auto' in (data / 'integration/mzd-gui-registry.js').read_text()
+    assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'android-auto\tassets/service/entry.lua'
+    assert '# MZD shared GUI services' in startup.read_text()
+
+    # Restore first loader so saved uninstall can restore baseline
+    write(config, second.read_text())
+
+    # Saved uninstall restores baseline
+    call(['action', 'android-auto', 'uninstall'])
+    assert config.read_text() == stock and second.read_text() == stock
+    assert xml_std.read_text() == orig_std and xml_ucp.read_text() == orig_ucp
+    assert not payload_dir.exists()
+    assert not gui_module.exists()
+    assert not (data / 'integration/developer_mode_GuiConfig.js').exists()
+    assert not (data / 'integration/mzd-gui-runtime').exists()
+    assert startup.read_text() == '#!/bin/sh\necho original\n'
+    assert not lock.exists() and gpio.read_text() == '0\n'
+
+    r = call(['statuses', 'android-auto'])
+    assert 'android-auto\tuninstalled\t\n' in r.stdout
+
+    # Reinstall to test reset hook lifecycle
+    call(['action', 'android-auto', 'install'])
     saved_tweak = saved / 'tweaks/android-auto'
     archive = base / 'reset-archive'
+    if archive.exists():
+        shutil.rmtree(archive)
     archive.mkdir()
     system = base / 'reset-system'
-    system.mkdir()
+    if not system.exists():
+        system.mkdir()
     write(system / 'mounts', '')
     write(system / 'locks', '')
     reset_script = base / 'reset-hook.sh'
@@ -336,21 +492,42 @@ mzd_bundle_reset_main "$1"
         checks += 1
         return r
 
+    # Restore preflight must fail when a native payload is modified
+    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(b'modified shim payload')
+    r = run_reset('check', 1)
+    assert 'Unknown payload; reset refused' in r.stderr
+    (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(orig_bytes)
+
+    # Ignored *.tmp in payload_dir must not fail reset check
+    (payload_dir / 'staging.tmp').write_text('temporary staging payload')
+    run_reset('check')
+    (payload_dir / 'staging.tmp').unlink()
+
     run_reset('check')
     run_reset('prepare')
-    assert len(list(archive.glob('payload-*'))) == 4
+    assert len(list(archive.glob('payload-*'))) == 3
+    # During prepare phase, GUI module is uninstalled and archived
+    assert not gui_module.exists()
     # Finish refuses until targets are restored to OEM hash
     run_reset('finish', 1)
 
-    # Saved uninstall restores baseline
-    call(['action', 'android-auto', 'uninstall'])
-    assert config.read_text() == stock and second.read_text() == stock
-    assert xml_std.read_text() == orig_std and xml_ucp.read_text() == orig_ucp
-    assert not payload_dir.exists()
-    assert not lock.exists() and gpio.read_text() == '0\n'
-
-    r = call(['statuses', 'android-auto'])
-    assert 'android-auto\tuninstalled\t\n' in r.stdout
+    # Restoring OEM backups allows finish to succeed
+    for path in [config, second]:
+        shutil.copyfile(path.with_name(path.name + '.org'), path)
+    for path in [xml_std, xml_ucp]:
+        shutil.copyfile(path.with_name(path.name + '.org'), path)
+    run_reset('finish')
+    assert not (payload_dir / 'libpatch-blmjciaapa.so').exists()
+    assert (payload_dir / 'libpatch.conf').exists()
+    assert not gui_module.exists()
+    shutil.rmtree(store / 'android-auto')
+    (payload_dir / 'libpatch.conf').unlink()
+    payload_dir.rmdir()
+    for lock_file in (base / 'locks').glob('*.lock'):
+        if lock_file.is_dir():
+            shutil.rmtree(lock_file)
+        else:
+            lock_file.unlink()
 
     # Test installation with explicit command-line settings overriding user defaults
     call(['action', 'android-auto', 'install', 'resolution_dpi=103', 'resolution_par=10670'])
@@ -370,5 +547,75 @@ mzd_bundle_reset_main "$1"
     call(['action', 'android-auto', 'uninstall'])
     assert xml_std.read_text() == orig_std and xml_ucp.read_text() == orig_ucp
     assert config.read_text() == stock and second.read_text() == stock and not payload_dir.exists()
+
+    # Verify Lua config serializer line matching, staging directory and error cleanup
+    lua = shutil.which('lua5.1') or shutil.which('lua')
+    if lua:
+        entry_path = bp(ROOT / "usb/tweaks/android-auto/assets/service/entry.lua")
+        conf_path = bp(base / "test_libpatch.conf")
+        gui_data = base / "test_gui_data"
+        gui_data.mkdir(exist_ok=True)
+        gui_data_dir = bp(gui_data)
+        lua_code = f'''
+package.preload["lfs"] = function() return {{ mkdir = function() end }} end
+local factory = assert(loadfile("{entry_path}"))()
+local conf = "{conf_path}"
+local staging = "{gui_data_dir}"
+local content = "touch = true\\nhud = true\\n"
+local written_paths = {{}}
+local removed_paths = {{}}
+local files = {{
+    exists = function(p)
+        if p == staging then return true end
+        local f = io.open(p, "r"); if f then f:close(); return true end; return false
+    end,
+    read = function(p) local f = io.open(p, "r"); if not f then return nil end; local s = f:read("*a"); f:close(); return s end,
+    write_new = function(p, c)
+        table.insert(written_paths, p)
+        local f = assert(io.open(p, "w")); f:write(c); f:close()
+    end,
+    rename = function(src, dst) assert(os.rename(src, dst)) end,
+    remove_if_exists = function(p)
+        table.insert(removed_paths, p)
+        os.remove(p)
+    end,
+    random = function() return "123" end,
+    sync_directory = function() end
+}}
+files.write_new(conf, content)
+
+-- 1. Test repeated set operations do not cause newline bloat
+local service = factory({{ files = files, data = staging, config = {{ libpatch = conf }} }})
+for i = 1, 5 do
+    service.request("set", {{ key = "touch", value = (i % 2 == 0) }})
+end
+local res = files.read(conf)
+local _, newlines = res:gsub("\\n", "\\n")
+assert(newlines == 2, "Unexpected newline count after sets: " .. tostring(newlines) .. " in: " .. res)
+
+-- Verify staging writes were directed to staging directory outside payload
+local used_staging = false
+for _, p in ipairs(written_paths) do
+    if p:find(staging, 1, true) then used_staging = true end
+end
+assert(used_staging, "Expected temporary writes in staging directory")
+
+-- 2. Test save operation with multiple keys does not cause newline bloat
+service.request("save", {{ settings = {{ touch = true, hud = false, force_street_name = true }} }})
+local res_save = files.read(conf)
+local _, newlines_save = res_save:gsub("\\n", "\\n")
+assert(newlines_save == 3, "Unexpected newline count after save: " .. tostring(newlines_save) .. " in: " .. res_save)
+
+-- 3. Test failure during write/rename cleans up temporary file
+files.rename = function(src, dst) error("Simulated disk error during rename") end
+local ok, err = pcall(function()
+    service.request("set", {{ key = "touch", value = false }})
+end)
+assert(not ok, "Expected operation to fail on rename error")
+assert(#removed_paths > 0, "Temporary staging file should be cleaned up on failure")
+'''
+        r = subprocess.run([lua, '-e', lua_code], capture_output=True, text=True)
+        assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)
+        checks += 1
 
     print('ANDROID_AUTO_PASSED:', checks, 'real package checks; shims, XML patch hook, user settings defaults and asset overrides, saved uninstall.')

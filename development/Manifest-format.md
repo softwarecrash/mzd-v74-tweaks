@@ -186,8 +186,19 @@ section. Duplicate fields and control characters remain invalid.
 ## Shared GUI extensions
 
 `type=gui-extension` uses automatically managed GUI support and a saved consumer
-snapshot. See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
-first/last-consumer lifecycle, ownership rules and development limits.
+snapshot. Non-`gui-extension` tweaks (such as bundle packages with `type=files`)
+can also provide an in-car Applications menu GUI by declaring `gui_api=1`. See
+[Shared GUI extensions](Gui-extensions.md) for the API 1 metadata, first/last-consumer
+lifecycle, ownership rules and development limits.
+
+Whenever `gui_api=1` is declared (or when `type=gui-extension`), the manifest must
+satisfy the GUI extension contract: `gui_api=1`, `reset_entrypoint=reset.sh`,
+`reboot_required=true`, `status_scope=payload`, a literal `gui_label` (1–80 characters),
+and a valid `gui_entrypoint` path under `assets/` ending in `.html`. Standalone
+`type=gui-extension` tweaks strictly prohibit patch and component metadata (`target`,
+`oem_backup_md5`, `lock_group`, `components`, `shim_asset`). In contrast, hybrid bundle
+workers declaring `gui_api=1` permit those metadata fields to manage their native
+components and patches alongside their GUI view.
 
 ### Choice control behavior
 
@@ -242,6 +253,11 @@ Contents and missing config files do not determine installed status. Apps own
 parsing, defaults, format changes and safe writes. GUI services can access the
 declared paths through `context.config.<name>`. The original spelling's trailing
 slash is removed in that mapping. Other apps/workers can use their paths directly.
+Hybrid bundle tweaks can declare mutable configurations (such as `config.libpatch.path`
+and `config.libpatch.source` in Android Auto Mod) alongside their component table,
+allowing on-screen GUI settings views to inspect and alter runtime parameters via
+a companion Lua service without violating component checksums or requiring full
+reinstallation.
 
 Update preserves config automatically. Uninstall asks Keep/Remove only for
 config-owning tweaks. CLI removal uses `uninstall` (remove data) or

@@ -150,9 +150,10 @@ mzd_package_storage() (
     while [ "$p" != / ]; do [ ! -L "$p" ] || exit 1; p=$(dirname "$p"); done
 )
 mzd_package_payload_paths() (
-    if [ "$TYPE" = gui-extension ]; then
+    if [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ]; then
         . "${1%/tweaks/*}/lib/gui-extension.sh" || exit 1
-        mzd_gui_paths "$1"; exit $?
+        mzd_gui_paths "$1" || exit 1
+        [ "$TYPE" != gui-extension ] || exit 0
     fi
     if [ -n "${COMPONENTS:-}" ]; then mzd_components paths; exit $?; fi
     if [ -f "$1/managed-paths.tsv" ]; then

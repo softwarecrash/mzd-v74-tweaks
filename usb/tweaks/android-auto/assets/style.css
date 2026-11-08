@@ -1,0 +1,16 @@
+html,body{margin:0;width:800px;height:480px;overflow:hidden;background:transparent;color:#fff;font:22px Tipperary,Arial,sans-serif}
+#status{margin:80px 60px}
+
+/* Native menus inherit Mazda fonts; these faces cover frame startup/errors. */
+@font-face{font-family:MzdJapanese;src:url("/jci/fonts/HeiseiKakuGothW5_213_C.ttf")}
+html[lang^="ja"] body{font-family:MzdJapanese,Tipperary,sans-serif}
+@font-face{font-family:MzdChinese;src:url("/jci/fonts/MYingHei_18030-H_C.ttf")}
+html[lang^="zh-CN"] body{font-family:MzdChinese,Tipperary,sans-serif}
+@font-face{font-family:MzdTraditional;src:url("/jci/fonts/MYingHei_B5HK-H_C.ttf")}
+html[lang^="zh-TW"] body,html[lang^="cn"] body,html[lang^="mn"] body{font-family:MzdTraditional,Tipperary,sans-serif}
+@font-face{font-family:MzdArabic;src:url("/jci/fonts/AkhbarOTS.ttf")}
+html[lang^="ar"] body{font-family:MzdArabic,Tipperary,sans-serif}
+@font-face{font-family:MzdHebrew;src:url("/jci/fonts/HebrewOTS.ttf")}
+html[lang^="he"] body{font-family:MzdHebrew,Tipperary,sans-serif}
+@font-face{font-family:MzdThai;src:url("/jci/fonts/ThaiAltOTS.ttf")}
+html[lang^="th"] body{font-family:MzdThai,Tipperary,sans-serif}
