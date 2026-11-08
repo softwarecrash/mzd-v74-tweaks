@@ -3230,3 +3230,16 @@ test("AGGREGATE_RECOVERY", async (t) => {
     }
   );
 });
+
+
+test("SSH_CONDITIONAL_KEY_MANIFEST", () => {
+  const raw = fs.readFileSync(path.join(ROOT, "tweaks/ssh/manifest.conf"), "utf8");
+  assert.equal(parseConf("ssh", raw).id, "ssh");
+  for (const invalid of [
+    raw.replace("asset=public.key", "asset=../public.key"),
+    raw.replace("asset_source=public.key", "asset_source=../public.key"),
+    raw.replace("asset_when=install", "asset_when=unknown"),
+    raw.replace(/^setting.ssh_key.asset_source=.*\n/m, ""),
+    raw + "setting.ssh_password.asset=public.key\nsetting.ssh_password.asset_source=other.key\nsetting.ssh_password.asset_when=enabled\n"
+  ]) assert.throws(() => parseConf("ssh", invalid));
+});

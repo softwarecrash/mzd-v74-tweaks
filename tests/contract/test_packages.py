@@ -1,4 +1,5 @@
 """Real installer/package controller on private fixtures, no vehicle writes."""
+import re
 from pathlib import Path
 import os
 import json
@@ -87,6 +88,47 @@ esac
         checks+=1;return r
     def action(id_,name,code=0,output=None):return call(['action',id_,name],code,output)
     def text():return events.read_text() if events.exists() else ''
+    # A stdout-only preflight refusal must survive staging diagnostics, with
+    # its rejected override and scratch snapshot removed before publication.
+    rejected, rejected_target = make('rejected')
+    write(rejected/'manifest.conf', (rejected/'manifest.conf').read_text()+'preflight=true\n')
+    write(rejected/'run.sh', (rejected/'run.sh').read_text().replace('case "$1" in',
+        'case "$1" in\npreflight) printf "block\\tSupplied key is invalid.\\n"; exit 1 ;;'))
+    write(rejected/'assets/authorized_keys.conf', '')
+    write(usb/'user/rejected/authorized_keys.conf', '-----BEGIN PRIVATE KEY-----\nfixture only\n')
+    refused = action('rejected','install',1)
+    assert 'Supplied key is invalid.' in refused.stderr, refused
+    assert not rejected_target.exists() and not (store/'rejected').exists()
+    assert not list(store.glob('.stage-rejected-*')), 'Rejected overrides must not remain in persistent scratch.'
+    shutil.rmtree(rejected); shutil.rmtree(usb/'user/rejected'); store.rmdir(); events.unlink(missing_ok=True)
+    # Manifest-declared optional files are excluded, not just disabled at runtime.
+    conditional, conditional_target=make('conditional')
+    write(conditional/'manifest.conf',(conditional/'manifest.conf').read_text()+
+          'settings=keymode\nsetting.keymode.type=choice\nsetting.keymode.label=Public key\n'
+          'setting.keymode.default=ignore\nsetting.keymode.options=ignore install\n'
+          'setting.keymode.asset=authorized_keys.conf\nsetting.keymode.asset_source=public.key\nsetting.keymode.asset_when=install\n')
+    write(conditional/'run.sh',(conditional/'run.sh').read_text().replace(
+        '    # Event proves',
+        '    if grep -q "^keymode=install$" "${MZD_SETTINGS_FILE:-$ROOT/settings.conf}" 2>/dev/null && [ ! -s "$HERE/assets/authorized_keys.conf" ]; then printf \"unavailable\\n\"; exit 0; fi\n    # Event proves'))
+    write(conditional/'assets/authorized_keys.conf','')
+    write(usb/'user/conditional/public.key','unsupported-key fixture\n')
+    write(usb/'user/conditional/authorized_keys.conf','same-name override must not bypass the setting\n')
+    (conditional/'assets/authorized_keys.conf').unlink()
+    action('conditional','install',1)
+    assert not conditional_target.exists() and not (store/'conditional').exists()
+    write(conditional/'assets/authorized_keys.conf','')
+    action('conditional','install')
+    assert not (store/'conditional/package/tweaks/conditional/assets/authorized_keys.conf').read_bytes()
+    assert not list((store/'conditional/package').rglob('public.key'))
+    write(conditional/'manifest.conf',re.sub(r'^version=.*$', 'version=99.0.0', (conditional/'manifest.conf').read_text(), flags=re.M))
+    action('conditional','update')
+    assert not (store/'conditional/package/tweaks/conditional/assets/authorized_keys.conf').read_bytes()
+    action('conditional','uninstall')
+    write(usb/'user/conditional/public.key','ssh-rsa public-fixture\n')
+    call(['action','conditional','install','keymode=install'])
+    assert (store/'conditional/package/tweaks/conditional/assets/authorized_keys.conf').read_text()=='ssh-rsa public-fixture\n'
+    action('conditional','uninstall')
+    shutil.rmtree(conditional);shutil.rmtree(usb/'user/conditional');store.rmdir();events.unlink(missing_ok=True)
     folder,target=make('alpha')
     call(['uninstall-check','alpha'],1)
     # No receipt means uninstalled even if a target exists. No old patch/hash

@@ -7,7 +7,7 @@ function valid(key,v,   t) {
     if(t=="boolean") return v=="true" || v=="false"
     return index(" " field[key,"options"] " "," " v " ") && v ~ /^[a-z0-9][a-z0-9_-]*$/
 }
-function schema(   i,j,k,p,n,a,o,seenOptions) {
+function schema(   i,j,k,p,n,a,o,seenOptions,seenAssets) {
     n=split(list,keys," "); if(n>16)fail("At most 16 settings are supported.")
     for(i=1;i<=n;i++) {
         k=keys[i]
@@ -26,6 +26,12 @@ function schema(   i,j,k,p,n,a,o,seenOptions) {
             j=split(o,a," "); if(j>64)fail("Too many choices: " k)
             for(j in a)if(a[j] !~ /^[a-z0-9][a-z0-9_-]*$/ || length(a[j])>32 || seenOptions[k,a[j]]++)fail("Invalid or duplicate choice: " k)
         } else if(present[k,"options"])fail("Options on non-choice setting: " k)
+        if(present[k,"asset"] || present[k,"asset_source"] || present[k,"asset_when"]) {
+            if(p!="choice" || !present[k,"asset"] || !present[k,"asset_source"] || !present[k,"asset_when"] ||
+               field[k,"asset"] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*[.](conf|key)$/ ||
+               field[k,"asset_source"] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*[.](conf|key)$/ ||
+               !valid(k,field[k,"asset_when"]) || seenAssets[field[k,"asset"]]++)fail("Invalid conditional asset: " k)
+        }
         if(!valid(k,field[k,"default"]))fail("Invalid default: " k)
     }
     return n
@@ -40,7 +46,7 @@ NR==FNR {
         list=value
         if(list!="" && list !~ /^[a-z][a-z0-9_]*( [a-z][a-z0-9_]*)*$/)fail("Invalid settings list.")
     } else if(key ~ /^setting\./) {
-        if(split(key,parts,"[.]")!=3 || parts[3] !~ /^(type|label|default|min|max|step|unit|help|options)$/)fail("Unknown setting field: " key)
+        if(split(key,parts,"[.]")!=3 || parts[3] !~ /^(type|label|default|min|max|step|unit|help|options|asset|asset_source|asset_when)$/)fail("Unknown setting field: " key)
         if(length(value)>(parts[3]=="options"?4096:256) || present[parts[2],parts[3]]++)fail("Duplicate or oversized setting field: " key)
         field[parts[2],parts[3]]=value
     }

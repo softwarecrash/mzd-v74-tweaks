@@ -292,7 +292,7 @@
         el("content").scrollTop = 0; controls();
     }
     function settingDefinitions(raw) {
-        var names=raw.settings ? raw.settings.split(" ") : [], defs=[], known={}, key, parts, i, d, n;
+        var names=raw.settings ? raw.settings.split(" ") : [], defs=[], known={}, assets={}, key, parts, i, d, n;
         function integer(v) {return /^(0|[1-9][0-9]*)$/.test(v || "") && String(v).length<=10 && Number(v)<=2147483647;}
         if(names.length>16)throw new Error("Too many settings.");
         for(i=0;i<names.length;i++) {
@@ -301,7 +301,7 @@
         }
         for(key in raw)if(Object.prototype.hasOwnProperty.call(raw,key) && key.indexOf("setting.")===0) {
             parts=key.split(".");d=known["$"+parts[1]];
-            if(parts.length!==3 || !d || "type label default min max step unit help options".split(" ").indexOf(parts[2])===-1 || unescape(encodeURIComponent(raw[key])).length>(parts[2]==="options"?4096:256))throw new Error("Invalid setting field: "+key);
+            if(parts.length!==3 || !d || "type label default min max step unit help options asset asset_source asset_when".split(" ").indexOf(parts[2])===-1 || unescape(encodeURIComponent(raw[key])).length>(parts[2]==="options"?4096:256))throw new Error("Invalid setting field: "+key);
             d[parts[2]]=raw[key];
         }
         for(i=0;i<defs.length;i++) {
@@ -316,6 +316,12 @@
                     key=d.choices[n];if(!/^[a-z0-9][a-z0-9_-]{0,31}$/.test(key) || known["$"+key])throw new Error("Invalid choices.");known["$"+key]=true;
                 }
             } else if(d.options!==undefined)throw new Error("Unexpected options.");
+            if(d.asset!==undefined || d.asset_source!==undefined || d.asset_when!==undefined) {
+                if(d.type!=="choice" || !/^[A-Za-z0-9][A-Za-z0-9_.-]*\.(conf|key)$/.test(d.asset || "") ||
+                    !/^[A-Za-z0-9][A-Za-z0-9_.-]*\.(conf|key)$/.test(d.asset_source || "") ||
+                    d.asset_when===undefined || !settingValid(d,d.asset_when) || assets["$"+d.asset])throw new Error("Invalid conditional asset: "+d.key);
+                assets["$"+d.asset]=true;
+            }
             if(!settingValid(d,d.default))throw new Error("Invalid default: "+d.key);
         }
         return defs;

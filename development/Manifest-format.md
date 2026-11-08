@@ -263,3 +263,21 @@ Update preserves config automatically. Uninstall asks Keep/Remove only for
 config-owning tweaks. CLI removal uses `uninstall` (remove data) or
 `uninstall --preserve-config` (keep data). See [the config example](examples/config-data/README.md)
 and Tetris for complete lifecycle and runtime I/O examples.
+
+### Conditional user asset imports
+
+A choice setting can optionally declare one bundled asset, its USB source filename,
+and the value that enables importing it:
+
+```ini
+setting.ssh_key.asset=public.key
+setting.ssh_key.asset_source=public.key
+setting.ssh_key.asset_when=install
+```
+
+Both filenames are direct `.conf` or `.key` basenames. The target must be a
+bundled file in `assets/`; the source is read from `user/<id>/`. Other setting
+values keep the bundled asset unchanged and do not copy the supplied file into
+the saved package. The worker validates an enabled import during preflight.
+Ordinary `.conf` overrides retain their existing behavior. Declared conditional
+targets are never overridden through the ordinary same-name import path.

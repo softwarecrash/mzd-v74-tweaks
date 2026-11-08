@@ -240,3 +240,5 @@ inspection/removal; config is never silently discarded on a failed install.
 Removing/moving old retained declarations requires a full removal first. No
 legacy installation adoption or config format migration is provided. Original
 file Restore keeps mutable app data, matching the existing GUI-data policy.
+
+Conditional manifest-declared asset imports can map a `user/<id>/*.key` file to a bundled asset only when its associated choice setting selects the declared value. Ignored input files are not saved in the package. See Manifest-format.md.

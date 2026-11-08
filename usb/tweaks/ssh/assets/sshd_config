@@ -9,6 +9,7 @@ PermitRootLogin yes
 PasswordAuthentication yes
 PermitEmptyPasswords no
 PubkeyAuthentication no
+AuthorizedKeysFile /tmp/mzd-aio-ssh/public.key
 ChallengeResponseAuthentication no
 UsePrivilegeSeparation no
 StrictModes no

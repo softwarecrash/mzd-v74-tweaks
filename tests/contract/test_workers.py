@@ -178,7 +178,7 @@ esac
         write(backup, original)
         if id_ == 'ssh':
             service.mkdir()
-            for name in ['service.sh', 'sshd_config', 'password.hash']:
+            for name in ['service.sh', 'sshd_config', 'password.hash', 'public.key', 'settings.conf']:
                 shutil.copyfile(worker / 'assets' / name, service / name)
             write(service / 'enabled', 'enabled\n')
         run(['status'], 'installed')
@@ -296,6 +296,7 @@ exec /bin/cat "$@"
             write(worker / 'assets/service.sh', '''#!/bin/sh
 case "$1" in
  check) exit 0 ;;
+ check-auth) if [ -n "${MZD_SETTINGS_FILE:-}" ] && grep -q '^ssh_key=install$' "$MZD_SETTINGS_FILE"; then [ -s "$(dirname "$0")/public.key" ] || exit 1; fi ;;
  boot) [ ! -f FAIL_START ] || exit 1; : > RUNNING ;;
  status) [ -f RUNNING ] ;;
  stop) [ ! -f FAIL_STOP ] || exit 1; rm -f RUNNING ;;
@@ -366,10 +367,10 @@ esac
                 write(paths,paths.read_text().replace('/tmp/mnt/resources/mzd-tweaks/ssh',bp(service)))
             adapter=usb/'installer.sh'
             write(adapter,(ROOT/'installer.sh').read_text().replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1))
-            def managed(action, expected=None):
+            def managed(action, expected=None, settings=(), code=0):
                 global checks
-                r=subprocess.run([SHELL,bp(adapter),'action',id_,action],env=env,capture_output=True,text=True,timeout=45)
-                assert r.returncode==0,(id_,action,r.returncode,r.stdout,r.stderr)
+                r=subprocess.run([SHELL,bp(adapter),'action',id_,action,*settings],env=env,capture_output=True,text=True,timeout=45)
+                assert r.returncode==code,(id_,action,r.returncode,r.stdout,r.stderr)
                 if expected is not None:assert r.stdout==expected+'\n',(id_,r.stdout,r.stderr)
                 checks+=1
             if id_ == 'hud-street-name':
@@ -393,6 +394,37 @@ esac
                 env['TEST_HUD'] = 'whud'
             else:
                 managed('install');managed('status','installed')
+                if id_=='ssh':
+                    assert 'ssh_password=enabled' in (service/'settings.conf').read_text()
+                    managed('uninstall')
+                    # Ignored key files must never enter the service or immutable snapshot.
+                    write(usb/'user/ssh/public.key','unsupported-key fixture\n')
+                    managed('install',settings=('ssh_key=ignore','ssh_password=enabled'))
+                    assert not (service/'public.key').read_text()
+                    snapshot=persist/'installed/ssh/package'
+                    assert not (snapshot/'tweaks/ssh/assets/public.key').read_text()
+                    assert list(snapshot.rglob('public.key'))==[snapshot/'tweaks/ssh/assets/public.key']
+                    managed('uninstall')
+                    key='ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCTest fixture\n'
+                    write(usb/'user/ssh/public.key',key)
+                    managed('install',settings=('ssh_key=install','ssh_password=disabled'))
+                    assert (service/'public.key').read_text()==key
+                    assert 'ssh_password=disabled' in (service/'settings.conf').read_text()
+                    snapshot=persist/'installed/ssh/package'
+                    assert (snapshot/'tweaks/ssh/assets/public.key').read_text()==key
+                    assert (snapshot/'settings.conf').read_bytes()==(service/'settings.conf').read_bytes()
+                    (usb/'user/ssh/public.key').unlink()
+                    manifest=worker/'manifest.conf'
+                    write(manifest,manifest.read_text().replace('version=0.8.11','version=0.8.12'))
+                    managed('update',code=1)
+                    assert (service/'public.key').read_text()==key
+                    managed('status','installed')
+                    write(usb/'user/ssh/public.key',key)
+                    managed('update')
+                    assert (service/'public.key').read_text()==key
+                    assert 'ssh_password=disabled' in (service/'settings.conf').read_text()
+                    (usb/'user/ssh/public.key').unlink()
+                    write(worker/'assets/public.key','changed USB key\n')
                 # A newer USB payload/patch must not be used for the saved uninstall.
                 if id_=='ssh':write(worker/'assets/service.sh','#!/bin/sh\nexit 97\n')
                 else:write(worker/'assets/change.patch','new incompatible USB payload\n')

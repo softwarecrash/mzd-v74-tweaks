@@ -13,7 +13,9 @@ PASSWD_LINK=/etc/passwd
 MOUNTS=/proc/mounts
 PROC=/proc
 CHAIN=MZD_AIO_SSH
-CONFIG="$SELF_DIR/sshd_config"
+TEMPLATE="$SELF_DIR/sshd_config"
+CONFIG="$RAM/sshd_config"
+AUTH_SETTINGS="$SELF_DIR/settings.conf"
 LOG=''
 WIFI_PID=''
 write_log() { if [ -n "$LOG" ]; then printf '%s\n' "$*" >> "$LOG" 2>/dev/null || :; fi; }
@@ -76,14 +78,45 @@ prerequisites() {
     awk -F: '$1=="cmu" {n++; if(NF!=7 || $3!=0 || $7!="/bin/sh") bad=1} END {exit !(n==1 && !bad)}' "$ACCOUNT" || fail 'cmu account does not match the verified layout.'
     [ -s /etc/ssh/ssh_host_rsa_key ] || fail 'OEM host key is missing.'
     [ -s "$SELF_DIR/password.hash" ] || fail 'Password definition is missing.'
-    "$SSHD" -t -f "$CONFIG" || fail 'SSH configuration is not valid.'
+    "$SSHD" -t -f "$TEMPLATE" || fail 'SSH configuration is not valid.'
+    authentication
     iptables -S INPUT >/dev/null || fail 'Could not inspect firewall.'
+}
+authentication() {
+    [ -f "$AUTH_SETTINGS" ] && [ ! -L "$AUTH_SETTINGS" ] || fail 'SSH settings are missing or linked.'
+    AUTH=$(awk -F= '
+        $1=="ssh_key" && ($2=="ignore" || $2=="install") {key=$2;k++;next}
+        $1=="ssh_password" && ($2=="enabled" || $2=="disabled") {password=$2;p++;next}
+        {bad=1}
+        END {if(bad || k!=1 || p!=1)exit 1; print key " " password}
+    ' "$AUTH_SETTINGS") || fail 'Invalid SSH authentication settings.'
+    KEY_AUTH=${AUTH% *}; PASSWORD_AUTH=${AUTH#* }
+    [ "$PASSWORD_AUTH" != disabled ] || [ "$KEY_AUTH" = install ] || fail 'Password login can only be disabled with an installed public key.'
+    # Ignored keys are excluded during package staging and never validated here.
+    KEY_FILE="$SELF_DIR/public.key"
+    if [ "$KEY_AUTH" = install ]; then
+        [ -f "$KEY_FILE" ] && [ ! -L "$KEY_FILE" ] && [ -s "$KEY_FILE" ] || fail 'Provide a public key in user/ssh/public.key.'
+        [ "$(wc -c < "$KEY_FILE")" -le 16384 ] || fail 'SSH public key exceeds 16 KiB.'
+        awk '
+            NF==0 || $1~/^#/ {next}
+            {n++;if(NF<2 || $1!~/^(ssh-rsa|ssh-dss|ssh-ed25519|ecdsa-sha2-nistp(256|384|521))$/ || $2!~/^[A-Za-z0-9+\/=]+$/)bad=1}
+            END {exit (bad || n!=1)}
+        ' "$KEY_FILE" || fail 'Expected one OpenSSH public key, not a private key or key options.'
+        command -v ssh-keygen >/dev/null || fail 'The CMU public-key validator ssh-keygen is missing.'
+        ssh-keygen -l -f "$KEY_FILE" >/dev/null 2>&1 || fail 'Public key is invalid or its type is unsupported by this CMU.'
+    fi
 }
 firewall() {
     if ! iptables -S "$CHAIN" >/dev/null 2>&1; then
         iptables -N "$CHAIN" || return 1
-        iptables -A "$CHAIN" -j ACCEPT || return 1
     fi
+    # Existing chains can survive a partial firewall reset without their rule.
+    iptables -S "$CHAIN" > "$RAM/rules.txt" || return 1
+    if ! line_is "-A $CHAIN -j ACCEPT" "$RAM/rules.txt"; then
+        iptables -I "$CHAIN" 1 -j ACCEPT || return 1
+    fi
+    iptables -S "$CHAIN" > "$RAM/rules.txt" || return 1
+    line_is "-A $CHAIN -j ACCEPT" "$RAM/rules.txt" || return 1
     iptables -S INPUT > "$RAM/rules.txt" || return 1
     if ! grep -q -- "-j $CHAIN" "$RAM/rules.txt"; then
         iptables -I INPUT 1 -p tcp --dport 22 -j "$CHAIN" || return 1
@@ -98,6 +131,7 @@ remove_firewall() {
 }
 teardown() {
     RESULT=0
+    rm -f "$RAM/ready" || RESULT=1
     if [ -n "$WIFI_PID" ]; then
         # Never signal a recycled PID belonging to another process.
         if [ -r "$PROC/$WIFI_PID/stat" ] &&
@@ -119,7 +153,7 @@ teardown() {
     fi
     remove_firewall || RESULT=1
     if [ "$RESULT" = 0 ] && [ -d "$RAM" ]; then
-        rm -f "$RAM/owner" "$RAM/passwd" "$RAM/supervisor.pid" "$RAM/daemon.pid" "$RAM/sshd.pid" "$RAM/ports.txt" "$RAM/rules.txt"
+        rm -f "$RAM/owner" "$RAM/passwd" "$RAM/supervisor.pid" "$RAM/daemon.pid" "$RAM/sshd.pid" "$RAM/ports.txt" "$RAM/rules.txt" "$RAM/sshd_config" "$RAM/public.key"
         rmdir "$RAM" || RESULT=1
     fi
     return "$RESULT"
@@ -136,12 +170,18 @@ stop_service() {
     echo 'SSH stopped; original accounts and firewall access restored.'
 }
 case "${1:-}" in
+check-auth)
+    AUTH_SETTINGS=${MZD_SETTINGS_FILE:-$AUTH_SETTINGS}
+    authentication
+    echo 'SSH authentication settings checked.'; exit 0 ;;
 check)
+    AUTH_SETTINGS=${MZD_SETTINGS_FILE:-$AUTH_SETTINGS}
     prerequisites
     if ! owned_alive "$RAM/supervisor.pid" "$SELF boot" && port_busy; then fail 'Port 22 is already in use. Existing service is left unchanged.'; fi
     echo 'SSH prerequisites checked.'; exit 0 ;;
 status)
-    if owned_alive "$RAM/supervisor.pid" "$SELF boot" && owned_alive "$RAM/daemon.pid" "$CONFIG"; then
+    if [ -f "$RAM/ready" ] && [ ! -L "$RAM/ready" ] && line_is ready "$RAM/ready" &&
+        owned_alive "$RAM/supervisor.pid" "$SELF boot" && owned_alive "$RAM/daemon.pid" "$CONFIG"; then
         echo 'SSH is running: port 22, user cmu.'
         if command -v ip >/dev/null; then
             ip addr show 2>/dev/null | awk '/inet / {split($2,a,"/"); if(a[1]!="127.0.0.1") print "Connect: ssh cmu@" a[1]}' || :
@@ -152,7 +192,7 @@ status)
     echo 'Managed SSH service is not running.'; exit 1 ;;
 stop) stop_service; exit 0 ;;
 boot) ;;
-*) fail 'Usage: service.sh check|boot|status|stop' ;;
+*) fail 'Usage: service.sh check|check-auth|boot|status|stop' ;;
 esac
 [ -f "$SELF_DIR/enabled" ] || exit 0
 if owned_alive "$RAM/supervisor.pid" "$SELF boot"; then echo 'Managed SSH service is already running.'; exit 0; fi
@@ -174,9 +214,9 @@ trap 'exit 0' INT TERM
 # Car time for the runtime log name and its Start line (see development/CMU-time.md).
 # Why a copy of usb/lib/datetime.sh and not `. usb/lib/datetime.sh`:
 #   - the service is installed alone into /tmp/mnt/resources/mzd-tweaks/ssh (only
-#     service.sh, sshd_config and password.hash) and starts at every boot from there,
+#     service.sh, sshd_config, password.hash and authentication data) and starts there,
 #     often without any USB stick, so usb/lib is not there to be sourced;
-#   - it must never wait for D-Bus: the installer checks the service 2 s after start.
+#   - logging must never wait for D-Bus or delay the bounded readiness check.
 # So this copy only reads the RTC and the offset the installer passes
 # (MZD_DATETIME_OFFSET); at boot it gives a UTC name (...Z) or nodate-u<uptime>.
 # Keep its offset check identical to usb/lib/datetime.sh (tests/contract/test_datetime.py
@@ -219,6 +259,16 @@ for U in "${2:-}" /tmp/mnt/sda1 /tmp/mnt/sdb1 /tmp/mnt/sdc1 /tmp/mnt/sdd1; do
 done
 printf 'SSH startup phase: validate configuration and prerequisites\n' >&2
 prerequisites
+awk -v password="$PASSWORD_AUTH" -v key="$KEY_AUTH" '
+    $1=="PasswordAuthentication" {print "PasswordAuthentication " (password=="enabled"?"yes":"no");next}
+    $1=="PubkeyAuthentication" {print "PubkeyAuthentication " (key=="install"?"yes":"no");next}
+    {print}
+' "$TEMPLATE" > "$CONFIG" || fail 'Could not prepare SSH authentication configuration.'
+chmod 600 "$CONFIG" || fail 'Could not protect SSH configuration.'
+if [ "$KEY_AUTH" = install ]; then
+    cp "$SELF_DIR/public.key" "$RAM/public.key" && chmod 600 "$RAM/public.key" || fail 'Could not copy the public key into RAM.'
+fi
+"$SSHD" -t -f "$CONFIG" || fail 'Generated SSH configuration is not valid.'
 if port_busy; then fail 'Port 22 is already in use. Existing service is left unchanged.'; fi
 account_mounted && fail 'Account file already has an overlay. Refusing a second overlay.'
 printf 'SSH startup phase: prepare account overlay\n' >&2
@@ -245,7 +295,12 @@ printf '%s\n' "$DAEMON" > "$RAM/daemon.pid"
 owned_alive "$RAM/daemon.pid" "$CONFIG" || fail 'SSH could not open port 22.'
 printf 'SSH startup phase: configure firewall\n' >&2
 firewall || fail 'Could not allow port 22 through the firewall.'
-write_log 'SSH started: port 22, user cmu. Log in with the agreed default password.'
+printf 'ready\n' > "$RAM/ready" || fail 'Could not publish SSH readiness.'
+if [ "$PASSWORD_AUTH" = enabled ]; then
+    write_log 'SSH started: port 22, user cmu. Password login is enabled.'
+else
+    write_log 'SSH started: port 22, user cmu. Public-key login only.'
+fi
 # Startup is complete: release the installer's startup-log streams.
 exec >/dev/null 2>&1
 wifi_enable_once >/dev/null 2>&1 &

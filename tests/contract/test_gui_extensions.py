@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
   p=usb/'tweaks/ssh/manifest.conf';write(p,p.read_text().replace('/jci/scripts/stage_wifi.sh',bp(b/'startup')))
   p=usb/'tweaks/ssh/managed-paths.tsv';write(p,p.read_text().replace('/tmp/mnt/resources',bp(b/'resources')))
   with mounts.open('a') as f:f.write('root / relfs rw 0 0\nmock '+bp(b/'resources')+' relfs rw 0 0\n')
-  write(usb/'tweaks/ssh/assets/service.sh',"#!/bin/sh\ncase \"$1\" in check) exit 0;;boot) touch "+shlex.quote(bp(b/'ssh-running'))+";;status) [ -f "+shlex.quote(bp(b/'ssh-running'))+" ];;stop) rm -f "+shlex.quote(bp(b/'ssh-running'))+";;*) exit 1;;esac\n")
+  write(usb/'tweaks/ssh/assets/service.sh',"#!/bin/sh\ncase \"$1\" in check|check-auth) exit 0;;boot) touch "+shlex.quote(bp(b/'ssh-running'))+";;status) [ -f "+shlex.quote(bp(b/'ssh-running'))+" ];;stop) rm -f "+shlex.quote(bp(b/'ssh-running'))+";;*) exit 1;;esac\n")
  for name in ['mount','sync']:write(bins/name,'#!/bin/sh\nprintf "'+name+'\\n" >> '+shlex.quote(bp(events))+'\n')
  write(bins/'df','#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nmock 1000000 1000 999000 1%% persist\\n"\n')
  # Simulate an install-time boot-hook copy failure without touching any real CMU file.
