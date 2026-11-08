@@ -112,6 +112,24 @@ exec '''+copy_command+''' "$@"
   checks+=1
  hook=base/'developer_mode_GuiConfig.js';runtime=base/'mzd-gui-runtime';registry=base/'mzd-gui-registry.js';modules=base/'mzd-gui-modules'
  def absent():assert not hook.exists() and not runtime.exists() and not registry.exists() and not provider.exists() and not modules.exists()
+ if '--helper-compat-only' in sys.argv:
+  api=usb/'lib/gui-runtime/api.conf';current=api.read_text()
+  write(api,current.replace('view-lifecycle=1\n','').replace('version=0.5.0','version=0.4.0'))
+  call('gui-example','install')
+  write(api,current)
+  receipt=persist/'mzd-tweaks/installed/gui-example'
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  p=usb/'tweaks/gui-example/manifest.conf';write(p,p.read_text().replace('version=0.1.0','version=0.1.1'))
+  for id_,action in [('gui-example','update'),('gui-example','install'),('second-example','install')]:
+   r=call(id_,action,1)
+   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
+   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected action changed saved installation'
+  call('gui-example','uninstall');absent()
+  call('gui-example','install');call('second-example','install')
+  assert 'view-lifecycle=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
+  call('second-example','uninstall');call('gui-example','uninstall');absent()
+  print('GUI_HELPER_COMPAT_PASSED:',checks,'real actions; old helper blocks install/update before mutation, saved uninstall and current reuse work.')
+  raise SystemExit(0)
  if '--ssh-coexist-only' in sys.argv:
   startup=b/'startup';original=startup.read_bytes();backup=Path(str(startup)+'.org')
   expected_hash=hashlib.md5(original).hexdigest()
@@ -407,3 +425,5 @@ exec '''+copy_command+''' "$@"
  call('gui-example','install');write(usb/'lib/gui-runtime/runtime.js','new incompatible USB runtime\n');write(usb/'tweaks/gui-example/assets/view.html','replacement USB view\n')
  call('gui-example','uninstall');absent()
 print('GUI_EXTENSIONS_PASSED:',checks,'real entrypoint checks; first/last lifecycle, mixed parents, reuse, saved removal and rollback.')
+if len(sys.argv)==1:
+ subprocess.run([sys.executable,str(Path(__file__).resolve()),'--helper-compat-only'],check=True)

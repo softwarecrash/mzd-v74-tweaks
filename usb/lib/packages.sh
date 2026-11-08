@@ -470,7 +470,7 @@ mzd_package_action() (
             mzd_asset_readable "$source/tweaks/$id/$SHIM_ASSET" && mzd_shim_elf "$source/tweaks/$id/$SHIM_ASSET" || { mzd_package_error 'Unsupported or missing shim asset.'; exit 1; }
             mzd_shim_compat || exit 1
         fi
-        if [ "$TYPE" = gui-extension ] && [ -n "$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
+        if [ "$TYPE" = gui-extension ]; then
             # Refuse old providers/uninstallers before publishing a failed receipt.
             mzd_package_exec_worker "$source/tweaks/$id/run.sh" validate-install || exit 1
         fi
