@@ -970,3 +970,35 @@ for(const [context,app] of [['BackupCameraDisplay','phone'],['OtherDisplay','bac
 console.log('GUI_PARKING_LIFECYCLE_PASSED: three vehicle contexts, chained camera/parking/phone interruptions, same-frame return and safe close on navigation or unrelated contexts.');
 
 });
+
+
+test("submenu hands focus to the OEM Back arrow and restores Applications", () => {
+  const h = harness(), fw = h.win.framework;
+  let focused = false, restored = false;
+  fw.common.leftBtn = {
+    btnInstance: { get hasFocus() { return focused; } },
+    handleControllerEvent(event) {
+      if (event === "acceptFocusFromRight") { focused = true; return "consumed"; }
+      if (event === "lostFocus") { focused = false; return "consumed"; }
+      if (event === "right") return "giveFocusRight";
+      if (event === "select") { fw.sendEventToMmui("common", "Global.GoBack"); return "consumed"; }
+    }
+  };
+  h.app._currentContextTemplate.handleControllerEvent = event => { restored = event === "acceptFocusFromLeft"; };
+  h.open("games");
+  const list = h.controls.at(-1);
+  list.handleControllerEvent = function(event) {
+    this.events.push(event);
+    if (event === "leftStart") return "giveFocusLeft";
+    return "consumed";
+  };
+  function key(type, code) { h.event(type,{keyCode:code,preventDefault(){},stopImmediatePropagation(){}}); }
+  key("keydown",37); key("keyup",37);
+  assert(focused); assert(list.events.includes("lostFocus"));
+  key("keydown",39); key("keyup",39);
+  assert(!focused); assert(list.events.includes("acceptFocusFromLeft"));
+  key("keydown",37); key("keyup",37);
+  key("keydown",13); key("keyup",13);
+  assert(!focused); assert(restored); assert.equal(h.doc.body.children.length,0);
+  assert.equal(h.title(),"Applications");
+});

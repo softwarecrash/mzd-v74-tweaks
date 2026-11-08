@@ -50,6 +50,32 @@
             if (map.Applications.indexOf(name) < 0) { map.Applications.push(name); names.push(name); }
         }
     }
+    // Embedded lists bypass Common's normal template routing. Keep its OEM
+    // Back-button handoff, including returning focus to Applications on close.
+    function backButton() {
+        var common = fw && fw.common;
+        return common && common.leftBtn && common.leftBtn.btnInstance ? common.leftBtn : null;
+    }
+    function releaseBackButton() {
+        var button = backButton();
+        if (button && button.btnInstance.hasFocus) { button.handleControllerEvent('lostFocus'); }
+    }
+    function menuEvent(control, event) {
+        var button = backButton(), response;
+        if (button && button.btnInstance.hasFocus) {
+            response = button.handleControllerEvent(event);
+            if (response === 'giveFocusRight' && control.handleControllerEvent('acceptFocusFromLeft') === 'consumed') {
+                button.handleControllerEvent('lostFocus');
+            }
+            return response;
+        }
+        response = control.handleControllerEvent(event);
+        if (response === 'giveFocusLeft' && button) {
+            button.handleControllerEvent('acceptFocusFromRight');
+            control.handleControllerEvent('lostFocus');
+        }
+        return response;
+    }
     function close(restore) {
         var old = active;
         if (!old) { return; } active = null;
@@ -63,6 +89,8 @@
         }
         try {
             if (applications() && fw.getAppInstance('system')._currentContextTemplate === old.baseTemplate) {
+                releaseBackButton();
+                if (typeof old.baseTemplate.handleControllerEvent === 'function') { old.baseTemplate.handleControllerEvent('acceptFocusFromLeft'); }
                 if (old.baseTemplate.list2Ctrl && typeof old.baseTemplate.list2Ctrl.setLineNumbers === 'function') { old.baseTemplate.list2Ctrl.setLineNumbers(); }
                 if (old.sbChanged && fw.common && typeof fw.common.setSbNameId === 'function') { fw.common.setSbNameId('system','Applications'); }
             }
@@ -121,11 +149,13 @@
         });
         session.listCtrl = control;
         if (!control || typeof control.handleControllerEvent !== 'function') { throw new Error('Mazda list did not initialize'); }
+        releaseBackButton();
         control.handleControllerEvent('acceptFocusInit');
     }
     function launch(module) {
         var frame = document.createElement('iframe'), session = active;
         if (session.languageCleanup) { session.languageCleanup(); session.languageCleanup = null; }
+        releaseBackButton();
         disposeMenu(session);
         active.root.className = ''; active.root.style.zIndex = '10000'; active.root.style.background = '#000'; active.root.style.overflow = 'hidden';
         active.root.style.left = '0px'; active.root.style.top = '0px'; active.root.style.width = '800px'; active.root.style.height = '480px'; active.root.style.backgroundPosition = '0 0';
@@ -268,9 +298,9 @@
         if (action === 'back' && phase !== 'press') { menuBack(); return; }
         if (!active.listCtrl || action === 'back') { return; }
         if (action === 'rotateRight' || action === 'rotateLeft') {
-            if (phase === 'press') { active.listCtrl.handleControllerEvent(action === 'rotateRight' ? 'cw' : 'ccw'); }
+            if (phase === 'press') { menuEvent(active.listCtrl,action === 'rotateRight' ? 'cw' : 'ccw'); }
         } else {
-            active.listCtrl.handleControllerEvent(phase === 'press' ? action + 'Start' : action);
+            menuEvent(active.listCtrl,phase === 'press' ? action + 'Start' : action);
         }
     }
     function down(event) {
