@@ -208,3 +208,11 @@ displayed RPM for 350 ms with redraws at most every 50 ms while moving; measured
 samples, statistics and service polling remain unchanged. Settings, phone
 suspension and disposal cancel the redraw timer. The cleaner fixed instrument outlines were confirmed visually on the bench CMU.
 Needle motion with changing real vehicle RPM and CPU behavior still need checks.
+
+## Rendering and acquisition draft
+
+Active views request snapshots on a 250 ms period, including request duration, without overlapping requests. The production collector batches at most two fast values and one due slow value as bounded parallel, read-only SMDB processes. Slow fields rotate at most once per second; each process group keeps its one-second deadline. Valid completed fields can survive a different field timing out. All collection remains demand-driven.
+
+The OEM-style renderer caches the instrument values separately from the moving needle. RPM interpolation retains position and velocity when a new measurement arrives, with a bounded critically damped response. Animation targets 30 fps while the needle moves and stops in settings, during native interruption or on close. Sensor values and derived statistics are not interpolated.
+
+Synthetic replay and native renderer comparisons live only in the private bench package; the normal DriveDash package never switches to simulated values on read failure. Vehicle acceptance of the faster sampling and needle remains pending.

@@ -172,3 +172,30 @@ console.log('GUI_PHONE_LIFECYCLE_PASSED: actual SDK/runtime suspend/resume, same
  assert(!Object.hasOwn(entry,'displayedFunction'),'temporary callback removed exactly on close');
 }
 console.log('GUI_PHONE_RETURN_TRANSITION_PASSED: masked incoming list, immediate displayed callback, original callback delegation and exact hook cleanup.');
+
+// Real vehicle context names: camera and parking displays share the native return stack.
+for (const context of ['BackupCameraDisplay','BUCAndPSMDisplay','ParkingSensorDisplay']) {
+ const c=callFixture();c.h.context(context,'backupparking',76);c.tick();
+ assert.equal(c.suspended,1);assert.equal(c.disposed,0);assert.equal(c.frame.parentNode.style.display,'none');
+ c.h.context('Applications','system',66);c.tick();assert.equal(c.resumed,1);assert.equal(c.h.frame(),c.frame);
+ c.child.MzdGuiModule.close();
+}
+{
+ const c=callFixture();
+ for (const [context,app,seq] of [['BackupCameraDisplay','backupparking',76],['BUCAndPSMDisplay','backupparking',77],['ParkingSensorDisplay','backupparking',84],['ActiveCall','phone',85],['ParkingSensorDisplay','backupparking',90]]) {
+  c.h.context(context,app,seq);c.tick();assert.equal(c.suspended,1);assert.equal(c.resumed,0);assert.equal(c.disposed,0);
+ }
+ c.h.context('Applications','system',66);c.tick();assert.equal(c.resumed,1);assert.equal(c.h.frame(),c.frame);
+ c.child.MzdGuiModule.close();
+}
+for(const [context,app,seq] of [['HomeScreen','system',93],['Map','navigation',94],['Applications','system',95],['Idle','backupparking',92]]) {
+ const c=callFixture();c.h.context('BackupCameraDisplay','backupparking',76);c.tick();
+ c.h.context(context,app,seq);c.tick();assert.equal(c.resumed,0);assert.equal(c.disposed,1);
+}
+for(const [context,app] of [['BackupCameraDisplay','phone'],['OtherDisplay','backupparking']]) {
+ const c=callFixture();c.h.context(context,app,76);c.tick();assert.equal(c.disposed,1);
+}
+{
+ const c=callFixture(false);c.h.context('ParkingSensorDisplay','backupparking',90);c.tick();assert.equal(c.disposed,1);
+}
+console.log('GUI_PARKING_LIFECYCLE_PASSED: three vehicle contexts, chained camera/parking/phone interruptions, same-frame return and safe close on navigation or unrelated contexts.');

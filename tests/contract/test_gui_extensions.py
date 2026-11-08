@@ -128,6 +128,13 @@ exec '''+copy_command+''' "$@"
   call('gui-example','install');call('second-example','install')
   assert 'view-lifecycle=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
   call('second-example','uninstall');call('gui-example','uninstall');absent()
+  # A phone-capable provider still needs replacement for parking support.
+  write(api,current.replace('parking-lifecycle=1\n',''))
+  call('gui-example','install');write(api,current)
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  r=call('second-example','install',1);assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr
+  assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  call('gui-example','uninstall');absent()
   print('GUI_HELPER_COMPAT_PASSED:',checks,'real actions; old helper blocks install/update before mutation, saved uninstall and current reuse work.')
   raise SystemExit(0)
  if '--ssh-coexist-only' in sys.argv:
@@ -303,7 +310,7 @@ exec '''+copy_command+''' "$@"
   assert 'drivedash' in (base/'mzd-gui-services.tsv').read_text()
   edited='version=1\ndesign=oem-style\nlanguage=de_DE\nspeedUnit=mph\ntempUnit=F\nanimated=true\n'
   write(settings,edited);deep('drivedash','installed')
-  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.3','version=0.1.4'))
+  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.4','version=0.1.5'))
   call('drivedash','update');assert settings.read_text()==edited
   call('tetris','install');call('drivedash','uninstall',extra=['--preserve-config']);assert settings.read_text()==edited and hook.exists()
   call('tetris','uninstall');absent();assert startup.read_bytes()==original and settings.read_text()==edited

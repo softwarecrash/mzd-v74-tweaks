@@ -77,7 +77,7 @@
         display.rpm = needle.value(now);
         skins.get(config.design).draw(context,display,t);
         if (needle.moving(now) && needleTimer === null) {
-            needleTimer = window.setTimeout(function () { needleTimer = null; renderGauge(); },50);
+            needleTimer = window.setTimeout(function () { needleTimer = null; renderGauge(); },33);
         }
         document.getElementById('settings').textContent = t('settings'); document.getElementById('demo').textContent = t(loadingPreferences ? 'loadingSettings' : live ? data && data.available ? 'live' : 'unavailable' : 'demo');
         document.getElementById('gauge').setAttribute('aria-label',t('title')+' - '+t(live ? 'live' : 'demo'));

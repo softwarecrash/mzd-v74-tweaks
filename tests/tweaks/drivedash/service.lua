@@ -1,8 +1,8 @@
 package.path='usb/tweaks/drivedash/assets/service/?.lua;'..package.path
 local calls=0
 package.loaded.process={run=function(program,args,inherited,trace,timeout)
-    assert(program=='/usr/bin/env' and args[2]=='/jci/smdb/smdb-read' and timeout==1 and not inherited and not trace)
-    calls=calls+1;return {started=true,exitCode=0,stdout='0\n'}
+    assert(program=='/bin/sh' and args[1]=='-c' and timeout==1 and not inherited and not trace)
+    calls=calls+1;return {started=true,exitCode=0,stdout='1\t0\t0\n2\t0\t0\n3\t0\t0\n'}
 end}
 package.loaded.lfs={mkdir=function()return true end}
 local data={}
@@ -16,6 +16,6 @@ assert(calls==0 and not service.tick and not service.close,'Service startup must
 local settings=service.request('preferences',{});assert(settings.language=='auto' and calls==0)
 settings.language='de_DE';service.request('preferences',{values=settings})
 assert(service.request('preferences',{}).language=='de_DE' and calls==0)
-local sample=service.request('sample',{});assert(sample.speedKph==0 and sample.rpm==0 and calls==3)
+local sample=service.request('sample',{});assert(sample.speedKph==0 and sample.rpm==0 and calls==1)
 assert(not pcall(service.request,'unknown',{}))
 print('DRIVEDASH_SERVICE_PASSED: existing shared runner, zero startup/settings sensor reads, persistent preferences and bounded read-only samples.')

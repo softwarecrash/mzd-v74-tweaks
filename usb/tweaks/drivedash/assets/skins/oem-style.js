@@ -109,7 +109,7 @@
     }
     var background = typeof window.Image === 'function' ? new window.Image() : null;
     if (background) { background.src = 'skins/oem-style-background.png'; }
-    window.DriveDashSkins.register({id:'oem-style',labelKey:'design.oem-style',drawBackground:drawBackground,draw:function (ctx,m,t) {
+    function drawInstrument(ctx,m,t) {
         var cx = 400, cy = 249, i, a, g;
         ctx.clearRect(0,0,800,416);
         if (background && background.complete && background.width === 800 && background.height === 416) {
@@ -133,6 +133,15 @@
             }
         }
         text(ctx,t('rpm'),454,260,11,'#98a1a6');
+        ctx.save(); ctx.translate(cx,cy+132); ctx.scale(0.66,0.66);
+        text(ctx,m.battery === null ? '--' : Math.round(m.battery)+'%',0,8,15,'#c0cacb');
+        ctx.restore();
+        numerals(ctx,m.speed,462,340,35); text(ctx,m.speedUnit,460,353,11,'#a1aba8');
+        ctx.restore();
+    }
+    function drawNeedle(ctx,rpm) {
+        var cx=400,cy=249,a,g,m={rpm:rpm};
+        ctx.save();ctx.translate(400,208);ctx.scale(1.02,1.02);ctx.translate(-400,-249);
         if (m.rpm !== null) {
             a = PI*2/3+PI*4/3*m.rpm/8000; ctx.save(); ctx.translate(cx,cy); ctx.rotate(a);
             ctx.shadowColor = '#ef2b10'; ctx.shadowBlur = 5; ctx.beginPath(); ctx.moveTo(-20,-2.5); ctx.lineTo(137,-0.8); ctx.lineTo(137,0.8); ctx.lineTo(-20,2.5); ctx.closePath(); ctx.fillStyle = '#f73c21'; ctx.fill();
@@ -140,10 +149,21 @@
         }
         g = ctx.createLinearGradient(cx,cy-16,cx,cy+16); g.addColorStop(0,'#414a52'); g.addColorStop(0.2,'#171d24'); g.addColorStop(1,'#020406');
         ctx.save(); ctx.shadowColor = '#000'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3; circle(ctx,cx,cy,16,g); ctx.restore(); circle(ctx,cx,cy,12,'#0b1117');
-        ctx.save(); ctx.translate(cx,cy+132); ctx.scale(0.66,0.66);
-        text(ctx,m.battery === null ? '--' : Math.round(m.battery)+'%',0,8,15,'#c0cacb');
         ctx.restore();
-        numerals(ctx,m.speed,462,340,35); text(ctx,m.speedUnit,460,353,11,'#a1aba8');
-        ctx.restore();
-    }});
+    }
+    var cached=null,cachedContext=null,cachedKey=null;
+    function draw(ctx,m,t) {
+        var values={},key,name;
+        for(name in m){if(Object.prototype.hasOwnProperty.call(m,name) && name!=='rpm'){values[name]=m[name];}}
+        key=JSON.stringify(values)+[t('outside'),t('trip'),t('coolant'),t('average'),t('fuel'),t('rpm')].join('|')+(background && background.complete ? 'ready':'loading');
+        if(!cached && typeof document!=='undefined' && document.createElement){
+            cached=document.createElement('canvas');cached.width=800;cached.height=416;cachedContext=cached.getContext('2d');
+        }
+        if(cachedContext){
+            if(key!==cachedKey){values.rpm=null;drawInstrument(cachedContext,values,t);cachedKey=key;}
+            ctx.clearRect(0,0,800,416);ctx.drawImage(cached,0,0);
+        }else{values.rpm=null;drawInstrument(ctx,values,t);}
+        drawNeedle(ctx,m.rpm);
+    }
+    window.DriveDashSkins.register({id:'oem-style',labelKey:'design.oem-style',drawBackground:drawBackground,draw:draw});
 }());

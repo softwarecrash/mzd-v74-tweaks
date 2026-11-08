@@ -219,3 +219,10 @@ liveNeedle.suspend();assert.equal(liveNeedle.timeouts.size,0,'phone suspension s
 assert.equal(liveNeedle.messages.filter(m=>m.type==='drivedash-sample').length,sampleCount,'animation does not request extra samples');
 liveNeedle.dispose();assert.equal(liveNeedle.timeouts.size,0);
 console.log('DRIVEDASH_ANIMATION_LIFECYCLE_PASSED: interpolation timer is separate from sensor polling and both stop during phone suspension.');
+
+const cache=fixture(false,false,null,false,true),cacheSkin=cache.window.DriveDashSkins.get('oem-style');
+const cachedSample=model.display({rpm:1000,speedKph:88},config,tr);cacheSkin.draw(cache.nodes.gauge.getContext('2d'),cachedSample,tr);
+const labelCount=cache.labels.length;cachedSample.rpm=2000;cacheSkin.draw(cache.nodes.gauge.getContext('2d'),cachedSample,tr);
+assert.equal(cache.labels.length,labelCount,'needle-only frames reuse instrument labels and LCD geometry');
+cachedSample.speed='99';cacheSkin.draw(cache.nodes.gauge.getContext('2d'),cachedSample,tr);assert(cache.labels.length>labelCount,'changed readings invalidate the cache');cache.dispose();
+console.log('DRIVEDASH_RENDER_CACHE_PASSED: needle animation reuses instrument layer; new readings invalidate it.');

@@ -206,14 +206,16 @@
         var value = typeof fw.getCurrCtxtSeqNo === 'function' ? fw.getCurrCtxtSeqNo() : null;
         return (typeof value === 'number' || typeof value === 'string') && /^\d+$/.test(String(value)) ? String(value) : null;
     }
-    function phoneCall() {
-        return fw.getCurrentApp() === 'phone' && ['IncomingCall','ActiveCall','ActiveCallDTMF','ActiveCall1','ActiveCall1DTMF','ActiveCall2','ActiveCall2DTMF','ActiveCallMerged','ActiveCallMergedDTMF','BTMultipleCall','MultipleCallWaiting'].indexOf(fw.getCurrCtxtId()) >= 0;
+    function interruptingContext() {
+        var app = fw.getCurrentApp(), context = fw.getCurrCtxtId();
+        return app === 'phone' && ['IncomingCall','ActiveCall','ActiveCallDTMF','ActiveCall1','ActiveCall1DTMF','ActiveCall2','ActiveCall2DTMF','ActiveCallMerged','ActiveCallMergedDTMF','BTMultipleCall','MultipleCallWaiting'].indexOf(context) >= 0 ||
+            app === 'backupparking' && ['BackupCameraDisplay','BUCAndPSMDisplay','ParkingSensorDisplay'].indexOf(context) >= 0;
     }
     function checkContext() {
         var session = active, template;
         if (!session) { return; }
         if (!applications()) {
-            if (!session.phoneLifecycle || !session.frame || !session.ready || session.contextSeq === null || !phoneCall()) { close(false); return; }
+            if (!session.phoneLifecycle || !session.frame || !session.ready || session.contextSeq === null || !interruptingContext()) { close(false); return; }
             if (!session.suspended) {
                 session.suspended = true; session.keys = {};
                 // Release native settings and resident access before hiding the root.
@@ -222,7 +224,7 @@
                 if (typeof session.frame.blur === 'function') { session.frame.blur(); }
                 if (typeof window.focus === 'function') { window.focus(); }
                 session.frame.contentWindow.postMessage({type:'mzd-gui-suspend',token:session.token},'*');
-                note('View suspended for phone: '+session.module.id);
+                note('View suspended for native interruption: '+session.module.id);
             }
             return;
         }

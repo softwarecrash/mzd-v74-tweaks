@@ -20,17 +20,19 @@ function M.create(deps)
     local values,misses={},{}
     local nextSlow,lastSample,sequence=1,nil,0
     local fresh={}
+    local batchValues,lastSlow=nil,nil
     local count=#slow+(deps.gps and 1 or 0)
     local gpsValues,gpsMisses={},0
     local function read(field)
         -- SSH and boot launches can have different inherited library paths.
-        local ok,result=pcall(deps.run,'/usr/bin/env',{'LD_LIBRARY_PATH=/jci/lib:/usr/lib:/lib','/jci/smdb/smdb-read','-n',field[2],'-e',field[3]},1)
-        local value
-        if ok and result.started and result.exitCode==0 and not result.signal and not result.stdoutTruncated and not result.stderrTruncated then
-            local raw=result.stdout:match('^%s*([+-]?%d+)%s*$')
-            value=raw and tonumber(raw)
-            if value and (value<field[4] or value>field[5])then value=nil end
+        local raw
+        if deps.readBatch then raw=batchValues and batchValues[field[1]]
+        else
+            local ok,result=pcall(deps.run,'/usr/bin/env',{'LD_LIBRARY_PATH=/jci/lib:/usr/lib:/lib','/jci/smdb/smdb-read','-n',field[2],'-e',field[3]},1)
+            if ok and result.started and result.exitCode==0 and not result.signal and not result.stdoutTruncated and not result.stderrTruncated then raw=result.stdout:match('^%s*([+-]?%d+)%s*$')end
         end
+        local value=raw and tonumber(raw)
+        if value and (value<field[4] or value>field[5])then value=nil end
         local key=field[1]
         if value~=nil then
             values[key]=field[6] and field[6](value) or value
@@ -45,12 +47,21 @@ function M.create(deps)
         local now=deps.now()
         -- No view requests for ten seconds means a new session, not fresh data.
         if lastSample and (now-lastSample>=10 or now<lastSample)then
-            values,misses={},{};gpsValues={};gpsMisses=0;nextSlow=1;lastSample=nil
+            values,misses={},{};gpsValues={};gpsMisses=0;nextSlow=1;lastSample=nil;lastSlow=nil
         end
-        if not lastSample or now-lastSample>=0.5 then
+        if not lastSample or now-lastSample>=(deps.interval or 0.5) then
             fresh={}
+            local slowDue=not lastSlow or now-lastSlow>=(deps.slowInterval or 0)
+            local fields={{'speedKph',current,'VehicleSpeed',0,40000,function(n)return n/100 end},{'rpm',current,'EngineSpeed',0,8000,function(n)return n*2 end}}
+            if slowDue and nextSlow<=#slow then fields[#fields+1]=slow[nextSlow]end
+            if deps.readBatch then
+                local ok,result=pcall(deps.readBatch,fields)
+                batchValues=ok and type(result)=='table' and result or {}
+            end
             fresh.speedKph=read({'speedKph',current,'VehicleSpeed',0,40000,function(n)return n/100 end})
             fresh.rpm=read({'rpm',current,'EngineSpeed',0,8000,function(n)return n*2 end})
+            if slowDue then
+            lastSlow=now
             if nextSlow>#slow then
                 local ok,result=pcall(deps.gps)
                 if ok and type(result)=='table' then
@@ -66,6 +77,7 @@ function M.create(deps)
                 fresh[field[1]]=ok
                 -- Retry a known field promptly; unsupported fields cannot stall discovery.
                 if ok or values[field[1]]==nil then nextSlow=nextSlow%count+1 end
+            end
             end
             sequence=sequence+1
             lastSample=deps.now()

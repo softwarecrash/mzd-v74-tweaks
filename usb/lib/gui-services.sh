@@ -40,10 +40,14 @@ mzd_gui_capabilities() (
     done
     # The deployed provider is reused, never replaced by a consumer update.
     # Reject before removing an old consumer if this USB expects newer view support.
-    if [ -d "$MZD_GUI_PROVIDER" ] && mzd_line_is view-lifecycle=1 "$ROOT/lib/gui-runtime/api.conf"; then
-        mzd_line_is view-lifecycle=1 "$MZD_GUI_PROVIDER/package/lib/gui-runtime/api.conf" || {
-            mzd_gui_error 'The installed GUI helper is too old. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
-        }
+    if [ -d "$MZD_GUI_PROVIDER" ]; then
+        for capability in view-lifecycle=1 parking-lifecycle=1; do
+            if mzd_line_is "$capability" "$ROOT/lib/gui-runtime/api.conf"; then
+                mzd_line_is "$capability" "$MZD_GUI_PROVIDER/package/lib/gui-runtime/api.conf" || {
+                    mzd_gui_error 'The installed GUI helper is too old. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
+                }
+            fi
+        done
     fi
 )
 

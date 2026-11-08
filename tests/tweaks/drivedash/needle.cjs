@@ -1,12 +1,13 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const window={};vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/needle.js','utf8'),{window});
-const needle=new window.DriveDashNeedle();
-assert.equal(needle.value(0),null);needle.set(1000,0);assert.equal(needle.value(0),1000);
-needle.set(3000,100);assert.equal(needle.value(100),1000);assert(needle.moving(100));
-const middle=needle.value(275);assert.equal(middle,2000);assert.equal(needle.value(450),3000);assert(!needle.moving(450));
-needle.set(5000,500);const partial=needle.value(600);needle.set(2000,600);
-assert.equal(needle.value(600),partial,'new samples retarget from the currently displayed position');
-assert.equal(needle.value(950),2000);needle.set(null,1000);assert.equal(needle.value(1000),null);assert(!needle.moving(1000));
-needle.set(1000,1100);needle.set(3000,1200);assert.equal(needle.value(1),3000);assert(!needle.moving(1),'clock rollback cannot leave an endless redraw loop');
-needle.reset();needle.set(9000,1100);assert.equal(needle.value(1100),8000);needle.reset();assert.equal(needle.value(1200),null);
-console.log('DRIVEDASH_NEEDLE_PASSED: first value, smooth intermediate value, exact endpoint, continuous retargeting, missing data, bounds and reset.');
+const n=new window.DriveDashNeedle();assert.equal(n.value(0),null);n.set(1000,0);assert.equal(n.value(0),1000);
+n.set(3000,100);let previous=n.value(100);assert.equal(previous,1000);
+for(let t=110;t<=600;t+=10){let next=n.value(t);assert(next>=previous&&next<=3000);previous=next;}
+assert.equal(n.value(1100),3000);assert(!n.moving(1100));
+n.set(5000,1200);const position=n.value(1300),velocity=(n.value(1300)-n.value(1299));n.set(6000,1300);
+assert.equal(n.value(1300),position);assert(Math.abs((n.value(1301)-position)-velocity)<1,'retarget retains needle velocity');
+n.set(2000,1350);for(let t=1350;t<2400;t+=10)assert(n.value(t)>=2000&&n.value(t)<=6000);
+n.set(null,2400);assert.equal(n.value(2400),null);assert(!n.moving(2400));
+n.set(1000,2500);n.set(3000,2600);assert.equal(n.value(1),3000);assert(!n.moving(1));
+n.reset();n.set(9000,0);assert.equal(n.value(0),8000);n.reset();assert.equal(n.value(0),null);
+console.log('DRIVEDASH_NEEDLE_PASSED: critically damped bounded motion, continuous position/velocity, reversal, settling, missing samples, clock rollback and cleanup.');

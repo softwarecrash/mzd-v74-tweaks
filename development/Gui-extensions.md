@@ -107,7 +107,9 @@ A view can opt into phone interruption handling by registering
 and data requests on suspend; rebuild any native settings list on resume. The
 same iframe remains in memory, hidden and detached from resident access during
 the call. The SDK and parent release input to the native phone interface.
-Only known phone-call contexts qualify. Resume requires the original
+Known phone-call contexts and the `backupparking` contexts `BackupCameraDisplay`,
+`BUCAndPSMDisplay` and `ParkingSensorDisplay` qualify. Switching between these
+displays keeps the view suspended until it returns to its original menu. Resume requires the original
 Applications context sequence and a completed framework transition. Temporary
 Applications ready/displayed callbacks mask the incoming OEM list during the
 return animation and remove the polling delay at completion; original callbacks
@@ -278,3 +280,5 @@ module-specific resident messages. Types are prefixed `mzd-module-`; SDK adds
 the view token. The resident must still validate the active view, token, type
 and payload, and use only its own scoped `context.service` API. This does not
 expose arbitrary filesystem or shell access to view messages.
+
+Provider 0.5.1 declares `parking-lifecycle=1`; GUI installation/update refuses a provider without that capability before removing a consumer. Remove all GUI consumers before provisioning the new helper.
