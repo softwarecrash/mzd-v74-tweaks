@@ -16,23 +16,57 @@ const vm = require("node:vm");
 
 const file = path.join(__dirname, "../../usb/lib/gui-runtime/residents.js");
 
+function createNode(tag) {
+  const children = [];
+  return {
+    tag,
+    id: "",
+    style: {},
+    children,
+    className: "",
+    textContent: "",
+    parentNode: null,
+    appendChild(x) {
+      children.push(x);
+      x.parentNode = this;
+    },
+    removeChild(x) {
+      const idx = children.indexOf(x);
+      if (idx >= 0) children.splice(idx, 1);
+      x.parentNode = null;
+    },
+    set innerHTML(v) {
+      for (const c of children) c.parentNode = null;
+      children.length = 0;
+    }
+  };
+}
+
 // A fresh page with fake timers, document head and GUI services, and the residents code loaded into it.
-function page() {
+function page(customFw) {
   const timers = new Map();
   const events = {};
   const scripts = [];
   const calls = [];
   let next = 0;
-  const head = {
-    appendChild(x) {
-      scripts.push(x);
-      x.parentNode = this;
-    },
-    removeChild(x) {
-      scripts.splice(scripts.indexOf(x), 1);
-      x.parentNode = null;
-    }
+
+  const head = createNode("head");
+  head.appendChild = function (x) {
+    scripts.push(x);
+    this.children.push(x);
+    x.parentNode = this;
   };
+  head.removeChild = function (x) {
+    const idx = scripts.indexOf(x);
+    if (idx >= 0) scripts.splice(idx, 1);
+    const cIdx = this.children.indexOf(x);
+    if (cIdx >= 0) this.children.splice(cIdx, 1);
+    x.parentNode = null;
+  };
+
+  const body = createNode("body");
+  const elementsById = {};
+
   const window = {
     setTimeout(fn) {
       timers.set(++next, fn);
@@ -49,20 +83,56 @@ function page() {
         calls.push({ id, op, args });
         cb(null, { ok: true });
       }
-    }
+    },
+    framework: customFw || null
   };
+
   const document = {
     head,
-    createElement() {
-      return {};
+    body,
+    documentElement: {
+      contains(node) {
+        let cur = node;
+        while (cur) {
+          if (cur === document.documentElement || cur === head || cur === body) return true;
+          cur = cur.parentNode;
+        }
+        return true;
+      }
+    },
+    createElement(tag) {
+      const el = createNode(tag);
+      return el;
+    },
+    getElementById(id) {
+      if (elementsById[id]) return elementsById[id];
+      function findIn(node) {
+        if (!node) return null;
+        if (node.id === id) return node;
+        if (node.children) {
+          for (const c of node.children) {
+            const found = findIn(c);
+            if (found) return found;
+          }
+        }
+        return null;
+      }
+      return findIn(head) || findIn(body);
+    },
+    getElementsByTagName(name) {
+      if (name === "head") return [head];
+      if (name === "body") return [body];
+      return [];
     }
   };
+
   vm.runInNewContext(
     fs.readFileSync(file, "utf8"),
     { window, document },
     { filename: file }
   );
-  return { api: window.MzdGuiResidents, timers, scripts, calls };
+
+  return { api: window.MzdGuiResidents, window, document, timers, scripts, calls, elementsById };
 }
 
 // A GUI module entry with a resident script and a service.
@@ -168,5 +238,516 @@ test("residents lifecycle", async (t) => {
     api.dispose();
     assert.equal(stops, 2);
     assert.equal(timers.size, 0);
+  });
+});
+
+test("residents service request bridge", async (t) => {
+  const { api } = page();
+  const source = {
+    sent: [],
+    postMessage(data) {
+      this.sent.push(data);
+    }
+  };
+  const token = "srv-token-456";
+  let residentContext;
+
+  api.start([
+    { id: "srv-mod", resident: "/data/integration/mzd-gui-modules/srv-mod/assets/resident.js", service: "service.lua" },
+    { id: "fallback-mod", resident: "/data/integration/mzd-gui-modules/fallback-mod/assets/resident.js", service: "service.lua" },
+    { id: "no-srv-mod", resident: "/data/integration/mzd-gui-modules/no-srv-mod/assets/resident.js" }
+  ]);
+
+  api.register("srv-mod", (ctx) => {
+    residentContext = ctx;
+    ctx.onServiceRequest((op, args, cb) => {
+      if (op === "success") {
+        cb(null, { answer: args.input * 2 });
+      } else if (op === "fail") {
+        cb("Operation refused");
+      } else if (op === "crash") {
+        throw new Error("Handler exploded");
+      }
+    });
+  });
+
+  api.register("fallback-mod", () => {});
+  api.register("no-srv-mod", () => {});
+
+  api.view("srv-mod", { source, token });
+
+  await t.test("dispatches request to resident handler and returns result", () => {
+    source.sent.length = 0;
+    api.message("srv-mod", {
+      source,
+      data: {
+        type: "mzd-gui-service-request",
+        token,
+        id: 101,
+        operation: "success",
+        args: { input: 21 }
+      }
+    });
+
+    assert.equal(source.sent.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(source.sent[0])), {
+      type: "mzd-gui-service-result",
+      token,
+      id: 101,
+      error: null,
+      result: { answer: 42 }
+    });
+  });
+
+  await t.test("returns error when resident callback returns error", () => {
+    source.sent.length = 0;
+    api.message("srv-mod", {
+      source,
+      data: {
+        type: "mzd-gui-service-request",
+        token,
+        id: 102,
+        operation: "fail",
+        args: {}
+      }
+    });
+
+    assert.equal(source.sent.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(source.sent[0])), {
+      type: "mzd-gui-service-result",
+      token,
+      id: 102,
+      error: "Operation refused",
+      result: null
+    });
+  });
+
+  await t.test("catches thrown handler exception and returns error message", () => {
+    source.sent.length = 0;
+    api.message("srv-mod", {
+      source,
+      data: {
+        type: "mzd-gui-service-request",
+        token,
+        id: 103,
+        operation: "crash",
+        args: {}
+      }
+    });
+
+    assert.equal(source.sent.length, 1);
+    assert.equal(source.sent[0].type, "mzd-gui-service-result");
+    assert.equal(source.sent[0].id, 103);
+    assert.equal(source.sent[0].error, "Handler exploded");
+  });
+
+  await t.test("falls back to MzdGuiServices when no serviceRequest handler registered", () => {
+    const fbSource = {
+      sent: [],
+      postMessage(data) { this.sent.push(data); }
+    };
+    api.view("fallback-mod", { source: fbSource, token: "fb-token" });
+
+    api.message("fallback-mod", {
+      source: fbSource,
+      data: {
+        type: "mzd-gui-service-request",
+        token: "fb-token",
+        id: 104,
+        operation: "stock-op",
+        args: { a: 1 }
+      }
+    });
+
+    assert.equal(fbSource.sent.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(fbSource.sent[0])), {
+      type: "mzd-gui-service-result",
+      token: "fb-token",
+      id: 104,
+      error: null,
+      result: { ok: true }
+    });
+  });
+
+  await t.test("returns unavailable error when module has no service", () => {
+    const noSrvSource = {
+      sent: [],
+      postMessage(data) { this.sent.push(data); }
+    };
+    api.view("no-srv-mod", { source: noSrvSource, token: "no-token" });
+
+    api.message("no-srv-mod", {
+      source: noSrvSource,
+      data: {
+        type: "mzd-gui-service-request",
+        token: "no-token",
+        id: 105,
+        operation: "any-op",
+        args: {}
+      }
+    });
+
+    assert.equal(noSrvSource.sent.length, 1);
+    assert.equal(noSrvSource.sent[0].error, "Module service is unavailable.");
+  });
+});
+
+test("residents notifications, units and applications context", async (t) => {
+  const sbns = [];
+  const systemApp = {
+    _currentContextTemplate: {
+      lastEvent: null,
+      handleControllerEvent(e) { this.lastEvent = e; },
+      list2Ctrl: {
+        restoredLines: false,
+        setLineNumbers() { this.restoredLines = true; }
+      }
+    }
+  };
+
+  const fw = {
+    currApp: "system",
+    currCtxt: "Applications",
+    getCurrentApp() { return this.currApp; },
+    getCurrCtxtId() { return this.currCtxt; },
+    getAppInstance(app) {
+      if (app === "system") return systemApp;
+      return null;
+    },
+    common: {
+      sbName: "",
+      setSbName(v) { this.sbName = v; },
+      setSbNameId(app, id) { this.sbName = id; },
+      startTimedSbn(uiaId, sbnId, type, props) {
+        sbns.push({ uiaId, sbnId, type, props });
+      }
+    },
+    localize: {
+      getDistanceUnit() { return "Miles"; },
+      getTemperatureUnit() { return "Fahrenheit"; },
+      getCurrentLanguage() { return "en_US"; }
+    }
+  };
+
+  const { api, document } = page(fw);
+
+  await t.test("inApplications returns true only when app=system and ctxt=Applications", () => {
+    assert.equal(api.inApplications(), true);
+    fw.currApp = "settings";
+    assert.equal(api.inApplications(), false);
+    fw.currApp = "system";
+    fw.currCtxt = "Diagnostics";
+    assert.equal(api.inApplications(), false);
+    fw.currCtxt = "Applications";
+    assert.equal(api.inApplications(), true);
+  });
+
+  await t.test("notify creates Style02 SBN for short text without font override", () => {
+    sbns.length = 0;
+    const ok = api.notify("test-app", "Short notice", false);
+    assert.equal(ok, true);
+    assert.equal(sbns.length, 1);
+    assert.equal(sbns[0].uiaId, "test-app");
+    assert.equal(sbns[0].type, "typeD");
+    assert.equal(sbns[0].props.sbnStyle, "Style02");
+    assert.equal(sbns[0].props.text1, "Short notice");
+
+    const style = document.getElementById("mzd-gui-sbn-style");
+    assert(style);
+    assert.equal(style.textContent, "");
+  });
+
+  await t.test("notify applies 26px font override for text exceeding 35 chars", () => {
+    sbns.length = 0;
+    const longText = "This is a very long notification message that exceeds thirty-five characters";
+    api.notify("test-app", longText, true);
+    assert.equal(sbns.length, 1);
+    assert.equal(sbns[0].type, "errorNotification");
+    assert.equal(sbns[0].props.text1, longText);
+
+    const style = document.getElementById("mzd-gui-sbn-style");
+    assert(style);
+    assert(style.textContent.includes("font-size: 26px !important"));
+  });
+
+  await t.test("units converts framework localization values", () => {
+    const u1 = api.units("mod");
+    assert.equal(u1.speedUnit, "mph");
+    assert.equal(u1.distanceUnit, "mi");
+    assert.equal(u1.tempUnit, "F");
+    assert.equal(u1.language, "en_US");
+
+    fw.localize.getDistanceUnit = () => "Kilometers";
+    fw.localize.getTemperatureUnit = () => "Celsius";
+    fw.localize.getCurrentLanguage = () => "de_DE";
+
+    const u2 = api.units("mod");
+    assert.equal(u2.speedUnit, "kmh");
+    assert.equal(u2.distanceUnit, "km");
+    assert.equal(u2.tempUnit, "C");
+    assert.equal(u2.language, "de_DE");
+  });
+
+  await t.test("returnToApplications hands focus back to template and sets Applications title", () => {
+    fw.currApp = "system";
+    fw.currCtxt = "Applications";
+    api.returnToApplications();
+    const appInst = fw.getAppInstance("system");
+    assert.equal(appInst._currentContextTemplate.lastEvent, "acceptFocusFromLeft");
+    assert.equal(appInst._currentContextTemplate.list2Ctrl.restoredLines, true);
+    assert.equal(fw.common.sbName, "Applications");
+  });
+});
+
+test("createNativeMenu full features", async (t) => {
+  let instantiatedControl = null;
+  const controlEvents = [];
+  let instantiatedTemplate = null;
+  let capturedContext = { focussedItem: 0, topItem: 0 };
+  let statusTitle = "";
+
+  const customFw = {
+    currApp: "system",
+    currCtxt: "Applications",
+    getCurrentApp() { return this.currApp; },
+    getCurrCtxtId() { return this.currCtxt; },
+    getAppInstance() {
+      return {
+        _currentContextTemplate: {
+          handleControllerEvent() {},
+          list2Ctrl: { setLineNumbers() {} }
+        }
+      };
+    },
+    common: {
+      setSbName(name) { statusTitle = name; },
+      setSbNameId() {}
+    },
+    _templatesLoaded: { Dialog3Tmplt: { isLoaded: true } },
+    _controlsLoaded: { Dialog3Ctrl: { isLoaded: true }, ButtonCtrl: { isLoaded: true } },
+    instantiateControl(app, container, type, config) {
+      instantiatedControl = {
+        container,
+        type,
+        config,
+        handleControllerEvent(event) {
+          controlEvents.push(event);
+          return "consumed";
+        },
+        getContextCapture() {
+          return capturedContext;
+        },
+        restoreContext(ctx) {
+          capturedContext = ctx;
+        },
+        setDataListAndUpdateItems(dl) {
+          this.dataList = dl;
+        }
+      };
+      return instantiatedControl;
+    },
+    destroyControl(ctrl) {
+      if (ctrl === instantiatedControl) instantiatedControl = null;
+    },
+    instantiateTemplate(app, container, type, config) {
+      instantiatedTemplate = {
+        container,
+        type,
+        config,
+        dialog3Ctrl: config.Dialog3Ctrl,
+        handleControllerEvent(event) {
+          controlEvents.push("dialog:" + event);
+          return "consumed";
+        },
+        cleanUp() {
+          this.cleanedUp = true;
+        }
+      };
+      return instantiatedTemplate;
+    }
+  };
+
+  const { api, window, timers } = page(customFw);
+  window.Dialog3Tmplt = function () {};
+
+  function makeFrame() {
+    const parent = createNode("div");
+    const frame = createNode("iframe");
+    frame.contentWindow = {
+      messages: [],
+      postMessage(msg) { this.messages.push(msg); }
+    };
+    parent.appendChild(frame);
+    return { parent, frame };
+  }
+
+  await t.test("renders menu items, formats labels and handles selection", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const token = "tok-menu-1";
+
+    menu.render(frame, token, {
+      title: "WallpaperConfig.png",
+      page: "main",
+      index: 1,
+      rows: [
+        { label: "Option 1" },
+        { label: "Option 2", checkable: true, checked: true, radio: true },
+        { label: "Option 3", detail: "Subtitle detail", caret: true },
+        { label: "Option 4", disabled: true }
+      ]
+    });
+
+    assert.equal(statusTitle, "WallpaperConfig");
+    assert(instantiatedControl);
+    assert.equal(instantiatedControl.config.focussedItem, 1);
+
+    const items = instantiatedControl.config.dataList.items;
+    assert.equal(items.length, 4);
+    assert.equal(items[0].text1, "Option 1");
+    assert.equal(items[0].itemStyle, "style01");
+
+    assert.equal(items[1].text1, "Option 2");
+    assert.equal(items[1].itemStyle, "style03");
+    assert.equal(items[1].image1, "radio");
+    assert.equal(items[1].checked, true);
+
+    assert.equal(items[2].text1, "Option 3");
+    assert.equal(items[2].label1, "Subtitle detail");
+    assert.equal(items[2].itemStyle, "style06");
+    assert.equal(items[2].hasCaret, true);
+
+    assert.equal(items[3].disabled, true);
+
+    // Test selection callback triggering postMessage
+    instantiatedControl.config.selectCallback(instantiatedControl, { itemIndex: 2 });
+    assert.equal(timers.size, 1);
+    const cb = [...timers.values()][0];
+    cb();
+
+    assert.equal(frame.contentWindow.messages.length, 1);
+    assert.equal(frame.contentWindow.messages[0].type, "custom-native-select");
+    assert.equal(frame.contentWindow.messages[0].token, token);
+    assert.equal(frame.contentWindow.messages[0].index, 2);
+
+    menu.close();
+  });
+
+  await t.test("dispatches rotary and directional input to control", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const token = "tok-input";
+
+    menu.render(frame, token, {
+      title: "InputTest",
+      page: "main",
+      rows: [{ label: "Row 1" }, { label: "Row 2" }]
+    });
+
+    controlEvents.length = 0;
+    frame.contentWindow.messages.length = 0;
+
+    menu.input(frame, token, "rotateRight", "step");
+    assert(controlEvents.includes("cw"));
+
+    menu.input(frame, token, "rotateLeft", "step");
+    assert(controlEvents.includes("ccw"));
+
+    menu.input(frame, token, "down", "step");
+    assert(controlEvents.includes("downStart"));
+    assert(controlEvents.includes("down"));
+
+    assert.equal(frame.contentWindow.messages.length, 3);
+    assert.equal(frame.contentWindow.messages[2].type, "custom-native-focus");
+    assert.equal(frame.contentWindow.messages[2].index, 0);
+
+    menu.close();
+  });
+
+  await t.test("split preview pane renders safe image and ignores untrusted URL", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom", split: true });
+    const token = "tok-split";
+
+    menu.render(frame, token, {
+      title: "SplitTest",
+      page: "split",
+      split: true,
+      rows: [{ label: "Item" }],
+      rightPreview: {
+        url: "http://localhost:8091/usb-image/sample.jpg",
+        label: "Sample Wallpaper"
+      }
+    });
+
+    const session = menu.getSession();
+    assert(session.previewPane);
+    const img = session.previewPane.children.find((c) => c.tag === "img");
+    assert(img);
+    assert.equal(img.src, "http://localhost:8091/usb-image/sample.jpg");
+
+    const caption = session.previewPane.children.find((c) => c.tag === "div");
+    assert(caption);
+    assert.equal(caption.textContent, "Sample Wallpaper");
+
+    // Untrusted URL should not render an img tag
+    menu.render(frame, token, {
+      title: "SplitTest",
+      page: "split-untrusted",
+      split: true,
+      rows: [{ label: "Item" }],
+      rightPreview: {
+        url: "https://evil.example.com/exploit.jpg",
+        error: "Untrusted source"
+      }
+    });
+
+    const untrustedImg = session.previewPane.children.find((c) => c.tag === "img");
+    assert.equal(untrustedImg, undefined);
+    const errorCaption = session.previewPane.children.find((c) => c.tag === "div");
+    assert.equal(errorCaption.textContent, "Untrusted source");
+
+    menu.close();
+  });
+
+  await t.test("confirmation dialog lifecycle and select callback", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom", dialog: true });
+    const token = "tok-dialog";
+
+    menu.render(frame, token, {
+      title: "DialogTest",
+      page: "p1",
+      rows: [{ label: "Show Dialog" }]
+    });
+
+    frame.contentWindow.messages.length = 0;
+
+    menu.dialog(frame, token, {
+      text: "Confirm delete?",
+      initialFocus: 1,
+      buttons: [
+        { value: "cancel", label: "Cancel" },
+        { value: "confirm", label: "Delete" }
+      ]
+    });
+
+    assert(instantiatedTemplate);
+    assert.equal(instantiatedTemplate.dialog3Ctrl.buttonCount, 2);
+    assert.equal(instantiatedTemplate.dialog3Ctrl.initialFocus, 1);
+    assert.equal(instantiatedTemplate.dialog3Ctrl.text1, "Confirm delete?");
+
+    // Simulate clicking Confirm
+    instantiatedTemplate.dialog3Ctrl.defaultSelectCallback(null, "confirm");
+
+    assert.equal(frame.contentWindow.messages.length, 1);
+    assert.equal(frame.contentWindow.messages[0].type, "custom-native-dialog-select");
+    assert.equal(frame.contentWindow.messages[0].value, "confirm");
+
+    // Close dialog
+    menu.dialog(frame, token, null);
+    assert.equal(menu.getSession().dialog, null);
+
+    menu.close();
   });
 });

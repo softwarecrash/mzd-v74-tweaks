@@ -368,18 +368,23 @@ function releaseSave(error) {
     resident.service.request = origServiceRequest;
 }
 
-host.MzdGuiResidents = {
-    register(id, fn) {
-        assert.equal(id, 'android-auto');
-        fn(resident);
-    }
-};
-
 const hostContext = {
     window: host,
     document: document
 };
 document.documentElement = { contains: () => attached };
+vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/residents.js'), 'utf8'), hostContext);
+const residentsApi = host.MzdGuiResidents;
+resident.createNativeMenu = opts => residentsApi.createNativeMenu(opts);
+resident.notify = (text, isError) => residentsApi.notify('android-auto', text, isError);
+resident.log = msg => residentsApi.log('android-auto', msg);
+host.MzdGuiResidents = {
+    ...residentsApi,
+    register(id, fn) {
+        assert.equal(id, 'android-auto');
+        fn(resident);
+    }
+};
 
 // Run resident script
 vm.runInNewContext(residentSource, hostContext);
@@ -777,6 +782,7 @@ resident.service.request = origServiceRequest;
     const testHostContext = {
         window: {
             MzdGuiResidents: {
+                ...residentsApi,
                 register(id, fn) {
                     fn({
                         view: () => ({ source: testView, token: 'err-token' }),
@@ -784,6 +790,9 @@ resident.service.request = origServiceRequest;
                         onViewClose: () => {},
                         onDispose: () => {},
                         onServiceReady: () => {},
+                        createNativeMenu: opts => residentsApi.createNativeMenu(opts),
+                        notify: (text, isError) => residentsApi.notify('android-auto', text, isError),
+                        log: msg => residentsApi.log('android-auto', msg),
                         service: {
                             request(op, args, cb) {
                                 if (op === 'get') {
@@ -847,6 +856,7 @@ flush();
     const fastWindow = Object.assign({}, host, {
         Dialog3Tmplt: function () {},
         MzdGuiResidents: {
+            ...residentsApi,
             register(id, fn) {
                 fn({
                     view: () => ({ source: view, frame: frame, token: 'fast-token' }),
@@ -854,6 +864,9 @@ flush();
                     onViewClose: () => {},
                     onDispose: () => {},
                     onServiceReady: () => {},
+                    createNativeMenu: opts => residentsApi.createNativeMenu(opts),
+                    notify: (text, isError) => residentsApi.notify('android-auto', text, isError),
+                    log: msg => residentsApi.log('android-auto', msg),
                     service: { request() {} }
                 });
             }

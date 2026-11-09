@@ -13,7 +13,7 @@ const source=fs.readFileSync(path.join(__dirname,'cmu-host.cjs'),'utf8');
 let prefix=source.slice(0,source.indexOf("\nflush();assert.equal(sb"));assert(prefix.length>4000);
 prefix=prefix.replace("else if(op==='save')","else if(op==='usb')cb(null,{status:'missing',items:[]}); else if(op==='save')");
 const body=`
-document.documentElement={};
+document.documentElement={contains:()=>attached};
 let dictionary;vm.runInNewContext(fs.readFileSync(fixturePath('assets/i18n.js'),'utf8'),{window:{MzdGuiI18n:{register(id,value){dictionary=value;}}}});
 const texts=dictionary.languages[TEST_LOCALE];
 for(const fn of viewEvents.message.slice())fn({source:parent,data:{type:'mzd-gui-language',token:'fixture-token',value:{language:TEST_LOCALE,direction:/^(ar|he)_/.test(TEST_LOCALE)?'rtl':'ltr',texts:texts}}});
@@ -24,7 +24,7 @@ click(2);assert.equal(control.dataList.items[0].text1,texts.folderHint);assert(!
 click(0);assert.equal(sb,texts.gallery);assert.equal(control.dataList.items.length,1);assert.equal(control.dataList.items[0].text1,'User image','user filenames are unchanged');
 click(0);assert.equal(control.dataList.items[0].text1,texts.useBackground);assert.equal(control.dataList.items[1].text1,texts.include);
 input('back');input('back');click(1);assert.equal(control.dataList.items[0].text1,texts.off);assert.equal(control.dataList.items[1].text1,texts.seconds.replace('{seconds}','5'));
-click(1);assert.equal(sb,texts.chooseSlides);assert.equal(writes,0,'failed slideshow selection/language loading must not write');
+click(1);assert.equal(sb,texts.slideshow);assert.equal(status.textContent,texts.chooseSlides);assert.equal(writes,0,'failed slideshow selection/language loading must not write');
 input('back');click(0);click(0);click(1);assert.equal(writes,1);assert.equal(saved.slides[0],imageID);
 input('back');input('back');click(1);click(1);assert.equal(saved.enabled,true);assert.equal(saved.interval,5);
 input('back');click(3);assert.equal(sb,texts['gui.label']);assert.equal(saved.selected,null);assert.equal(saved.enabled,false,'original background stops slideshow without deleting membership');assert.equal(saved.slides[0],imageID);assert.equal(control.dataList.items[3].checked,true);
