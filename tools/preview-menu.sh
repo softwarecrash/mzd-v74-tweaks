@@ -446,7 +446,9 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
 
     function showSbn(text) {
         if (!sbnEl || !sbnTextEl) return;
-        sbnTextEl.textContent = text;
+        var str = String(text || '');
+        sbnTextEl.style.fontSize = str.length > 35 ? '17px' : '22px';
+        sbnTextEl.textContent = str;
         sbnEl.style.display = 'block';
         window.clearTimeout(sbnTimer);
         sbnTimer = window.setTimeout(function() {

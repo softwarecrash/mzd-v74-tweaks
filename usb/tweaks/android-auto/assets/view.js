@@ -1,10 +1,13 @@
 (function () {
     'use strict';
     var sdk = window.MzdGuiModule, status = document.getElementById('status');
+    if (!sdk) {
+        if (status) { status.textContent = 'Open through Applications.'; }
+        return;
+    }
+    var token = sdk.token, tr = sdk.t;
     var ended = false, state = null, rebootRequired = false, saving = false, rebootDialogOpen = false;
     var page = 'home', index = 0, positions = {home: 0, distance: 0}, notice = '';
-    var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash);
-    var token = match ? match[1] : '';
 
     var SETTINGS = [
         { key: 'touch', type: 'bool' },
@@ -25,13 +28,6 @@
     ];
 
     var DISTANCES = [0, 500, 1000, 1500, 2000, 3000, 5000, 7500, 10000, 20000];
-
-    function tr(key, fallback, values) {
-        if (sdk && sdk.t) { return sdk.t(key, fallback, values); }
-        return fallback.replace(/\{([a-zA-Z0-9_]+)\}/g, function (match, name) {
-            return values && Object.prototype.hasOwnProperty.call(values, name) ? String(values[name]) : match;
-        });
-    }
 
     function formatDistance(meters) {
         var m = Number(meters) || 0;
@@ -295,11 +291,6 @@
         post({type: 'aa-native-release'});
         ended = true;
         window.removeEventListener('message', receive, false);
-    }
-
-    if (!sdk) {
-        if (status) { status.textContent = tr('openApps', 'Open through Applications.'); }
-        return;
     }
 
     window.addEventListener('message', receive, false);

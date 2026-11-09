@@ -1,14 +1,13 @@
 (function () {
     'use strict';
     var sdk = window.MzdGuiModule, status = document.getElementById('status');
-    var ended = false, state = null, page = 'home', index = 0, chosen = null, positions = {}, notice = '', rawNotice = '', usbChosen = null, pendingCommand = '';
-    var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash);
-    var token = match ? match[1] : '', sequence = 0, pending = 0, timeout = null;
-    var intervals = [5,10,30,60,120,300];
-    function tr(key, fallback, values) {
-        if (sdk && sdk.t) { return sdk.t(key,fallback,values); }
-        return fallback.replace(/\{([a-zA-Z0-9_]+)\}/g,function (match,name) { return values && Object.prototype.hasOwnProperty.call(values,name) ? String(values[name]) : match; });
+    if (!sdk) {
+        if (status) { status.textContent = 'Open through Applications.'; }
+        return;
     }
+    var token = sdk.token, tr = sdk.t;
+    var ended = false, state = null, page = 'home', index = 0, chosen = null, positions = {}, notice = '', usbChosen = null, pending = false, lastBroadcastError = '';
+    var intervals = [5,10,30,60,120,300];
     function message(value) {
         if (!value) { return ''; }
         if (value === 'Image imported.') { return tr('imported','Image imported.'); }
@@ -68,15 +67,34 @@
             {id:'import',label:tr('import','Import from USB'),disabled:!state.importAvailable,caret:true},
             {id:'original',label:tr('restore','Use original background'),checkable:true,checked:state.active === null}];
     }
-    function request(command,value) {
+    function execute(command, value) {
         if (ended || pending) { return; }
-        pending = ++sequence; pendingCommand = command;
-        post({type:'wallpaper-preview-request',id:pending,command:command,value:value});
-        timeout = window.setTimeout(function () { pending = 0; status.textContent = tr('serviceUnavailable','Wallpaper service is unavailable. Please retry.'); },command === 'import-one' ? 120000 : 30000);
+        pending = true;
+        var timeoutMs = command === 'import-one' ? 120000 : 30000;
+        sdk.request(command, { value: value }, function (error, result) {
+            pending = false;
+            if (ended) { return; }
+            if (command === 'import-one' && !error) { page = 'gallery'; index = 0; positions.gallery = 0; }
+            if (result && result.state) {
+                state = result.state;
+                var raw = error || result.notice || state.error || '';
+                if (raw) {
+                    notice = message(raw);
+                    var isErr = !(result.notice && !error && !state.error);
+                    sdk.notify(notice, isErr);
+                    if (status) { status.textContent = notice; }
+                }
+                render();
+            } else if (error) {
+                notice = message(error);
+                sdk.notify(notice, true);
+                if (status) { status.textContent = notice; }
+            }
+        }, timeoutMs);
     }
     function open(next) { positions[page] = index; page = next; index = positions[page] || 0; render(); }
     function back() {
-        notice = ''; rawNotice = '';
+        notice = '';
         if (!state || page === 'home') { return false; }
         if (page === 'import-image') { page = 'import'; }
         else if (page === 'import') { page = 'home'; }
@@ -87,20 +105,20 @@
     }
     function activate(position) {
         if (ended || !state || pending) { return; }
-        notice = ''; rawNotice = ''; index = position;
+        notice = ''; index = position;
         var row = entries()[index];
         if (!row || row.disabled) { return; }
         positions[page] = index;
         if (row.id === 'cancel') { back(); return; }
-        if (row.id === 'original') { request('select',null); return; }
-        if (row.id === 'import' || row.id === 'retry') { open('import'); request('usb-list'); return; }
+        if (row.id === 'original') { execute('select', null); return; }
+        if (row.id === 'import' || row.id === 'retry') { open('import'); execute('usb-list'); return; }
         if (row.id === 'usb-file') { usbChosen = state.usb.items[index]; open('import-image'); return; }
-        if (row.id === 'import-one') { request('import-one',{source:usbChosen.source || 'sda1',name:usbChosen.name}); return; }
+        if (row.id === 'import-one') { execute('import-one', { source: usbChosen.source || 'sda1', name: usbChosen.name }); return; }
         if (page === 'gallery') { chosen = row.id; positions.image = 0; open('image'); return; }
-        if (row.id === 'apply') { request('select',chosen); return; }
-        if (row.id === 'include') { request('include',chosen); return; }
-        if (row.id === 'confirm') { page = 'gallery'; index = 0; positions.gallery = 0; request('delete',chosen); return; }
-        if (row.id === 'mode') { request('slideshow-mode',row.seconds); return; }
+        if (row.id === 'apply') { execute('select', chosen); return; }
+        if (row.id === 'include') { execute('include', chosen); return; }
+        if (row.id === 'confirm') { page = 'gallery'; index = 0; positions.gallery = 0; execute('delete', chosen); return; }
+        if (row.id === 'mode') { execute('slideshow-mode', row.seconds); return; }
         open(row.id);
     }
     function render() {
@@ -110,17 +128,27 @@
         heading = {home:tr('gui.label','Wallpaper Manager'),gallery:tr('gallery','Gallery'),image:row ? row.label : tr('wallpaper','Wallpaper'),slideshow:tr('slideshow','Slideshow'),'delete':tr('deleteTitle','Delete image?'),import:tr('import','Import from USB'),'import-image':usbChosen ? usbChosen.name : tr('importImage','Import image')}[page];
         var right = page === 'import-image' ? usbChosen : page === 'import' && state.usb && state.usb.items ? state.usb.items[index] : null;
         if (right && right.error) { right = {url:right.url,label:right.label,error:message(right.error)}; }
-        post({type:'wallpaper-native-render',menu:{page:page,title:notice || heading,rows:list,index:index,rightPreview:right,split:page === 'import-image' || page === 'import' && !!right,previewId:(page === 'image' || page === 'delete') && row ? row.id : null}});
+        post({type:'wallpaper-native-render',menu:{page:page,title:heading,rows:list,index:index,rightPreview:right,split:page === 'import-image' || page === 'import' && !!right,previewId:(page === 'image' || page === 'delete') && row ? row.id : null}});
     }
     function receive(event) {
         var data = event.data;
         if (event.source !== window.parent || !data || data.token !== token || ended) { return; }
         if (data.type === 'wallpaper-native-select') { activate(data.index); return; }
         if (data.type === 'wallpaper-native-focus') { if (typeof data.index === 'number' && data.index >= 0) { index = data.index; positions[page] = index; if (page === 'import') { render(); } } return; }
-        if (data.type === 'wallpaper-native-error') { status.textContent = tr('menuError','The Mazda menu could not be opened. Please reopen the app.'); return; }
-        if (data.type !== 'wallpaper-preview-response' || !data.state || data.id !== 0 && data.id !== pending) { return; }
-        if (data.id !== 0) { window.clearTimeout(timeout); pending = 0; if (pendingCommand === 'import-one' && !data.error) { page = 'gallery'; index = 0; positions.gallery = 0; } pendingCommand = ''; }
-        state = data.state; rawNotice = data.error || data.notice || state.error || ''; notice = message(rawNotice); status.textContent = notice; render();
+        if (data.type === 'wallpaper-native-error') { if (!data.scope || data.scope === 'menu') { status.textContent = tr('menuError','The Mazda menu could not be opened. Please reopen the app.'); } return; }
+        if (data.type === 'wallpaper-preview-response' && data.id === 0 && data.state) {
+            state = data.state;
+            var broadcastErr = data.error || data.notice || state.error || '';
+            if (broadcastErr && broadcastErr !== lastBroadcastError) {
+                lastBroadcastError = broadcastErr;
+                notice = message(broadcastErr);
+                sdk.notify(notice, true);
+                if (status) { status.textContent = notice; }
+            } else if (!broadcastErr) {
+                lastBroadcastError = '';
+            }
+            render();
+        }
     }
     function input(action, phase) {
         if (ended) { return false; }
@@ -128,14 +156,13 @@
         if (state) { post({type:'wallpaper-native-input',action:action,phase:phase}); }
         return true;
     }
-    function dispose() { if (ended) { return; } post({type:'wallpaper-native-release'}); ended = true; window.clearTimeout(timeout); window.removeEventListener('message',receive,false); }
-    if (!sdk) { status.textContent = tr('openApps','Open through Applications.'); return; }
+    function dispose() { if (ended) { return; } post({type:'wallpaper-native-release'}); ended = true; window.removeEventListener('message',receive,false); }
     sdk.setLayout('with-status-bar');
     window.addEventListener('message',receive,false); sdk.onInput(input); sdk.onDispose(dispose); sdk.ready();
     if (sdk.loadLanguage) { sdk.loadLanguage(function (language, direction) {
         document.documentElement.lang = language.replace('_','-'); status.dir = direction;
-        if (state) { notice = message(rawNotice); render(); }
+        if (state) { render(); }
         else { status.textContent = tr('opening','Opening Wallpaper Manager...'); }
     }); }
-    request('state');
+    execute('state');
 }());

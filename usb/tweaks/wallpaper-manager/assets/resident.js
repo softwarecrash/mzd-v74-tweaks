@@ -111,164 +111,18 @@
     global.WallpaperPreviewCore = {create:create};
 }(window));
 
-/* Local prototype adapter using the same OEM List2 factory as Applications. */
+/* Local prototype adapter delegating to the shared native menu factory. */
 (function (global) {
     'use strict';
     function create(options) {
         options = options || {};
-        var session = null, selection = null;
-        function send(type, value) {
-            if (session) { session.frame.contentWindow.postMessage({type:type,token:session.token,index:value},'*'); }
+        options.prefix = 'wallpaper';
+        options.split = true;
+        options.alwaysRestoreApplications = true;
+        if (global.MzdGuiResidents && typeof global.MzdGuiResidents.createNativeMenu === 'function') {
+            return global.MzdGuiResidents.createNativeMenu(options);
         }
-        function backButton() {
-            var common = global.framework && global.framework.common;
-            return common && common.leftBtn && common.leftBtn.btnInstance ? common.leftBtn : null;
-        }
-        function releaseBackButton() {
-            var button = backButton();
-            if (button && button.btnInstance.hasFocus) { button.handleControllerEvent('lostFocus'); }
-        }
-        function dispatch(control, event) {
-            var button = backButton(), response;
-            if (button && button.btnInstance.hasFocus) {
-                response = button.handleControllerEvent(event);
-                if (response === 'giveFocusRight' && control.handleControllerEvent('acceptFocusFromLeft') === 'consumed') {
-                    button.handleControllerEvent('lostFocus');
-                }
-                return response;
-            }
-            response = control.handleControllerEvent(event);
-            if (response === 'giveFocusLeft' && button) {
-                button.handleControllerEvent('acceptFocusFromRight');
-                control.handleControllerEvent('lostFocus');
-            }
-            return response;
-        }
-        function destroyList() {
-            if (session && session.control) { try { global.framework.destroyControl(session.control); } catch (ignore) {} session.control = null; }
-        }
-        function close() {
-            var old = session, fw = global.framework, app;
-            if (!old) { return; }
-            global.clearTimeout(selection); selection = null; destroyList(); session = null;
-            if (options.preview) { options.preview(null,null); }
-            if (fw.sendEventToMmui === old.backWrapper) { fw.sendEventToMmui = old.originalSend; }
-            if (old.container.parentNode) { old.container.parentNode.removeChild(old.container); }
-            if (old.previewPane && old.previewPane.parentNode) { old.previewPane.parentNode.removeChild(old.previewPane); }
-            old.frame.style.display = old.display;
-            old.root.style.cssText = old.css; old.root.className = old.className;
-            if (fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
-                releaseBackButton();
-                app = fw.getAppInstance('system');
-                if (app._currentContextTemplate && typeof app._currentContextTemplate.handleControllerEvent === 'function') { app._currentContextTemplate.handleControllerEvent('acceptFocusFromLeft'); }
-                if (!app._currentContextTemplate || !app._currentContextTemplate.divElt || app._currentContextTemplate.divElt.style.visibility !== 'hidden') {
-                    if (app._currentContextTemplate && app._currentContextTemplate.list2Ctrl) { app._currentContextTemplate.list2Ctrl.setLineNumbers(); }
-                    if (fw.common && fw.common.setSbNameId) { fw.common.setSbNameId('system','Applications'); }
-                }
-            }
-        }
-        function attach(frame, token) {
-            var fw = global.framework, root = frame.parentNode, container, originalSend;
-            if (session && session.frame === frame && session.token === token) { return; }
-            close();
-            if (!fw || typeof fw.instantiateControl !== 'function' || typeof fw.destroyControl !== 'function') { throw new Error('Mazda list factory unavailable.'); }
-            container = document.createElement('div');
-            container.className = 'TemplateWithStatusLeft List2Tmplt';
-            container.style.cssText = 'position:absolute;left:0;top:0;width:740px;height:416px;';
-            session = {frame:frame,source:frame.contentWindow,token:token,root:root,container:container,control:null,page:'',signature:'',
-                css:root.style.cssText,className:root.className,display:frame.style.display,originalSend:fw.sendEventToMmui};
-            frame.style.display = 'none';
-            root.style.cssText = 'position:absolute;left:60px;top:64px;width:740px;height:416px;z-index:7;background:transparent;overflow:visible;';
-            root.className = ''; root.appendChild(container);
-            var style = document.createElement('style');
-            style.textContent = '.wallpaperImportSplit .List2Ctrl{width:390px!important;overflow:hidden}.wallpaperImportSplit .List2Ctrl .line1{max-width:300px!important;overflow:hidden;text-overflow:ellipsis}.wallpaperImportSplit .List2Ctrl .mask,.wallpaperImportSplit .List2Ctrl .scroller{max-width:390px!important}';
-            container.appendChild(style);
-            session.splitStyle = style;
-            originalSend = session.originalSend;
-            session.backWrapper = function (uia, event) {
-                if (session && event === 'Global.GoBack' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
-                    session.frame.contentWindow.postMessage({type:'mzd-gui-input',token:session.token,action:'back',phase:'step'},'*'); return;
-                }
-                return originalSend.apply(this,arguments);
-            };
-            fw.sendEventToMmui = session.backWrapper;
-        }
-        function render(frame, token, menu) {
-            var fw = global.framework, items = [], i, row, captured, signature, current, oldPage;
-            if (!menu || typeof menu.title !== 'string' || !menu.rows || menu.rows.length > 202) { throw new Error('Invalid native menu.'); }
-            attach(frame,token); current = session;
-            // OEM StatusBar treats any .png substring as an icon path.
-            if (fw.common && fw.common.setSbName) { fw.common.setSbName(menu.title.replace(/[.]png/gi,'')); }
-            if (options.preview) { options.preview(menu.previewId || null,frame); }
-            session.container.className = 'TemplateWithStatusLeft List2Tmplt' + (menu.split ? ' wallpaperImportSplit' : '');
-            if (!session.previewPane) {
-                session.previewPane = document.createElement('div');
-                session.previewPane.style.cssText = 'position:absolute;left:408px;top:65px;width:300px;color:white;font-size:22px;white-space:normal;word-wrap:break-word;';
-                session.root.appendChild(session.previewPane);
-            }
-            session.previewPane.style.display = menu.split ? 'block' : 'none';
-            session.previewPane.innerHTML = '';
-            if (menu.split && menu.rightPreview) {
-                var preview = menu.rightPreview, picture, caption;
-                if (preview.url && /^http:\/\/(?:localhost:8091\/usb-image\/|127\.0\.0\.1:[0-9]+\/image\/wallpaper-manager\/usb\/)/.test(preview.url)) {
-                    picture = document.createElement('img'); picture.src = preview.url;
-                    picture.style.cssText = 'width:300px;height:180px;object-fit:contain;'; session.previewPane.appendChild(picture);
-                }
-                caption = document.createElement('div'); caption.textContent = preview.error || preview.label || '';
-                session.previewPane.appendChild(caption);
-            }
-            for (i = 0; i < menu.rows.length; i += 1) {
-                row = menu.rows[i];
-                items.push({appData:{wallpaperIndex:i},text1Id:null,text1:row.label,
-                    itemStyle:row.checkable ? 'style03' : row.detail ? 'style06' : 'style01',
-                    image1:row.checkable ? (row.radio ? 'radio' : 'tick') : '',checked:row.checked === true,
-                    label1Id:null,label1:row.detail || '',hasCaret:row.caret === true,disabled:row.disabled === true});
-            }
-            signature = JSON.stringify(items); oldPage = session.page;
-            if (session.control && oldPage === menu.page && session.signature === signature) { return; }
-            if (session.control && oldPage === menu.page) {
-                captured = session.control.getContextCapture();
-                // setDataList alone empties the OEM scroller without repainting.
-                session.control.setDataListAndUpdateItems({itemCountKnown:true,itemCount:items.length,items:items,vuiSupport:false});
-                if (captured.focussedItem >= items.length) { captured.focussedItem = 0; captured.topItem = 0; }
-                session.control.restoreContext(captured);
-            } else {
-                global.clearTimeout(selection); destroyList(); session.container.innerHTML = ''; session.container.appendChild(session.splitStyle);
-                session.control = fw.instantiateControl('system',session.container,'List2Ctrl',{
-                    titleConfiguration:'noTitle',numberedList:true,
-                    focussedItem:menu.index || 0,
-                    dataList:{itemCountKnown:true,itemCount:items.length,items:items,vuiSupport:false},
-                    selectCallback:function (source, data) {
-                        if (session !== current || source !== current.control || !data) { return; }
-                        global.clearTimeout(selection);
-                        selection = global.setTimeout(function () {
-                            if (session === current && current.control === source) { send('wallpaper-native-select',data.wallpaperIndex); }
-                        },0);
-                    }
-                });
-                releaseBackButton();
-                session.control.handleControllerEvent('acceptFocusInit');
-            }
-            session.page = menu.page; session.signature = signature;
-        }
-        function input(frame, token, action, phase) {
-            var control, event, capture;
-            if (!session || session.frame !== frame || session.token !== token || !session.control) { return; }
-            control = session.control;
-            if (action === 'rotateRight' || action === 'rotateLeft') {
-                if (phase === 'release') { return; }
-                event = action === 'rotateRight' ? 'cw' : 'ccw';
-            } else {
-                if (['up','down','left','right','select'].indexOf(action) < 0) { return; }
-                if (phase === 'step') { dispatch(control,action + 'Start'); event = action; }
-                else { event = phase === 'press' ? action + 'Start' : action; }
-            }
-            dispatch(control,event);
-            capture = control.getContextCapture(); send('wallpaper-native-focus',capture.focussedItem);
-        }
-        return {render:render,input:input,close:close,owns:function (source, token) { return session && session.source === source && session.token === token; },check:function () {
-            if (session && (!document.documentElement.contains(session.frame) || global.framework.getCurrentApp() !== 'system' || global.framework.getCurrCtxtId() !== 'Applications')) { close(); }
-        }};
+        throw new Error('MzdGuiResidents native menu factory unavailable.');
     }
     global.WallpaperNativeMenu = {create:create};
 }(window));
@@ -409,17 +263,13 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
         loading = false; core.subscribe(broadcast); window.WallpaperManager = core;
     }
     function replace(images) { catalog = images; core.replaceCatalog(images); }
-    function reply(event, data, error, notice) {
-        if (hostEnded) { return; }
-        try { event.source.postMessage({type:'wallpaper-preview-response',token:data.token,id:data.id,state:snapshot(),error:error || '',notice:notice || ''},'*'); } catch (ignore) {}
-    }
     function frameToken(source) {
         var current = context.view();
         return current && current.source === source ? current.token : '';
     }
-    var nativeMenu = window.WallpaperNativeMenu.create({preview:setMenuPreview});
+    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,alwaysRestoreApplications:true,preview:setMenuPreview});
     function receive(event) {
-        var data = event.data, token = frameToken(event.source), result, error = '', frames, frame, i;
+        var data = event.data, token = frameToken(event.source), frames, frame, i;
         if (data && data.type === 'wallpaper-native-release' && nativeMenu.owns(event.source,data.token)) { nativeMenu.close(); return; }
         if (!token || !data || data.token !== token) { return; }
         if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input') {
@@ -431,62 +281,73 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
                 else { nativeMenu.input(frame,token,data.action,data.phase); }
             } catch (failure) {
                 nativeMenu.close();
-                event.source.postMessage({type:'wallpaper-native-error',token:token,message:String(failure.message || failure)},'*');
+                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:'menu',message:String(failure.message || failure)},'*');
             }
-            return;
         }
-        if (data.type !== 'wallpaper-preview-request' || typeof data.id !== 'number') { return; }
-        if (data.command === 'state') {
-            reply(event,data);
+    }
+    context.onServiceRequest(function (command, args, callback) {
+        if (hostEnded) { return; }
+        var value = args && Object.prototype.hasOwnProperty.call(args, 'value') ? args.value : args;
+        var error = '';
+        if (command === 'state') {
+            callback(null, { state: snapshot() });
             if (core && !saving && !importing) {
                 var baseline = mutation;
                 client.gallery(function (failure, result) {
                     if (failure || hostEnded || baseline !== mutation || saving || importing) { return; }
-                    function configKey(value) { value = value || {}; return JSON.stringify([value.selected || null,value.enabled === true,value.interval,Array.isArray(value.slides) ? value.slides : []]); }
-                    function catalogKey(images) { return JSON.stringify(images.map(function (row) { return [row.id,row.label,row.url,row.bytes]; })); }
-                    if (configKey(savedSettings) !== configKey(result.settings)) { initialize(result.images,result.settings); }
+                    function configKey(v) { v = v || {}; return JSON.stringify([v.selected || null, v.enabled === true, v.interval, Array.isArray(v.slides) ? v.slides : []]); }
+                    function catalogKey(images) { return JSON.stringify(images.map(function (row) { return [row.id, row.label, row.url, row.bytes]; })); }
+                    if (configKey(savedSettings) !== configKey(result.settings)) { initialize(result.images, result.settings); }
                     else if (catalogKey(catalog) !== catalogKey(result.images)) { replace(result.images); }
                 });
             }
             return;
         }
-        if (!core) { reply(event,data,'Gallery is still loading.'); return; }
-        if (saving) { reply(event,data,'Settings are still being saved.'); return; }
+        if (!core) { callback('Gallery is still loading.', { state: snapshot() }); return; }
+        if (saving) { callback('Settings are still being saved.', { state: snapshot() }); return; }
         mutation += 1;
-        if (data.command === 'usb-list') {
-            if (!client) { usb = {status:'unavailable',items:[]}; reply(event,data); return; }
-            usb = {status:'loading',items:[]}; broadcast();
-            client.usb(function (failure, result) { usb = failure ? {status:'unavailable',items:[],error:failure} : result; reply(event,data); }); return;
+        if (command === 'usb-list') {
+            if (!client) { usb = { status: 'unavailable', items: [] }; callback(null, { state: snapshot() }); return; }
+            usb = { status: 'loading', items: [] }; broadcast();
+            client.usb(function (failure, result) {
+                usb = failure ? { status: 'unavailable', items: [], error: failure } : result;
+                callback(failure || null, { state: snapshot() });
+            });
+            return;
         }
-        if (data.command === 'import-one') {
-            if (!client || importing) { reply(event,data,'Import is unavailable or already in progress.'); return; }
+        if (command === 'import-one') {
+            if (!client || importing) { callback('Import is unavailable or already in progress.', { state: snapshot() }); return; }
             importing = true; broadcast();
-            client.importImage(data.value,function (failure, result) {
+            client.importImage(value, function (failure, result) {
                 importing = false;
                 if (!failure) { replace(result.images); }
-                reply(event,data,failure,failure ? '' : 'Image imported.');
-            }); return;
+                callback(failure || null, { state: snapshot(), notice: failure ? '' : 'Image imported.' });
+            });
+            return;
         }
-        if (data.command === 'delete' && client) {
-            client.remove(data.value,function (failure, result) {
-                if (!failure) { initialize(result.images,result.settings); }
-                reply(event,data,failure);
-            }); return;
+        if (command === 'delete' && client) {
+            client.remove(value, function (failure, result) {
+                if (!failure) { initialize(result.images, result.settings); }
+                callback(failure || null, { state: snapshot() });
+            });
+            return;
         }
         stagedSettings = null;
-        try { core.command(data.command,data.value); }
+        try { core.command(command, value); }
         catch (failure) { error = String(failure.message || failure); }
         if (!error && stagedSettings) {
             saving = true;
-            context.service.request('save',stagedSettings,function (failure, result) {
+            context.service.request('save', stagedSettings, function (failure, result) {
                 saving = false;
                 if (hostEnded) { return; }
-                if (failure) { initialize(catalog,savedSettings); }
+                if (failure) { initialize(catalog, savedSettings); }
                 else { savedSettings = result.settings; }
-                reply(event,data,failure);
+                callback(failure || null, { state: snapshot() });
             });
-        } else { reply(event,data,error); }
-    }
+        } else {
+            callback(error || null, { state: snapshot() });
+        }
+    });
     function broadcast() {
         var frames = document.getElementsByTagName('iframe'), i, token;
         for (i = 0; i < frames.length; i += 1) {

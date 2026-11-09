@@ -66,17 +66,13 @@
         loading = false; core.subscribe(broadcast); window.WallpaperManager = core;
     }
     function replace(images) { catalog = images; core.replaceCatalog(images); }
-    function reply(event, data, error, notice) {
-        if (hostEnded) { return; }
-        try { event.source.postMessage({type:'wallpaper-preview-response',token:data.token,id:data.id,state:snapshot(),error:error || '',notice:notice || ''},'*'); } catch (ignore) {}
-    }
     function frameToken(source) {
         var current = context.view();
         return current && current.source === source ? current.token : '';
     }
-    var nativeMenu = window.WallpaperNativeMenu.create({preview:setMenuPreview});
+    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,alwaysRestoreApplications:true,preview:setMenuPreview});
     function receive(event) {
-        var data = event.data, token = frameToken(event.source), result, error = '', frames, frame, i;
+        var data = event.data, token = frameToken(event.source), frames, frame, i;
         if (data && data.type === 'wallpaper-native-release' && nativeMenu.owns(event.source,data.token)) { nativeMenu.close(); return; }
         if (!token || !data || data.token !== token) { return; }
         if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input') {
@@ -88,62 +84,73 @@
                 else { nativeMenu.input(frame,token,data.action,data.phase); }
             } catch (failure) {
                 nativeMenu.close();
-                event.source.postMessage({type:'wallpaper-native-error',token:token,message:String(failure.message || failure)},'*');
+                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:'menu',message:String(failure.message || failure)},'*');
             }
-            return;
         }
-        if (data.type !== 'wallpaper-preview-request' || typeof data.id !== 'number') { return; }
-        if (data.command === 'state') {
-            reply(event,data);
+    }
+    context.onServiceRequest(function (command, args, callback) {
+        if (hostEnded) { return; }
+        var value = args && Object.prototype.hasOwnProperty.call(args, 'value') ? args.value : args;
+        var error = '';
+        if (command === 'state') {
+            callback(null, { state: snapshot() });
             if (core && !saving && !importing) {
                 var baseline = mutation;
                 client.gallery(function (failure, result) {
                     if (failure || hostEnded || baseline !== mutation || saving || importing) { return; }
-                    function configKey(value) { value = value || {}; return JSON.stringify([value.selected || null,value.enabled === true,value.interval,Array.isArray(value.slides) ? value.slides : []]); }
-                    function catalogKey(images) { return JSON.stringify(images.map(function (row) { return [row.id,row.label,row.url,row.bytes]; })); }
-                    if (configKey(savedSettings) !== configKey(result.settings)) { initialize(result.images,result.settings); }
+                    function configKey(v) { v = v || {}; return JSON.stringify([v.selected || null, v.enabled === true, v.interval, Array.isArray(v.slides) ? v.slides : []]); }
+                    function catalogKey(images) { return JSON.stringify(images.map(function (row) { return [row.id, row.label, row.url, row.bytes]; })); }
+                    if (configKey(savedSettings) !== configKey(result.settings)) { initialize(result.images, result.settings); }
                     else if (catalogKey(catalog) !== catalogKey(result.images)) { replace(result.images); }
                 });
             }
             return;
         }
-        if (!core) { reply(event,data,'Gallery is still loading.'); return; }
-        if (saving) { reply(event,data,'Settings are still being saved.'); return; }
+        if (!core) { callback('Gallery is still loading.', { state: snapshot() }); return; }
+        if (saving) { callback('Settings are still being saved.', { state: snapshot() }); return; }
         mutation += 1;
-        if (data.command === 'usb-list') {
-            if (!client) { usb = {status:'unavailable',items:[]}; reply(event,data); return; }
-            usb = {status:'loading',items:[]}; broadcast();
-            client.usb(function (failure, result) { usb = failure ? {status:'unavailable',items:[],error:failure} : result; reply(event,data); }); return;
+        if (command === 'usb-list') {
+            if (!client) { usb = { status: 'unavailable', items: [] }; callback(null, { state: snapshot() }); return; }
+            usb = { status: 'loading', items: [] }; broadcast();
+            client.usb(function (failure, result) {
+                usb = failure ? { status: 'unavailable', items: [], error: failure } : result;
+                callback(failure || null, { state: snapshot() });
+            });
+            return;
         }
-        if (data.command === 'import-one') {
-            if (!client || importing) { reply(event,data,'Import is unavailable or already in progress.'); return; }
+        if (command === 'import-one') {
+            if (!client || importing) { callback('Import is unavailable or already in progress.', { state: snapshot() }); return; }
             importing = true; broadcast();
-            client.importImage(data.value,function (failure, result) {
+            client.importImage(value, function (failure, result) {
                 importing = false;
                 if (!failure) { replace(result.images); }
-                reply(event,data,failure,failure ? '' : 'Image imported.');
-            }); return;
+                callback(failure || null, { state: snapshot(), notice: failure ? '' : 'Image imported.' });
+            });
+            return;
         }
-        if (data.command === 'delete' && client) {
-            client.remove(data.value,function (failure, result) {
-                if (!failure) { initialize(result.images,result.settings); }
-                reply(event,data,failure);
-            }); return;
+        if (command === 'delete' && client) {
+            client.remove(value, function (failure, result) {
+                if (!failure) { initialize(result.images, result.settings); }
+                callback(failure || null, { state: snapshot() });
+            });
+            return;
         }
         stagedSettings = null;
-        try { core.command(data.command,data.value); }
+        try { core.command(command, value); }
         catch (failure) { error = String(failure.message || failure); }
         if (!error && stagedSettings) {
             saving = true;
-            context.service.request('save',stagedSettings,function (failure, result) {
+            context.service.request('save', stagedSettings, function (failure, result) {
                 saving = false;
                 if (hostEnded) { return; }
-                if (failure) { initialize(catalog,savedSettings); }
+                if (failure) { initialize(catalog, savedSettings); }
                 else { savedSettings = result.settings; }
-                reply(event,data,failure);
+                callback(failure || null, { state: snapshot() });
             });
-        } else { reply(event,data,error); }
-    }
+        } else {
+            callback(error || null, { state: snapshot() });
+        }
+    });
     function broadcast() {
         var frames = document.getElementsByTagName('iframe'), i, token;
         for (i = 0; i < frames.length; i += 1) {
