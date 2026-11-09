@@ -24,7 +24,7 @@ for scenario in ['success','invalid-path','hook-stop-failure','bad-oem','unknown
     base=Path(directory);usb=base/'usb';internal=base/'internal';resources=base/'resources';nav=base/'nav';bins=base/'bin';locks=base/'locks'
     for p in [internal,resources,nav,bins,locks]:p.mkdir()
     shutil.copytree(ROOT/'usb/lib',usb/'lib')
-    for id_ in ['restore-originals','ssh']:shutil.copytree(ROOT/'usb/tweaks'/id_,usb/'tweaks'/id_)
+    for id_ in ['restore-originals','ssh','cluster-language']:shutil.copytree(ROOT/'usb/tweaks'/id_,usb/'tweaks'/id_)
     worker=usb/'tweaks/restore-originals/run.sh';hook=usb/'tweaks/ssh/reset.sh';service=resources/'managed/ssh';runtime=base/'runtime'
     version=base/'version';mounts=base/'mounts';gpio=base/'watchdog';events=base/'events'
     write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(gpio,'0\n')
@@ -54,10 +54,22 @@ for scenario in ['success','invalid-path','hook-stop-failure','bad-oem','unknown
     shutil.copyfile(assets/'usb-log-marker.txt',usb/'mzd-ssh-log-marker.txt')
     write(hook,hook.read_text().replace('SERVICE=/tmp/mnt/resources/mzd-tweaks/ssh','SERVICE='+shlex.quote(bp(service))).replace('RAM=/tmp/mzd-aio-ssh','RAM='+shlex.quote(bp(runtime))).replace('TARGET=/jci/scripts/stage_wifi.sh','TARGET='+shlex.quote(bp(second))).replace('mzd_system_remount_rw /tmp/mnt/resources','mzd_system_remount_rw '+shlex.quote(bp(resources))))
     manifest=usb/'tweaks/restore-originals/manifest.conf';write(manifest,manifest.read_text().replace('target=/jci','target='+bp(internal)))
+    # A real component bundle on the USB that was never installed: its reset hook
+    # runs too, without saved settings, and must neither block nor change anything.
+    # An older installer may have changed the SM configs and left no .org backup.
+    stock_sm='<services>\n<service name="jciBLMSettings" path="/jci/settings/example.so">\n<dependency value="other"/>\n</service>\n</services>\n'
+    old_sm=stock_sm.replace('<dependency value="other"/>','<environ_var env_name="LD_PRELOAD" env_value="/data_persist/oem-aa-mod/libpatch-svcjciblmsettings.so"/>')
+    for name in ['sm.conf','sm_WCP.conf']:write(internal/name,old_sm)
+    old_payload=internal/'mzd-tweaks/shims/cluster-language/libpatch.conf';write(old_payload,'not from this tweak\n')
+    for name in ['manifest.conf','components.tsv']:
+      path=usb/'tweaks/cluster-language'/name;text=path.read_text()
+      for old,new in {'/jci/sm/':bp(internal)+'/','74d9fc389b74fb01d0cfc2615a82c782':md5(stock_sm),'030e918f5d6edcd62d196ee37b86fe99':md5(stock_sm),'/tmp/mnt/data_persist':bp(internal)}.items():text=text.replace(old,new)
+      write(path,text)
     for lib in (usb/'lib').glob('*.sh'):
       text=lib.read_text().replace('/jci/version.ini',bp(version)).replace('/proc/mounts',bp(mounts)).replace('/sys/class/gpio/Watchdog\\ Disable/value',shlex.quote(bp(gpio)))
       text=text.replace('/tmp/mnt/sd[a-z][0-9]*|/mnt/sd[a-z][0-9]*',shlex.quote(bp(usb)))
       text=text.replace('LOCK="/tmp/mzd-$LOCK_GROUP-tweak.lock"','LOCK="'+bp(locks)+'/$LOCK_GROUP.lock"')
+      text=text.replace('MZD_COMPONENT_STORAGE=/tmp/mnt/data_persist','MZD_COMPONENT_STORAGE='+shlex.quote(bp(internal))).replace('MZD_SHIM_ROOT=/','MZD_SHIM_ROOT='+shlex.quote(bp(internal)))
       write(lib,text)
     source=worker.read_text().replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1).replace('/tmp/mzd-restore-originals.lock',bp(locks/'restore.lock'))
     write(worker,source)
@@ -127,6 +139,8 @@ esac
     checks+=1
     assert (nav/'nav.js').read_text()=='navigation stays modified\n'
     assert (nav/'nav.js.org').exists()
+    assert (internal/'sm.conf').read_text()==old_sm and (internal/'sm_WCP.conf').read_text()==old_sm
+    assert old_payload.read_text()=='not from this tweak\n'
     assert gpio.read_text()=='0\n'
     assert not list(locks.iterdir()),(scenario,list(locks.iterdir()))
     assert 'forbidden' not in (events.read_text() if events.exists() else '')
