@@ -1,7 +1,8 @@
 (function () {
     'use strict';
     var sdk = window.MzdGuiModule, status = document.getElementById('status');
-    var ended = false, state = null, page = 'home', index = 0, positions = {home: 0, distance: 0}, notice = '';
+    var ended = false, state = null, rebootRequired = false, saving = false, rebootDialogOpen = false;
+    var page = 'home', index = 0, positions = {home: 0, distance: 0}, notice = '';
     var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash);
     var token = match ? match[1] : '';
 
@@ -34,7 +35,7 @@
 
     function formatDistance(meters) {
         var m = Number(meters) || 0;
-        if (!m || m === 0) {
+        if (!m) {
             return tr('always', 'Always');
         }
         if (m >= 1000) {
@@ -46,6 +47,47 @@
     function post(data) {
         data.token = token;
         window.parent.postMessage(data, '*');
+    }
+
+    // The resident shows save and reboot notifications, including after this
+    // view closes, so it keeps its own copy of the localized texts.
+    function sendNoticeTexts() {
+        post({
+            type: 'aa-request',
+            action: 'texts',
+            payload: {
+                saveError: tr('saveError', 'Failed to save settings'),
+                reboot: tr('reboot', 'Reboot to apply changes'),
+                rebootFallback: tr('rebootFallback', 'Hold NAV + MUTE to reboot')
+            }
+        });
+    }
+
+    function saveSetting(key, value) {
+        state[key] = value;
+        saving = true;
+        render();
+        post({type: 'aa-request', action: 'set', payload: {key: key, value: value}});
+    }
+
+    function openRebootDialog() {
+        rebootDialogOpen = true;
+        post({
+            type: 'aa-native-dialog',
+            dialog: {
+                text: tr('rebootQuestion', 'Do you want to reboot MZD to apply Android Auto settings?'),
+                buttons: [
+                    { value: 'no', labelId: 'common.No' },
+                    { value: 'yes', labelId: 'common.Yes' }
+                ]
+            }
+        });
+    }
+
+    function closeRebootDialog() {
+        rebootDialogOpen = false;
+        post({ type: 'aa-native-dialog', dialog: null });
+        render();
     }
 
     function entries() {
@@ -95,6 +137,15 @@
                 });
             }
         }
+        // Rebooting is offered only when saved settings differ from the ones MZD
+        // booted with, and never while a save could still be lost.
+        result.push({
+            id: 'reboot',
+            action: 'reboot',
+            label: tr('reboot', 'Reboot to apply changes'),
+            image1: 'common/images/icons/IcnUmpReset_En.png',
+            disabled: saving || !rebootRequired
+        });
         return result;
     }
 
@@ -122,47 +173,41 @@
     }
 
     function activate(position) {
-        if (ended || !state) { return; }
+        if (ended || !state || rebootDialogOpen) { return; }
         notice = '';
         index = position;
-        var list = entries();
-        var row = list[index];
+        var row = entries()[index];
         if (!row || row.disabled) { return; }
         positions[page] = index;
 
+        if (row.action === 'reboot') {
+            openRebootDialog();
+            return;
+        }
+
         if (page === 'distance') {
-            var selectedMeters = row.meters;
-            if (state.hud_maneuver_max_distance_m !== selectedMeters) {
-                state.hud_maneuver_max_distance_m = selectedMeters;
+            page = 'home';
+            index = positions.home || 0;
+            if (state.hud_maneuver_max_distance_m !== row.meters) {
+                saveSetting('hud_maneuver_max_distance_m', row.meters);
+            } else {
                 render();
-                post({type: 'aa-request', action: 'set', payload: { key: 'hud_maneuver_max_distance_m', value: selectedMeters }});
             }
             return;
         }
 
         if (row.type === 'bool') {
-            var newBool = !state[row.key];
-            state[row.key] = newBool;
-            render();
-            post({type: 'aa-request', action: 'set', payload: { key: row.key, value: newBool }});
-            return;
-        }
-
-        if (row.type === 'transport') {
-            var newTransport = (state[row.key] === 'svcnavi') ? 'vbs' : 'svcnavi';
-            state[row.key] = newTransport;
-            render();
-            post({type: 'aa-request', action: 'set', payload: { key: row.key, value: newTransport }});
-            return;
-        }
-
-        if (row.type === 'distance') {
+            saveSetting(row.key, !state[row.key]);
+        } else if (row.type === 'transport') {
+            saveSetting(row.key, state[row.key] === 'svcnavi' ? 'vbs' : 'svcnavi');
+        } else if (row.type === 'distance') {
             open('distance');
         }
     }
 
     function render() {
-        if (ended || !state) { return; }
+        // The OEM dialog covers the list; it is redrawn once the dialog closes.
+        if (ended || !state || rebootDialogOpen) { return; }
         var list = entries(), heading;
         if (index >= list.length) { index = 0; }
         heading = (page === 'distance') ?
@@ -180,7 +225,7 @@
     }
 
     function receive(event) {
-        var data = event.data;
+        var data = event.data, confirmed;
         if (event.source !== window.parent || !data || data.token !== token || ended) { return; }
         if (data.type === 'aa-native-select') {
             activate(data.index);
@@ -193,22 +238,39 @@
             }
             return;
         }
+        if (data.type === 'aa-native-dialog-select') {
+            if (!rebootDialogOpen) { return; }
+            confirmed = data.value === 'yes';
+            closeRebootDialog();
+            if (confirmed) {
+                post({type: 'aa-request', action: 'reboot'});
+            }
+            return;
+        }
         if (data.type === 'aa-native-error') {
-            if (status) {
+            if (data.scope === 'dialog') {
+                // The resident already removed the dialog and restored list focus.
+                rebootDialogOpen = false;
+                notice = tr('rebootFallback', 'Hold NAV + MUTE to reboot');
+                render();
+            } else if (status) {
                 status.textContent = tr('menuError', 'The Mazda menu could not be opened. Please reopen the app.');
             }
             return;
         }
         if (data.type === 'aa-response') {
+            saving = data.saving === true;
+            if (data.state) {
+                state = data.state;
+                rebootRequired = data.rebootRequired === true;
+            }
             if (data.error) {
                 notice = state ? tr('error', 'Failed to save') : tr('serviceUnavailable', 'Service unavailable. Please retry.');
                 if (status) { status.textContent = notice; }
-                render();
-            } else if (data.state) {
-                state = data.state;
-                if (status && !notice) { status.textContent = ''; }
-                render();
+            } else if (status && !notice) {
+                status.textContent = '';
             }
+            render();
         }
     }
 
@@ -216,6 +278,10 @@
         if (ended) { return false; }
         if (action === 'back') {
             if (phase === 'press') { return true; }
+            if (rebootDialogOpen) {
+                closeRebootDialog();
+                return true;
+            }
             return back();
         }
         if (state) {
@@ -226,12 +292,7 @@
 
     function dispose() {
         if (ended) { return; }
-        post({
-            type: 'aa-native-release',
-            savingMessage: tr('savingSettings', 'Saving Android Auto settings...'),
-            savedMessage: tr('savedSettings', 'Android Auto settings saved.'),
-            errorMessage: tr('saveError', tr('error', 'Failed to save Android Auto settings'))
-        });
+        post({type: 'aa-native-release'});
         ended = true;
         window.removeEventListener('message', receive, false);
     }
@@ -250,6 +311,7 @@
         sdk.loadLanguage(function (language, direction) {
             document.documentElement.lang = language.replace('_', '-');
             if (status) { status.dir = direction; }
+            sendNoticeTexts();
             if (state) {
                 render();
             } else if (status) {

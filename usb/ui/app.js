@@ -928,6 +928,7 @@
         var workingTimer = null, workingDots = 0;
         var workingLabel = {install:"Installing",update:"Updating",uninstall:"Uninstalling","restore-original":"Restoring"}[action];
         operating = true; controls(); setDialogMode("working");
+        text("dialog-title",item.name);
         el("dialog-body").className = "bottom-info";
         el("dialog-state").className = "operation-status";
         text("dialog-state",workingLabel ? workingLabel : actionName + " in progress...");

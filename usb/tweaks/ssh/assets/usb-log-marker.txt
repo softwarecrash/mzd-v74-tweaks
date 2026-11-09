@@ -1,1 +1,1 @@
-MZD-AIO-SSH-v1
+MZD-SSH-v1

@@ -373,6 +373,28 @@ esac
                 assert r.returncode==code,(id_,action,r.returncode,r.stdout,r.stderr)
                 if expected is not None:assert r.stdout==expected+'\n',(id_,r.stdout,r.stderr)
                 checks+=1
+                return r
+            if id_ == 'list-beep':
+                backup=Path(str(target)+'.org');backup.unlink(missing_ok=True)
+                write(target,original);target.chmod(0o640);os.utime(target,(1234567800,1234567890))
+                expected_meta=(target.stat().st_mode & 0o7777,target.stat().st_uid,target.stat().st_gid,target.stat().st_mtime_ns)
+                managed('install');assert backup.exists()
+                # An old controller cannot discard the new baseline without cleanup.
+                current_controller=package_lib.read_text()
+                write(package_lib,current_controller.replace('MZD_ORIGINALS_CLEANUP=1; export MZD_ORIGINALS_CLEANUP','unset MZD_ORIGINALS_CLEANUP'))
+                installed_bytes=target.read_bytes();managed('uninstall',code=1)
+                assert target.read_bytes()==installed_bytes and backup.exists()
+                write(package_lib,current_controller);managed('uninstall')
+                assert target.read_text()==original and not backup.exists()
+                restored=target.stat()
+                assert (restored.st_mode & 0o7777,restored.st_uid,restored.st_gid,restored.st_mtime_ns)==expected_meta
+                # Unrelated later edits survive; keep the last original backup and explain why.
+                managed('install');write(target,target.read_text()+'// unrelated sentinel\n');result=managed('uninstall')
+                assert target.read_text()==original+'// unrelated sentinel\n' and backup.read_text()==original
+                assert 'Retained ' in result.stdout
+                # Existing backups belong to the pre-install state and are retained.
+                write(backup,original);managed('install');managed('uninstall')
+                assert backup.read_text()==original, 'pre-existing backup must be kept'
             if id_ == 'hud-street-name':
                 env['TEST_HUD'] = 'whud'
                 r = subprocess.run([SHELL, bp(adapter), 'preflight-info', id_], env=env, capture_output=True, text=True, timeout=15)
@@ -415,7 +437,7 @@ esac
                     assert (snapshot/'settings.conf').read_bytes()==(service/'settings.conf').read_bytes()
                     (usb/'user/ssh/public.key').unlink()
                     manifest=worker/'manifest.conf'
-                    write(manifest,manifest.read_text().replace('version=0.8.11','version=0.8.12'))
+                    write(manifest,manifest.read_text().replace('version=0.8.12','version=0.8.13'))
                     managed('update',code=1)
                     assert (service/'public.key').read_text()==key
                     managed('status','installed')

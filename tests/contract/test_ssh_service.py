@@ -25,14 +25,14 @@ with tempfile.TemporaryDirectory(prefix='mzd-ssh-test-') as temporary:
     shutil.copytree(root / 'tweaks/ssh/assets', service)
     usb, ram, proc, bins = temp / 'usb', temp / 'runtime', temp / 'proc', temp / 'bin'
     bins.mkdir(); proc.mkdir()
-    write(usb / 'mzd-ssh-log-marker.txt', 'MZD-AIO-SSH-v1\n')
+    write(usb / 'mzd-ssh-log-marker.txt', 'MZD-SSH-v1\n')
     write(service / 'enabled', 'enabled\n')
     account, mounts, saved = temp / 'passwd', temp / 'mounts', temp / 'factory-saved'
     original = 'cmu:$5$fake$factory:0:0:CMU:/tmp/root:/bin/sh\nother:x:10:10:Other:/:/bin/false\n'
     write(account, original); write(mounts, '')
     key = temp / 'host-key'; write(key, 'TEST KEY: never used by a real sshd\n')
     source = (service / 'service.sh').read_text()
-    for before, after in [('RAM=/tmp/mzd-aio-ssh', 'RAM=' + shlex.quote(bp(ram))),
+    for before, after in [('RAM=/tmp/mzd-ssh', 'RAM=' + shlex.quote(bp(ram))),
                           ('ACCOUNT=/config-mfg/passwd', 'ACCOUNT=' + shlex.quote(bp(account))),
                           ('PASSWD_LINK=/etc/passwd', 'PASSWD_LINK=' + shlex.quote(bp(temp / 'passwd-link'))),
                           ('MOUNTS=/proc/mounts', 'MOUNTS=' + shlex.quote(bp(mounts))),
@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='mzd-ssh-test-') as temporary:
         '/usr/bin/readlink /proc/self/fd/5 5>&2 > ' + shlex.quote(bp(reader_stderr)) + '\n' +
         'fi\n', 1)
     write(service / 'service.sh', source)
-    config = (service / 'sshd_config').read_text().replace('/tmp/mzd-aio-ssh', bp(ram)).replace('/etc/ssh/ssh_host_rsa_key', bp(key))
+    config = (service / 'sshd_config').read_text().replace('/tmp/mzd-ssh', bp(ram)).replace('/etc/ssh/ssh_host_rsa_key', bp(key))
     write(service / 'sshd_config', config)
     write(bins / 'readlink', '#!/bin/sh\nprintf "%s\\n" ' + shlex.quote(bp(account)) + '\n')
     write(bins / 'netstat', f'''#!/bin/sh
@@ -69,10 +69,10 @@ cp {shlex.quote(bp(saved))} "$1"
     chain, jump, accept = temp / 'chain', temp / 'jump', temp / 'accept'
     write(bins / 'iptables', f'''#!/bin/sh
 case "$1:$2" in
--S:INPUT) echo '-P INPUT DROP'; if [ -f {shlex.quote(bp(jump))} ]; then echo '-A INPUT -p tcp -m tcp --dport 22 -j MZD_AIO_SSH'; fi ;;
--S:MZD_AIO_SSH) [ -f {shlex.quote(bp(chain))} ] || exit 1; if [ -f {shlex.quote(bp(accept))} ]; then echo '-A MZD_AIO_SSH -j ACCEPT'; fi ;;
--N:MZD_AIO_SSH) : > {shlex.quote(bp(chain))} ;;
--I:MZD_AIO_SSH)
+-S:INPUT) echo '-P INPUT DROP'; if [ -f {shlex.quote(bp(jump))} ]; then echo '-A INPUT -p tcp -m tcp --dport 22 -j MZD_SSH'; fi ;;
+-S:MZD_SSH) [ -f {shlex.quote(bp(chain))} ] || exit 1; if [ -f {shlex.quote(bp(accept))} ]; then echo '-A MZD_SSH -j ACCEPT'; fi ;;
+-N:MZD_SSH) : > {shlex.quote(bp(chain))} ;;
+-I:MZD_SSH)
     [ ! -f {shlex.quote(bp(temp / 'fail-accept'))} ] || exit 1
     : > {shlex.quote(bp(accept))} ;;
 -I:INPUT)
@@ -81,8 +81,8 @@ case "$1:$2" in
     while [ -f {shlex.quote(bp(temp / 'hold-firewall'))} ]; do sleep .1; done
     : > {shlex.quote(bp(jump))} ;;
 -D:INPUT) [ -f {shlex.quote(bp(jump))} ] || exit 1; rm {shlex.quote(bp(jump))} ;;
--F:MZD_AIO_SSH) rm -f {shlex.quote(bp(accept))} ;;
--X:MZD_AIO_SSH) rm -f {shlex.quote(bp(chain))} ;;
+-F:MZD_SSH) rm -f {shlex.quote(bp(accept))} ;;
+-X:MZD_SSH) rm -f {shlex.quote(bp(chain))} ;;
 *) exit 1 ;;
 esac
 ''')

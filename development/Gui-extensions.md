@@ -90,8 +90,11 @@ in addition to package-controller serialization.
 Unknown developer hooks, links, unregistered module folders and changed owned
 files cause refusal. The helper does not chain, adopt or overwrite foreign hooks.
 An existing separately managed hook therefore needs an explicit migration; it
-cannot be silently adopted. Status remains read-only. Backups and write verification
-support rollback for caught failures. Reports retain transaction backups. A
+cannot be silently adopted. Removal and Restore also tolerate a missing generated
+boot hook when the saved provider and remaining shared support verify; if other
+consumers remain, the hook is restored from that verified provider snapshot.
+Status remains read-only. Backups and write verification support rollback for
+caught failures. Reports retain transaction backups. A
 rollback failure returns critical severity and says not to reboot. Power loss
 cannot be handled by a running shell trap and is not yet proven recoverable.
 
@@ -194,12 +197,14 @@ independent registration, load/timeout/error handling and idempotent cleanup.
 A failure in one cooperative resident does not replace or close other modules.
 As with views, this is not a sandbox against hostile code or infinite loops.
 
-Because the resident persists across view openings, it can maintain in-memory state
-caches to render views instantly on subsequent opens, queue rapid consecutive user
+Because the resident persists across view openings, it can keep in-memory state
+(Android Auto Settings still reads its settings again on every open), queue rapid consecutive user
 requests safely, and continue asynchronous persistence to its Lua backend service
 even if the driver closes the view before writes complete. When completing saves
 in the background, residents can display non-intrusive native Status Bar Notifications
-(SBN) via `framework.common.startTimedSbn` to confirm that changes were saved safely.
+(SBN) via `framework.common.startTimedSbn` to confirm that changes were saved safely,
+or that a reboot is needed to apply them. Keep notifications best-effort: a failed
+SBN must not stop a save.
 
 A registered Lua entrypoint returns `function(context) ... end`. It returns a
 table with `request(operation,args)`, optional `image(kind,key)`, `tick()` and
@@ -208,7 +213,23 @@ there is no shared arbitrary command/path endpoint. `context.files` provides
 checked file operations, `context.data` is its owned mutable data folder, and
 `context.urls` generates token-protected binary image URLs. Lua dependencies are
 loaded relative to that service's entrypoint with a per-module cache. Services
-share one process and are trusted, not a privilege boundary.
+share one process and are trusted, not a privilege boundary. A service must not
+read or write module files while it starts or from `tick()`; it reads them when a
+request needs them, so a drive without the view does no extra disk access.
+
+Tweak workers never reboot (see the [worker contract](Worker-contract.md)). A GUI
+service may offer a reboot operation only to apply its own saved settings, and
+only under these rules:
+
+- The driver confirms it in the view. Default to **No**.
+- The resident sends it only after every queued save has finished.
+- It covers only changes made through that service. Whoever changes the files
+  another way, for example over SSH, is responsible for the reboot.
+- The service refuses it when nothing is waiting to be applied, flushes writes
+  before calling `reboot`, and reports a failed command with its exit status.
+- The view gives a manual fallback when the request fails.
+
+Android Auto Settings is the reference implementation (`usb/tweaks/android-auto/assets`).
 
 The first service consumer adds one adjacent marker/command pair to the existing
 `/jci/scripts/stage_wifi.sh`, under the same target lock as SSH. It starts the
@@ -216,12 +237,13 @@ shared Lua/LuaSocket host via the owned supervisor. Original GUI JS and native
 MMUI binaries are not changed. Removing the last service consumer removes only
 that pair and stops the verified owned process; ordinary GUI consumers may remain.
 The final GUI consumer removes the verified shared GUI hook/runtime/registries.
-Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is retained
-separately from immutable snapshots. Unknown existing data folders are refused.
-Consumers that offer complete user-data removal must declare their module data
-directory with `config.<name>.path` in the manifest (trailing `/`). The package
-controller then removes it after successful uninstall unless `--preserve-config`
-was requested. Wallpaper Manager declares its entire module data directory,
+Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is separate
+from immutable snapshots. Unknown existing data folders are refused. New managed
+uninstall removes the owned module data after its writers have stopped. Consumers
+that offer preservation must declare their module data directory with
+`config.<name>.path` in the manifest (trailing `/`); `--preserve-config` then keeps
+that data. Undeclared service staging data is removed even when an unrelated
+config elsewhere is preserved. Wallpaper Manager declares its entire module data directory,
 including imported images and settings; Update preserves it automatically.
 
 The service binds an ephemeral port on 127.0.0.1. A RAM-only descriptor supplies

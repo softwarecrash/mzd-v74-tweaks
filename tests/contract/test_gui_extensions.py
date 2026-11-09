@@ -55,7 +55,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
   write(b/'startup','#!/bin/sh\necho original\n')
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
- replacements={'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts)}
+ write(b/'watchdog','0\n')
+ replacements={'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+bp(b),'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts),'/sys/class/gpio/Watchdog\\ Disable/value':bp(b/'watchdog')}
  if '--ssh-coexist-only' in sys.argv:
   replacements['/tmp/mnt/resources']=bp(b/'resources')
   replacements['/sys/class/gpio/Watchdog\\ Disable/value']=bp(b/'watchdog')
@@ -162,9 +163,23 @@ exec '''+copy_command+''' "$@"
        remaining=removal[1];deep(remaining,'installed')
        assert (gui_block in startup.read_bytes())==(remaining==gui_id)
        assert (b'# MZD v74 SSH\n' in startup.read_bytes())==(remaining=='ssh')
-     absent();assert startup.read_bytes()==original and backup.read_bytes()==original
-     # Ordinary patch uninstall retains the verified shared OEM backup.
-     backup.unlink()
+       if remaining=='ssh':
+        for container in ['config-owners','data','gui-data']:
+         assert not (persist/'mzd-tweaks'/container).exists(), 'unused data container retained alongside SSH'
+     absent();assert startup.read_bytes()==original and not backup.exists()
+     assert not (persist/'mzd-tweaks').exists(), 'empty framework containers left after final uninstall'
+     # The last managed consumer removes its own shared OEM backup.
+  call('ssh','uninstall');assert not (persist/'mzd-tweaks').exists(), 'no-op uninstall recreated storage'
+  # Legacy GUI receipts lacked both original snapshots and startup ownership.
+  package_source=(usb/'lib/packages.sh').read_text();paths_source=(usb/'lib/gui-extension.sh').read_text()
+  write(usb/'lib/packages.sh',package_source.replace('. "$stage/package/lib/originals.sh" && mzd_originals_capture "$stage" || exit 1',''))
+  write(usb/'lib/gui-extension.sh','\n'.join(line for line in paths_source.splitlines() if '${MZD_GUI_STARTUP:-' not in line)+'\n')
+  call('tetris','install');before=startup.read_bytes();assert not backup.exists()
+  write(usb/'lib/packages.sh',package_source);write(usb/'lib/gui-extension.sh',paths_source)
+  refused=call('ssh','install',1)
+  assert 'Uninstall the older tweak first' in refused.stderr and startup.read_bytes()==before
+  assert not (persist/'mzd-tweaks/installed/ssh').exists() and not backup.exists()
+  call('tetris','uninstall');absent();assert startup.read_bytes()==original
   # Read-only checks must reject unknown, duplicate, partial or altered GUI data.
   valid=original.replace(b'#!/bin/sh\n',b'#!/bin/sh\n'+gui_block,1)
   malformed=[valid+b'# unrelated edit\n',valid.replace(gui_block,gui_block*2),valid.replace(b'supervisor.sh boot',b'supervisor.sh other'),valid.rstrip(b'\n')]
@@ -177,6 +192,12 @@ exec '''+copy_command+''' "$@"
   print('SSH_GUI_COEXIST_PASSED:',checks,'real actions/checks; both GUI consumers, both install/removal orders, exact OEM backup and unmanaged-change refusal.')
   raise SystemExit(0)
  if '--services-only' in sys.argv:
+  write(mounts,mounts.read_text().replace(bp(data)+' relfs rw',bp(data)+' relfs ro'))
+  write(bins/'mount','''#!/bin/sh
+awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}' '''+shlex.quote(bp(mounts))+''' > '''+shlex.quote(bp(mounts))+'''.next && mv '''+shlex.quote(bp(mounts))+'''.next '''+shlex.quote(bp(mounts))+'''
+''')
+  def data_readonly():
+   assert any(row.split()[1:4]==[bp(data),'relfs','ro'] for row in mounts.read_text().splitlines())
   startup=b/'startup';original=startup.read_bytes()
   call('gui-hello-world','install')
   call('gui-example','install');deep('gui-example','installed')
@@ -186,9 +207,13 @@ exec '''+copy_command+''' "$@"
   owner_bytes=(user_data/'owner').read_bytes();(user_data/'owner').write_bytes(owner_bytes.rstrip(b'\n'));deep('gui-example','broken');(user_data/'owner').write_bytes(owner_bytes);deep('gui-example','installed')
   write(user_data/'user-file','keep user data\n')
   call('second-example','install');assert startup.read_text().count('# MZD shared GUI services')==1
-  call('gui-example','uninstall');assert hook.exists() and startup.read_bytes()!=original and (user_data/'user-file').exists()
+  hook_before=hook.read_bytes();hook.unlink()
+  call('gui-example','uninstall');assert hook.exists() and startup.read_bytes()!=original and not user_data.exists()
+  assert hook.read_bytes()==hook_before and modules.is_dir() and (modules/'second-example').is_dir()
+  data_readonly()
   call('second-example','uninstall');assert hook.exists() and startup.read_bytes()==original and not (base/'mzd-gui-services.tsv').read_text()
   call('gui-hello-world','uninstall');absent();assert not (base/'mzd-gui-services.tsv').exists()
+  assert not modules.exists();data_readonly()
   # Old immutable providers and saved uninstallers must be removed explicitly.
   call('gui-hello-world','install')
   for q in [provider/'package/lib/gui-runtime/api.conf',runtime/'api.conf',persist/'mzd-tweaks/installed/gui-hello-world/package/lib/gui-runtime/api.conf']:
@@ -200,7 +225,7 @@ exec '''+copy_command+''' "$@"
   assert 'predates resident services' in diagnostics,diagnostics
   assert startup.read_bytes()==original and not (modules/'gui-example').exists() and not (persist/'mzd-tweaks/installed/gui-example').exists()
   call('gui-hello-world','uninstall');absent()
-  print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, retained user data and old-provider refusal.')
+  print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, owned data removal and old-provider refusal.')
   raise SystemExit(0)
  if traffic_profile:
   startup=b/'startup';original=startup.read_bytes()

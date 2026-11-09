@@ -41,7 +41,7 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 - **Fix accented HUD letters** (`hud_fold_latin`) - replaces special accented letters (such as Vietnamese or Eastern European diacritics) with readable base letters on the head-up display. This prevents characters from appearing as blank spaces caused by the car display's limited font support.
 - **Detailed HUD turns & lanes** (`use_protocol_v1_6`) - enables the newer Android Auto navigation protocol (GAL 1.6) between your phone and the car. This sends rich navigation data to the head-up display, including lane recommendations, detailed junction maneuvers, and distance countdowns.
 - **Show roundabout exit number** (`roundabout_prepend_exit_number`) - displays which roundabout exit to take directly in front of the street name on the head-up display (for example, "(2) Main St") when exit angles are not provided by the navigation app (Waze). Compatible with windshield color HUD only.
-- **Show HUD turns within** (`hud_maneuver_max_distance_m`: `500`, `1000`, `1500`, `3000`, `5000`, `7500`, `10000`, `20000`, `0 = Unlimited`) - hides navigation arrows, the distance and the street name from the head-up display during long highway stretches when your next turn is far away, reducing clutter. Directions will reappear automatically once you get within the selected distance (or stay always visible with `0 = Unlimited`). Displays the selected value on the right hand side and opens a dedicated single-choice submenu with checkmarks.
+- **Show HUD turns within** (`hud_maneuver_max_distance_m`: `500`, `1000`, `1500`, `2000`, `3000`, `5000`, `7500`, `10000`, `20000`, `0` = **Always**, the default) - hides navigation arrows, the distance and the street name from the head-up display during long highway stretches when your next turn is far away, reducing clutter. Directions will reappear automatically once you get within the selected distance (or stay always visible with **Always**). Displays the selected value on the right hand side and opens a dedicated single-choice submenu with checkmarks. Selecting a value saves it and returns to the settings list.
 - **Cluster compass always on** (`compass_always_on`) - keeps the digital compass in your instrument cluster working at all times. This fixes the issue where applying a touchscreen-while-driving tweak permanently disables the cluster compass.
 - **Allow unknown wireless adapters** (`bt_pairing_bypass_all_devices`) - allows aftermarket wireless Android Auto adapters (dongles) to connect even if their brand or model is not in the built-in recognized devices list. Enable this if your wireless adapter gets stuck while connecting.
 - **Show wireless adapter name** (`bt_pairing_show_device_notification`) - displays a temporary pop-up notification at the top of the screen showing the USB device name reported by your connected adapter. Useful for identifying an unrecognized wireless dongle.
@@ -51,6 +51,23 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 - **Fix cut-off navigation voice** (`aa_audio_low_latency`) - fixes the issue where spoken navigation directions (such as from Google Maps or Waze) get clipped or cut off at the beginning or end of words. It keeps the car audio channel ready so voice guidance plays smoothly without delays.
 
 Settings are read from and atomically written to `/tmp/mnt/data_persist/oem-aa-mod/libpatch.conf` via the secure local GUI service.
+The Android Auto libraries read this file when MZD boots, so changes apply after a reboot.
+
+- Each change shows a short **Saving settings...** notification, then **Settings saved**.
+  A failed save shows an error notification and the list reloads the saved values.
+- Each time the list opens, it reads the current values from `libpatch.conf`.
+  Nothing is read when MZD boots.
+- The last row, **Reboot to apply changes**, is enabled only after a setting was
+  changed in this list and while no save is in progress. Switching the setting back
+  to its previous value disables it again. Changes made outside the list, for
+  example over SSH or by reinstalling, need their own reboot. It asks for confirmation
+  (**No** is preselected). **Yes** reboots MZD through the local GUI service.
+  If the reboot request fails, a notification asks you to hold **NAV + MUTE** to
+  reboot MZD manually.
+- Leaving the settings list with changes still to apply shows a **Reboot to apply
+  changes** notification. A save that is still running finishes in the background,
+  and its notification appears when it completes. After a failed save only the
+  error is shown.
 
 ## User settings and configuration overrides
 

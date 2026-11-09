@@ -7,12 +7,12 @@ export PATH
 line_is() { awk -v expected="$1" '$0 == expected {found=1} END {exit !found}' "$2"; }
 SELF_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd -P)
 SELF="$SELF_DIR/service.sh"
-RAM=/tmp/mzd-aio-ssh
+RAM=/tmp/mzd-ssh
 ACCOUNT=/config-mfg/passwd
 PASSWD_LINK=/etc/passwd
 MOUNTS=/proc/mounts
 PROC=/proc
-CHAIN=MZD_AIO_SSH
+CHAIN=MZD_SSH
 TEMPLATE="$SELF_DIR/sshd_config"
 CONFIG="$RAM/sshd_config"
 AUTH_SETTINGS="$SELF_DIR/settings.conf"
@@ -251,7 +251,7 @@ LOG=/dev/null
 time_line
 for U in "${2:-}" /tmp/mnt/sda1 /tmp/mnt/sdb1 /tmp/mnt/sdc1 /tmp/mnt/sdd1; do
     [ -n "$U" ] || continue
-    if [ -f "$U/mzd-ssh-log-marker.txt" ] && line_is 'MZD-AIO-SSH-v1' "$U/mzd-ssh-log-marker.txt"; then
+    if [ -f "$U/mzd-ssh-log-marker.txt" ] && line_is 'MZD-SSH-v1' "$U/mzd-ssh-log-marker.txt"; then
         if mkdir -p "$U/reports/ssh" &&
             D=$(mktemp -d "$U/reports/ssh/runtime-$TIME_NAME-XXXXXX") &&
             printf '%s\n' "$TIME_START" > "$D/run.log"; then LOG="$D/run.log"; break; fi

@@ -169,7 +169,7 @@ warnings_cleanup() (
 )
 
 warnings_apply() {
-    # Create only verified OEM backups. Retain these after uninstall as with JS patches.
+    # Create verified OEM backups. Managed uninstall removes owned backups after final verification.
     for folder in "$MZD_REPORT/files/"*; do
         target=$(cat "$folder/target.path") || return 1
         hash=$(cat "$folder/oem.md5") || return 1

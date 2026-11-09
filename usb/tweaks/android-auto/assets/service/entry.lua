@@ -154,11 +154,38 @@ return function(context)
         end
     end
 
+    -- The Android Auto libraries read libpatch.conf only when MZD boots, so
+    -- changes saved here need a reboot. The service reads nothing at startup
+    -- and tracks only changes made through it: before a key is first written,
+    -- its current value becomes that key's baseline. A reboot is required while
+    -- any written key differs from its baseline. Whoever edits the file in
+    -- another way (for example over SSH) is responsible for that reboot. A
+    -- service restart forgets the baselines.
+    local applied = {}
+
+    local function remember(updates)
+        local current
+        for k in pairs(updates) do
+            if applied[k] == nil then
+                current = current or read_settings()
+                applied[k] = current[k]
+            end
+        end
+    end
+
+    local function result(settings)
+        local reboot_required = false
+        for k, v in pairs(applied) do
+            if settings[k] ~= v then reboot_required = true end
+        end
+        return { success = true, settings = settings, rebootRequired = reboot_required }
+    end
+
     return {
         request = function(operation, args)
             args = args or {}
             if operation == 'get' then
-                return { success = true, settings = read_settings() }
+                return result(read_settings())
             elseif operation == 'set' then
                 local key = args.key
                 local value = args.value
@@ -170,8 +197,21 @@ return function(context)
                 else
                     assert(type(value) == 'boolean', 'Boolean value expected')
                 end
+                remember({ [key] = value })
                 write_settings({ [key] = value })
-                return { success = true, settings = read_settings() }
+                return result(read_settings())
+            elseif operation == 'reboot' then
+                -- Only the GUI asks for this, after the driver confirms it and
+                -- every queued save has finished. On success MZD restarts, so
+                -- usually no response arrives.
+                assert(next(applied) ~= nil and result(read_settings()).rebootRequired, 'No saved changes to apply')
+                local dir = path:match('^(.*)/')
+                if dir and fs.exists(dir) then
+                    fs.sync_directory(dir)
+                end
+                local status = os.execute('reboot')
+                assert(status == 0 or status == true, 'Failed to reboot MZD (status ' .. tostring(status) .. ')')
+                return { success = true }
             elseif operation == 'save' then
                 local settings = args.settings
                 assert(type(settings) == 'table', 'Settings table expected')
@@ -187,8 +227,9 @@ return function(context)
                         end
                     end
                 end
+                remember(valid_updates)
                 write_settings(valid_updates)
-                return { success = true, settings = read_settings() }
+                return result(read_settings())
             else
                 error('Unknown operation: ' .. tostring(operation))
             end

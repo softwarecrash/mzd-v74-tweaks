@@ -5,7 +5,7 @@ SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
 ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 SERVICE=/tmp/mnt/resources/mzd-tweaks/ssh
-RAM=/tmp/mzd-aio-ssh
+RAM=/tmp/mzd-ssh
 TARGET=/jci/scripts/stage_wifi.sh
 fail() { printf 'SSH reset: %s\n' "$*" >&2; exit 1; }
 critical() { printf 'SSH reset: %s Do NOT reboot.\n' "$*" >&2; exit 2; }

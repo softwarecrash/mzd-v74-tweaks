@@ -84,7 +84,7 @@ mzd_package_check_full() (
     mzd_package_tree_ok "$entry" || { mzd_package_error 'Saved package contains unsupported files.'; exit 1; }
     for path in "$entry"/* "$entry"/.[!.]* "$entry"/..?*; do
         [ -e "$path" ] || continue
-        case "${path##*/}" in package|package.files|paths.tsv|state.conf|state.next|failure.log|failure.next) ;;
+        case "${path##*/}" in package|package.files|paths.tsv|state.conf|state.next|failure.log|failure.next|uninstall-temp|uninstall-temp.next) ;;
             *) mzd_package_error 'Unexpected files in saved installation; nothing deleted.'; exit 1 ;;
         esac
     done
@@ -102,6 +102,9 @@ mzd_package_check_full() (
     mzd_package_paths_loaded "$entry/package/tweaks/$ID" > "$temp" && cmp -s "$temp" "$entry/paths.tsv" || {
         mzd_package_error 'Saved ownership record differs from its package.'; exit 1;
     }
+    if [ -d "$entry/package/originals" ]; then
+        . "$entry/package/lib/originals.sh" && mzd_originals_validate "$entry" || exit 1
+    fi
 )
 mzd_package_presence() (
     entry=$1
@@ -234,6 +237,7 @@ mzd_package_worker_raw() (
     # A remembered package layout keeps worker-relative library paths unchanged.
     worker="$1/package/tweaks/${1##*/}/run.sh"
     MZD_WORKER_DIRECT=1; export MZD_WORKER_DIRECT MZD_ORIGIN_USB
+    MZD_ORIGINALS_CLEANUP=1; export MZD_ORIGINALS_CLEANUP
     MZD_PACKAGE_STATE=$(mzd_package_state "$1") || exit 1
     export MZD_PACKAGE_STATE
     unset MZD_SETTINGS_FILE
@@ -301,9 +305,22 @@ mzd_package_remove() {
             [ ! -d "$config_payload" ] || rmdir "$config_payload" 2>/dev/null || :
         fi
     fi
+    if [ -f "$1/package/lib/originals.sh" ]; then
+        . "$1/package/lib/originals.sh" || { mzd_package_set_state "$1" failed;return 1; }
+        mzd_originals_finish "$1"; code=$?
+        if [ "$code" != 0 ]; then mzd_package_set_state "$1" failed || :; return "$code"; fi
+    fi
     # Restrict recursive deletion to a validated direct child of the store.
     [ "$1" = "$MZD_PACKAGE_STORE/${1##*/}" ] || return 2
     if ! rm -rf "$1"; then mzd_package_error 'Uninstall succeeded but package cleanup failed.'; return 2; fi
+    if [ "$MZD_PACKAGE_STORE" = "$MZD_PACKAGE_MOUNT/mzd-tweaks/installed" ]; then
+        rmdir "$MZD_PACKAGE_STORE" 2>/dev/null || :
+        for container in config-owners data gui-data shims ''; do
+            directory="$MZD_PACKAGE_MOUNT/mzd-tweaks${container:+/$container}"
+            [ -d "$directory" ] && [ ! -L "$directory" ] || continue
+            rmdir "$directory" 2>/dev/null || :
+        done
+    fi
     sync
 }
 mzd_package_user_check() (
@@ -380,6 +397,7 @@ mzd_package_stage() (
             exit 1
         fi
     fi
+    . "$stage/package/lib/originals.sh" && mzd_originals_capture "$stage" || exit 1
     mzd_package_inventory "$stage" > "$stage/package.files" || exit 1
     mzd_package_set_state "$stage" prepared
 )
@@ -420,7 +438,7 @@ mzd_package_update_backup() (
     df -Pk "$MZD_PACKAGE_MOUNT" | awk -v needed="$needed" 'NR==2 {reserve=$2/10;if(reserve<65536)reserve=65536;ok=($4-needed>=reserve)} END {exit !ok}' || {
         mzd_package_error 'Not enough space for the previous-version recovery snapshot.';exit 1;
     }
-    mkdir "$archive" && cp -R "$entry" "$archive/${entry##*/}" || exit 1
+    mkdir "$archive" && cp -a "$entry" "$archive/${entry##*/}" || exit 1
     diff -r "$entry" "$archive/${entry##*/}" >/dev/null && mzd_package_check "$archive/${entry##*/}" || exit 1
     sync
 )
@@ -460,7 +478,7 @@ mzd_package_action() (
     fi
     trap '[ -z "$settings_tmp" ] || rm -f "$settings_tmp"' 0
     mzd_package_storage || exit 1
-    mkdir -p "$MZD_PACKAGE_STORE" || exit 1
+    if [ "$action" = install ]; then mkdir -p "$MZD_PACKAGE_STORE" || exit 1; fi
     mkdir "$MZD_PACKAGE_LOCK" 2>/dev/null || { mzd_package_error 'Another package operation or Restore is active.'; exit 1; }
     stage=''
     trap 'code=$?; if [ "$code" != 0 ] && [ -n "$update_archive" ] && [ -d "$update_archive" ]; then printf "Previous version recovery snapshot retained: %s\n" "$update_archive" >&2; fi; [ -z "$settings_tmp" ] || rm -f "$settings_tmp"; [ -z "$stage" ] || rm -rf "$stage"; [ -z "$MZD_PACKAGE_CACHE" ] || rm -rf "$MZD_PACKAGE_CACHE"; rmdir "$MZD_PACKAGE_LOCK" 2>/dev/null || :; exit "$code"' 0

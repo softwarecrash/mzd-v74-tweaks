@@ -76,7 +76,13 @@ location in the following order:
 - Stages the target tweak manifest, assets, and translations into
   `<mzd-emu>/data/integration/mzd-gui-modules/<id>/`.
 - Generates `<mzd-emu>/data/integration/mzd-gui-registry.js` using `usb/lib/gui-registry.awk`.
-- Starts the emulator with `npm start`.
+- Generates the GUI hook `<mzd-emu>/data/integration/developer_mode_GuiConfig.js`
+  from `tools/preview-gui-services.js` and the real `usb/lib/gui-runtime/boot.js`.
+  The Lua module services do not run in the emulator, so that file emulates them
+  in the browser. Keep it in sync with each `assets/service/entry.lua`. Android Auto
+  settings persist in the browser's local storage, and an emulated reboot reloads
+  the page. A previous hand-written hook is kept once as `developer_mode_GuiConfig.js.orig`.
+- Starts the emulator with `npm start`. If it is already running, reload the page.
 
 This provides faithful visual and interaction validation (e.g. testing `List2Ctrl`
 scrolling, focus, multicontroller inputs, and status bar toast notifications) before

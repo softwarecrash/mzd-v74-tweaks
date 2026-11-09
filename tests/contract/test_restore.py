@@ -52,7 +52,7 @@ for scenario in ['success','invalid-path','hook-stop-failure','bad-oem','unknown
     for name in ['service.sh','sshd_config','password.hash']:shutil.copyfile(assets/name,service/name)
     write(service/'enabled','enabled\n');write(runtime/'owned','fixture\n')
     shutil.copyfile(assets/'usb-log-marker.txt',usb/'mzd-ssh-log-marker.txt')
-    write(hook,hook.read_text().replace('SERVICE=/tmp/mnt/resources/mzd-tweaks/ssh','SERVICE='+shlex.quote(bp(service))).replace('RAM=/tmp/mzd-aio-ssh','RAM='+shlex.quote(bp(runtime))).replace('TARGET=/jci/scripts/stage_wifi.sh','TARGET='+shlex.quote(bp(second))).replace('mzd_system_remount_rw /tmp/mnt/resources','mzd_system_remount_rw '+shlex.quote(bp(resources))))
+    write(hook,hook.read_text().replace('SERVICE=/tmp/mnt/resources/mzd-tweaks/ssh','SERVICE='+shlex.quote(bp(service))).replace('RAM=/tmp/mzd-ssh','RAM='+shlex.quote(bp(runtime))).replace('TARGET=/jci/scripts/stage_wifi.sh','TARGET='+shlex.quote(bp(second))).replace('mzd_system_remount_rw /tmp/mnt/resources','mzd_system_remount_rw '+shlex.quote(bp(resources))))
     manifest=usb/'tweaks/restore-originals/manifest.conf';write(manifest,manifest.read_text().replace('target=/jci','target='+bp(internal)))
     for lib in (usb/'lib').glob('*.sh'):
       text=lib.read_text().replace('/jci/version.ini',bp(version)).replace('/proc/mounts',bp(mounts)).replace('/sys/class/gpio/Watchdog\\ Disable/value',shlex.quote(bp(gpio)))
@@ -103,9 +103,9 @@ esac
       # covered separately; here its reset hook and the real Restore execute.
       write(usb/'tweaks/ssh/run.sh','#!/bin/sh\n[ "$1" = status ] || exit 1\nif grep -qF "# MZD v74 SSH" '+shlex.quote(bp(second))+'; then echo installed; else echo uninstalled; fi\n')
       write(usb/'tweaks/ssh/assets/must-not-restore.org','package asset, not a system backup\n')
-      entry=store/'ssh';store.mkdir()
+      entry=store/'ssh';stage=store/'.stage-ssh';store.mkdir()
       driver=base/'register.sh'
-      write(driver,'#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\n. '+shlex.quote(bp(package_lib))+'\nmzd_package_stage '+shlex.quote(bp(usb))+' '+shlex.quote(bp(entry))+' ssh || exit 1\nmzd_package_inventory '+shlex.quote(bp(entry))+' > '+shlex.quote(bp(entry/'package.files'))+' || exit 1\nmzd_package_set_state '+shlex.quote(bp(entry))+' installed\n')
+      write(driver,'#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\n. '+shlex.quote(bp(package_lib))+'\nmzd_package_stage '+shlex.quote(bp(usb))+' '+shlex.quote(bp(stage))+' ssh || exit 1\nmv '+shlex.quote(bp(stage))+' '+shlex.quote(bp(entry))+' || exit 1\nmzd_package_inventory '+shlex.quote(bp(entry))+' > '+shlex.quote(bp(entry/'package.files'))+' || exit 1\nmzd_package_set_state '+shlex.quote(bp(entry))+' installed\n')
       setup=subprocess.run([SHELL,bp(driver)],capture_output=True,text=True,timeout=25)
       assert setup.returncode==0,(setup.stdout,setup.stderr)
       # The new USB reset payload deliberately no longer matches the installation.

@@ -2907,6 +2907,8 @@ test("MUTABLE_CONFIG_UI", async (t) => {
     assert.equal(x.nodes["dialog-title"].textContent, "Keep configuration?");
     assert(!x.calls.some((a) => a[0] === "action" && a[2] === "uninstall"));
     x.click("action");
+    assert.equal(x.nodes["dialog-title"].textContent, "No List Beep");
+    assert.equal(x.nodes["dialog-state"].textContent, "Uninstalling");
     x.pump();
     assert(
       x.calls.some(
@@ -2921,6 +2923,8 @@ test("MUTABLE_CONFIG_UI", async (t) => {
   await t.test("Back runs a plain uninstall", () => {
     x = installedWithConfig();
     x.click("back");
+    assert.equal(x.nodes["dialog-title"].textContent, "No List Beep");
+    assert.equal(x.nodes["dialog-state"].textContent, "Uninstalling");
     x.pump();
     assert(
       x.calls.some(

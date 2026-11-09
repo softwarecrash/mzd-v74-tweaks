@@ -39,7 +39,7 @@ for scenario in ['current','saved-old-status','saved-old-status-warning','mixed-
     for path,content in originals.items():write(path,content)
     write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(watchdog,'1\n')
     write(mounts,f'/dev/sdb1 {usb} vfat rw 0 0\n/dev/mmcblk0p1 {internal} ext3 rw 0 0\n/dev/mmcblk0p2 {resources} ext3 rw 0 0\n/dev/mmcblk0p3 {persist} ext3 rw 0 0\n')
-    replacements={'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+str(internal),'/jci/version.ini':str(version),'/jci/scripts/stage_wifi.sh':str(startup),'/tmp/mnt/resources':str(resources),'/tmp/mnt/data_persist':str(persist),'/tmp/mnt/data':str(internal/'data'),'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+str(internal),'/tmp/mzd-aio-ssh':str(running),'/proc/mounts':str(mounts),'/sys/class/gpio/Watchdog\\ Disable/value':str(watchdog),'/tmp/mzd-restore-originals.lock':str(locks/'restore'),'/tmp/mzd-packages.lock':str(locks/'packages')}
+    replacements={'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+str(internal),'/jci/version.ini':str(version),'/jci/scripts/stage_wifi.sh':str(startup),'/tmp/mnt/resources':str(resources),'/tmp/mnt/data_persist':str(persist),'/tmp/mnt/data':str(internal/'data'),'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+str(internal),'/tmp/mzd-ssh':str(running),'/proc/mounts':str(mounts),'/sys/class/gpio/Watchdog\\ Disable/value':str(watchdog),'/tmp/mzd-restore-originals.lock':str(locks/'restore'),'/tmp/mzd-packages.lock':str(locks/'packages')}
     for path in usb.rglob('*.sh'):
         source=path.read_text()
         for old,new in replacements.items():source=source.replace(old,new)

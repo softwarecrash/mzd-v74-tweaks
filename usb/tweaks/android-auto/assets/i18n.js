@@ -3,6 +3,9 @@ window.MzdGuiI18n.register('android-auto', {
     'languages': {
         'en_US': {
             'gui.label': 'Android Auto Settings',
+            'reboot': 'Reboot to apply changes',
+            'rebootQuestion': 'Do you want to reboot MZD to apply Android Auto settings?',
+            'rebootFallback': 'Hold NAV + MUTE to reboot',
             'title': 'Android Auto Settings',
             'touch': 'Touchscreen while driving',
             'hud': 'Show navigation on HUD',
@@ -25,12 +28,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Service unavailable. Please retry.',
             'menuError': 'The Mazda menu could not be opened. Please reopen the app.',
             'openApps': 'Open through Applications.',
-            'savingSettings': 'Saving Android Auto settings...',
-            'savedSettings': 'Android Auto settings saved.',
-            'saveError': 'Failed to save Android Auto settings'
+            'saveError': 'Failed to save settings'
         },
         'de_DE': {
             'gui.label': 'Android Auto-Einstellungen',
+            'reboot': 'Neustart zum Anwenden',
+            'rebootQuestion': 'MZD neu starten, um Android Auto-Einstellungen anzuwenden?',
+            'rebootFallback': 'Neustart: NAV + MUTE gedrückt halten',
             'title': 'Android Auto-Einstellungen',
             'touch': 'Touchscreen während der Fahrt',
             'hud': 'Navigation auf HUD anzeigen',
@@ -53,12 +57,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Dienst nicht verfügbar. Erneut versuchen.',
             'menuError': 'Das Mazda-Menü konnte nicht geöffnet werden. Bitte App erneut öffnen.',
             'openApps': 'Über Anwendungen öffnen.',
-            'savingSettings': 'Android Auto-Einstellungen werden gespeichert...',
-            'savedSettings': 'Android Auto-Einstellungen gespeichert.',
-            'saveError': 'Fehler beim Speichern der Android Auto-Einstellungen'
+            'saveError': 'Fehler beim Speichern der Einstellungen'
         },
         'es_ES': {
             'gui.label': 'Ajustes de Android Auto',
+            'reboot': 'Reiniciar para aplicar',
+            'rebootQuestion': '¿Reiniciar MZD para aplicar los ajustes de Android Auto?',
+            'rebootFallback': 'Mantén NAV + MUTE para reiniciar',
             'title': 'Ajustes de Android Auto',
             'touch': 'Pantalla táctil en marcha',
             'hud': 'Mostrar navegación en HUD',
@@ -81,12 +86,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Servicio no disponible. Inténtalo de nuevo.',
             'menuError': 'No se pudo abrir el menú de Mazda. Abre de nuevo la aplicación.',
             'openApps': 'Abrir desde Aplicaciones.',
-            'savingSettings': 'Guardando ajustes de Android Auto...',
-            'savedSettings': 'Ajustes de Android Auto guardados.',
-            'saveError': 'Error al guardar los ajustes de Android Auto'
+            'saveError': 'Error al guardar los ajustes'
         },
         'fr_FR': {
             'gui.label': 'Réglages Android Auto',
+            'reboot': 'Redémarrer pour appliquer',
+            'rebootQuestion': 'Redémarrer MZD pour appliquer les réglages Android Auto ?',
+            'rebootFallback': 'Maintenez NAV + MUTE pour redémarrer',
             'title': 'Réglages Android Auto',
             'touch': 'Écran tactile en roulant',
             'hud': 'Afficher navigation sur HUD',
@@ -109,12 +115,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Service indisponible. Réessayez.',
             'menuError': 'Impossible d’ouvrir le menu Mazda. Rouvrez l’application.',
             'openApps': 'Ouvrir depuis Applications.',
-            'savingSettings': 'Enregistrement des réglages Android Auto...',
-            'savedSettings': 'Réglages Android Auto enregistrés.',
-            'saveError': 'Échec de l’enregistrement des réglages Android Auto'
+            'saveError': 'Échec de l’enregistrement des réglages'
         },
         'it_IT': {
             'gui.label': 'Impostazioni Android Auto',
+            'reboot': 'Riavvia per applicare',
+            'rebootQuestion': 'Riavviare MZD per applicare le impostazioni di Android Auto?',
+            'rebootFallback': 'Tieni NAV + MUTE per riavviare',
             'title': 'Impostazioni Android Auto',
             'touch': 'Touchscreen durante la guida',
             'hud': 'Mostra navigazione su HUD',
@@ -137,12 +144,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Servizio non disponibile. Riprova.',
             'menuError': 'Impossibile aprire il menu Mazda. Riapri l’app.',
             'openApps': 'Apri da Applicazioni.',
-            'savingSettings': 'Salvataggio impostazioni Android Auto...',
-            'savedSettings': 'Impostazioni Android Auto salvate.',
-            'saveError': 'Impossibile salvare le impostazioni di Android Auto'
+            'saveError': 'Impossibile salvare le impostazioni'
         },
         'nl_NL': {
             'gui.label': 'Android Auto-instellingen',
+            'reboot': 'Herstarten om toe te passen',
+            'rebootQuestion': 'MZD herstarten om Android Auto-instellingen toe te passen?',
+            'rebootFallback': 'Houd NAV + MUTE vast om te herstarten',
             'title': 'Android Auto-instellingen',
             'touch': 'Touchscreen tijdens het rijden',
             'hud': 'Navigatie op HUD weergeven',
@@ -165,12 +173,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Dienst niet beschikbaar. Probeer opnieuw.',
             'menuError': 'Het Mazda-menu kon niet worden geopend. Open de app opnieuw.',
             'openApps': 'Open via Toepassingen.',
-            'savingSettings': 'Android Auto-instellingen opslaan...',
-            'savedSettings': 'Android Auto-instellingen opgeslagen.',
-            'saveError': 'Opslaan van Android Auto-instellingen mislukt'
+            'saveError': 'Opslaan van instellingen mislukt'
         },
         'pt_PT': {
             'gui.label': 'Definições do Android Auto',
+            'reboot': 'Reiniciar para aplicar',
+            'rebootQuestion': 'Reiniciar o MZD para aplicar as definições do Android Auto?',
+            'rebootFallback': 'Mantenha NAV + MUTE para reiniciar',
             'title': 'Definições do Android Auto',
             'touch': 'Ecrã tátil em andamento',
             'hud': 'Mostrar navegação no HUD',
@@ -193,12 +202,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Serviço indisponível. Tente novamente.',
             'menuError': 'Não foi possível abrir o menu Mazda. Reabra a aplicação.',
             'openApps': 'Abrir em Aplicações.',
-            'savingSettings': 'A guardar definições do Android Auto...',
-            'savedSettings': 'Definições do Android Auto guardadas.',
-            'saveError': 'Falha ao guardar as definições do Android Auto'
+            'saveError': 'Falha ao guardar as definições'
         },
         'pt_BR': {
             'gui.label': 'Configurações do Android Auto',
+            'reboot': 'Reiniciar para aplicar',
+            'rebootQuestion': 'Reiniciar o MZD para aplicar as configurações do Android Auto?',
+            'rebootFallback': 'Segure NAV + MUTE para reiniciar',
             'title': 'Configurações do Android Auto',
             'touch': 'Touchscreen ao dirigir',
             'hud': 'Mostrar navegação no HUD',
@@ -221,12 +231,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Serviço indisponível. Tente novamente.',
             'menuError': 'Não foi possível abrir o menu Mazda. Reabra o aplicativo.',
             'openApps': 'Abra em Aplicativos.',
-            'savingSettings': 'Salvando configurações do Android Auto...',
-            'savedSettings': 'Configurações do Android Auto salvas.',
-            'saveError': 'Falha ao salvar as configurações do Android Auto'
+            'saveError': 'Falha ao salvar as configurações'
         },
         'ru_RU': {
             'gui.label': 'Настройки Android Auto',
+            'reboot': 'Перезагрузить для применения',
+            'rebootQuestion': 'Перезагрузить MZD, чтобы применить настройки Android Auto?',
+            'rebootFallback': 'Удерживайте NAV + MUTE для перезапуска',
             'title': 'Настройки Android Auto',
             'touch': 'Сенсорный экран во время движения',
             'hud': 'Навигация на HUD',
@@ -249,12 +260,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Сервис недоступен. Повторите попытку.',
             'menuError': 'Не удалось открыть меню Mazda. Откройте приложение заново.',
             'openApps': 'Откройте через Приложения.',
-            'savingSettings': 'Сохранение настроек Android Auto...',
-            'savedSettings': 'Настройки Android Auto сохранены.',
-            'saveError': 'Не удалось сохранить настройки Android Auto'
+            'saveError': 'Не удалось сохранить настройки'
         },
         'fi_FI': {
             'gui.label': 'Android Auto -asetukset',
+            'reboot': 'Käynnistä uudelleen',
+            'rebootQuestion': 'Käynnistetäänkö MZD Android Auto -asetusten käyttöön ottamiseksi?',
+            'rebootFallback': 'Käynnistä pitämällä NAV + MUTE',
             'title': 'Android Auto -asetukset',
             'touch': 'Kosketusnäyttö ajon aikana',
             'hud': 'Näytä navigointi HUD-näytöllä',
@@ -277,12 +289,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Palvelu ei ole käytettävissä. Yritä uudelleen.',
             'menuError': 'Mazda-valikkoa ei voitu avata. Avaa sovellus uudelleen.',
             'openApps': 'Avaa Sovellukset-valikosta.',
-            'savingSettings': 'Tallennetaan Android Auto -asetuksia...',
-            'savedSettings': 'Android Auto -asetukset tallennettu.',
-            'saveError': 'Android Auto -asetusten tallennus epäonnistui'
+            'saveError': 'Asetusten tallennus epäonnistui'
         },
         'sv_SE': {
             'gui.label': 'Android Auto-inställningar',
+            'reboot': 'Starta om för att tillämpa',
+            'rebootQuestion': 'Ska MZD startas om för att tillämpa Android Auto-inställningarna?',
+            'rebootFallback': 'Håll NAV + MUTE för omstart',
             'title': 'Android Auto-inställningar',
             'touch': 'Pekskärm under körning',
             'hud': 'Visa navigation på HUD',
@@ -305,12 +318,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Tjänsten är inte tillgänglig. Försök igen.',
             'menuError': 'Mazda-menyn kunde inte öppnas. Öppna appen igen.',
             'openApps': 'Öppna via Program.',
-            'savingSettings': 'Sparar Android Auto-inställningar...',
-            'savedSettings': 'Android Auto-inställningar sparades.',
-            'saveError': 'Kunde inte spara Android Auto-inställningar'
+            'saveError': 'Kunde inte spara inställningar'
         },
         'da_DK': {
             'gui.label': 'Android Auto-indstillinger',
+            'reboot': 'Genstart for at anvende',
+            'rebootQuestion': 'Vil du genstarte MZD for at anvende Android Auto-indstillingerne?',
+            'rebootFallback': 'Hold NAV + MUTE for at genstarte',
             'title': 'Android Auto-indstillinger',
             'touch': 'Berøringsskærm under kørsel',
             'hud': 'Vis navigation på HUD',
@@ -333,12 +347,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Tjenesten er ikke tilgængelig. Prøv igen.',
             'menuError': 'Mazda-menuen kunne ikke åbnes. Åbn appen igen.',
             'openApps': 'Åbn via Programmer.',
-            'savingSettings': 'Gemmer Android Auto-indstillinger...',
-            'savedSettings': 'Android Auto-indstillinger gemt.',
-            'saveError': 'Kunne ikke gemme Android Auto-indstillinger'
+            'saveError': 'Kunne ikke gemme indstillinger'
         },
         'no_NO': {
             'gui.label': 'Android Auto-innstillinger',
+            'reboot': 'Start på nytt for å bruke',
+            'rebootQuestion': 'Vil du starte MZD på nytt for å bruke Android Auto-innstillingene?',
+            'rebootFallback': 'Hold NAV + MUTE for omstart',
             'title': 'Android Auto-innstillinger',
             'touch': 'Berøringsskjerm under kjøring',
             'hud': 'Vis navigasjon på HUD',
@@ -361,12 +376,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Tjenesten er utilgjengelig. Prøv igjen.',
             'menuError': 'Mazda-menyen kunne ikke åpnes. Åpne appen igjen.',
             'openApps': 'Åpne via Programmer.',
-            'savingSettings': 'Lagrer Android Auto-innstillinger...',
-            'savedSettings': 'Android Auto-innstillinger lagret.',
-            'saveError': 'Kunne ikke lagre Android Auto-innstillinger'
+            'saveError': 'Kunne ikke lagre innstillinger'
         },
         'cs_CS': {
             'gui.label': 'Nastavení Android Auto',
+            'reboot': 'Restartovat pro použití',
+            'rebootQuestion': 'Restartovat MZD a použít nastavení Android Auto?',
+            'rebootFallback': 'Podržte NAV + MUTE pro restart',
             'title': 'Nastavení Android Auto',
             'touch': 'Dotyková obrazovka během jízdy',
             'hud': 'Zobrazit navigaci na HUD',
@@ -389,12 +405,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Služba není dostupná. Zkuste to znovu.',
             'menuError': 'Menu Mazda nebylo možné otevřít. Otevřete aplikaci znovu.',
             'openApps': 'Otevřete přes Aplikace.',
-            'savingSettings': 'Ukládání nastavení Android Auto...',
-            'savedSettings': 'Nastavení Android Auto uložena.',
-            'saveError': 'Uložení nastavení Android Auto se nezdařilo'
+            'saveError': 'Uložení nastavení se nezdařilo'
         },
         'hu_HU': {
             'gui.label': 'Android Auto beállítások',
+            'reboot': 'Újraindítás az alkalmazáshoz',
+            'rebootQuestion': 'Újraindítja az MZD-t az Android Auto beállításainak alkalmazásához?',
+            'rebootFallback': 'Újraindítás: tartsa nyomva NAV + MUTE',
             'title': 'Android Auto beállítások',
             'touch': 'Érintőképernyő vezetés közben',
             'hud': 'Navigáció megjelenítése a HUD-on',
@@ -417,12 +434,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'A szolgáltatás nem érhető el. Próbáld újra.',
             'menuError': 'A Mazda menü nem nyitható meg. Nyisd meg újra az alkalmazást.',
             'openApps': 'Nyisd meg az Alkalmazásokból.',
-            'savingSettings': 'Android Auto beállítások mentése...',
-            'savedSettings': 'Android Auto beállítások mentve.',
-            'saveError': 'Android Auto beállítások mentése sikertelen'
+            'saveError': 'Beállítások mentése sikertelen'
         },
         'pl_PL': {
             'gui.label': 'Ustawienia Android Auto',
+            'reboot': 'Uruchom ponownie, by zastosować',
+            'rebootQuestion': 'Uruchomić ponownie MZD, aby zastosować ustawienia Android Auto?',
+            'rebootFallback': 'Przytrzymaj NAV + MUTE, aby zrestartować',
             'title': 'Ustawienia Android Auto',
             'touch': 'Ekran dotykowy podczas jazdy',
             'hud': 'Pokaż nawigację na HUD',
@@ -445,12 +463,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Usługa niedostępna. Spróbuj ponownie.',
             'menuError': 'Nie udało się otworzyć menu Mazda. Otwórz aplikację ponownie.',
             'openApps': 'Otwórz przez Aplikacje.',
-            'savingSettings': 'Zapisywanie ustawień Android Auto...',
-            'savedSettings': 'Ustawienia Android Auto zostały zapisane.',
-            'saveError': 'Nie udało się zapisać ustawień Android Auto'
+            'saveError': 'Nie udało się zapisać ustawień'
         },
         'sk_SK': {
             'gui.label': 'Nastavenia Android Auto',
+            'reboot': 'Reštartovať pre použitie',
+            'rebootQuestion': 'Reštartovať MZD a použiť nastavenia Android Auto?',
+            'rebootFallback': 'Podržte NAV + MUTE na reštart',
             'title': 'Nastavenia Android Auto',
             'touch': 'Dotyková obrazovka počas jazdy',
             'hud': 'Zobraziť navigáciu na HUD',
@@ -473,12 +492,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Služba nie je dostupná. Skúste znova.',
             'menuError': 'Menu Mazda sa nepodarilo otvoriť. Otvorte aplikáciu znova.',
             'openApps': 'Otvorte cez Aplikácie.',
-            'savingSettings': 'Ukladanie nastavení Android Auto...',
-            'savedSettings': 'Nastavenia Android Auto uložené.',
-            'saveError': 'Uloženie nastavení Android Auto zlyhalo'
+            'saveError': 'Uloženie nastavení zlyhalo'
         },
         'tr_TR': {
             'gui.label': 'Android Auto Ayarları',
+            'reboot': 'Uygulamak için yeniden başlat',
+            'rebootQuestion': 'Android Auto ayarlarını uygulamak için MZD yeniden başlatılsın mı?',
+            'rebootFallback': 'Yeniden başlatma: NAV + MUTE’yi tutun',
             'title': 'Android Auto Ayarları',
             'touch': 'Sürüş sırasında dokunmatik ekran',
             'hud': 'Navigasyonu HUD\'da göster',
@@ -501,12 +521,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Hizmet kullanılamıyor. Tekrar deneyin.',
             'menuError': 'Mazda menüsü açılamadı. Uygulamayı yeniden açın.',
             'openApps': 'Uygulamalar üzerinden açın.',
-            'savingSettings': 'Android Auto ayarları kaydediliyor...',
-            'savedSettings': 'Android Auto ayarları kaydedildi.',
-            'saveError': 'Android Auto ayarları kaydedilemedi'
+            'saveError': 'Ayarlar kaydedilemedi'
         },
         'et_EE': {
             'gui.label': 'Android Auto seaded',
+            'reboot': 'Taaskäivita rakendamiseks',
+            'rebootQuestion': 'Kas taaskäivitada MZD Android Auto seadete rakendamiseks?',
+            'rebootFallback': 'Taaskäivitamiseks hoia NAV + MUTE all',
             'title': 'Android Auto seaded',
             'touch': 'Puuteekraan sõidu ajal',
             'hud': 'Kuva navigatsioon HUD-il',
@@ -529,12 +550,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Teenus pole saadaval. Proovi uuesti.',
             'menuError': 'Mazda menüüd ei saanud avada. Ava rakendus uuesti.',
             'openApps': 'Ava Rakenduste kaudu.',
-            'savingSettings': 'Android Auto seadete salvestamine...',
-            'savedSettings': 'Android Auto seaded salvestatud.',
-            'saveError': 'Android Auto seadete salvestamine ebaõnnestus'
+            'saveError': 'Seadete salvestamine ebaõnnestus'
         },
         'lv_LV': {
             'gui.label': 'Android Auto iestatījumi',
+            'reboot': 'Restartēt, lai lietotu',
+            'rebootQuestion': 'Vai restartēt MZD, lai lietotu Android Auto iestatījumus?',
+            'rebootFallback': 'Turiet NAV + MUTE, lai pārstartētu',
             'title': 'Android Auto iestatījumi',
             'touch': 'Skārienekrāns braukšanas laikā',
             'hud': 'Rādīt navigāciju uz HUD',
@@ -557,12 +579,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Pakalpojums nav pieejams. Mēģiniet vēlreiz.',
             'menuError': 'Mazda izvēlni nevarēja atvērt. Atveriet lietotni vēlreiz.',
             'openApps': 'Atveriet sadaļā Lietotnes.',
-            'savingSettings': 'Saglabā Android Auto iestatījumus...',
-            'savedSettings': 'Android Auto iestatījumi saglabāti.',
-            'saveError': 'Neizdevās saglabāt Android Auto iestatījumus'
+            'saveError': 'Neizdevās saglabāt iestatījumus'
         },
         'lt_LT': {
             'gui.label': '„Android Auto“ nustatymai',
+            'reboot': 'Paleisti iš naujo ir pritaikyti',
+            'rebootQuestion': 'Ar paleisti MZD iš naujo, kad pritaikytumėte Android Auto nustatymus?',
+            'rebootFallback': 'Perkrauti: laikykite NAV + MUTE',
             'title': '„Android Auto“ nustatymai',
             'touch': 'Jutiklinis ekranas važiuojant',
             'hud': 'Rodyti navigaciją HUD',
@@ -585,12 +608,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Paslauga nepasiekiama. Bandykite dar kartą.',
             'menuError': 'Nepavyko atverti „Mazda“ meniu. Atverkite programą iš naujo.',
             'openApps': 'Atverkite per Programos.',
-            'savingSettings': 'Išsaugomi „Android Auto“ nustatymai...',
-            'savedSettings': '„Android Auto“ nustatymai išsaugoti.',
-            'saveError': 'Nepavyko išsaugoti „Android Auto“ nustatymų'
+            'saveError': 'Nepavyko išsaugoti nustatymų'
         },
         'el_GR': {
             'gui.label': 'Ρυθμίσεις Android Auto',
+            'reboot': 'Επανεκκίνηση για εφαρμογή',
+            'rebootQuestion': 'Επανεκκίνηση του MZD για εφαρμογή των ρυθμίσεων Android Auto;',
+            'rebootFallback': 'Κρατήστε NAV + MUTE για επανεκκίνηση',
             'title': 'Ρυθμίσεις Android Auto',
             'touch': 'Οθόνη αφής κατά την οδήγηση',
             'hud': 'Εμφάνιση πλοήγησης στο HUD',
@@ -613,12 +637,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Η υπηρεσία δεν είναι διαθέσιμη. Δοκιμάστε ξανά.',
             'menuError': 'Δεν ήταν δυνατό το άνοιγμα του μενού Mazda. Ανοίξτε ξανά την εφαρμογή.',
             'openApps': 'Ανοίξτε από τις Εφαρμογές.',
-            'savingSettings': 'Αποθήκευση ρυθμίσεων Android Auto...',
-            'savedSettings': 'Οι ρυθμίσεις Android Auto αποθηκεύτηκαν.',
-            'saveError': 'Αποτυχία αποθήκευσης ρυθμίσεων Android Auto'
+            'saveError': 'Αποτυχία αποθήκευσης ρυθμίσεων'
         },
         'hr_HR': {
             'gui.label': 'Postavke za Android Auto',
+            'reboot': 'Ponovno pokreni za primjenu',
+            'rebootQuestion': 'Ponovno pokrenuti MZD radi primjene postavki Android Auta?',
+            'rebootFallback': 'Držite NAV + MUTE za restart',
             'title': 'Postavke za Android Auto',
             'touch': 'Zaslon osjetljiv na dodir tijekom vožnje',
             'hud': 'Prikaži navigaciju na HUD-u',
@@ -641,12 +666,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Usluga nije dostupna. Pokušajte ponovno.',
             'menuError': 'Mazda izbornik nije se mogao otvoriti. Ponovno otvorite aplikaciju.',
             'openApps': 'Otvorite kroz Aplikacije.',
-            'savingSettings': 'Spremanje postavki za Android Auto...',
-            'savedSettings': 'Postavke za Android Auto su spremljene.',
-            'saveError': 'Spremanje postavki za Android Auto nije uspjelo'
+            'saveError': 'Spremanje postavki nije uspjelo'
         },
         'bg_BG': {
             'gui.label': 'Настройки на Android Auto',
+            'reboot': 'Рестартирайте за прилагане',
+            'rebootQuestion': 'Да рестартирате ли MZD, за да приложите настройките на Android Auto?',
+            'rebootFallback': 'Задръжте NAV + MUTE за рестарт',
             'title': 'Настройки на Android Auto',
             'touch': 'Сензорен екран по време на шофиране',
             'hud': 'Показване на навигация на HUD',
@@ -669,12 +695,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Услугата не е достъпна. Опитайте отново.',
             'menuError': 'Менюто на Mazda не можа да се отвори. Отворете приложението отново.',
             'openApps': 'Отворете през Приложения.',
-            'savingSettings': 'Запазване на настройките на Android Auto...',
-            'savedSettings': 'Настройките на Android Auto са запазени.',
-            'saveError': 'Неуспешно запазване на настройките на Android Auto'
+            'saveError': 'Неуспешно запазване на настройките'
         },
         'ro_RO': {
             'gui.label': 'Setări Android Auto',
+            'reboot': 'Reporniți pentru aplicare',
+            'rebootQuestion': 'Reporniți MZD pentru a aplica setările Android Auto?',
+            'rebootFallback': 'Țineți NAV + MUTE pentru restart',
             'title': 'Setări Android Auto',
             'touch': 'Ecran tactil în timpul conducerii',
             'hud': 'Afișează navigația pe HUD',
@@ -697,12 +724,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Serviciu indisponibil. Încearcă din nou.',
             'menuError': 'Meniul Mazda nu a putut fi deschis. Redeschide aplicația.',
             'openApps': 'Deschide din Aplicații.',
-            'savingSettings': 'Se salvează setările Android Auto...',
-            'savedSettings': 'Setările Android Auto au fost salvate.',
-            'saveError': 'Salvarea setărilor Android Auto a eșuat'
+            'saveError': 'Salvarea setărilor a eșuat'
         },
         'sr_RS': {
             'gui.label': 'Подешавања за Android Auto',
+            'reboot': 'Поново покрените за примену',
+            'rebootQuestion': 'Поново покренути MZD да би се примениле Android Auto поставке?',
+            'rebootFallback': 'Држите NAV + MUTE за рестарт',
             'title': 'Подешавања за Android Auto',
             'touch': 'Екран осетљив на додир током вожње',
             'hud': 'Прикажи навигацију на HUD-у',
@@ -725,12 +753,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Услуга није доступна. Покушајте поново.',
             'menuError': 'Није било могуће отворити Mazda мени. Поново отворите апликацију.',
             'openApps': 'Отворите преко Апликација.',
-            'savingSettings': 'Чување подешавања за Android Auto...',
-            'savedSettings': 'Подешавања за Android Auto су сачувана.',
-            'saveError': 'Чување подешавања за Android Auto није успело'
+            'saveError': 'Чување подешавања није успело'
         },
         'uk_UA': {
             'gui.label': 'Налаштування Android Auto',
+            'reboot': 'Перезапустити для застосування',
+            'rebootQuestion': 'Перезапустити MZD, щоб застосувати налаштування Android Auto?',
+            'rebootFallback': 'Утримуйте NAV + MUTE для перезапуску',
             'title': 'Налаштування Android Auto',
             'touch': 'Сенсорний екран під час руху',
             'hud': 'Показувати навігацію на HUD',
@@ -753,12 +782,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Сервіс недоступний. Спробуйте ще раз.',
             'menuError': 'Не вдалося відкрити меню Mazda. Відкрийте застосунок знову.',
             'openApps': 'Відкрийте через Застосунки.',
-            'savingSettings': 'Збереження налаштувань Android Auto...',
-            'savedSettings': 'Налаштування Android Auto збережено.',
-            'saveError': 'Не вдалося зберегти налаштування Android Auto'
+            'saveError': 'Не вдалося зберегти налаштування'
         },
         'ms_MY': {
             'gui.label': 'Tetapan Android Auto',
+            'reboot': 'Mulakan semula untuk guna',
+            'rebootQuestion': 'Mulakan semula MZD untuk menggunakan tetapan Android Auto?',
+            'rebootFallback': 'Tahan NAV + MUTE untuk but semula',
             'title': 'Tetapan Android Auto',
             'touch': 'Skrin sentuh semasa memandu',
             'hud': 'Tunjukkan navigasi pada HUD',
@@ -781,12 +811,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Perkhidmatan tidak tersedia. Cuba lagi.',
             'menuError': 'Menu Mazda tidak dapat dibuka. Buka semula aplikasi.',
             'openApps': 'Buka melalui Aplikasi.',
-            'savingSettings': 'Menyimpan tetapan Android Auto...',
-            'savedSettings': 'Tetapan Android Auto disimpan.',
-            'saveError': 'Gagal menyimpan tetapan Android Auto'
+            'saveError': 'Gagal menyimpan tetapan'
         },
         'id_ID': {
             'gui.label': 'Pengaturan Android Auto',
+            'reboot': 'Mulai ulang untuk menerapkan',
+            'rebootQuestion': 'Mulai ulang MZD untuk menerapkan setelan Android Auto?',
+            'rebootFallback': 'Tahan NAV + MUTE untuk restart',
             'title': 'Pengaturan Android Auto',
             'touch': 'Layar sentuh saat berkendara',
             'hud': 'Tampilkan navigasi di HUD',
@@ -809,12 +840,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Layanan tidak tersedia. Coba lagi.',
             'menuError': 'Menu Mazda tidak dapat dibuka. Buka kembali aplikasi.',
             'openApps': 'Buka melalui Aplikasi.',
-            'savingSettings': 'Menyimpan pengaturan Android Auto...',
-            'savedSettings': 'Pengaturan Android Auto disimpan.',
-            'saveError': 'Gagal menyimpan pengaturan Android Auto'
+            'saveError': 'Gagal menyimpan pengaturan'
         },
         'ja_JP': {
             'gui.label': 'Android Auto設定',
+            'reboot': '変更を適用するため再起動',
+            'rebootQuestion': 'Android Autoの設定を適用するため、MZDを再起動しますか？',
+            'rebootFallback': '再起動するには NAV + MUTE を長押し',
             'title': 'Android Auto設定',
             'touch': '走行中のタッチパネル操作',
             'hud': 'HUDにナビ案内を表示',
@@ -837,12 +869,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'サービスを利用できません。再試行してください。',
             'menuError': 'マツダメニューを開けませんでした。アプリを開き直してください。',
             'openApps': 'アプリケーションから開いてください。',
-            'savingSettings': 'Android Auto設定を保存中...',
-            'savedSettings': 'Android Auto設定を保存しました。',
-            'saveError': 'Android Auto設定の保存に失敗しました'
+            'saveError': '設定の保存に失敗しました'
         },
         'zh_CN': {
             'gui.label': 'Android Auto设置',
+            'reboot': '重新启动以应用更改',
+            'rebootQuestion': '是否重新启动 MZD 以应用 Android Auto 设置？',
+            'rebootFallback': '按住 NAV + MUTE 重启',
             'title': 'Android Auto设置',
             'touch': '行车时启用触屏',
             'hud': '在HUD上显示导航',
@@ -865,12 +898,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': '服务不可用，请重试。',
             'menuError': '无法打开Mazda菜单，请重新打开应用。',
             'openApps': '请从应用程序打开。',
-            'savingSettings': '正在保存Android Auto设置...',
-            'savedSettings': 'Android Auto设置已保存。',
-            'saveError': 'Android Auto设置保存失败'
+            'saveError': '设置保存失败'
         },
         'zh_TW': {
             'gui.label': 'Android Auto設定',
+            'reboot': '重新啟動以套用變更',
+            'rebootQuestion': '要重新啟動 MZD 以套用 Android Auto 設定嗎？',
+            'rebootFallback': '按住 NAV + MUTE 重新啟動',
             'title': 'Android Auto設定',
             'touch': '行車時啟用觸控螢幕',
             'hud': '在HUD上顯示導航',
@@ -893,12 +927,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': '服務無法使用，請重試。',
             'menuError': '無法開啟Mazda選單，請重新開啟應用程式。',
             'openApps': '請從應用程式開啟。',
-            'savingSettings': '正在儲存Android Auto設定...',
-            'savedSettings': 'Android Auto設定已儲存。',
-            'saveError': 'Android Auto設定儲存失敗'
+            'saveError': '設定儲存失敗'
         },
         'cn_HK': {
             'gui.label': 'Android Auto設定',
+            'reboot': '重新啟動以套用變更',
+            'rebootQuestion': '要重新啟動 MZD 以套用 Android Auto 設定嗎？',
+            'rebootFallback': '按住 NAV + MUTE 重新啟動',
             'title': 'Android Auto設定',
             'touch': '行車時啟用觸控螢幕',
             'hud': '在HUD上顯示導航',
@@ -921,12 +956,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': '服務無法使用，請重試。',
             'menuError': '無法開啟Mazda選單，請重新開啟應用程式。',
             'openApps': '請從應用程式開啟。',
-            'savingSettings': '正在儲存Android Auto設定...',
-            'savedSettings': 'Android Auto設定已儲存。',
-            'saveError': 'Android Auto設定儲存失敗'
+            'saveError': '設定儲存失敗'
         },
         'ar_SA': {
             'gui.label': 'إعدادات Android Auto',
+            'reboot': 'أعد التشغيل للتغييرات',
+            'rebootQuestion': 'هل تريد إعادة تشغيل MZD لتطبيق إعدادات Android Auto؟',
+            'rebootFallback': 'أبقِ NAV + MUTE لإعادة التشغيل',
             'title': 'إعدادات Android Auto',
             'touch': 'شاشة اللمس أثناء القيادة',
             'hud': 'إظهار الملاحة على HUD',
@@ -949,12 +985,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'الخدمة غير متاحة. حاول مجددًا.',
             'menuError': 'تعذر فتح قائمة Mazda. افتح التطبيق مجددًا.',
             'openApps': 'افتح من التطبيقات.',
-            'savingSettings': 'جارٍ حفظ إعدادات Android Auto...',
-            'savedSettings': 'تم حفظ إعدادات Android Auto.',
-            'saveError': 'فشل حفظ إعدادات Android Auto'
+            'saveError': 'فشل حفظ الإعدادات'
         },
         'he_IL': {
             'gui.label': 'הגדרות Android Auto',
+            'reboot': 'הפעל מחדש להחלת השינויים',
+            'rebootQuestion': 'להפעיל מחדש את MZD כדי להחיל את הגדרות Android Auto?',
+            'rebootFallback': 'החזק NAV + MUTE להפעלה מחדש',
             'title': 'הגדרות Android Auto',
             'touch': 'מסך מגע בזמן נהיגה',
             'hud': 'הצג ניווט ב-HUD',
@@ -977,12 +1014,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'השירות אינו זמין. נסה שוב.',
             'menuError': 'לא ניתן היה לפתוח את תפריט Mazda. פתח מחדש את היישום.',
             'openApps': 'פתח דרך יישומים.',
-            'savingSettings': 'שומר הגדרות Android Auto...',
-            'savedSettings': 'הגדרות Android Auto נשמרו.',
-            'saveError': 'שמירת הגדרות Android Auto נכשלה'
+            'saveError': 'שמירת ההגדרות נכשלה'
         },
         'th_TH': {
             'gui.label': 'การตั้งค่า Android Auto',
+            'reboot': 'เริ่มระบบใหม่เพื่อใช้',
+            'rebootQuestion': 'ต้องการรีบูต MZD เพื่อใช้การตั้งค่า Android Auto หรือไม่?',
+            'rebootFallback': 'กด NAV + MUTE ค้างเพื่อรีบูต',
             'title': 'การตั้งค่า Android Auto',
             'touch': 'หน้าจอสัมผัสขณะขับขี่',
             'hud': 'แสดงการนำทางบน HUD',
@@ -1005,12 +1043,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'บริการไม่พร้อมใช้งาน โปรดลองอีกครั้ง',
             'menuError': 'ไม่สามารถเปิดเมนู Mazda ได้ โปรดเปิดแอปอีกครั้ง',
             'openApps': 'เปิดผ่านแอปพลิเคชัน',
-            'savingSettings': 'กำลังบันทึกการตั้งค่า Android Auto...',
-            'savedSettings': 'บันทึกการตั้งค่า Android Auto แล้ว',
-            'saveError': 'บันทึกการตั้งค่า Android Auto ไม่สำเร็จ'
+            'saveError': 'บันทึกการตั้งค่าไม่สำเร็จ'
         },
         'en_UK': {
             'gui.label': 'Android Auto Settings',
+            'reboot': 'Reboot to apply changes',
+            'rebootQuestion': 'Do you want to reboot MZD to apply Android Auto settings?',
+            'rebootFallback': 'Hold NAV + MUTE to reboot',
             'title': 'Android Auto Settings',
             'touch': 'Touchscreen while driving',
             'hud': 'Show navigation on HUD',
@@ -1033,12 +1072,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Service unavailable. Please retry.',
             'menuError': 'The Mazda menu could not be opened. Please reopen the app.',
             'openApps': 'Open through Applications.',
-            'savingSettings': 'Saving Android Auto settings...',
-            'savedSettings': 'Android Auto settings saved.',
-            'saveError': 'Failed to save Android Auto settings'
+            'saveError': 'Failed to save settings'
         },
         'en_AU': {
             'gui.label': 'Android Auto Settings',
+            'reboot': 'Reboot to apply changes',
+            'rebootQuestion': 'Do you want to reboot MZD to apply Android Auto settings?',
+            'rebootFallback': 'Hold NAV + MUTE to reboot',
             'title': 'Android Auto Settings',
             'touch': 'Touchscreen while driving',
             'hud': 'Show navigation on HUD',
@@ -1061,12 +1101,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Service unavailable. Please retry.',
             'menuError': 'The Mazda menu could not be opened. Please reopen the app.',
             'openApps': 'Open through Applications.',
-            'savingSettings': 'Saving Android Auto settings...',
-            'savedSettings': 'Android Auto settings saved.',
-            'saveError': 'Failed to save Android Auto settings'
+            'saveError': 'Failed to save settings'
         },
         'es_MX': {
             'gui.label': 'Ajustes de Android Auto',
+            'reboot': 'Reiniciar para aplicar cambios',
+            'rebootQuestion': '¿Reiniciar MZD para aplicar los ajustes de Android Auto?',
+            'rebootFallback': 'Mantén NAV + MUTE para reiniciar',
             'title': 'Ajustes de Android Auto',
             'touch': 'Pantalla táctil al conducir',
             'hud': 'Mostrar navegación en HUD',
@@ -1089,12 +1130,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Servicio no disponible. Inténtalo de nuevo.',
             'menuError': 'No se pudo abrir el menú de Mazda. Abre de nuevo la aplicación.',
             'openApps': 'Abrir desde Aplicaciones.',
-            'savingSettings': 'Guardando ajustes de Android Auto...',
-            'savedSettings': 'Ajustes de Android Auto guardados.',
-            'saveError': 'Error al guardar los ajustes de Android Auto'
+            'saveError': 'Error al guardar los ajustes'
         },
         'fr_CN': {
             'gui.label': 'Réglages Android Auto',
+            'reboot': 'Redémarrer pour appliquer',
+            'rebootQuestion': 'Redémarrer MZD pour appliquer les réglages Android Auto ?',
+            'rebootFallback': 'Maintenez NAV + MUTE pour redémarrer',
             'title': 'Réglages Android Auto',
             'touch': 'Écran tactile en roulant',
             'hud': 'Afficher navigation sur HUD',
@@ -1117,12 +1159,13 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': 'Service indisponible. Réessayez.',
             'menuError': 'Impossible d’ouvrir le menu Mazda. Rouvrez l’application.',
             'openApps': 'Ouvrir depuis Applications.',
-            'savingSettings': 'Enregistrement des réglages Android Auto...',
-            'savedSettings': 'Réglages Android Auto enregistrés.',
-            'saveError': 'Échec de l’enregistrement des réglages Android Auto'
+            'saveError': 'Échec de l’enregistrement des réglages'
         },
         'mn_TW': {
             'gui.label': 'Android Auto設定',
+            'reboot': '重新啟動以套用變更',
+            'rebootQuestion': '要重新啟動 MZD 以套用 Android Auto 設定嗎？',
+            'rebootFallback': '按住 NAV + MUTE 重新啟動',
             'title': 'Android Auto設定',
             'touch': '行車時啟用觸控螢幕',
             'hud': '在HUD上顯示導航',
@@ -1145,9 +1188,7 @@ window.MzdGuiI18n.register('android-auto', {
             'serviceUnavailable': '服務無法使用，請重試。',
             'menuError': '無法開啟Mazda選單，請重新開啟應用程式。',
             'openApps': '請從應用程式開啟。',
-            'savingSettings': '正在儲存Android Auto設定...',
-            'savedSettings': 'Android Auto設定已儲存。',
-            'saveError': 'Android Auto設定儲存失敗'
+            'saveError': '設定儲存失敗'
         }
     }
 });

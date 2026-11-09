@@ -22,7 +22,10 @@ contains OEM filenames and fingerprints, not original image content.
 All targets and existing `.org` backups are validated before writes. Installation
 backs up verified originals and rolls back changes in reverse order on failure.
 Uninstall reverses the startup patch and restores verified images; later foreign
-edits are refused. OEM `.org` backups remain under the usual patch policy.
+edits are refused. For new managed installations, Uninstall restores original
+file metadata and removes owned `.org` backups once no other installed tweak
+uses the target.
+Backups present before installation are preserved.
 Restore originals also validates and removes these backups via the saved reset
 hook. Saved packages provide immutable removal code and assets.
 
