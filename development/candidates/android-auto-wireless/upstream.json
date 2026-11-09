@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/PingusPepan/oem-aa-mod",
+  "pull_request": 10,
+  "source_commit": "43d7ba1",
+  "artifact_commit": "f646816",
+  "workflow_run": 42317350287,
+  "artifact_id": 13551008894,
+  "payload_bundled": false,
+  "note": "Previously tested baseline, not a claim about the latest upstream release."
+}

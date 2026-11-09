@@ -29,6 +29,8 @@ jobs:
         run: python tests/contract/test_settings.py
       - name: Test read-only Touch prerequisites
         run: sh tests/tweaks/touch-while-driving/reader.sh usb/tweaks/touch-while-driving/touch.sh
+      - name: Test wireless AA adapter scaffold
+        run: python tests/contract/test_wireless_scaffold.py
       - name: Test mutable config defaults and ownership
         run: python tests/contract/test_config_data.py
       - name: Test package inventory batching and failure handling

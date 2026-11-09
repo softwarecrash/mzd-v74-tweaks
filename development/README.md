@@ -43,3 +43,7 @@ the paths used after copying into the USB layout.
 - [Traffic Jam games: Snake and Minesweeper](traffic-jam/README.md)
 
 Component bundles: [multiple shims, configuration and patches](examples/bundle/README.md).
+
+## Development candidates
+
+- [Android Auto Wireless adapter scaffold](candidates/android-auto-wireless/README.md)

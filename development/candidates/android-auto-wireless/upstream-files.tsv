@@ -1,0 +1,8 @@
+upstream_member	role	upstream_runtime_path
+libpatch-blmjciaapa.so	shim:jciAAPA	/data_persist/oem-aa-mod/libpatch-blmjciaapa.so
+libpatch-aap_service.so	shim:aap_service	/data_persist/oem-aa-mod/libpatch-aap_service.so
+aaw_listend	executable	/data_persist/oem-aa-mod/aaw_listend
+aaw_handler	executable	/data_persist/oem-aa-mod/aaw_handler
+resources/wl/start-aa-ap.sh	AP startup	/data_persist/wl/start-aa-ap.sh
+resources/wl/reset-aa-dongle.sh	owned dongle recovery	/data_persist/wl/reset-aa-dongle.sh
+resources/libpatch.conf	mutable config template	/data_persist/oem-aa-mod/libpatch.conf
