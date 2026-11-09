@@ -1,7 +1,7 @@
 # DriveDash: issue 62 working notes
 
 Issue: https://github.com/softwarecrash/mzd-v74-tweaks/issues/62
-Branch: `feature/issue-62-speedometer`
+Branch: `feature/issue-62-speedometer` (includes the status-bar and rendering work)
 Starting development commit: `0ee2b43b04129425cd4b5a0f93266b34d340aad6`.
 Sources reviewed on 2026-11-06. Browser draft and initial read-only Lua adapter;
 installable package prepared; no hardware validation yet.
