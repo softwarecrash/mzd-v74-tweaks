@@ -63,6 +63,11 @@ sh tools/preview-menu.sh --emu /path/to/mzd-emu
 sh tools/preview-menu.sh --tweak <id> --emu
 ```
 
+**VS Code**:
+Inside a VS Code integrated terminal the script stops mzd-emu from opening the
+system browser (set `MZD_OPEN_BROWSER=1` to override). Cmd/Ctrl+click the printed
+GUI URL to open it in the Simple Browser.
+
 **Path resolution**:
 When `--emu` is invoked without a path argument, the script resolves the emulator
 location in the following order:

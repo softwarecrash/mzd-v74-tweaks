@@ -189,6 +189,16 @@ if [ "$USE_EMU" -eq 1 ]; then
         cat "$REPO_DIR/tools/preview-gui-services.js" "$REPO_DIR/usb/lib/gui-runtime/boot.js"
     } > "$HOOK"
 
+    # Inside a VS Code terminal, keep mzd-emu from launching the system browser.
+    # Cmd/Ctrl+click on the printed URL goes through VS Code, which honours
+    # workbench.externalUriOpeners (Simple Browser), and the "Preview tweak in
+    # mzd-emu" launch configuration opens it there automatically.
+    if [ "${TERM_PROGRAM:-}" = "vscode" ] && [ -z "${MZD_OPEN_BROWSER:-}" ]; then
+        MZD_OPEN_BROWSER=0
+        export MZD_OPEN_BROWSER
+        echo "VS Code terminal detected: Cmd/Ctrl+click the GUI URL to open it in VS Code."
+    fi
+
     echo "Starting mzd-emu..."
     cd "$EMU_DIR"
     exec npm start
