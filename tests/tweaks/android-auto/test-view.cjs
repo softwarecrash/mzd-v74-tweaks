@@ -490,7 +490,7 @@ assert.equal(control.props.smallItemText, true, 'AA settings use the Safety-tab 
 assert.equal(control.hasFocus, true, 'The settings list takes focus when it opens');
 
 // Check first row (touch): boolean toggle -> styleOnOff, value 1 (on)
-assert.equal(control.dataList.items[0].text1, 'Touchscreen while driving');
+assert.equal(control.dataList.items[0].text1, 'Touchscreen in Android Auto');
 assert.equal(control.dataList.items[0].itemStyle, 'styleOnOff');
 assert.equal(control.dataList.items[0].value, 1);
 assert.equal(control.dataList.items[0].checked, true);
@@ -510,7 +510,7 @@ assert.equal(control.dataList.items[7].hasCaret, true);
 
 // 1b. Reboot uses the OEM reset icon and is disabled until a change is saved
 assert.equal(rebootRow().text1, 'Reboot to apply changes');
-assert.equal(rebootRow().image1, 'common/images/icons/IcnUmpReset_En.png');
+assert.equal(rebootRow().image1, 'common/images/icons/IcnListSynchronize_En.png');
 assert.equal(rebootRow().disabled, true, 'Reboot is disabled before any setting changes');
 click(15);
 assert.equal(dialogConfig, null, 'A disabled reboot row does not open the confirmation dialog');

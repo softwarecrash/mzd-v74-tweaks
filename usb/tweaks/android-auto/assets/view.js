@@ -139,7 +139,7 @@
             id: 'reboot',
             action: 'reboot',
             label: tr('reboot', 'Reboot to apply changes'),
-            image1: 'common/images/icons/IcnUmpReset_En.png',
+            image1: 'common/images/icons/IcnListSynchronize_En.png',
             disabled: saving || !rebootRequired
         });
         return result;
