@@ -339,12 +339,12 @@
                             style.id = 'mzd-gui-sbn-style';
                             head.appendChild(style);
                         }
-                        style.textContent = str.length > 35 ? '.SbnCtrl_Style02_Text1 { font-size: 26px !important; }' : '';
+                        style.textContent = str.length > 34 ? '.SbnCtrl_Style02_Text1 { font-size: 26px !important; }' : '';
                     }
                     try {
                         notifyFw.common.startTimedSbn(active.module ? active.module.id : 'system', 'MzdGuiNotification', data.isError ? 'errorNotification' : 'typeD', {
                             sbnStyle: 'Style02',
-                            imagePath1: 'common/images/icons/IcnSbnApps.png',
+                            imagePath1: data.isError ? 'common/images/icons/IcnSbnSystemError.png' : 'common/images/icons/IcnSbnApps.png',
                             text1: str
                         });
                     } catch (ignore) {}

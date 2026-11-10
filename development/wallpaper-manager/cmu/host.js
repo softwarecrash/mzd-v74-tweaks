@@ -51,7 +51,7 @@
     var core = null, client = window.WallpaperCmuImportClient.create(context.service), loading = true, backendError = '', hostEnded = false;
     var usb = {status:'idle',items:[]}, importing = false;
     function snapshot() {
-        var value = core ? core.snapshot() : {images:[],active:null,enabled:false,interval:10,slides:[],error:'',preview:true};
+        var value = core ? core.snapshot() : {images:[],active:null,selected:null,enabled:false,interval:10,slides:[],error:'',preview:true};
         value.loading = loading; value.importAvailable = !!client; value.usb = usb; value.importing = importing;
         value.error = value.error || backendError; return value;
     }
@@ -70,21 +70,22 @@
         var current = context.view();
         return current && current.source === source ? current.token : '';
     }
-    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,alwaysRestoreApplications:true,preview:setMenuPreview});
+    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,dialog:true,preview:setMenuPreview});
     function receive(event) {
         var data = event.data, token = frameToken(event.source), frames, frame, i;
         if (data && data.type === 'wallpaper-native-release' && nativeMenu.owns(event.source,data.token)) { nativeMenu.close(); return; }
         if (!token || !data || data.token !== token) { return; }
-        if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input') {
+        if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input' || data.type === 'wallpaper-native-dialog') {
             frames = document.getElementsByTagName('iframe');
             for (i = 0; i < frames.length; i += 1) { if (frames[i].contentWindow === event.source) { frame = frames[i]; } }
             if (!frame) { return; }
             try {
                 if (data.type === 'wallpaper-native-render') { nativeMenu.render(frame,token,data.menu); }
+                else if (data.type === 'wallpaper-native-dialog') { nativeMenu.dialog(frame,token,data.dialog); }
                 else { nativeMenu.input(frame,token,data.action,data.phase); }
             } catch (failure) {
                 nativeMenu.close();
-                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:'menu',message:String(failure.message || failure)},'*');
+                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:data.type === 'wallpaper-native-dialog' ? 'dialog' : 'menu',message:String(failure.message || failure)},'*');
             }
         }
     }
@@ -124,7 +125,7 @@
             client.importImage(value, function (failure, result) {
                 importing = false;
                 if (!failure) { replace(result.images); }
-                callback(failure || null, { state: snapshot(), notice: failure ? '' : 'Image imported.' });
+                callback(failure || null, { state: snapshot(), notice: failure ? '' : 'Image imported' });
             });
             return;
         }

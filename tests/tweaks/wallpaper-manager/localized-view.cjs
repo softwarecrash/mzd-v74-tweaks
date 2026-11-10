@@ -8,6 +8,8 @@ const english=data.languages.en_US,keys=Object.keys(english).sort();
 for(const [locale,dict] of Object.entries(data.languages)){
  assert.deepEqual(Object.keys(dict).sort(),keys,locale+' missing keys');
  for(const key of keys){assert.equal(typeof dict[key],'string');assert(dict[key]);assert(!dict[key].includes('\uFFFD'));assert.deepEqual((dict[key].match(/\{\w+\}/g)||[]).sort(),(english[key].match(/\{\w+\}/g)||[]).sort(),locale+' placeholders '+key);}
+ const notifications = ['chooseSlides','errorGeneric','errorImage','errorSpace','errorUsb','errorRestored','errorBusy','serviceUnavailable','menuError','imported'];
+ for(const notifKey of notifications){assert(!dict[notifKey].endsWith('.'),locale+' notification '+notifKey+' must not end with a period');}
 }
 const source=fs.readFileSync(path.join(__dirname,'cmu-host.cjs'),'utf8');
 let prefix=source.slice(0,source.indexOf("\nflush();assert.equal(sb"));assert(prefix.length>4000);
@@ -21,14 +23,17 @@ flush();assert.equal(sb,texts['gui.label']);assert.equal(document.documentElemen
 assert.equal(control.dataList.items[0].text1,texts.gallery);assert.equal(control.dataList.items[1].label1,texts.off);
 assert.equal(control.dataList.items.length,4);assert.equal(control.dataList.items[2].text1,texts.import);assert.equal(control.dataList.items[3].text1,texts.restore);assert.equal(control.dataList.items[3].hasCaret,false);
 click(2);assert.equal(control.dataList.items[0].text1,texts.folderHint);assert(!rootNode.children.some(e=>e.className.indexOf('wallpaperImportSplit')>=0),'missing-folder hints use full-width native list');input('back');assert.equal(sb,texts['gui.label']);
-click(0);assert.equal(sb,texts.gallery);assert.equal(control.dataList.items.length,1);assert.equal(control.dataList.items[0].text1,'User image','user filenames are unchanged');
+click(0);assert.equal(sb,texts.gallery);assert.equal(control.dataList.items.length,2);assert.equal(control.dataList.items[0].text1,'User image','user filenames are unchanged');
 click(0);assert.equal(control.dataList.items[0].text1,texts.useBackground);assert.equal(control.dataList.items[1].text1,texts.include);
 input('back');input('back');click(1);assert.equal(control.dataList.items[0].text1,texts.off);assert.equal(control.dataList.items[1].text1,texts.seconds.replace('{seconds}','5'));
+assert.equal(control.dataList.items[4].text1,texts.minutes.replace('{minutes}','1'));
+assert.equal(control.dataList.items[5].text1,texts.minutes.replace('{minutes}','2'));
+assert.equal(control.dataList.items[6].text1,texts.minutes.replace('{minutes}','5'));
 click(1);assert.equal(sb,texts.slideshow);assert.equal(status.textContent,texts.chooseSlides);assert.equal(writes,0,'failed slideshow selection/language loading must not write');
 input('back');click(0);click(0);click(1);assert.equal(writes,1);assert.equal(saved.slides[0],imageID);
 input('back');input('back');click(1);click(1);assert.equal(saved.enabled,true);assert.equal(saved.interval,5);
 input('back');click(3);assert.equal(sb,texts['gui.label']);assert.equal(saved.selected,null);assert.equal(saved.enabled,false,'original background stops slideshow without deleting membership');assert.equal(saved.slides[0],imageID);assert.equal(control.dataList.items[3].checked,true);
-click(0);assert.equal(control.dataList.items.length,1,'reset keeps gallery images');input('back');click(1);click(1);assert.equal(saved.enabled,true);
+click(0);assert.equal(control.dataList.items.length,2,'reset keeps gallery images');input('back');click(1);click(1);assert.equal(saved.enabled,true);
 resident.closed();assert.equal(host.WallpaperManager.snapshot().enabled,true,'resident slideshow survives view close');
 records.length=0;resident.reconnected();flush();input('back');click(0);assert.equal(control.dataList.items.length,1);assert.equal(control.dataList.items[0].text1,texts.noImages);assert.equal(control.dataList.items[0].disabled,true,'empty gallery shows a non-actionable hint');input('back');assert.equal(sb,texts['gui.label']);
 view.MzdGuiModule._dispose();hostEvents.unload();flush();assert.equal(host.WallpaperManager,undefined);

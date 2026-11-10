@@ -1070,10 +1070,35 @@ test("toast notifications: routes to MzdGuiResidents when present, falls back to
     assert.equal(h.sbns()[0].sbnId, "MzdGuiNotification");
     assert.equal(h.sbns()[0].type, "errorNotification");
     assert.equal(h.sbns()[0].props.sbnStyle, "Style02");
+    assert.equal(h.sbns()[0].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
     assert.equal(h.sbns()[0].props.text1, longText);
 
     const style = h.doc.head.children.find(e => e.id === "mzd-gui-sbn-style");
     assert(style);
+    assert(style.textContent.includes("font-size: 26px !important"));
+
+    // Exact 34 chars with isError: false uses IcnSbnApps.png and resets font override
+    const short34 = "1234567890123456789012345678901234";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: short34, isError: false }
+    });
+    assert.equal(h.sbns().length, 2);
+    assert.equal(h.sbns()[1].type, "typeD");
+    assert.equal(h.sbns()[1].props.imagePath1, "common/images/icons/IcnSbnApps.png");
+    assert.equal(h.sbns()[1].props.text1, short34);
+    assert.equal(style.textContent, "");
+
+    // Exact 35 chars ("Select at least one slideshow image") switches to 26px font override
+    const exact35 = "Select at least one slideshow image";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: exact35, isError: true }
+    });
+    assert.equal(h.sbns().length, 3);
+    assert.equal(h.sbns()[2].type, "errorNotification");
+    assert.equal(h.sbns()[2].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
+    assert.equal(h.sbns()[2].props.text1, exact35);
     assert(style.textContent.includes("font-size: 26px !important"));
   }
 });

@@ -5,7 +5,6 @@
         options = options || {};
         options.prefix = 'wallpaper';
         options.split = true;
-        options.alwaysRestoreApplications = true;
         if (global.MzdGuiResidents && typeof global.MzdGuiResidents.createNativeMenu === 'function') {
             return global.MzdGuiResidents.createNativeMenu(options);
         }

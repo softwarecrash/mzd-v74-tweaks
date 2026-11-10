@@ -26,6 +26,7 @@
         function candidates() { return config.slides.filter(allowed); }
         function snapshot() {
             return {images:catalog.filter(function (image) { return allowed(image.id); }),active:active,
+                selected:config.selected,
                 enabled:config.enabled,interval:config.interval,slides:candidates(),error:error,preview:true};
         }
         function notify() { var value = snapshot(), j; for (j = 0; j < listeners.length; j += 1) { listeners[j](value); } }
@@ -44,7 +45,7 @@
             options.paint(id,function (failed) {
                 if (ended || request !== generation) { return; }
                 if (failed) {
-                    active = null; config.enabled = false; cancel(); error = 'Image could not be loaded. Mazda background restored.';
+                    active = null; config.enabled = false; cancel(); error = 'Image could not be loaded. Mazda background restored';
                     options.paint(null,function () {}); notify();
                 }
             });
@@ -63,7 +64,7 @@
                 config.selected = value; config.enabled = false; cancel(); save(); show(value);
             } else if (name === 'slideshow-mode') {
                 if (value !== 0 && intervals.indexOf(value) < 0) { throw new Error('Unsupported slideshow interval.'); }
-                if (value !== 0 && !candidates().length) { throw new Error('Select at least one slideshow image.'); }
+                if (value !== 0 && !candidates().length) { throw new Error('Select at least one slideshow image'); }
                 config.enabled = value !== 0;
                 if (value === 0) { config.selected = active; }
                 else {
@@ -72,7 +73,7 @@
                 }
                 save(); schedule(); notify();
             } else if (name === 'slideshow') {
-                if (!candidates().length) { throw new Error('Select at least one slideshow image.'); }
+                if (!candidates().length) { throw new Error('Select at least one slideshow image'); }
                 config.enabled = !config.enabled;
                 if (config.enabled && candidates().indexOf(active) < 0) { show(candidates()[0]); }
                 save(); schedule(); notify();
@@ -118,7 +119,6 @@
         options = options || {};
         options.prefix = 'wallpaper';
         options.split = true;
-        options.alwaysRestoreApplications = true;
         if (global.MzdGuiResidents && typeof global.MzdGuiResidents.createNativeMenu === 'function') {
             return global.MzdGuiResidents.createNativeMenu(options);
         }
@@ -248,7 +248,7 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
     var core = null, client = window.WallpaperCmuImportClient.create(context.service), loading = true, backendError = '', hostEnded = false;
     var usb = {status:'idle',items:[]}, importing = false;
     function snapshot() {
-        var value = core ? core.snapshot() : {images:[],active:null,enabled:false,interval:10,slides:[],error:'',preview:true};
+        var value = core ? core.snapshot() : {images:[],active:null,selected:null,enabled:false,interval:10,slides:[],error:'',preview:true};
         value.loading = loading; value.importAvailable = !!client; value.usb = usb; value.importing = importing;
         value.error = value.error || backendError; return value;
     }
@@ -267,21 +267,22 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
         var current = context.view();
         return current && current.source === source ? current.token : '';
     }
-    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,alwaysRestoreApplications:true,preview:setMenuPreview});
+    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,dialog:true,preview:setMenuPreview});
     function receive(event) {
         var data = event.data, token = frameToken(event.source), frames, frame, i;
         if (data && data.type === 'wallpaper-native-release' && nativeMenu.owns(event.source,data.token)) { nativeMenu.close(); return; }
         if (!token || !data || data.token !== token) { return; }
-        if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input') {
+        if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input' || data.type === 'wallpaper-native-dialog') {
             frames = document.getElementsByTagName('iframe');
             for (i = 0; i < frames.length; i += 1) { if (frames[i].contentWindow === event.source) { frame = frames[i]; } }
             if (!frame) { return; }
             try {
                 if (data.type === 'wallpaper-native-render') { nativeMenu.render(frame,token,data.menu); }
+                else if (data.type === 'wallpaper-native-dialog') { nativeMenu.dialog(frame,token,data.dialog); }
                 else { nativeMenu.input(frame,token,data.action,data.phase); }
             } catch (failure) {
                 nativeMenu.close();
-                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:'menu',message:String(failure.message || failure)},'*');
+                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:data.type === 'wallpaper-native-dialog' ? 'dialog' : 'menu',message:String(failure.message || failure)},'*');
             }
         }
     }
@@ -321,7 +322,7 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
             client.importImage(value, function (failure, result) {
                 importing = false;
                 if (!failure) { replace(result.images); }
-                callback(failure || null, { state: snapshot(), notice: failure ? '' : 'Image imported.' });
+                callback(failure || null, { state: snapshot(), notice: failure ? '' : 'Image imported' });
             });
             return;
         }

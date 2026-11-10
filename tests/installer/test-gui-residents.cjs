@@ -570,17 +570,23 @@ test("residents notifications, units and applications context", async (t) => {
     assert.equal(sbns[1].uiaId, "tetris");
     assert.equal(sbns[1].type, "errorNotification");
     assert.equal(sbns[1].props.text1, "Score save error");
+    assert.equal(sbns[1].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
   });
 
-  await t.test("notify applies 26px font override for text exceeding 35 chars", () => {
+  await t.test("notify applies 26px font override for text exceeding 34 chars", () => {
     sbns.length = 0;
-    const longText = "This is a very long notification message that exceeds thirty-five characters";
-    api.notify("test-app", longText, true);
-    assert.equal(sbns.length, 1);
-    assert.equal(sbns[0].type, "errorNotification");
-    assert.equal(sbns[0].props.text1, longText);
+    const exact34 = "1234567890123456789012345678901234";
+    api.notify("test-app", exact34, false);
+    let style = document.getElementById("mzd-gui-sbn-style");
+    assert.equal(style.textContent, "");
 
-    const style = document.getElementById("mzd-gui-sbn-style");
+    const exact35 = "Select at least one slideshow image";
+    api.notify("test-app", exact35, true);
+    assert.equal(sbns.length, 2);
+    assert.equal(sbns[1].type, "errorNotification");
+    assert.equal(sbns[1].props.text1, exact35);
+
+    style = document.getElementById("mzd-gui-sbn-style");
     assert(style);
     assert(style.textContent.includes("font-size: 26px !important"));
   });
@@ -833,13 +839,16 @@ test("createNativeMenu full features", async (t) => {
       rows: [{ label: "Item" }],
       rightPreview: {
         url: base64Url,
-        label: "Preview Artwork"
+        label: "Preview Artwork.png"
       }
     });
 
     const b64Img = session.previewPane.children.find((c) => c.tag === "img");
     assert(b64Img);
     assert.equal(b64Img.src, base64Url);
+    const b64Caption = session.previewPane.children.find((c) => c.tag === "div");
+    assert(b64Caption);
+    assert.equal(b64Caption.textContent, "Preview Artwork", "caption strips file extension");
 
     // Untrusted data scheme (non-PNG) should not render an img tag
     menu.render(frame, token, {
@@ -856,7 +865,71 @@ test("createNativeMenu full features", async (t) => {
     const badDataImg = session.previewPane.children.find((c) => c.tag === "img");
     assert.equal(badDataImg, undefined);
 
+    // Leaving split view must reset container class name and hide preview pane
+    menu.render(frame, token, {
+      title: "NormalView",
+      page: "home",
+      split: false,
+      rows: [{ label: "Home Item" }]
+    });
+    assert.equal(session.container.className, "TemplateWithStatusLeft List2Tmplt");
+    assert.equal(session.previewPane.style.display, "none");
+
     menu.close();
+  });
+
+  await t.test("splitClass customizes split container class name and style rules", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom", splitClass: "customSplitClass" });
+    const token = "tok-custom-split";
+
+    menu.render(frame, token, {
+      title: "CustomSplitTest",
+      page: "split",
+      split: true,
+      rows: [{ label: "Item" }]
+    });
+
+    const session = menu.getSession();
+    assert.equal(session.container.className, "TemplateWithStatusLeft List2Tmplt customSplitClass");
+    assert(session.splitStyle);
+    assert(session.splitStyle.textContent.indexOf(".customSplitClass .List2Ctrl") >= 0);
+
+    menu.close();
+  });
+
+  await t.test("splitClass sanitizes leading dots, whitespace, and falls back to default", () => {
+    const { frame: frame1 } = makeFrame();
+    const menuDot = api.createNativeMenu({ prefix: "custom", splitClass: "  .dottedSplit  " });
+    const token1 = "tok-dot-split";
+
+    menuDot.render(frame1, token1, {
+      title: "DotSplitTest",
+      page: "split",
+      split: true,
+      rows: [{ label: "Item" }]
+    });
+
+    const session1 = menuDot.getSession();
+    assert.equal(session1.container.className, "TemplateWithStatusLeft List2Tmplt dottedSplit");
+    assert(session1.splitStyle.textContent.indexOf(".dottedSplit .List2Ctrl") >= 0);
+    menuDot.close();
+
+    const { frame: frame2 } = makeFrame();
+    const menuBlank = api.createNativeMenu({ prefix: "custom", split: true, splitClass: "   " });
+    const token2 = "tok-blank-split";
+
+    menuBlank.render(frame2, token2, {
+      title: "BlankSplitTest",
+      page: "split",
+      split: true,
+      rows: [{ label: "Item" }]
+    });
+
+    const session2 = menuBlank.getSession();
+    assert.equal(session2.container.className, "TemplateWithStatusLeft List2Tmplt wallpaperImportSplit");
+    assert(session2.splitStyle.textContent.indexOf(".wallpaperImportSplit .List2Ctrl") >= 0);
+    menuBlank.close();
   });
 
   await t.test("confirmation dialog lifecycle and select callback", () => {
@@ -896,6 +969,22 @@ test("createNativeMenu full features", async (t) => {
     // Close dialog
     menu.dialog(frame, token, null);
     assert.equal(menu.getSession().dialog, null);
+    assert.equal(menu.getSession().signature, null, "dialog destruction clears signature to allow DOM check state resync");
+
+    // Re-rendering after dialog destruction must call setDataListAndUpdateItems even with identical menu
+    let itemsUpdated = false;
+    instantiatedControl.setDataListAndUpdateItems = () => { itemsUpdated = true; };
+    menu.render(frame, token, {
+      title: "DialogTest",
+      page: "p1",
+      rows: [{ label: "Show Dialog" }]
+    });
+    assert.equal(itemsUpdated, true, "render resynchronizes items when signature was cleared by dialog destroy");
+
+    // selectCallback on control must also clear session.signature
+    assert.notEqual(menu.getSession().signature, null);
+    instantiatedControl.config.selectCallback(instantiatedControl, { appData: { index: 0 } });
+    assert.equal(menu.getSession().signature, null, "selectCallback clears signature");
 
     menu.close();
   });
@@ -945,26 +1034,26 @@ test("createNativeMenu full features", async (t) => {
     assert.equal(appTemplateEvents.length, 0);
     assert.equal(appLinesRestored, 0);
 
-    // alwaysRestoreApplications: true also respects leaving = false
-    const menuAlways = api.createNativeMenu({ prefix: "custom", alwaysRestoreApplications: true });
-    menuAlways.render(frame, token, {
-      title: "AlwaysRestore",
+    // close(false) followed by close() restores Applications
+    const menuSecond = api.createNativeMenu({ prefix: "custom" });
+    menuSecond.render(frame, token, {
+      title: "SecondMenu",
       page: "p1",
       rows: [{ label: "Row" }]
     });
 
-    statusTitle = "AlwaysRestore";
+    statusTitle = "SecondMenu";
     appTemplateEvents.length = 0;
     appLinesRestored = 0;
 
-    menuAlways.close(false);
+    menuSecond.close(false);
 
-    assert.equal(statusTitle, "AlwaysRestore");
+    assert.equal(statusTitle, "SecondMenu");
     assert.equal(appTemplateEvents.length, 0);
     assert.equal(appLinesRestored, 0);
 
-    // close() without arguments restores Applications even with alwaysRestoreApplications: true
-    menuAlways.close();
+    // close() without arguments restores Applications
+    menuSecond.close();
     assert.equal(statusTitle, "Applications");
     assert(appTemplateEvents.includes("acceptFocusFromLeft"));
     assert.equal(appLinesRestored, 1);

@@ -1,4 +1,4 @@
-/* Optional cooperative resident lifecycle. No module, settings or game special cases. */
+/* Optional cooperative resident lifecycle and native menu runtime. */
 (function (global) {
     'use strict';
     if (global.MzdGuiResidents) { return; }
@@ -48,11 +48,11 @@
         var fw = global.framework;
         if (!fw || !fw.common || typeof fw.common.startTimedSbn !== 'function' || !text) { return false; }
         var str = String(text || '');
-        ensureSbnStyle(str.length > 35);
+        ensureSbnStyle(str.length > 34);
         try {
             fw.common.startTimedSbn(id || 'system', 'MzdGuiNotification', isError ? 'errorNotification' : 'typeD', {
                 sbnStyle: 'Style02',
-                imagePath1: 'common/images/icons/IcnSbnApps.png',
+                imagePath1: isError ? 'common/images/icons/IcnSbnSystemError.png' : 'common/images/icons/IcnSbnApps.png',
                 text1: str
             });
             return true;
@@ -198,6 +198,8 @@
         options = options || {};
         var prefix = options.prefix || 'mzd', id = options.id || prefix;
         var session = null, selection = null, shown = false;
+        var rawSplit = options.splitClass ? String(options.splitClass).replace(/^\s+|\s+$/g, '').replace(/^\.+/, '') : '';
+        var splitClass = rawSplit || 'wallpaperImportSplit';
 
         function owns(target, token) {
             return !!session && (session.frame === target || session.source === target) && session.token === token;
@@ -225,6 +227,7 @@
             var dialog = session && session.dialog;
             if (!dialog) { return; }
             session.dialog = null;
+            session.signature = null;
             if (dialog.template && typeof dialog.template.cleanUp === 'function') {
                 try { dialog.template.cleanUp(); } catch (error) { log(id, 'Dialog cleanup failed: ' + (error.message || error)); }
             }
@@ -375,9 +378,9 @@
             root.style.cssText = 'position:absolute;left:60px;top:64px;width:740px;height:416px;z-index:7;background:transparent;overflow:visible;';
             root.className = '';
             root.appendChild(container);
-            if (options.split) {
+            if (options.split || options.splitClass) {
                 style = document.createElement('style');
-                style.textContent = '.wallpaperImportSplit .List2Ctrl{width:390px!important;overflow:hidden}.wallpaperImportSplit .List2Ctrl .line1{max-width:300px!important;overflow:hidden;text-overflow:ellipsis}.wallpaperImportSplit .List2Ctrl .mask,.wallpaperImportSplit .List2Ctrl .scroller{max-width:390px!important}';
+                style.textContent = '.' + splitClass + ' .List2Ctrl{width:390px!important;overflow:hidden}.' + splitClass + ' .List2Ctrl .line1{max-width:300px!important;overflow:hidden;text-overflow:ellipsis}.' + splitClass + ' .List2Ctrl .mask,.' + splitClass + ' .List2Ctrl .scroller{max-width:390px!important}';
                 container.appendChild(style);
                 session.splitStyle = style;
             }
@@ -419,7 +422,7 @@
                 try { options.preview(menu.previewId || null, frame); } catch (ignore) {}
             }
             if (menu.split) {
-                session.container.className = 'TemplateWithStatusLeft List2Tmplt wallpaperImportSplit';
+                session.container.className = 'TemplateWithStatusLeft List2Tmplt ' + splitClass;
                 if (!session.previewPane) {
                     session.previewPane = document.createElement('div');
                     session.previewPane.style.cssText = 'position:absolute;left:408px;top:65px;width:300px;color:white;font-size:22px;white-space:normal;word-wrap:break-word;';
@@ -436,11 +439,15 @@
                         session.previewPane.appendChild(picture);
                     }
                     caption = document.createElement('div');
-                    caption.textContent = preview.error || preview.label || '';
+                    var labelText = preview.label ? preview.label.replace(/\.[a-zA-Z0-9]+$/, '') : '';
+                    caption.textContent = preview.error || labelText || '';
                     session.previewPane.appendChild(caption);
                 }
-            } else if (session.previewPane) {
-                session.previewPane.style.display = 'none';
+            } else {
+                session.container.className = 'TemplateWithStatusLeft List2Tmplt';
+                if (session.previewPane) {
+                    session.previewPane.style.display = 'none';
+                }
             }
             for (i = 0; i < menu.rows.length; i += 1) {
                 row = menu.rows[i];
@@ -496,6 +503,7 @@
                     },
                     selectCallback: function (source, data) {
                         if (session !== current || source !== current.control || !data) { return; }
+                        session.signature = null;
                         global.clearTimeout(selection);
                         selection = global.setTimeout(function () {
                             if (session === current && current.control === source) {
