@@ -72,7 +72,7 @@
         if (!old) { return; } active = null;
         releaseReturnHooks(old);
         window.clearTimeout(old.timeout); window.clearTimeout(old.selectionTimer); window.clearInterval(old.monitor);
-        if (old.module && window.MzdGuiResidents) { window.MzdGuiResidents.view(old.module.id,null); }
+        if (old.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(old.module.id,null); }
         if (old.languageCleanup) { old.languageCleanup(); }
         disposeMenu(old);
         if (old.baseTemplate && old.baseTemplate.divElt && old.baseTemplate.divElt.style.visibility === 'hidden') {
@@ -106,7 +106,7 @@
         if (session.languageCleanup) { session.languageCleanup(); session.languageCleanup = null; }
         disposeMenu(session);
         if (session.frame) { try { if (session.frame.contentWindow.MzdGuiModule) { session.frame.contentWindow.MzdGuiModule._dispose(); } } catch (ignore) {} }
-        if (session.module && window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,null); }
+        if (session.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(session.module.id,null); }
         session.module = null;
         session.frame = null; session.list = []; session.keys = {}; root.innerHTML = '';
         root.className = 'TemplateWithStatusLeft List2Tmplt';
@@ -154,7 +154,7 @@
         frame.onerror = guarded(function () { if (active === session && active.frame === frame) { failed('View failed to load'); } });
         active.timeout = window.setTimeout(guarded(function () { if (active === session && active.frame === frame) { failed('View startup timed out'); } }),8000);
         frame.src = module.entrypoint + '#mzdgui=' + active.token; active.root.appendChild(frame);
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.view(module.id,{source:frame.contentWindow,frame:frame,token:active.token}); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(module.id,{source:frame.contentWindow,frame:frame,token:active.token}); }
     }
     function layout(mode) {
         if (!active || !active.frame || !applications() || ['fullscreen','with-status-bar'].indexOf(mode) < 0) { return; }
@@ -238,7 +238,7 @@
             if (!session.suspended) {
                 session.suspended = true; session.keys = {};
                 // Release native settings and resident access before hiding the root.
-                if (window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,null); }
+                if (window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(session.module.id,null); }
                 session.root.style.display = 'none';
                 if (typeof session.frame.blur === 'function') { session.frame.blur(); }
                 if (typeof window.focus === 'function') { window.focus(); }
@@ -260,7 +260,7 @@
         template.divElt.style.visibility = 'hidden';
         clearReturnMask(session);
         session.suspended = false; session.keys = {}; session.root.style.display = '';
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,{source:session.frame.contentWindow,frame:session.frame,token:session.token}); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(session.module.id,{source:session.frame.contentWindow,frame:session.frame,token:session.token}); }
         session.frame.contentWindow.postMessage({type:'mzd-gui-resume',token:session.token},'*');
         session.frame.contentWindow.focus();
         log('View resumed after phone: '+session.module.id);
@@ -309,7 +309,7 @@
         var data = event.data;
         if (!active || !active.frame || event.source !== active.frame.contentWindow || !data || data.token !== active.token) { return; }
         if (active.suspended && data.type !== 'mzd-gui-error') { return; }
-        if (active.module && window.MzdGuiResidents) { window.MzdGuiResidents.message(active.module.id,event); }
+        if (active.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.message === 'function') { window.MzdGuiResidents.message(active.module.id,event); }
         if (data.type === 'mzd-gui-language-request' && active.module) {
             if (active.languageCleanup) { active.languageCleanup(); }
             var session = active, deliver = function (value) {
@@ -324,27 +324,31 @@
                 { speedUnit: null, distanceUnit: null, tempUnit: null, language: 'en_US' };
             active.frame.contentWindow.postMessage({ type: 'mzd-gui-units', token: active.token, value: units }, '*');
         }
-        if (data.type === 'mzd-gui-notify' && typeof data.text === 'string' && (!active.module || !window.MzdGuiResidents)) {
-            var notifyFw = window.framework;
-            if (notifyFw && notifyFw.common && typeof notifyFw.common.startTimedSbn === 'function') {
-                var str = String(data.text || '');
-                var head = document.getElementsByTagName('head')[0];
-                if (head) {
-                    var style = document.getElementById('mzd-gui-sbn-style');
-                    if (!style) {
-                        style = document.createElement('style');
-                        style.id = 'mzd-gui-sbn-style';
-                        head.appendChild(style);
+        if (data.type === 'mzd-gui-notify' && typeof data.text === 'string') {
+            if (window.MzdGuiResidents && typeof window.MzdGuiResidents.notify === 'function') {
+                window.MzdGuiResidents.notify(active.module ? active.module.id : 'system', data.text, data.isError);
+            } else {
+                var notifyFw = window.framework;
+                if (notifyFw && notifyFw.common && typeof notifyFw.common.startTimedSbn === 'function') {
+                    var str = String(data.text || '');
+                    var head = document.getElementsByTagName('head')[0];
+                    if (head) {
+                        var style = document.getElementById('mzd-gui-sbn-style');
+                        if (!style) {
+                            style = document.createElement('style');
+                            style.id = 'mzd-gui-sbn-style';
+                            head.appendChild(style);
+                        }
+                        style.textContent = str.length > 35 ? '.SbnCtrl_Style02_Text1 { font-size: 26px !important; }' : '';
                     }
-                    style.textContent = str.length > 35 ? '.SbnCtrl_Style02_Text1 { font-size: 26px !important; }' : '';
+                    try {
+                        notifyFw.common.startTimedSbn(active.module ? active.module.id : 'system', 'MzdGuiNotification', data.isError ? 'errorNotification' : 'typeD', {
+                            sbnStyle: 'Style02',
+                            imagePath1: 'common/images/icons/IcnSbnApps.png',
+                            text1: str
+                        });
+                    } catch (ignore) {}
                 }
-                try {
-                    notifyFw.common.startTimedSbn(active.module ? active.module.id : 'system', 'MzdGuiNotification', data.isError ? 'errorNotification' : 'typeD', {
-                        sbnStyle: 'Style02',
-                        imagePath1: 'common/images/icons/IcnSbnApps.png',
-                        text1: str
-                    });
-                } catch (ignore) {}
             }
         }
         if (data.type === 'mzd-gui-lifecycle' && data.message === 'phone') { active.phoneLifecycle = true; watchReturn(active); }
@@ -366,7 +370,7 @@
         installed = false;
         while (languageCleanups.length) { languageCleanups.pop()(); }
         if (window.MzdGuiI18n) { window.MzdGuiI18n.dispose(); }
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.dispose(); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.dispose === 'function') { window.MzdGuiResidents.dispose(); }
         window.clearInterval(timer);
         try { close(false); } catch (ignore) {}
         window.removeEventListener('keydown',safeDown,true); window.removeEventListener('keyup',safeUp,true); window.removeEventListener('message',safeReceive,false);
@@ -405,7 +409,7 @@
                 })); }
             });
         }
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.start(modules); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.start === 'function') { window.MzdGuiResidents.start(modules); }
         return true;
     }
     try {

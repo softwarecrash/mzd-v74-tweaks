@@ -242,7 +242,7 @@ test("residents lifecycle", async (t) => {
 });
 
 test("residents service request bridge", async (t) => {
-  const { api } = page();
+  const { api, window } = page();
   const source = {
     sent: [],
     postMessage(data) {
@@ -267,6 +267,12 @@ test("residents service request bridge", async (t) => {
         cb("Operation refused");
       } else if (op === "crash") {
         throw new Error("Handler exploded");
+      } else if (op === "falsy-bool") {
+        cb(null, false);
+      } else if (op === "falsy-zero") {
+        cb(null, 0);
+      } else if (op === "falsy-str") {
+        cb(null, "");
       }
     });
   });
@@ -341,6 +347,51 @@ test("residents service request bridge", async (t) => {
     assert.equal(source.sent[0].error, "Handler exploded");
   });
 
+  await t.test("mzd-gui-notify does not leak into resident onMessage handler", () => {
+    let receivedMessage = null;
+    residentContext.onMessage((ev) => {
+      receivedMessage = ev.data;
+    });
+    api.message("srv-mod", {
+      source,
+      data: {
+        type: "mzd-gui-notify",
+        token,
+        text: "Test notification",
+        isError: false
+      }
+    });
+    assert.equal(receivedMessage, null, "mzd-gui-notify must not leak into resident onMessage");
+  });
+
+  await t.test("resident handler returns valid falsy results (false, 0, '') without coercion to null", () => {
+    const cases = [
+      { op: "falsy-bool", expected: false },
+      { op: "falsy-zero", expected: 0 },
+      { op: "falsy-str", expected: "" }
+    ];
+    let reqId = 200;
+    for (const c of cases) {
+      source.sent.length = 0;
+      api.message("srv-mod", {
+        source,
+        data: {
+          type: "mzd-gui-service-request",
+          token,
+          id: ++reqId,
+          operation: c.op,
+          args: {}
+        }
+      });
+
+      assert.equal(source.sent.length, 1);
+      assert.equal(source.sent[0].type, "mzd-gui-service-result");
+      assert.equal(source.sent[0].id, reqId);
+      assert.equal(source.sent[0].error, null);
+      assert.strictEqual(source.sent[0].result, c.expected);
+    }
+  });
+
   await t.test("falls back to MzdGuiServices when no serviceRequest handler registered", () => {
     const fbSource = {
       sent: [],
@@ -367,6 +418,38 @@ test("residents service request bridge", async (t) => {
       error: null,
       result: { ok: true }
     });
+  });
+
+  await t.test("MzdGuiServices fallback preserves valid falsy results (false, 0, '') without coercion to null", () => {
+    const fbSource = {
+      sent: [],
+      postMessage(data) { this.sent.push(data); }
+    };
+    api.view("fallback-mod", { source: fbSource, token: "fb-token" });
+
+    const falsyCases = [false, 0, ""];
+    let reqId = 300;
+    for (const val of falsyCases) {
+      fbSource.sent.length = 0;
+      const origReq = window.MzdGuiServices.request;
+      window.MzdGuiServices.request = (id, op, args, cb) => { cb(null, val); };
+
+      api.message("fallback-mod", {
+        source: fbSource,
+        data: {
+          type: "mzd-gui-service-request",
+          token: "fb-token",
+          id: ++reqId,
+          operation: "falsy-op",
+          args: {}
+        }
+      });
+
+      assert.equal(fbSource.sent.length, 1);
+      assert.equal(fbSource.sent[0].error, null);
+      assert.strictEqual(fbSource.sent[0].result, val);
+      window.MzdGuiServices.request = origReq;
+    }
   });
 
   await t.test("returns unavailable error when module has no service", () => {
@@ -442,6 +525,20 @@ test("residents notifications, units and applications context", async (t) => {
     assert.equal(api.inApplications(), true);
   });
 
+  await t.test("inApplications safely returns false when fw.getCurrCtxtId is not a function", () => {
+    const origGetCtxt = fw.getCurrCtxtId;
+    delete fw.getCurrCtxtId;
+    assert.doesNotThrow(() => {
+      assert.equal(api.inApplications(), false);
+    });
+    fw.getCurrCtxtId = "not-a-function";
+    assert.doesNotThrow(() => {
+      assert.equal(api.inApplications(), false);
+    });
+    fw.getCurrCtxtId = origGetCtxt;
+    assert.equal(api.inApplications(), true);
+  });
+
   await t.test("notify creates Style02 SBN for short text without font override", () => {
     sbns.length = 0;
     const ok = api.notify("test-app", "Short notice", false);
@@ -455,6 +552,24 @@ test("residents notifications, units and applications context", async (t) => {
     const style = document.getElementById("mzd-gui-sbn-style");
     assert(style);
     assert.equal(style.textContent, "");
+  });
+
+  await t.test("notify successfully starts SBN toast for non-resident module ID", () => {
+    sbns.length = 0;
+    // Calling notify for a non-resident module ID (e.g. game or simple extension without resident.js)
+    const ok = api.notify("minesweeper", "New high score!", false);
+    assert.equal(ok, true);
+    assert.equal(sbns.length, 1);
+    assert.equal(sbns[0].uiaId, "minesweeper");
+    assert.equal(sbns[0].type, "typeD");
+    assert.equal(sbns[0].props.text1, "New high score!");
+
+    const okErr = api.notify("tetris", "Score save error", true);
+    assert.equal(okErr, true);
+    assert.equal(sbns.length, 2);
+    assert.equal(sbns[1].uiaId, "tetris");
+    assert.equal(sbns[1].type, "errorNotification");
+    assert.equal(sbns[1].props.text1, "Score save error");
   });
 
   await t.test("notify applies 26px font override for text exceeding 35 chars", () => {
@@ -502,6 +617,8 @@ test("residents notifications, units and applications context", async (t) => {
 test("createNativeMenu full features", async (t) => {
   let instantiatedControl = null;
   const controlEvents = [];
+  const appTemplateEvents = [];
+  let appLinesRestored = 0;
   let instantiatedTemplate = null;
   let capturedContext = { focussedItem: 0, topItem: 0 };
   let statusTitle = "";
@@ -514,14 +631,14 @@ test("createNativeMenu full features", async (t) => {
     getAppInstance() {
       return {
         _currentContextTemplate: {
-          handleControllerEvent() {},
-          list2Ctrl: { setLineNumbers() {} }
+          handleControllerEvent(e) { appTemplateEvents.push(e); },
+          list2Ctrl: { setLineNumbers() { appLinesRestored++; } }
         }
       };
     },
     common: {
       setSbName(name) { statusTitle = name; },
-      setSbNameId() {}
+      setSbNameId(app, id) { statusTitle = id; }
     },
     _templatesLoaded: { Dialog3Tmplt: { isLoaded: true } },
     _controlsLoaded: { Dialog3Ctrl: { isLoaded: true }, ButtonCtrl: { isLoaded: true } },
@@ -707,6 +824,38 @@ test("createNativeMenu full features", async (t) => {
     const errorCaption = session.previewPane.children.find((c) => c.tag === "div");
     assert.equal(errorCaption.textContent, "Untrusted source");
 
+    // Base64 PNG data URL generated by preview services should be accepted
+    const base64Url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    menu.render(frame, token, {
+      title: "SplitTest",
+      page: "split-base64",
+      split: true,
+      rows: [{ label: "Item" }],
+      rightPreview: {
+        url: base64Url,
+        label: "Preview Artwork"
+      }
+    });
+
+    const b64Img = session.previewPane.children.find((c) => c.tag === "img");
+    assert(b64Img);
+    assert.equal(b64Img.src, base64Url);
+
+    // Untrusted data scheme (non-PNG) should not render an img tag
+    menu.render(frame, token, {
+      title: "SplitTest",
+      page: "split-bad-data",
+      split: true,
+      rows: [{ label: "Item" }],
+      rightPreview: {
+        url: "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+        error: "Bad data URL"
+      }
+    });
+
+    const badDataImg = session.previewPane.children.find((c) => c.tag === "img");
+    assert.equal(badDataImg, undefined);
+
     menu.close();
   });
 
@@ -749,5 +898,75 @@ test("createNativeMenu full features", async (t) => {
     assert.equal(menu.getSession().dialog, null);
 
     menu.close();
+  });
+
+  await t.test("close() defaults leaving to true and returns to Applications", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const token = "tok-close";
+
+    menu.render(frame, token, {
+      title: "CloseTest",
+      page: "p1",
+      rows: [{ label: "Row" }]
+    });
+
+    appTemplateEvents.length = 0;
+    appLinesRestored = 0;
+    statusTitle = "CloseTest";
+
+    // close() without arguments defaults leaving to true
+    menu.close();
+
+    assert.equal(statusTitle, "Applications");
+    assert(appTemplateEvents.includes("acceptFocusFromLeft"));
+    assert.equal(appLinesRestored, 1);
+  });
+
+  await t.test("close(false) does not return to Applications", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const token = "tok-close-false";
+
+    menu.render(frame, token, {
+      title: "StayOpen",
+      page: "p1",
+      rows: [{ label: "Row" }]
+    });
+
+    appTemplateEvents.length = 0;
+    appLinesRestored = 0;
+    statusTitle = "StayOpen";
+
+    // close(false) should NOT restore Applications
+    menu.close(false);
+
+    assert.equal(statusTitle, "StayOpen");
+    assert.equal(appTemplateEvents.length, 0);
+    assert.equal(appLinesRestored, 0);
+
+    // alwaysRestoreApplications: true also respects leaving = false
+    const menuAlways = api.createNativeMenu({ prefix: "custom", alwaysRestoreApplications: true });
+    menuAlways.render(frame, token, {
+      title: "AlwaysRestore",
+      page: "p1",
+      rows: [{ label: "Row" }]
+    });
+
+    statusTitle = "AlwaysRestore";
+    appTemplateEvents.length = 0;
+    appLinesRestored = 0;
+
+    menuAlways.close(false);
+
+    assert.equal(statusTitle, "AlwaysRestore");
+    assert.equal(appTemplateEvents.length, 0);
+    assert.equal(appLinesRestored, 0);
+
+    // close() without arguments restores Applications even with alwaysRestoreApplications: true
+    menuAlways.close();
+    assert.equal(statusTitle, "Applications");
+    assert(appTemplateEvents.includes("acceptFocusFromLeft"));
+    assert.equal(appLinesRestored, 1);
   });
 });

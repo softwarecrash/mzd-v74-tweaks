@@ -31,7 +31,7 @@
     function fail(id, error) { log(id, error); stop(id); }
     function inApplications() {
         var fw = global.framework;
-        return !!fw && typeof fw.getCurrentApp === 'function' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications';
+        return !!fw && typeof fw.getCurrentApp === 'function' && typeof fw.getCurrCtxtId === 'function' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications';
     }
     function ensureSbnStyle(isLong) {
         var head = document.getElementsByTagName('head')[0];
@@ -338,7 +338,8 @@
                 old.root.style.cssText = old.css;
                 old.root.className = old.className;
             }
-            if (leaving || (leaving !== false && options.alwaysRestoreApplications)) {
+            var shouldLeave = typeof leaving === 'boolean' ? leaving : true;
+            if (shouldLeave) {
                 if (shown) {
                     shown = false;
                     returnToApplications();
@@ -428,7 +429,7 @@
                 session.previewPane.innerHTML = '';
                 if (menu.rightPreview) {
                     preview = menu.rightPreview;
-                    if (preview.url && /^http:\/\/(?:localhost:8091\/usb-image\/|127\.0\.0\.1:[0-9]+\/image\/wallpaper-manager\/usb\/)/.test(preview.url)) {
+                    if (preview.url && typeof preview.url === 'string' && /^(?:http:\/\/(?:localhost:8091\/usb-image\/|127\.0\.0\.1:[0-9]+\/image\/wallpaper-manager\/usb\/)|data:image\/png;base64,[A-Za-z0-9+/=]+$)/.test(preview.url)) {
                         picture = document.createElement('img');
                         picture.src = preview.url;
                         picture.style.cssText = 'width:300px;height:180px;object-fit:contain;';
@@ -641,7 +642,7 @@
                                     token: current.token,
                                     id: data.id,
                                     error: error || null,
-                                    result: result || null
+                                    result: result !== undefined ? result : null
                                 }, '*');
                             } catch (ignore) {}
                         }
@@ -670,17 +671,14 @@
                             token: current.token,
                             id: data.id,
                             error: error || null,
-                            result: result || null
+                            result: result !== undefined ? result : null
                         }, '*');
                     } catch (ignore) {}
                 }
             });
             return;
         }
-        if (data.type === 'mzd-gui-notify' && typeof data.text === 'string') {
-            showNotification(id, data.text, data.isError);
-            return;
-        }
+        if (data.type === 'mzd-gui-notify') { return; }
         if (!record.message) { return; }
         try { record.message(event); } catch (error) { fail(id, error); }
     }

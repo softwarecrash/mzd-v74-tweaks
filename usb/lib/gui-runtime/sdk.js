@@ -48,7 +48,7 @@
             if (sReq) {
                 delete serviceRequests['$' + data.id];
                 window.clearTimeout(sReq.timer);
-                try { sReq.callback(data.error || null, data.result || null); } catch (ignore) {}
+                try { sReq.callback(data.error || null, data.result !== undefined ? data.result : null); } catch (ignore) {}
             }
             return;
         }

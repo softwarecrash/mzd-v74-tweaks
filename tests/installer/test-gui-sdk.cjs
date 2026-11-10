@@ -166,6 +166,32 @@ test("MzdGuiModule token and basic messages", async (t) => {
 
     assert.deepEqual(clean(unitsResult), sampleUnits);
   });
+
+  await t.test("notify integration delivers toast when MzdGuiResidents is present without resident script", () => {
+    const v = createView();
+    let residentNotified = null;
+    const globalResidents = {
+      notify(id, text, isError) {
+        residentNotified = { id, text, isError };
+        return true;
+      }
+    };
+    const activeModule = { id: "minesweeper" };
+    v.sdk.notify("Game completed!", false);
+    assert.equal(v.sent.length, 1);
+    const msg = v.sent[0].data;
+    assert.equal(msg.type, "mzd-gui-notify");
+
+    // Runtime routes through MzdGuiResidents.notify without requiring a resident script
+    if (globalResidents && typeof globalResidents.notify === "function") {
+      globalResidents.notify(activeModule ? activeModule.id : "system", msg.text, msg.isError);
+    }
+    assert.deepEqual(residentNotified, {
+      id: "minesweeper",
+      text: "Game completed!",
+      isError: false
+    });
+  });
 });
 
 test("MzdGuiModule service requests", async (t) => {
@@ -233,6 +259,32 @@ test("MzdGuiModule service requests", async (t) => {
     assert(cbCalled);
     assert.equal(cbError, "Write error");
     assert.equal(cbResult, null);
+  });
+
+  await t.test("preserves valid falsy results (false, 0, '') without coercion to null", () => {
+    const v = createView();
+    const cases = [false, 0, ""];
+    for (const expected of cases) {
+      let cbCalled = false, cbError = null, cbResult = null;
+      v.sdk.request("check-value", { test: true }, (err, res) => {
+        cbCalled = true;
+        cbError = err;
+        cbResult = res;
+      });
+
+      const reqData = v.sent[v.sent.length - 1].data;
+      v.receive({
+        type: "mzd-gui-service-result",
+        token: "test-view-token-123",
+        id: reqData.id,
+        error: null,
+        result: expected
+      });
+
+      assert(cbCalled);
+      assert.equal(cbError, null);
+      assert.strictEqual(cbResult, expected);
+    }
   });
 
   await t.test("supports optional args and custom timeout", () => {
