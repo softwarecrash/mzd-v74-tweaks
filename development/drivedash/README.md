@@ -15,9 +15,10 @@ shared SDK native-menu factory, including its standard radio rows, text sizing
 and controller focus handling; DriveDash has no separate List2 adapter. Selecting a skin applies it
 without closing the app. Selections remain in their settings page with the
 selected radio value marked. Back returns to the settings overview, then to the
-gauge. The Classic draft is available alongside OEM Style. It follows the first AIO-inspired
+gauge. The Classic and Motorsport drafts are available alongside OEM Style. Motorsport
+uses a segmented RPM bar, large digital speed and compact vehicle-data panels. Classic follows the first AIO-inspired
 design with an analog speed dial, inner compass, separate RPM fan and a vehicle
-statistics column. Both skins use the same data model, units and translations.
+statistics column. All skins use the same data model, units and translations.
 
 `model.js` owns normalized data and unit conversion. `demo.js` is an explicitly
 simulated provider with start/stop lifecycle. `live.js` pulls snapshots through
@@ -221,3 +222,13 @@ Active views request snapshots on a 250 ms period, including request duration, w
 The OEM-style renderer caches the instrument values separately from the moving needle. RPM interpolation retains position and velocity when a new measurement arrives, with a bounded critically damped response. Animation targets 30 fps while the needle moves and stops in settings, during native interruption or on close. Sensor values and derived statistics are not interpolated.
 
 Synthetic replay and native renderer comparisons live only in the private bench package; the normal DriveDash package never switches to simulated values on read failure. Vehicle acceptance of the faster sampling and needle remains pending.
+
+### Illustrated skins
+
+Sakura and Midnight Rose combine original generated background artwork with live
+canvas instruments. The PNG assets are 800 x 416; no numbers, labels or instrument
+needles are baked into them. Both use the common model, translations, units and
+SDK design selector. Their static instrument layers are cached; RPM animation
+only draws the cached layer and moving needle/readout. Missing artwork falls back
+to the theme colour while keeping live instruments usable. The native Mazda
+status bar remains above the skin.

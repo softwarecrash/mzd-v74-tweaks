@@ -80,10 +80,23 @@ the view is reopened. No background recording or persistent trip history exists.
   reading. No reset accumulation or invented distance has been added.
 - GPS typed reply layout, speed units and heading reference follow the old
   integration and require real-CMU verification. `gpsHeadingReference` is `oem`;
-  `gpsDirection` and `gpsFixValid` remain `null`. The legacy source used different
+  `gpsFixValid` remains `null`; driving direction uses the separate GPS-course calculation below. The legacy source used different
   heading offsets depending on Nav SD, and a coordinate alone proves no fix.
 - Validate additional consumption counters, battery SOC and engine load against
   a real vehicle. Their scaling follows the old speedometer reference.
 
 Do not call `driveAvgL100` instantaneous consumption: the original source is a
 drive-average counter. Independently collected/cumulative averages may differ.
+
+## Driving compass
+
+`gpsCourseDeg` is the initial great-circle bearing between fresh GPS positions,
+clockwise from true north. `gpsDirection` is its nearest eight-point direction.
+It does not assume a reference for the raw OEM `gpsHeadingDeg`, which remains
+unchanged. The view session requires vehicle speed of at least 3 km/h, movement
+of at least 3 metres, and samples no more than 5 seconds apart. Missing positions,
+implausible jumps, stopping and pausing clear the course. This is driving course,
+not a magnetic heading or proof of GPS fix quality. The simulator supplies an
+explicitly simulated course. Classic rotates its cardinal ring using this field
+and shows no cardinal direction when it is unavailable. Real driving verification
+of GPS position quality is still required. No additional CMU query is used.

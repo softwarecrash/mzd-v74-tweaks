@@ -9,16 +9,17 @@ const source = name => fs.readFileSync(path.join(root, name), 'utf8');
 const acornKey = Object.keys(process.binding('natives')).find(k => k.endsWith('acorn/dist/acorn'));
 const parser = new Module('drivedash-es5');
 parser._compile(process.binding('natives')[acornKey], 'drivedash-es5.js');
-for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
+for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
 function fixture(native, live, initial, deferred, bitmap=false) {
     const timeouts = new Map(); let timeoutId = 0;
-    const stats = {bitmapDraws:0};
+    const stats = {bitmapDraws:0,rotations:[]};
     const events = {}, intervals = new Map(), texts = [], labels = [], messages = [], saved = {};
     if (initial) saved['mzd-drivedash-design-preview-v1']=JSON.stringify(initial);
     const drawing = new Proxy({}, {get(target, key) {
+        if (key === 'rotate') return angle => {stats.rotations.push(angle);};
         if (key === 'drawImage') return () => {stats.bitmapDraws++;};
         if (key === 'fillText') return (value,x,y) => {texts.push(value);labels.push({value,x,y});};
         if (key === 'createRadialGradient' || key === 'createLinearGradient') return () => ({addColorStop() {}});
@@ -65,7 +66,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
     if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
-    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
+    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
     if (live && !deferred) {
         const load = messages.find(m=>m.operation==='preferences');
         assert.ok(load);
@@ -109,9 +110,9 @@ f.window.DriveDashSkins.register({id:'alternative',labelKey:'Alternative',draw()
 assert.throws(() => f.window.DriveDashSkins.register({id:'alternative',draw() {}}));
 f.nodes.settings.onclick(); assert.equal(f.intervals.size,0);
 f.nodes['menu-rows'].children[0].onclick();
-assert.equal(f.nodes['menu-rows'].children.length,3);
+assert.equal(f.nodes['menu-rows'].children.length,6);
 assert(!f.nodes['menu-rows'].children.some(row=>row.children[0].textContent==='Zur\u00fcck'));
-f.nodes['menu-rows'].children[2].onclick();
+f.nodes['menu-rows'].children[5].onclick();
 assert.equal(alternativeDraws,0); assert.equal(f.intervals.size,0);
 f.input('back','step'); // Design -> settings, still paused.
 assert.equal(f.intervals.size,0);
@@ -260,5 +261,31 @@ console.log('DRIVEDASH_RENDER_CACHE_PASSED: needle animation reuses instrument l
 const classic=fixture(false,false,{design:'classic'});
 assert.ok(classic.texts.includes(classic.window.DriveDashLanguages.de_DE['data.topSpeedKph']));
 assert.equal(classic.window.DriveDashSkins.get('classic').labelKey,'design.classic');
+for (const digit of ['0','7']) assert.ok(classic.labels.some(label=>String(label.value)===digit && label.y>300 && label.y<=405),'Classic RPM '+digit+' remains inside the view.');
 classic.dispose();
 console.log('DRIVEDASH_CLASSIC_PASSED: registered renderer, shared labels/model, ES5 and missing-data rendering.');
+
+const compassView=fixture(false,false,{design:'classic'}),compassSkin=compassView.window.DriveDashSkins.get('classic');
+let mark=compassView.labels.length;
+compassSkin.draw(compassView.nodes.gauge.getContext('2d'),model.display({speedKph:40,gpsCourseDeg:90},config,tr),tr);
+let north=compassView.labels.slice(mark).find(label=>label.value==='N');
+assert.ok(north && Math.abs(north.x)<1 && north.y===-86,'North keeps its fixed position within the rotating ring.');
+assert.ok(compassView.stats.rotations.some(angle=>Math.abs(angle+Math.PI/2)<0.0001),'The complete ring rotates west when heading east.');
+mark=compassView.labels.length;
+compassSkin.draw(compassView.nodes.gauge.getContext('2d'),model.display({},config,tr),tr);
+assert.ok(!compassView.labels.slice(mark).some(label=>['N','E','S','W'].includes(label.value)),'Unknown course does not show a fake cardinal ring.');
+compassView.dispose();
+
+const sport=fixture(false,false,{design:'motorsport'});
+assert.equal(sport.window.DriveDashSkins.get('motorsport').labelKey,'design.motorsport');
+assert.ok(sport.texts.includes('88'));assert.ok(sport.texts.includes('D'));assert.ok(sport.texts.includes('123,4 km'));
+sport.dispose();
+console.log('DRIVEDASH_MOTORSPORT_PASSED: shared model/units, missing-data path, demo readings and ES5.');
+
+for(const design of ['sakura','midnight-rose']){
+ const illustrated=fixture(false,false,{design:design});
+ assert.equal(illustrated.window.DriveDashSkins.get(design).labelKey,'design.'+design);
+ assert.ok(illustrated.texts.includes('88'));assert.ok(illustrated.texts.includes('123,4 km'));
+ illustrated.dispose();
+}
+console.log('DRIVEDASH_ILLUSTRATED_PASSED: both themes, shared live values, translations, no-image fallback and ES5.');

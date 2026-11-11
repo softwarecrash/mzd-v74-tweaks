@@ -31,3 +31,24 @@ assert.equal(display.data.intakeC,20);assert.equal(display.formatted.intakeC,'68
 assert.equal(display.formatted.gpsSpeedKph,'100');assert.equal(display.formatted.driveAvgL100,'23.5');assert.equal(display.formatted.elapsedSeconds,'1:01:01');
 assert.equal(display.data.gearNumber,3);assert.equal(display.data.leverPosition,4);
 console.log('DRIVEDASH_DATA_PASSED: canonical nullable fields, SI values, common formatting, weighted statistics, fresh-only integration, pause and gap handling.');
+// GPS course uses position changes, independently of the OEM angle reference.
+function courseBetween(lat,lon,lat2,lon2){
+ const c=model.createSession();
+ assert.equal(c.update(sample(1,40,1200,{gpsLatitudeDeg:lat,gpsLongitudeDeg:lon})).gpsCourseDeg,null);
+ return c.update(sample(2,40,1200,{gpsLatitudeDeg:lat2,gpsLongitudeDeg:lon2}));
+}
+assert.equal(courseBetween(48,11,48.0001,11).gpsDirection,'N');
+assert.equal(courseBetween(48,11,48,11.0001).gpsDirection,'E');
+assert.equal(courseBetween(48,11,47.9999,11).gpsDirection,'S');
+assert.equal(courseBetween(48,11,48,10.9999).gpsDirection,'W');
+assert.equal(courseBetween(0,179.9999,0,-179.9999).gpsDirection,'E');
+assert.equal(courseBetween(48,11,49,12).gpsCourseDeg,null,'GPS jumps cannot become headings.');
+const compass=model.createSession();
+compass.update(sample(1,40,1200,{gpsLatitudeDeg:48,gpsLongitudeDeg:11}));
+assert.equal(compass.update(sample(2,40,1200,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N');
+assert.equal(compass.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsCourseDeg,null,'No direction claimed at rest.');
+compass.pause();
+assert.equal(compass.update(sample(4,40,1200,{gpsLatitudeDeg:48.0002,gpsLongitudeDeg:11})).gpsCourseDeg,null,'Resume needs new position pair.');
+assert.equal(courseBetween(48,11,48.000001,11).gpsCourseDeg,null,'Ignore movements below three meters.');
+assert.equal(courseBetween(0,0,0.0001,0).gpsCourseDeg,null,'Reject missing zero-position origin.');
+console.log('DRIVEDASH_COMPASS_PASSED: cardinal courses, dateline, jitter, jumps, stationary and pause handling.');
