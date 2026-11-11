@@ -1,7 +1,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
 const root = path.resolve(__dirname,'../..');
-for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash','MzdGuiResidents']]) {
+for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash','DriveDashNativeMenu']]) {
   const source = path.join(root,'usb/tweaks',id,'assets/resident.js');
   if (!fs.existsSync(source)) continue;
   test(id + ' OEM Back arrow focus and cleanup', () => {
@@ -25,7 +25,7 @@ for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash'
     let code=fs.readFileSync(source,'utf8');
     vm.runInNewContext(code,{window:win,document});
     assert(win[api], 'native menu API exported');
-    const menu=(win[api].createNativeMenu || win[api].create)({prefix:id}), parent=node(), frame=node();
+    const menu=win[api].create(), parent=node(), frame=node();
     frame.contentWindow={postMessage(m){messages.push(m);}};parent.appendChild(frame);
     const spec={title:'Settings',page:'one',rows:[{label:'Entry'}]};
     menu.render(frame,'token',spec);

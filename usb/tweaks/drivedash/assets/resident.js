@@ -1,8 +1,21 @@
-/* DriveDash uses the shared SDK menus and service requests. */
+/* Local prototype adapter delegating to the shared native menu factory. */
+(function (global) {
+    'use strict';
+    function create(options) {
+        options = options || {};
+        options.prefix = 'drivedash';
+        if (global.MzdGuiResidents && typeof global.MzdGuiResidents.createNativeMenu === 'function') {
+            return global.MzdGuiResidents.createNativeMenu(options);
+        }
+        throw new Error('MzdGuiResidents native menu factory unavailable.');
+    }
+    global.DriveDashNativeMenu = {create:create};
+}(window));
+
 (function (global) {
     'use strict';
     global.MzdGuiResidents.register('drivedash', function (context) {
-        var nativeMenu = context.createNativeMenu({prefix:'drivedash',onClose:global.MzdGuiResidents.releaseBackButton}), sampling = false;
+        var nativeMenu = global.DriveDashNativeMenu.create(), sampling = false;
 
         context.onServiceRequest(function (operation, args, callback) {
             if (operation === 'sample') {
