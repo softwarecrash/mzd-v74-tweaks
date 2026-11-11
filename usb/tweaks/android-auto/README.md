@@ -34,6 +34,7 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 
 ![Android Auto Settings Main Menu](../../../docs/images/android-auto-settings.gif)
 
+- **Resolution DPI** (`resolution_dpi`: `100`–`160`, step `1`, default `141`) - controls the Android Auto render density using a native stepper (`styleStep`). Lower values (e.g. `122`) increase screen real estate and trigger Android Auto split-screen view, while higher values enlarge UI elements. If the saved package or configuration cannot be read or validated, the row is safely disabled and silently ignores user input to prevent inconsistent states. A rotating spinner is shown while saving. Changes require a CMU reboot to take effect.
 - **Touchscreen while driving** (`touch`) - enables touchscreen in Android Auto interface as long as touchscreen is unlocked in entire MZD Connect system with a separate tweak.
 - **Show navigation on HUD** (`hud`) - forwards turn-by-turn navigation arrows and distance from Android Auto to the head-up display (Active Driving Display). When turned off, navigation information stays on the center display only.
 - **Show speed limit with Nav SD** (`hud_transport`: `svcnavi` = ON, `vbs` = OFF) - routes HUD data through the car's built-in navigation service (`svcnavi`) so speed limit signs from the Mazda SD card remain visible alongside Android Auto directions. Turn off (`vbs`) only if your car does not have a factory navigation SD card and turns fail to display.

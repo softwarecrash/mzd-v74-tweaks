@@ -140,6 +140,17 @@ if [ -f "$TWEAK_DIR/assets/libpatch.conf" ]; then
     ' "$TWEAK_DIR/assets/libpatch.conf")
 fi
 
+if [ -f "$TWEAK_DIR/manifest.conf" ] && grep -q '^setting\.resolution_dpi\.default=' "$TWEAK_DIR/manifest.conf"; then
+    dpi_default=$(awk -F= '$1=="setting.resolution_dpi.default" {print $2+0}' "$TWEAK_DIR/manifest.conf")
+    if [ -n "$dpi_default" ]; then
+        if [ "$SETTINGS_JSON" = "{}" ]; then
+            SETTINGS_JSON="{\"resolution_dpi\":$dpi_default}"
+        else
+            SETTINGS_JSON=$(printf '%s' "$SETTINGS_JSON" | sed "s/^{/{\"resolution_dpi\":$dpi_default,/")
+        fi
+    fi
+fi
+
 if [ "$USE_EMU" -eq 1 ]; then
     if [ -n "$EMU_PATH" ]; then
         if [ -d "$EMU_PATH" ]; then
@@ -522,6 +533,37 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                 radio.textContent = row.checked ? '●' : '○';
                 radio.style.cssText = 'margin-left:16px;font-size:20px;';
                 item.appendChild(radio);
+            } else if (row.itemStyle === 'styleStep') {
+                var stepContainer = document.createElement('div');
+                stepContainer.style.cssText = 'display:flex;align-items:center;gap:12px;margin-left:16px;';
+
+                var stepButtonCss = 'width:32px;height:32px;line-height:30px;text-align:center;font-size:20px;font-weight:bold;cursor:pointer;border-radius:4px;border:1px solid #555;background:#333;color:#fff;padding:0;';
+                var minusBtn = document.createElement('button');
+                minusBtn.textContent = '−';
+                minusBtn.style.cssText = stepButtonCss;
+
+                var valSpan = document.createElement('span');
+                valSpan.textContent = row.value != null ? row.value : '';
+                valSpan.style.cssText = 'min-width:36px;text-align:center;font-weight:bold;font-size:18px;';
+
+                var plusBtn = document.createElement('button');
+                plusBtn.textContent = '+';
+                plusBtn.style.cssText = stepButtonCss;
+
+                minusBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    stepRow(row, idx, -1);
+                });
+
+                plusBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    stepRow(row, idx, 1);
+                });
+
+                stepContainer.appendChild(minusBtn);
+                stepContainer.appendChild(valSpan);
+                stepContainer.appendChild(plusBtn);
+                item.appendChild(stepContainer);
             } else if (row.caret) {
                 var caret = document.createElement('span');
                 caret.innerHTML = '&rsaquo;';
@@ -564,8 +606,18 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
         if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
     }
 
-    function sendSelect(idx) {
-        sendToFrame({ type: 'aa-native-select', token: token, index: idx });
+    function stepRow(row, idx, direction) {
+        var inc = typeof row.increment === 'number' ? row.increment : 1;
+        var value = row.value + direction * inc;
+        if (typeof row.min === 'number' && value < row.min) { return; }
+        if (typeof row.max === 'number' && value > row.max) { return; }
+        sendSelect(idx, { value: value, finalAdjustment: true });
+    }
+
+    function sendSelect(idx, params) {
+        var msg = { type: 'aa-native-select', token: token, index: idx };
+        if (params) { msg.params = params; }
+        sendToFrame(msg);
     }
 
     function sendBack() {
@@ -646,6 +698,11 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                 setFocus(focusedIndex - 1);
             } else if (act === 'down' || act === 'rotateRight') {
                 setFocus(focusedIndex + 1);
+            } else if (act === 'left' || act === 'right') {
+                var curRow = currentMenu.rows && currentMenu.rows[focusedIndex];
+                if (curRow && curRow.itemStyle === 'styleStep') {
+                    stepRow(curRow, focusedIndex, act === 'right' ? 1 : -1);
+                }
             } else if (act === 'select') {
                 sendSelect(focusedIndex);
             } else if (act === 'back') {
