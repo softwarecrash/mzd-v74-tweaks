@@ -39,9 +39,10 @@ Reopen the app after changing Mazda system settings to refresh automatic choices
 Unsupported system languages silently use the English dictionary; unknown units
 fall back to metric. Missing unit getters do not discard a valid language.
 No setters, native service requests, CAN input or background watcher are needed.
-`framework.localize.getDistanceUnit()` supplies Miles/Kilometers and
-`getTemperatureUnit()` supplies Fahrenheit/Celsius; language uses the existing
-shared GUI i18n API. Both gauge and native settings menu use the selected language.
+DriveDash reuses the shared GUI SDK and runtime functions: `createNativeMenu` for
+the native settings menu, `sdk.getUnits` for automatic units and locale querying,
+and `sdk.request` for background preferences and vehicle data sampling. Both gauge
+and native settings menu use the selected language.
 
 Browser settings use a separate localStorage key. This is emulator persistence,
 used only by the HTTP demo. The installed file-origin view loads its declared

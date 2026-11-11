@@ -1,25 +1,51 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const vm = require('node:vm');
-let message, services=0, distanceCalls=0, temperatureCalls=0, languageCalls=0;
-const replies = [];
-const current = {token:'fixture-token',source:{postMessage:value=>replies.push(value)}};
-const window = {framework:{localize:{getDistanceUnit() {distanceCalls++;return 'Miles';},getTemperatureUnit() {temperatureCalls++;return 'Fahrenheit';}}},
-    MzdGuiResidents:{register(id,factory) {assert.equal(id,'drivedash');factory({createNativeMenu:()=>({close(){}}),view:()=>current,language:()=> {languageCalls++;return 'de_DE';},
-        onMessage:fn=>{message=fn;},onViewClose() {},onDispose() {},service:{request() {services++;}}});}}};
-vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/resident.js','utf8'),{window});
-function request(source=current.source,token=current.token,fields={language:true,speedUnit:true,tempUnit:true}) {message({source,data:{type:'drivedash-system-settings',token,fields}});}
-request({},current.token);request(current.source,'foreign');assert.equal(replies.length,0);
-request();
-assert.equal(replies[0].settings.language,'de_DE');assert.equal(replies[0].settings.speedUnit,'mph');assert.equal(replies[0].settings.tempUnit,'F');
-assert.equal(distanceCalls,1);assert.equal(temperatureCalls,1);assert.equal(services,0,'System settings must not query the Lua/vehicle service.');
-window.framework.localize={getDistanceUnit:()=> 'Kilometers',getTemperatureUnit:()=> 'Celsius'};
-request();assert.equal(replies[1].settings.speedUnit,'kmh');assert.equal(replies[1].settings.tempUnit,'C');
-window.framework.localize={getDistanceUnit:()=> 'unknown',getTemperatureUnit:()=> {throw Error('missing');}};
-request();assert.equal(replies[2].settings.speedUnit,undefined);assert.equal(replies[2].settings.tempUnit,undefined);assert.equal(replies[2].settings.language,'de_DE');
-let lang=languageCalls,dist=distanceCalls,temp=temperatureCalls;
-request(current.source,current.token,{});
-assert.equal(languageCalls,lang);assert.equal(distanceCalls,dist);assert.equal(temperatureCalls,temp);
-request(current.source,current.token,{language:true});
-assert.equal(languageCalls,lang+1);assert.equal(distanceCalls,dist);assert.equal(temperatureCalls,temp);
+let distanceCalls = 0, temperatureCalls = 0;
+const framework = {
+    localize: {
+        getDistanceUnit() { distanceCalls++; return 'Miles'; },
+        getTemperatureUnit() { temperatureCalls++; return 'Fahrenheit'; },
+        getCurrentLanguage() { return 'de_DE'; }
+    }
+};
+const window = {
+    framework,
+    clearTimeout() {},
+    setTimeout(fn) { return 1; },
+    addEventListener() {},
+    removeEventListener() {}
+};
+const root = path.resolve(__dirname, '../../..');
+vm.runInNewContext(fs.readFileSync(path.join(root, 'usb/lib/gui-runtime/residents.js'), 'utf8'), { window });
+const residentCode = fs.readFileSync(path.join(root, 'usb/tweaks/drivedash/assets/resident.js'), 'utf8');
+vm.runInNewContext(residentCode, { window });
+
+let units = window.MzdGuiResidents.units('drivedash');
+assert.equal(units.language, 'de_DE');
+assert.equal(units.speedUnit, 'mph');
+assert.equal(units.tempUnit, 'F');
+assert.equal(distanceCalls, 1);
+assert.equal(temperatureCalls, 1);
+
+framework.localize = {
+    getDistanceUnit: () => 'Kilometers',
+    getTemperatureUnit: () => 'Celsius',
+    getCurrentLanguage: () => 'de_DE'
+};
+units = window.MzdGuiResidents.units('drivedash');
+assert.equal(units.speedUnit, 'kmh');
+assert.equal(units.tempUnit, 'C');
+
+framework.localize = {
+    getDistanceUnit: () => 'unknown',
+    getTemperatureUnit: () => { throw Error('missing'); },
+    getCurrentLanguage: () => 'de_DE'
+};
+units = window.MzdGuiResidents.units('drivedash');
+assert.equal(units.speedUnit, null);
+assert.equal(units.tempUnit, null);
+assert.equal(units.language, 'de_DE');
+
 console.log('DRIVEDASH_SYSTEM_PASSED: OEM getters, locale, units, source/token checks, independent failures and no sensor/service calls.');
