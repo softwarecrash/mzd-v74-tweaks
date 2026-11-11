@@ -51,7 +51,7 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 - **Prevent car media auto-play** (`block_headunit_media_play`) - stops the car from automatically starting music playback whenever Android Auto connects or when switching audio sources. You can still start music playback manually from the screen, steering wheel, or phone controls.
 - **Fix cut-off navigation voice** (`aa_audio_low_latency`) - fixes the issue where spoken navigation directions (such as from Google Maps or Waze) get clipped or cut off at the beginning or end of words. It keeps the car audio channel ready so voice guidance plays smoothly without delays.
 
-Settings are read from and atomically written to `/tmp/mnt/data_persist/oem-aa-mod/libpatch.conf` via the secure local GUI service.
+Settings are read from and atomically written to `/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto/libpatch.conf` via the secure local GUI service.
 The Android Auto libraries read this file when MZD boots, so changes apply after a reboot.
 
 - Each change shows a short **Saving settings...** notification, then **Settings saved**.
@@ -236,7 +236,7 @@ If you encounter a bug or an issue not covered above:
 
 ## Installed files
 
-- **Payload directory**: `/tmp/mnt/data_persist/oem-aa-mod/`
+- **Payload directory**: `/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto/`
   - `libpatch-blmjciaapa.so` (preloaded into `jciAAPA`)
   - `libpatch-svcjcinavi.so` (preloaded into `jcinavi`)
   - `libpatch-aap_service.so` (preloaded into `aap_service`)
