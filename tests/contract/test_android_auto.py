@@ -159,10 +159,10 @@ esac
 
     folder = usb / 'tweaks/android-auto'
     shutil.copytree(ROOT / 'usb/tweaks/android-auto', folder)
-    payload_dir = persist / 'oem-aa-mod'
+    payload_dir = persist / 'mzd-tweaks/shims/android-auto'
 
     m = (folder / 'manifest.conf').read_text().replace('/jci/sm/sm.conf', bp(config)).replace('74d9fc389b74fb01d0cfc2615a82c782', md5(stock.encode()))
-    m = m.replace('/tmp/mnt/data_persist/oem-aa-mod', bp(payload_dir))
+    m = m.replace('/tmp/mnt/data_persist', bp(persist))
     write(folder / 'manifest.conf', m)
 
     table = (folder / 'components.tsv').read_text()
