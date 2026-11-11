@@ -1,0 +1,14 @@
+--- target.data
++++ target.data
+@@ -603,6 +603,11 @@
+             <dependency type="service" value="start_network"/>
+         </service>
+         
++        <service type="process" name="load_wlan1" path="/data_persist/wl/load-wlan1.sh" autorun="yes" reset_board="no" retry_count="2" args="" exit_allowed="yes" started_after_exit_allowed="yes" >
++            <dependency type="service" value="start_wifi"/>
++            <dependency type="service" value="stage_usb"/>
++        </service>
++
+         <service type="jci_service" name="NMS_svc" path="/jci/nms/nms.so" autorun="yes" retry_count="6" reset_board="yes" args="" save_at_shutdown="yes" save_blocking="no" save_timeout="3500" >
+             <dependency type="service" value="stage_wifi"/>
+             <dependency type="service" value="start_wifi"/>

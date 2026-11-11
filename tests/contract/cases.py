@@ -12,6 +12,7 @@ CASES = {
     'android-auto': 'component-bundle',
     'carplay-hud': 'component-bundle',
     'cluster-language': 'component-bundle',
+    'tplink-rtl8811au': 'component-bundle',
     'fuel-consumption-ending': 'component-bundle',
     'list-beep': 'shared-patch',
     'list-loop': 'shared-patch',
