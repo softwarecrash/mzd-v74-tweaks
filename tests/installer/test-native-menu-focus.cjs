@@ -23,7 +23,6 @@ for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash'
     const win={framework:fw,addEventListener(){},removeEventListener(){},setTimeout(fn){callback=fn;return 1;},clearTimeout(){}};
     vm.runInNewContext(fs.readFileSync(path.join(root,'usb/lib/gui-runtime/residents.js'),'utf8'),{window:win,document});
     let code=fs.readFileSync(source,'utf8');
-    if(id==='drivedash') code=code.slice(0,code.indexOf("    global.MzdGuiResidents.register('drivedash'"))+"    global.DriveDashNativeMenu={create:create}; }(window));";
     vm.runInNewContext(code,{window:win,document});
     assert(win[api], 'native menu API exported');
     const menu=win[api].create(), parent=node(), frame=node();
