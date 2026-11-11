@@ -10,10 +10,14 @@ The first skin is named **OEM Style**, inspired by Mazda instrument clusters. Th
 application is skin-independent: `skins/registry.js` manages renderers, and each
 renderer receives the same normalized display model and translation function.
 Additional skins register an ID, translation key and `draw(context, model, t)`.
-The settings design list comes from this registry. Selecting a skin applies it
+The settings design list comes from this registry. All settings lists use the
+shared SDK native-menu factory, including its standard radio rows, text sizing
+and controller focus handling; DriveDash has no separate List2 adapter. Selecting a skin applies it
 without closing the app. Selections remain in their settings page with the
 selected radio value marked. Back returns to the settings overview, then to the
-gauge. Only OEM Style is supplied initially.
+gauge. The Classic draft is available alongside OEM Style. It follows the first AIO-inspired
+design with an analog speed dial, inner compass, separate RPM fan and a vehicle
+statistics column. Both skins use the same data model, units and translations.
 
 `model.js` owns normalized data and unit conversion. `demo.js` is an explicitly
 simulated provider with start/stop lifecycle. `live.js` pulls snapshots through

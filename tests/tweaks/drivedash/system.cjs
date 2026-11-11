@@ -5,7 +5,7 @@ let message, services=0, distanceCalls=0, temperatureCalls=0, languageCalls=0;
 const replies = [];
 const current = {token:'fixture-token',source:{postMessage:value=>replies.push(value)}};
 const window = {framework:{localize:{getDistanceUnit() {distanceCalls++;return 'Miles';},getTemperatureUnit() {temperatureCalls++;return 'Fahrenheit';}}},
-    MzdGuiResidents:{register(id,factory) {assert.equal(id,'drivedash');factory({view:()=>current,language:()=> {languageCalls++;return 'de_DE';},
+    MzdGuiResidents:{register(id,factory) {assert.equal(id,'drivedash');factory({createNativeMenu:()=>({close(){}}),view:()=>current,language:()=> {languageCalls++;return 'de_DE';},
         onMessage:fn=>{message=fn;},onViewClose() {},onDispose() {},service:{request() {services++;}}});}}};
 vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/resident.js','utf8'),{window});
 function request(source=current.source,token=current.token,fields={language:true,speedUnit:true,tempUnit:true}) {message({source,data:{type:'drivedash-system-settings',token,fields}});}

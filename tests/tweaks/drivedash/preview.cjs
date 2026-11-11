@@ -9,7 +9,7 @@ const source = name => fs.readFileSync(path.join(root, name), 'utf8');
 const acornKey = Object.keys(process.binding('natives')).find(k => k.endsWith('acorn/dist/acorn'));
 const parser = new Module('drivedash-es5');
 parser._compile(process.binding('natives')[acornKey], 'drivedash-es5.js');
-for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
+for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
@@ -44,7 +44,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
     if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
-    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
+    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
     if (live && !deferred) { const load = messages.find(m=>m.type==='drivedash-preferences'); assert.ok(load); events.message({source:parent,data:{type:'drivedash-preferences-result',token:'preview-token',id:load.id,result:initial || {}}}); }
     if (native && !deferred && messages.some(m=>m.type==='drivedash-system-settings')) events.message({source:parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'mph',tempUnit:'F'}}});
     return {window, context, nodes, stats, events, intervals, texts, labels, messages, saved, input, dispose, suspend, resume,timeouts};
@@ -76,15 +76,15 @@ for (const dictionary of Object.values(f.window.DriveDashLanguages)) { assert.eq
 for (const key of Object.keys(f.window.DriveDashLanguages.en_US)) assert.ok(f.window.DriveDashLanguages.de_DE[key],key);
 assert.equal(f.intervals.size,1);
 
-// A second registered renderer appears in settings and activates without exiting.
+// Additional registered renderers appear in settings and activate without exiting.
 let alternativeDraws = 0;
 f.window.DriveDashSkins.register({id:'alternative',labelKey:'Alternative',draw() {alternativeDraws++;}});
 assert.throws(() => f.window.DriveDashSkins.register({id:'alternative',draw() {}}));
 f.nodes.settings.onclick(); assert.equal(f.intervals.size,0);
 f.nodes['menu-rows'].children[0].onclick();
-assert.equal(f.nodes['menu-rows'].children.length,2);
+assert.equal(f.nodes['menu-rows'].children.length,3);
 assert(!f.nodes['menu-rows'].children.some(row=>row.children[0].textContent==='Zur\u00fcck'));
-f.nodes['menu-rows'].children[1].onclick();
+f.nodes['menu-rows'].children[2].onclick();
 assert.equal(alternativeDraws,0); assert.equal(f.intervals.size,0);
 f.input('back','step'); // Design -> settings, still paused.
 assert.equal(f.intervals.size,0);
@@ -227,3 +227,9 @@ const labelCount=cache.labels.length;cachedSample.rpm=2000;cacheSkin.draw(cache.
 assert.equal(cache.labels.length,labelCount,'needle-only frames reuse instrument labels and LCD geometry');
 cachedSample.speed='99';cacheSkin.draw(cache.nodes.gauge.getContext('2d'),cachedSample,tr);assert(cache.labels.length>labelCount,'changed readings invalidate the cache');cache.dispose();
 console.log('DRIVEDASH_RENDER_CACHE_PASSED: needle animation reuses instrument layer; new readings invalidate it.');
+
+const classic=fixture(false,false,{design:'classic'});
+assert.ok(classic.texts.includes(classic.window.DriveDashLanguages.de_DE['data.topSpeedKph']));
+assert.equal(classic.window.DriveDashSkins.get('classic').labelKey,'design.classic');
+classic.dispose();
+console.log('DRIVEDASH_CLASSIC_PASSED: registered renderer, shared labels/model, ES5 and missing-data rendering.');
