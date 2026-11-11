@@ -329,3 +329,5 @@ and payload, and use only its own scoped `context.service` API. This does not
 expose arbitrary filesystem or shell access to view messages.
 
 Provider 0.5.1 declares `parking-lifecycle=1`; GUI installation/update refuses a provider without that capability before removing a consumer. Remove all GUI consumers before provisioning the new helper.
+
+Provider 0.6.0 declares `native-menu=1` and `service-request=1` for native menus and resident service requests (`createNativeMenu`, `onServiceRequest`, and `sdk.request`). GUI installation/update refuses a provider without these capabilities before removing a consumer. Remove all GUI consumers before provisioning the new helper.
