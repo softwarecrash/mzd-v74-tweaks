@@ -84,7 +84,7 @@ mzd_package_check_full() (
     mzd_package_tree_ok "$entry" || { mzd_package_error 'Saved package contains unsupported files.'; exit 1; }
     for path in "$entry"/* "$entry"/.[!.]* "$entry"/..?*; do
         [ -e "$path" ] || continue
-        case "${path##*/}" in package|package.files|paths.tsv|state.conf|state.next|failure.log|failure.next) ;;
+        case "${path##*/}" in package|package.files|paths.tsv|state.conf|state.next|failure.log|failure.next|uninstall-temp|uninstall-temp.next) ;;
             *) mzd_package_error 'Unexpected files in saved installation; nothing deleted.'; exit 1 ;;
         esac
     done
@@ -102,6 +102,9 @@ mzd_package_check_full() (
     mzd_package_paths_loaded "$entry/package/tweaks/$ID" > "$temp" && cmp -s "$temp" "$entry/paths.tsv" || {
         mzd_package_error 'Saved ownership record differs from its package.'; exit 1;
     }
+    if [ -d "$entry/package/originals" ]; then
+        . "$entry/package/lib/originals.sh" && mzd_originals_validate "$entry" || exit 1
+    fi
 )
 mzd_package_presence() (
     entry=$1
@@ -234,6 +237,7 @@ mzd_package_worker_raw() (
     # A remembered package layout keeps worker-relative library paths unchanged.
     worker="$1/package/tweaks/${1##*/}/run.sh"
     MZD_WORKER_DIRECT=1; export MZD_WORKER_DIRECT MZD_ORIGIN_USB
+    MZD_ORIGINALS_CLEANUP=1; export MZD_ORIGINALS_CLEANUP
     MZD_PACKAGE_STATE=$(mzd_package_state "$1") || exit 1
     export MZD_PACKAGE_STATE
     unset MZD_SETTINGS_FILE
@@ -301,9 +305,22 @@ mzd_package_remove() {
             [ ! -d "$config_payload" ] || rmdir "$config_payload" 2>/dev/null || :
         fi
     fi
+    if [ -f "$1/package/lib/originals.sh" ]; then
+        . "$1/package/lib/originals.sh" || { mzd_package_set_state "$1" failed;return 1; }
+        mzd_originals_finish "$1"; code=$?
+        if [ "$code" != 0 ]; then mzd_package_set_state "$1" failed || :; return "$code"; fi
+    fi
     # Restrict recursive deletion to a validated direct child of the store.
     [ "$1" = "$MZD_PACKAGE_STORE/${1##*/}" ] || return 2
     if ! rm -rf "$1"; then mzd_package_error 'Uninstall succeeded but package cleanup failed.'; return 2; fi
+    if [ "$MZD_PACKAGE_STORE" = "$MZD_PACKAGE_MOUNT/mzd-tweaks/installed" ]; then
+        rmdir "$MZD_PACKAGE_STORE" 2>/dev/null || :
+        for container in config-owners data gui-data shims ''; do
+            directory="$MZD_PACKAGE_MOUNT/mzd-tweaks${container:+/$container}"
+            [ -d "$directory" ] && [ ! -L "$directory" ] || continue
+            rmdir "$directory" 2>/dev/null || :
+        done
+    fi
     sync
 }
 mzd_package_user_check() (
@@ -315,7 +332,7 @@ mzd_package_user_check() (
     for user_file in "$user_dir"/*; do
         [ -e "$user_file" ] || continue
         [ -f "$user_file" ] && [ ! -L "$user_file" ] || { mzd_package_error 'Configuration override must be a regular file.'; exit 1; }
-        case "${user_file##*/}" in *.conf) ;; *) mzd_package_error "Unsupported configuration override: ${user_file##*/}"; exit 1 ;; esac
+        case "${user_file##*/}" in *.conf|*.key) ;; *) mzd_package_error "Unsupported configuration override: ${user_file##*/}"; exit 1 ;; esac
         file_size=$(( $(wc -c < "$user_file") ))
         [ "$file_size" -le "${MZD_CONFIG_SIZE_LIMIT:-65536}" ] || { mzd_package_error "Configuration override exceeds size limit of $(( ${MZD_CONFIG_SIZE_LIMIT:-65536} / 1024 )) KB: ${user_file##*/}"; exit 1; }
     done
@@ -344,19 +361,43 @@ mzd_package_stage() (
     [ "$ID" = "$id" ] || { mzd_package_error 'Copied package ID differs from its folder.'; exit 1; }
     [ -z "${4:-}" ] || [ "$VERSION" = "$4" ] || { mzd_package_error 'USB version changed while staging.'; exit 1; }
     mzd_package_paths "$stage/package/tweaks/$id" > "$stage/paths.tsv" && mzd_package_paths_ok "$stage/paths.tsv" || exit 1
-    for asset_conf in "$stage/package/tweaks/$id/assets/"*.conf; do
-        [ -f "$asset_conf" ] && [ ! -L "$asset_conf" ] || continue
-        conf_name=${asset_conf##*/}
-        user_conf="$source/user/$id/$conf_name"
-        if [ -f "$user_conf" ] && [ ! -L "$user_conf" ]; then
-            cp "$user_conf" "$asset_conf" && cmp -s "$user_conf" "$asset_conf" || exit 1
-        fi
-    done
     if [ -n "${SETTINGS:-}${COMPONENTS:-}" ]; then
         . "$stage/package/lib/settings.sh" || exit 1
         mzd_settings_check "$stage/package/tweaks/$id/manifest.conf" "${MZD_SETTINGS_FILE:-}" || exit 1
         cp "$MZD_SETTINGS_FILE" "$stage/package/settings.conf" && cmp -s "$MZD_SETTINGS_FILE" "$stage/package/settings.conf" || exit 1
     fi
+    conditional_assets=$(awk -F= '$1~/^setting[.][a-z0-9_]+[.]asset$/ {print $2}' "$stage/package/tweaks/$id/manifest.conf") || exit 1
+    for conditional_asset in $conditional_assets; do
+        [ -f "$stage/package/tweaks/$id/assets/$conditional_asset" ] && [ ! -L "$stage/package/tweaks/$id/assets/$conditional_asset" ] || {
+            mzd_package_error "Conditional asset is missing or linked: $conditional_asset"; exit 1;
+        }
+    done
+    for asset_conf in "$stage/package/tweaks/$id/assets/"*.conf "$stage/package/tweaks/$id/assets/"*.key; do
+        [ -f "$asset_conf" ] && [ ! -L "$asset_conf" ] || continue
+        conf_name=${asset_conf##*/}
+        asset_setting=$(awk -F= -v name="$conf_name" '$1~/^setting[.][a-z0-9_]+[.]asset$/ && $2==name {split($1,p,"[.]");print p[2]}' "$stage/package/tweaks/$id/manifest.conf") || exit 1
+        source_name=$conf_name
+        if [ -n "$asset_setting" ]; then
+            asset_when=$(awk -F= -v key="setting.$asset_setting.asset_when" '$1==key {print $2}' "$stage/package/tweaks/$id/manifest.conf") || exit 1
+            selected=$(mzd_setting "$asset_setting") || exit 1
+            [ "$selected" = "$asset_when" ] || continue
+            source_name=$(awk -F= -v key="setting.$asset_setting.asset_source" '$1==key {print $2}' "$stage/package/tweaks/$id/manifest.conf") || exit 1
+        fi
+        user_conf="$source/user/$id/$source_name"
+        if [ -f "$user_conf" ] && [ ! -L "$user_conf" ]; then
+            cp "$user_conf" "$asset_conf" && cmp -s "$user_conf" "$asset_conf" || exit 1
+        fi
+    done
+    # Validate effective settings and overridden assets before old removal.
+    if [ "${PREFLIGHT:-false}" = true ]; then
+        preflight_output=$(mzd_package_exec_worker "$stage/package/tweaks/$id/run.sh" preflight); preflight_code=$?
+        if [ "$preflight_code" != 0 ]; then
+            [ -z "$preflight_output" ] || printf '%s\n' "$preflight_output" >&2
+            mzd_package_error 'Candidate preflight failed; existing installation unchanged.'
+            exit 1
+        fi
+    fi
+    . "$stage/package/lib/originals.sh" && mzd_originals_capture "$stage" || exit 1
     mzd_package_inventory "$stage" > "$stage/package.files" || exit 1
     mzd_package_set_state "$stage" prepared
 )
@@ -397,7 +438,7 @@ mzd_package_update_backup() (
     df -Pk "$MZD_PACKAGE_MOUNT" | awk -v needed="$needed" 'NR==2 {reserve=$2/10;if(reserve<65536)reserve=65536;ok=($4-needed>=reserve)} END {exit !ok}' || {
         mzd_package_error 'Not enough space for the previous-version recovery snapshot.';exit 1;
     }
-    mkdir "$archive" && cp -R "$entry" "$archive/${entry##*/}" || exit 1
+    mkdir "$archive" && cp -a "$entry" "$archive/${entry##*/}" || exit 1
     diff -r "$entry" "$archive/${entry##*/}" >/dev/null && mzd_package_check "$archive/${entry##*/}" || exit 1
     sync
 )
@@ -437,7 +478,7 @@ mzd_package_action() (
     fi
     trap '[ -z "$settings_tmp" ] || rm -f "$settings_tmp"' 0
     mzd_package_storage || exit 1
-    mkdir -p "$MZD_PACKAGE_STORE" || exit 1
+    if [ "$action" = install ]; then mkdir -p "$MZD_PACKAGE_STORE" || exit 1; fi
     mkdir "$MZD_PACKAGE_LOCK" 2>/dev/null || { mzd_package_error 'Another package operation or Restore is active.'; exit 1; }
     stage=''
     trap 'code=$?; if [ "$code" != 0 ] && [ -n "$update_archive" ] && [ -d "$update_archive" ]; then printf "Previous version recovery snapshot retained: %s\n" "$update_archive" >&2; fi; [ -z "$settings_tmp" ] || rm -f "$settings_tmp"; [ -z "$stage" ] || rm -rf "$stage"; [ -z "$MZD_PACKAGE_CACHE" ] || rm -rf "$MZD_PACKAGE_CACHE"; rmdir "$MZD_PACKAGE_LOCK" 2>/dev/null || :; exit "$code"' 0
@@ -471,7 +512,7 @@ mzd_package_action() (
             mzd_asset_readable "$source/tweaks/$id/$SHIM_ASSET" && mzd_shim_elf "$source/tweaks/$id/$SHIM_ASSET" || { mzd_package_error 'Unsupported or missing shim asset.'; exit 1; }
             mzd_shim_compat || exit 1
         fi
-        if [ "$TYPE" = gui-extension ] && [ -n "$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
+        if [ "$TYPE" = gui-extension ]; then
             # Refuse old providers/uninstallers before publishing a failed receipt.
             mzd_package_exec_worker "$source/tweaks/$id/run.sh" validate-install || exit 1
         fi
@@ -526,7 +567,13 @@ mzd_package_action() (
         [ "$code" = 0 ] && [ "$result" = uninstalled ] || { mzd_package_error 'No saved uninstaller; remove the old installation with its original USB package first.'; exit 1; }
         printf 'Tweak is not installed.\n'; exit 0
     fi
-    result=$(mzd_package_exec_worker "$source/tweaks/$id/run.sh" status); code=$?
+    if [ -z "$stage" ]; then
+        stage="$MZD_PACKAGE_STORE/.stage-$id-$$"
+        [ ! -e "$stage" ] && [ ! -L "$stage" ] || exit 1
+        mzd_package_stage "$source" "$stage" "$id" "$requested" || exit 1
+    fi
+    # Probe the selected candidate, including imported assets and settings.
+    result=$(mzd_package_exec_worker "$stage/package/tweaks/$id/run.sh" status); code=$?
     [ "$code" = 0 ] && [ "$result" = uninstalled ] || {
         # A machine-readable hint only for a completed, blocked target check.
         # The separate recovery check still verifies OEM data and ownership.
@@ -535,11 +582,6 @@ mzd_package_action() (
         fi
         mzd_package_error 'Target is not ready for a fresh managed installation; remove unmanaged changes with their original package first.'; exit 1;
     }
-    if [ -z "$stage" ]; then
-        stage="$MZD_PACKAGE_STORE/.stage-$id-$$"
-        [ ! -e "$stage" ] && [ ! -L "$stage" ] || exit 1
-        mzd_package_stage "$source" "$stage" "$id" "$requested" || exit 1
-    fi
     mzd_package_install_paths "$stage/paths.tsv" || exit 1
     mv "$stage" "$entry" || exit 1; stage=''
     mzd_package_set_state "$entry" installing || exit 1

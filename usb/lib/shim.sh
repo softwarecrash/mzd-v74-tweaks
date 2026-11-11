@@ -60,7 +60,7 @@ mzd_shim_mount() (
       $3!="rootfs" && ($2=="/" || p==$2 || index(p,$2 "/")==1) {
         if(length($2)>=length(best)){best=$2;fs=$3}
       }
-      END {internal=(best==root || best=="/jci" || best=="/tmp/mnt/data_persist" || best=="/mnt/data_persist" || best=="/tmp/mnt/resources" || best=="/mnt/resources");if(!internal || fs!~/^(relfs|ext2|ext3|ext4|ubifs|jffs2)$/)exit 1;print best}
+      END {internal=(best==root || best=="/jci" || best=="/tmp/mnt/data" || best=="/mnt/data" || best=="/tmp/mnt/data_persist" || best=="/mnt/data_persist" || best=="/tmp/mnt/resources" || best=="/mnt/resources");if(!internal || fs!~/^(relfs|ext2|ext3|ext4|ubifs|jffs2)$/)exit 1;print best}
     ' /proc/mounts
 )
 mzd_shim_compat() (

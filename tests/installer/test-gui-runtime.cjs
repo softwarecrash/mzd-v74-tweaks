@@ -49,6 +49,8 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
   let selecting = false;
   let serial = 0,
     context = "Applications",
+    currentApp = "system",
+    sequence = 66,
     disposed = 0;
 
   function node(tag) {
@@ -109,6 +111,7 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
   };
   let sbName = "Applications";
   const sent = [];
+  const sbns = [];
   const fw = {
     common: {
       setSbName(name) {
@@ -116,10 +119,15 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
       },
       setSbNameId(uia, id) {
         sbName = id;
+      },
+      startTimedSbn(uiaId, sbnId, type, props) {
+        sbns.push({ uiaId, sbnId, type, props });
       }
     },
-    getCurrentApp: () => "system",
+    _frameworkState: "idle",
+    getCurrentApp: () => currentApp,
     getCurrCtxtId: () => context,
+    getCurrCtxtSeqNo: () => sequence,
     getAppInstance() {
       if (failStartup) throw Error("startup failure");
       return app;
@@ -198,9 +206,27 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
       intervals.delete(id);
     }
   };
+  const headNode = node("head");
   const doc = {
+    head: headNode,
     body: node("body"),
     createElement: node,
+    getElementsByTagName(name) {
+      if (name === "head") return [headNode];
+      return [];
+    },
+    getElementById(id) {
+      function find(n) {
+        if (!n) return null;
+        if (n.id === id) return n;
+        for (const c of n.children || []) {
+          const f = find(c);
+          if (f) return f;
+        }
+        return null;
+      }
+      return find(headNode) || find(this.body);
+    },
     activeElement: { focus() {} }
   };
   load(RUNTIME, runtime, { window: win, document: doc });
@@ -216,6 +242,7 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
     original,
     System,
     sent,
+    sbns: () => sbns,
     listeners,
     timeouts,
     intervals,
@@ -248,8 +275,10 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
         "MzdGui.Open." + (id === "games" ? "menu.0" : "module." + id)
       );
     },
-    context(v) {
+    context(v, app = "system", seq = sequence) {
       context = v;
+      currentApp = app;
+      sequence = seq;
     },
     event,
     get disposed() {
@@ -841,4 +870,235 @@ test("the translated Hello World example changes its labels once and keeps its s
   assert.equal(translatedApi.input("back", "step"), false);
   translatedApi.dispose();
   assert.equal(translatedNodes.close.onclick, null);
+});
+
+test("status-bar layout and phone interruption lifecycle", () => {
+// Opt-in status-bar layout uses the authenticated SDK path; other views stay fullscreen.
+{
+ const h=harness(); h.open('one'); const frame=h.frame(), root=frame.parentNode;
+ const token=frame.src.split('#mzdgui=')[1], events={};
+ const parent={postMessage(data){h.event('message',{source:frame.contentWindow,data});}};
+ const child=frame.contentWindow;
+ child.parent=parent;child.location={hash:'#mzdgui='+token};
+ child.addEventListener=(name,fn)=>events[name]=fn;child.removeEventListener=name=>delete events[name];
+ vm.runInNewContext(sdk,{window:child});
+ h.event('message',{source:{},data:{type:'mzd-gui-layout',token,message:'with-status-bar'}});
+ assert.notEqual(root.style.top,'64px','foreign frame cannot change layout');
+ child.MzdGuiModule.setLayout('with-status-bar');
+ assert.equal(root.style.top,'64px');assert.equal(root.style.height,'416px');
+ assert.equal(root.style.zIndex,'9','view covers side chrome (8), below status bar (10)');assert.equal(frame.style.height,'416px');assert.equal(h.title(),'One');
+ child.MzdGuiModule.setLayout('invalid');assert.equal(root.style.height,'416px');
+ child.MzdGuiModule.setLayout('fullscreen');assert.equal(root.style.top,'0px');assert.equal(frame.style.height,'480px');
+ child.MzdGuiModule.close();assert.equal(h.title(),'Applications');assert.equal(h.doc.body.children.length,0);
+ h.open('games');h.choose(0);assert(h.frame().style.cssText.includes('height:480px'),'next view retains default fullscreen');
+}
+console.log('GUI_STATUS_BAR_LAYOUT_PASSED: real SDK/runtime opt-in, viewport, title restoration, invalid/foreign requests and unchanged fullscreen defaults.');
+
+// Actual runtime + SDK: retain one opted-in view across a phone interruption.
+function callFixture(optIn=true) {
+ const h=harness();h.open('one');const frame=h.frame(), child=frame.contentWindow, events={};
+ const token=frame.src.split('#mzdgui=')[1], parent={postMessage(data){h.event('message',{source:child,data});}};
+ let suspended=0,resumed=0,disposed=0;
+ child.parent=parent;child.location={hash:'#mzdgui='+token};
+ child.addEventListener=(name,fn)=>events[name]=fn;child.removeEventListener=name=>delete events[name];
+ child.postMessage=data=>{if(events.message)events.message({source:parent,data});};
+ vm.runInNewContext(sdk,{window:child});
+ child.MzdGuiModule.onDispose(()=>disposed++);
+ if(optIn){child.MzdGuiModule.onSuspend(()=>suspended++);child.MzdGuiModule.onResume(()=>resumed++);}
+ child.MzdGuiModule.ready();
+ return {h,frame,child,events,token,parent,tick(){for(const fn of [...h.intervals.values()])fn();},get disposed(){return disposed;},get suspended(){return suspended;},get resumed(){return resumed;}};
+}
+{
+ const c=callFixture();let input=0,consumed=0;c.child.MzdGuiModule.onInput(()=>{input++;return true;});
+ c.h.context('ActiveCall','phone',67);c.tick();c.tick();
+ assert.equal(c.suspended,1);assert.equal(c.disposed,0);assert.equal(c.frame.parentNode.style.display,'none');
+ const key={keyCode:13,preventDefault(){consumed++;},stopImmediatePropagation(){consumed++;}};
+ c.h.event('keydown',key);c.events.keydown(key);assert.equal(input,0);assert.equal(consumed,0,'phone input must be released');
+ c.h.context('Applications','system',66);c.h.win.framework._frameworkState='transition';c.tick();assert.equal(c.resumed,0);
+ const replacement={divElt:{style:{visibility:'visible'}},list2Ctrl:{setLineNumbers(){}}};c.h.app._currentContextTemplate=replacement;
+ c.h.win.framework._frameworkState='idle';c.tick();c.tick();
+ assert.equal(c.resumed,1);assert.equal(c.h.frame(),c.frame,'same iframe and state retained');assert.equal(replacement.divElt.style.visibility,'hidden');
+ c.child.MzdGuiModule.close();assert.equal(c.disposed,1);assert.equal(replacement.divElt.style.visibility,'visible');
+}
+for(const [context,app,seq] of [['Home','system',68],['NowPlaying','usbaudio',68],['Map','navigation',68],['Applications','system',68],['RecentCalls','phone',68]]) {
+ const c=callFixture();c.h.context('IncomingCall','phone',67);c.tick();assert.equal(c.suspended,1);
+ c.h.context(context,app,seq);c.tick();assert.equal(c.resumed,0);assert.equal(c.h.doc.body.children.length,0);assert.equal(c.disposed,1);
+}
+{
+ const c=callFixture(false);c.h.context('ActiveCall','phone',67);c.tick();assert.equal(c.h.doc.body.children.length,0,'non-opted-in views still close');
+}
+{
+ const c=callFixture();delete c.h.win.framework.getCurrCtxtSeqNo;c.child.MzdGuiModule.close();c.h.open('one');
+ const frame=c.h.frame(), token=frame.src.split('#mzdgui=')[1];
+ c.h.event('message',{source:frame.contentWindow,data:{type:'mzd-gui-lifecycle',token,message:'phone'}});
+ c.h.event('message',{source:frame.contentWindow,data:{type:'mzd-gui-ready',token}});
+ c.h.context('ActiveCall','phone',67);c.tick();assert.equal(c.h.doc.body.children.length,0,'unknown return identity must close safely');
+}
+console.log('GUI_PHONE_LIFECYCLE_PASSED: actual SDK/runtime suspend/resume, same-frame state, native input release, transition readiness, template replacement, deliberate navigation, no sequence and opt-in only.');
+
+// Mazda ready/displayed callbacks prevent the Applications flash on return.
+{
+ const c=callFixture(false);let readyCalls=0,displayedCalls=0;
+ const originalReady=function(value){readyCalls++;assert.equal(value,'ready-argument');return 17;};
+ const originalDisplayed=function(value){displayedCalls++;assert.equal(value,'displayed-argument');return 18;};
+ const entry={readyFunction:originalReady,displayedFunction:originalDisplayed};
+ c.h.app._contextTable={Applications:entry};
+ c.child.MzdGuiModule.onSuspend(()=>{});c.child.MzdGuiModule.onResume(()=>{});
+ c.h.context('ActiveCall','phone',67);c.tick();
+ c.h.context('Applications','system',66);c.h.win.framework._frameworkState='transition';
+ const template={divElt:{className:'List2Tmplt',style:{visibility:'visible'}},list2Ctrl:{setLineNumbers(){}}};
+ c.h.app._currentContext={ctxtId:'Applications',contextSeq:66};c.h.app._currentContextTemplate=template;
+ assert.equal(entry.readyFunction('ready-argument'),17);assert.equal(readyCalls,1);
+ assert(template.divElt.className.includes('MzdGuiReturnMask'),'list masked before its transition begins');
+ assert.equal(c.frame.parentNode.style.display,'none','phone remains in front until transition ends');
+ c.h.win.framework._frameworkState='idle';
+ assert.equal(entry.displayedFunction('displayed-argument'),18);assert.equal(displayedCalls,1);
+ assert.equal(c.frame.parentNode.style.display,'','resume is immediate, without waiting for the polling interval');
+ assert.equal(template.divElt.style.visibility,'hidden');assert(!template.divElt.className.includes('MzdGuiReturnMask'));
+ c.child.MzdGuiModule.close();assert.equal(entry.readyFunction,originalReady);assert.equal(entry.displayedFunction,originalDisplayed);
+ assert.equal(template.divElt.style.visibility,'visible');
+}
+{
+ const c=callFixture(false), entry={readyFunction(){}};c.h.app._contextTable={Applications:entry};
+ c.child.MzdGuiModule.onSuspend(()=>{});c.child.MzdGuiModule.close();
+ assert(!Object.hasOwn(entry,'displayedFunction'),'temporary callback removed exactly on close');
+}
+console.log('GUI_PHONE_RETURN_TRANSITION_PASSED: masked incoming list, immediate displayed callback, original callback delegation and exact hook cleanup.');
+
+// Real vehicle context names: camera and parking displays share the native return stack.
+for (const context of ['BackupCameraDisplay','BUCAndPSMDisplay','ParkingSensorDisplay']) {
+ const c=callFixture();c.h.context(context,'backupparking',76);c.tick();
+ assert.equal(c.suspended,1);assert.equal(c.disposed,0);assert.equal(c.frame.parentNode.style.display,'none');
+ c.h.context('Applications','system',66);c.tick();assert.equal(c.resumed,1);assert.equal(c.h.frame(),c.frame);
+ c.child.MzdGuiModule.close();
+}
+{
+ const c=callFixture();
+ for (const [context,app,seq] of [['BackupCameraDisplay','backupparking',76],['BUCAndPSMDisplay','backupparking',77],['ParkingSensorDisplay','backupparking',84],['ActiveCall','phone',85],['ParkingSensorDisplay','backupparking',90]]) {
+  c.h.context(context,app,seq);c.tick();assert.equal(c.suspended,1);assert.equal(c.resumed,0);assert.equal(c.disposed,0);
+ }
+ c.h.context('Applications','system',66);c.tick();assert.equal(c.resumed,1);assert.equal(c.h.frame(),c.frame);
+ c.child.MzdGuiModule.close();
+}
+for(const [context,app,seq] of [['HomeScreen','system',93],['Map','navigation',94],['Applications','system',95],['Idle','backupparking',92]]) {
+ const c=callFixture();c.h.context('BackupCameraDisplay','backupparking',76);c.tick();
+ c.h.context(context,app,seq);c.tick();assert.equal(c.resumed,0);assert.equal(c.disposed,1);
+}
+for(const [context,app] of [['BackupCameraDisplay','phone'],['OtherDisplay','backupparking']]) {
+ const c=callFixture();c.h.context(context,app,76);c.tick();assert.equal(c.disposed,1);
+}
+{
+ const c=callFixture(false);c.h.context('ParkingSensorDisplay','backupparking',90);c.tick();assert.equal(c.disposed,1);
+}
+console.log('GUI_PARKING_LIFECYCLE_PASSED: three vehicle contexts, chained camera/parking/phone interruptions, same-frame return and safe close on navigation or unrelated contexts.');
+
+});
+
+
+test("submenu hands focus to the OEM Back arrow and restores Applications", () => {
+  const h = harness(), fw = h.win.framework;
+  let focused = false, restored = false;
+  fw.common.leftBtn = {
+    btnInstance: { get hasFocus() { return focused; } },
+    handleControllerEvent(event) {
+      if (event === "acceptFocusFromRight") { focused = true; return "consumed"; }
+      if (event === "lostFocus") { focused = false; return "consumed"; }
+      if (event === "right") return "giveFocusRight";
+      if (event === "select") { fw.sendEventToMmui("common", "Global.GoBack"); return "consumed"; }
+    }
+  };
+  h.app._currentContextTemplate.handleControllerEvent = event => { restored = event === "acceptFocusFromLeft"; };
+  h.open("games");
+  const list = h.controls.at(-1);
+  assert(list.properties.dataList.items.every(row => row.appData.mzdGuiItem.id !== "exit"), "no redundant Back row");
+  list.handleControllerEvent = function(event) {
+    this.events.push(event);
+    if (event === "leftStart") return "giveFocusLeft";
+    return "consumed";
+  };
+  function key(type, code) { h.event(type,{keyCode:code,preventDefault(){},stopImmediatePropagation(){}}); }
+  key("keydown",37); key("keyup",37);
+  assert(focused); assert(list.events.includes("lostFocus"));
+  key("keydown",39); key("keyup",39);
+  assert(!focused); assert(list.events.includes("acceptFocusFromLeft"));
+  key("keydown",37); key("keyup",37);
+  key("keydown",13); key("keyup",13);
+  assert(!focused); assert(restored); assert.equal(h.doc.body.children.length,0);
+  assert.equal(h.title(),"Applications");
+});
+
+test("toast notifications: routes to MzdGuiResidents when present, falls back to SBN otherwise", async (t) => {
+  // Case A: MzdGuiResidents present -> delegated to MzdGuiResidents.notify
+  {
+    const h = harness();
+    h.open("one");
+    const f = h.frame();
+    const token = f.src.split("#mzdgui=")[1];
+    let residentNotified = null;
+    h.win.MzdGuiResidents = {
+      notify(id, text, isError) {
+        residentNotified = { id, text, isError };
+        return true;
+      }
+    };
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: "Notice from view", isError: false }
+    });
+    assert.deepEqual(residentNotified, {
+      id: "one",
+      text: "Notice from view",
+      isError: false
+    });
+    assert.equal(h.sbns().length, 0, "fallback SBN should not be called when MzdGuiResidents.notify is used");
+  }
+
+  // Case B: MzdGuiResidents absent -> fallback to startTimedSbn with font-size styling
+  {
+    const h = harness();
+    h.open("one");
+    const f = h.frame();
+    const token = f.src.split("#mzdgui=")[1];
+    delete h.win.MzdGuiResidents;
+    const longText = "This notification message is definitely longer than thirty-five characters!";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: longText, isError: true }
+    });
+    assert.equal(h.sbns().length, 1);
+    assert.equal(h.sbns()[0].uiaId, "one");
+    assert.equal(h.sbns()[0].sbnId, "MzdGuiNotification");
+    assert.equal(h.sbns()[0].type, "errorNotification");
+    assert.equal(h.sbns()[0].props.sbnStyle, "Style02");
+    assert.equal(h.sbns()[0].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
+    assert.equal(h.sbns()[0].props.text1, longText);
+
+    const style = h.doc.head.children.find(e => e.id === "mzd-gui-sbn-style");
+    assert(style);
+    assert(style.textContent.includes("font-size: 26px !important"));
+
+    // Exact 34 chars with isError: false uses IcnSbnApps.png and resets font override
+    const short34 = "1234567890123456789012345678901234";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: short34, isError: false }
+    });
+    assert.equal(h.sbns().length, 2);
+    assert.equal(h.sbns()[1].type, "typeD");
+    assert.equal(h.sbns()[1].props.imagePath1, "common/images/icons/IcnSbnApps.png");
+    assert.equal(h.sbns()[1].props.text1, short34);
+    assert.equal(style.textContent, "");
+
+    // Exact 35 chars ("Select at least one slideshow image") switches to 26px font override
+    const exact35 = "Select at least one slideshow image";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: exact35, isError: true }
+    });
+    assert.equal(h.sbns().length, 3);
+    assert.equal(h.sbns()[2].type, "errorNotification");
+    assert.equal(h.sbns()[2].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
+    assert.equal(h.sbns()[2].props.text1, exact35);
+    assert(style.textContent.includes("font-size: 26px !important"));
+  }
 });

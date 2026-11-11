@@ -2,18 +2,26 @@
 (function () {
     'use strict';
     var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash);
-    var token = match ? match[1] : '', input = null, dispose = null, keys = {}, ended = false, originalError = window.onerror, errorHandler;
+    var token = match ? match[1] : '', input = null, dispose = null, keys = {}, ended = false, suspended = false, suspendHandler = null, resumeHandler = null, originalError = window.onerror, errorHandler;
     var locale = {language:'en_US',direction:'ltr',texts:{}}, languageHandler = null, moduleMessage = null;
+    var unitsHandler = null, serviceSerial = 0, serviceRequests = {};
     function send(type, message) { if (token && !ended) { try { window.parent.postMessage({type:'mzd-gui-'+type,token:token,message:String(message || '').substring(0,512)}, '*'); } catch (ignore) {} } }
     function cleanup() {
-        if (ended) { return; } ended = true; languageHandler = null; moduleMessage = null;
+        if (ended) { return; } ended = true; languageHandler = null; moduleMessage = null; suspendHandler = null; resumeHandler = null; unitsHandler = null;
+        for (var sKey in serviceRequests) {
+            if (Object.prototype.hasOwnProperty.call(serviceRequests, sKey)) {
+                window.clearTimeout(serviceRequests[sKey].timer);
+                try { serviceRequests[sKey].callback('Module view closed.'); } catch (ignore) {}
+            }
+        }
+        serviceRequests = {};
         if (window.onerror === errorHandler) { window.onerror = originalError; }
         window.removeEventListener('message', receive, false); window.removeEventListener('keydown', down, true); window.removeEventListener('keyup', up, true);
         try { if (dispose) { dispose(); } } catch (ignore) {}
     }
     function handle(action, phase) {
         var handled = false;
-        if (ended) { return; }
+        if (ended || suspended) { return; }
         try { if (input) { handled = input(action, phase) === true; } }
         catch (error) { send('error', String(error)); }
         if (action === 'back' && phase !== 'press' && !handled) { send('close'); }
@@ -21,20 +29,41 @@
     function receive(event) {
         var data = event.data;
         if (event.source !== window.parent || !data || data.token !== token) { return; }
+        if (data.type === 'mzd-gui-suspend' || data.type === 'mzd-gui-resume') {
+            var paused = data.type === 'mzd-gui-suspend', handler;
+            if (ended || suspended === paused) { return; }
+            suspended = paused; keys = {}; handler = paused ? suspendHandler : resumeHandler;
+            try { if (handler) { handler(); } } catch (error) { send('error',String(error)); }
+            return;
+        }
         if (/^mzd-module-/.test(data.type || '') && moduleMessage) { moduleMessage(data);return; }
         if (data.type === 'mzd-gui-language' && data.value && typeof data.value.language === 'string' && data.value.texts && typeof data.value.texts === 'object') {
             locale = data.value; if (languageHandler) { var callback = languageHandler; languageHandler = null; try { callback(locale.language,locale.direction); } catch (ignore) {} } return;
+        }
+        if (data.type === 'mzd-gui-units' && data.value && typeof data.value === 'object') {
+            if (unitsHandler) { var uCb = unitsHandler; unitsHandler = null; try { uCb(data.value); } catch (ignore) {} } return;
+        }
+        if (data.type === 'mzd-gui-service-result' && typeof data.id === 'number') {
+            var sReq = serviceRequests['$' + data.id];
+            if (sReq) {
+                delete serviceRequests['$' + data.id];
+                window.clearTimeout(sReq.timer);
+                try { sReq.callback(data.error || null, data.result !== undefined ? data.result : null); } catch (ignore) {}
+            }
+            return;
         }
         if (data.type === 'mzd-gui-input' && ['left','right','up','down','select','rotateLeft','rotateRight','back'].indexOf(data.action) >= 0 && ['press','release','step'].indexOf(data.phase) >= 0) { handle(data.action,data.phase); }
     }
     function action(code) { return {37:'left',39:'right',38:'up',40:'down',13:'select',77:'rotateRight',78:'rotateLeft',27:'back'}[code]; }
     function stop(event) { if (event.preventDefault) { event.preventDefault(); } if (event.stopImmediatePropagation) { event.stopImmediatePropagation(); } event.returnValue = false; }
     function down(event) {
+        if (ended || suspended) { return; }
         var code = event.keyCode || event.which, name = action(code);
         if (code === 8) { stop(event); return; }
         if (name) { stop(event); if (!keys[code]) { keys[code] = name; handle(name,'press'); } }
     }
     function up(event) {
+        if (ended || suspended) { return; }
         var code = event.keyCode || event.which, name = keys[code];
         if (code === 8) { stop(event); handle('back','step'); return; }
         if (name) { stop(event); delete keys[code]; handle(name,'release'); }
@@ -44,12 +73,56 @@
         return value.replace(/\{([a-zA-Z0-9_]+)\}/g,function (match,name) { return values && Object.prototype.hasOwnProperty.call(values,name) ? String(values[name]) : match; });
     }
     window.MzdGuiModule = {
+        token:token,
+        log:function (message) { send('log', message); },
+        setLayout:function (layout) { if (layout === 'fullscreen' || layout === 'with-status-bar') { send('layout',layout); } },
+        onSuspend:function (fn) { suspendHandler = typeof fn === 'function' ? fn : null; if (suspendHandler) { send('lifecycle','phone'); } },
+        onResume:function (fn) { resumeHandler = typeof fn === 'function' ? fn : null; },
         onMessage:function(fn){moduleMessage=typeof fn==='function'?fn:null;},
         send:function(type,value){
             if(!token || ended || !/^[a-z][a-z0-9-]{0,40}$/.test(type))return;
             window.parent.postMessage({type:'mzd-module-'+type,token:token,value:value},'*');
         },t:translate,language:function () { return locale.language; },
-        loadLanguage:function (fn) { languageHandler = typeof fn === 'function' ? fn : null; if (languageHandler) { send('language-request'); } },ready:function () { send('ready'); },close:function () { send('close'); },
+        loadLanguage:function (fn) { languageHandler = typeof fn === 'function' ? fn : null; if (languageHandler) { send('language-request'); } },
+        getUnits:function (fn) { unitsHandler = typeof fn === 'function' ? fn : null; if (unitsHandler) { send('units-request'); } },
+        notify:function (text, isError) {
+            if (!token || ended || !text) { return; }
+            try {
+                window.parent.postMessage({
+                    type: 'mzd-gui-notify',
+                    token: token,
+                    text: String(text).substring(0, 256),
+                    isError: !!isError
+                }, '*');
+            } catch (ignore) {}
+        },
+        request:function (operation, args, callback, timeoutMs) {
+            if (typeof args === 'function') { timeoutMs = callback; callback = args; args = {}; }
+            if (typeof callback !== 'function') { return; }
+            if (!token || ended) { callback('Module view is unavailable.'); return; }
+            if (typeof operation !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(operation)) { callback('Invalid service operation.'); return; }
+            var reqId = ++serviceSerial, timer, waitMs = typeof timeoutMs === 'number' && timeoutMs > 0 ? timeoutMs : 30000;
+            timer = window.setTimeout(function () {
+                if (serviceRequests['$' + reqId]) {
+                    delete serviceRequests['$' + reqId];
+                    callback('Service request timed out.');
+                }
+            }, waitMs);
+            serviceRequests['$' + reqId] = { callback: callback, timer: timer };
+            try {
+                window.parent.postMessage({
+                    type: 'mzd-gui-service-request',
+                    token: token,
+                    id: reqId,
+                    operation: operation,
+                    args: (typeof args === 'object' && args !== null) ? args : {}
+                }, '*');
+            } catch (error) {
+                delete serviceRequests['$' + reqId];
+                window.clearTimeout(timer);
+                callback(String(error.message || error));
+            }
+        },ready:function () { send('ready'); },close:function () { send('close'); },
         onInput:function (fn) { input = typeof fn === 'function' ? fn : null; },
         onDispose:function (fn) { dispose = typeof fn === 'function' ? fn : null; },_dispose:cleanup};
     window.addEventListener('message', receive, false); window.addEventListener('keydown', down, true); window.addEventListener('keyup', up, true);

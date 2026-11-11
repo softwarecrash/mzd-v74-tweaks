@@ -38,6 +38,16 @@ executing the worker. This means no registered installation, not a guarantee of
 installability. Command readiness and all detailed prerequisites are checked
 when the action runs. The status table below describes the deep worker result.
 
+## Managed uninstall cleanup
+
+The controller snapshots original patch targets and metadata for new installations.
+Workers still implement their normal inverse operation and verify their own
+payload removal. After their successful uninstalled-state check, the controller
+restores original metadata when the content matches, removes owned `.org`
+backups after the last registered consumer, and prunes empty created containers.
+Never delete another consumer's backup from a worker. Configuration preservation
+continues to be controlled by `uninstall --preserve-config`.
+
 ## Status
 
 | Exact stdout, followed by newline | Meaning |
@@ -231,3 +241,7 @@ result, stops registered services, and delegates cleanup phases to `mzd_gui_rese
 
 See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
 first/last-consumer lifecycle, ownership rules and development limits.
+
+Tweaks with `preflight=true` also run their read-only preflight against the
+staged effective settings and overridden assets before publication or replacement
+of an installed package. A rejected candidate leaves the installed worker intact.

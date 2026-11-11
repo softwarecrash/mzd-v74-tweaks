@@ -2,15 +2,19 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 
 const aaRoot = path.resolve(__dirname, '../../../usb/tweaks/android-auto');
 const repo = path.resolve(aaRoot, '../../..');
+const residentSource = fs.readFileSync(path.join(aaRoot, 'assets/resident.js'), 'utf8');
+const viewSource = fs.readFileSync(path.join(aaRoot, 'assets/view.js'), 'utf8');
 
 const queue = [];
 const hostEvents = {};
 const viewEvents = {};
 const timers = new Map();
-let timer = 0, writes = 0, control = null, created = 0, destroyed = 0, attached = true, sb = 'Applications';
+let timer = 0, writes = 0, reboots = 0, rebootError = null, control = null, dialogConfig = null, dialogsCreated = 0, dialogFailure = null;
+let created = 0, destroyed = 0, attached = true, sb = 'Applications';
 
-function element() {
+function element(tagName) {
     return {
+        tagName: tagName || 'div',
         children: [],
         style: { cssText: '' },
         className: '',
@@ -24,30 +28,91 @@ function element() {
     };
 }
 
+function findElements(node, className, found = []) {
+    if (node.className === className) { found.push(node); }
+    for (const child of node.children) { findElements(child, className, found); }
+    return found;
+}
+
+function findElement(node, className) {
+    return findElements(node, className)[0] || null;
+}
+
 const status = element(), rootNode = element(), frame = element();
 rootNode.style.cssText = 'old-style';
 rootNode.appendChild(frame);
 
-const document = { getElementById: () => status };
+const head = element('head'), body = element('body');
+const document = {
+    body: body,
+    getElementById: () => status,
+    getElementsByTagName: name => name === 'head' ? [head] : name === 'iframe' ? [frame] : [],
+    createElement: tagName => element(tagName)
+};
 let lastSbn = null;
+const sbns = [];
+let backFocused = false;
 const common = {
     setSbName: v => { sb = v; },
     setSbNameId: (app, id) => { sb = id; },
     startTimedSbn: (uiaId, sbnId, type, props) => {
         lastSbn = { uiaId: uiaId, sbnId: sbnId, type: type, props: props };
+        sbns.push(lastSbn);
+    },
+    // Mirrors the OEM LeftBtnCtrl/ButtonCtrl responses.
+    leftBtn: {
+        btnInstance: {
+            get hasFocus() { return backFocused; }
+        },
+        handleControllerEvent(event) {
+            if (event === 'acceptFocusFromRight' || event === 'acceptFocusInit') {
+                backFocused = true;
+                return 'consumed';
+            }
+            if (event === 'lostFocus') {
+                backFocused = false;
+                return 'consumed';
+            }
+            if (!backFocused) { return 'ignored'; }
+            if (event === 'right') { return 'giveFocusRight'; }
+            if (event === 'down') { return 'giveFocusDown'; }
+            if (event === 'cw') { return 'giveFocusCw'; }
+            if (event === 'select') {
+                fw.sendEventToMmui('common', 'Global.GoBack');
+                return 'consumed';
+            }
+            return 'ignored';
+        }
+    }
+};
+
+const appsTemplate = {
+    divElt: { style: { visibility: 'hidden' } },
+    list2Ctrl: { setLineNumbers() { this.restored = true; } },
+    hasFocus: true,
+    handleControllerEvent(event) {
+        if (event === 'acceptFocusFromLeft') { this.hasFocus = true; }
+        if (event === 'lostFocus') { this.hasFocus = false; }
+        return 'consumed';
     }
 };
 
 const originalSend = () => {};
 const fw = {
     common: common,
+    _frameworkState: 'idle',
+    _templatesLoaded: {},
+    _controlsLoaded: {},
+    _processedFilePaths: {},
+    registerCtrlLoaded(name) {
+        this._controlsLoaded[name] = { isLoaded: true, nameCounter: 0 };
+    },
+    registerTmpltLoaded(name) {
+        this._templatesLoaded[name] = { isLoaded: true, nameCounter: 0 };
+    },
     getCurrentApp: () => 'system',
     getCurrCtxtId: () => 'Applications',
-    getAppInstance: () => ({
-        _currentContextTemplate: {
-            list2Ctrl: { setLineNumbers() { this.restored = true; } }
-        }
-    }),
+    getAppInstance: () => ({ _currentContextTemplate: appsTemplate }),
     sendEventToMmui: originalSend,
     instantiateControl(app, parent, type, props) {
         assert.equal(type, 'List2Ctrl');
@@ -59,8 +124,21 @@ const fw = {
             props: props,
             rendered: true,
             focus: props.focussedItem || 0,
+            hasFocus: false,
             dataList: props.dataList,
             handleControllerEvent(event) {
+                if (event === 'acceptFocusInit') {
+                    this.hasFocus = true;
+                }
+                if (event === 'leftStart') { return 'giveFocusLeft'; }
+                if (event === 'acceptFocusFromLeft' || event === 'acceptFocusFromRight') {
+                    this.hasFocus = true;
+                    return 'consumed';
+                }
+                if (event === 'lostFocus') {
+                    this.hasFocus = false;
+                    return 'consumed';
+                }
                 if (event === 'cw' || event === 'down') {
                     this.focus = (this.focus + 1) % this.dataList.items.length;
                 }
@@ -72,7 +150,7 @@ const fw = {
                 }
             },
             getContextCapture() {
-                return { hasFocus: true, focussedItem: this.focus, topItem: 0 };
+                return { hasFocus: this.hasFocus, focussedItem: this.focus, topItem: 0 };
             },
             restoreContext(c) {
                 this.focus = c.focussedItem;
@@ -88,10 +166,61 @@ const fw = {
         };
         return control;
     },
+    instantiateTemplate(app, parent, type, props) {
+        assert.equal(type, 'Dialog3Tmplt');
+        assert.equal(this._templatesLoaded.Dialog3Tmplt.isLoaded, true, 'OEM template assets are registered before instantiation');
+        assert.equal(this._frameworkState, 'idle', 'Instantiating a preloaded dialog does not change framework state');
+        assert.equal(parent.parentNode, body, 'OEM dialog root is a body-level overlay');
+        if (dialogFailure) {
+            const message = dialogFailure;
+            dialogFailure = null;
+            throw new Error(message);
+        }
+        dialogsCreated++;
+        dialogConfig = props.Dialog3Ctrl;
+        const buttons = [dialogConfig.buttonConfig.button1, dialogConfig.buttonConfig.button2];
+        let dialogFocus = dialogConfig.initialFocus || 0;
+        const dialogElement = element();
+        dialogElement.className = 'TemplateFull Dialog3Tmplt';
+        parent.appendChild(dialogElement);
+        return {
+            divElt: dialogElement,
+            dialog3Ctrl: {},
+            cleanUp() {},
+            handleControllerEvent(event) {
+                if (event === 'right' || event === 'down' || event === 'cw') {
+                    dialogFocus = 1;
+                }
+                if (event === 'left' || event === 'up' || event === 'ccw') {
+                    dialogFocus = 0;
+                }
+                if (event === 'select') {
+                    dialogConfig.defaultSelectCallback(this, buttons[dialogFocus].appData);
+                }
+            }
+        };
+    },
     destroyControl(c) {
         destroyed++;
         if (control === c) { control = null; }
     }
+};
+
+const ASSET_REGISTRATIONS = {
+    'ButtonCtrl.js': ['registerCtrlLoaded', 'ButtonCtrl'],
+    'Dialog3Ctrl.js': ['registerCtrlLoaded', 'Dialog3Ctrl'],
+    'Dialog3Tmplt.js': ['registerTmpltLoaded', 'Dialog3Tmplt']
+};
+head.appendChild = function (node) {
+    node.parentNode = head;
+    head.children.push(node);
+    if (node.tagName === 'script') {
+        const file = node.src.substring(node.src.lastIndexOf('/') + 1);
+        const registration = ASSET_REGISTRATIONS[file];
+        assert(registration, 'Unexpected Mazda dialog asset: ' + node.src);
+        fw[registration[0]](registration[1]);
+    }
+    node.onload();
 };
 
 let intervalsStarted = 0, intervalsCleared = 0;
@@ -109,12 +238,16 @@ const host = {
     clearInterval: () => { intervalsCleared++; delete host.refresh; }
 };
 
+const viewMessages = [];
 const parent = {
-    postMessage: data => queue.push(() => {
-        if (hostEvents.message) {
-            hostEvents.message({ source: view, data: data });
-        }
-    })
+    postMessage: data => {
+        viewMessages.push(data.type);
+        queue.push(() => {
+            if (hostEvents.message) {
+                hostEvents.message({ source: view, data: data });
+            }
+        });
+    }
 };
 
 const view = {
@@ -140,7 +273,6 @@ const view = {
 };
 
 frame.contentWindow = view;
-const frames = [frame];
 
 let savedSettings = {
     touch: true,
@@ -159,22 +291,42 @@ let savedSettings = {
     block_headunit_media_play: true,
     aa_audio_low_latency: false
 };
+// Like entry.lua: a key's baseline is its value before its first write through
+// the service, and a reboot is required while a written key differs from it.
+const applied = {};
+function writeSetting(key, value) {
+    if (!(key in applied)) { applied[key] = savedSettings[key]; }
+    savedSettings[key] = value;
+}
+function serviceResult() {
+    return {
+        success: true,
+        settings: Object.assign({}, savedSettings),
+        rebootRequired: Object.keys(applied).some(k => applied[k] !== savedSettings[k])
+    };
+}
+const serviceCalls = [];
+let viewAttached = false;
 
 const resident = {
     onServiceReady: fn => { resident.reconnected = fn; },
-    view: () => ({ source: view, frame: frame, token: 'fixture-token' }),
+    view: () => viewAttached ? { source: view, frame: frame, token: 'fixture-token' } : null,
     onMessage: fn => { hostEvents.message = fn; },
     onViewClose: fn => { resident.closed = fn; },
     onDispose: fn => { hostEvents.unload = fn; },
     service: {
         request(op, args, cb) {
+            serviceCalls.push(op);
             queue.push(() => {
                 if (op === 'get') {
-                    cb(null, { success: true, settings: Object.assign({}, savedSettings) });
+                    cb(null, serviceResult());
                 } else if (op === 'set') {
                     writes++;
-                    savedSettings[args.key] = args.value;
-                    cb(null, { success: true, settings: Object.assign({}, savedSettings) });
+                    writeSetting(args.key, args.value);
+                    cb(null, serviceResult());
+                } else if (op === 'reboot') {
+                    reboots++;
+                    if (rebootError) { cb(rebootError); } else { cb(null, { success: true }); }
                 } else {
                     throw Error('Unexpected operation: ' + op);
                 }
@@ -183,32 +335,70 @@ const resident = {
     }
 };
 
+// Saves sent while holdService is set wait in heldCallbacks; a held save is
+// written only when its callback succeeds.
+let holdService = false;
+const heldCallbacks = [];
+const origServiceRequest = resident.service.request;
+const holdRequest = function (op, args, cb) {
+    if (holdService && op === 'set') {
+        queue.push(() => {
+            writes++;
+            heldCallbacks.push(err => {
+                if (err) {
+                    cb(err);
+                } else {
+                    writeSetting(args.key, args.value);
+                    cb(null, serviceResult());
+                }
+            });
+        });
+    } else {
+        origServiceRequest.call(this, op, args, cb);
+    }
+};
+function holdSaves() {
+    holdService = true;
+    resident.service.request = holdRequest;
+}
+function releaseSave(error) {
+    holdService = false;
+    heldCallbacks.shift()(error);
+    flush();
+    resident.service.request = origServiceRequest;
+}
+
+const hostContext = {
+    window: host,
+    document: document
+};
+document.documentElement = { contains: () => attached };
+vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/residents.js'), 'utf8'), hostContext);
+const residentsApi = host.MzdGuiResidents;
+resident.createNativeMenu = opts => residentsApi.createNativeMenu(opts);
+resident.notify = (text, isError) => residentsApi.notify('android-auto', text, isError);
+resident.log = msg => residentsApi.log('android-auto', msg);
 host.MzdGuiResidents = {
+    ...residentsApi,
     register(id, fn) {
         assert.equal(id, 'android-auto');
         fn(resident);
     }
 };
 
-const hostContext = {
-    window: host,
-    document: {
-        getElementsByTagName: () => frames,
-        createElement: element,
-        documentElement: { contains: () => attached }
-    }
-};
-
 // Run resident script
-vm.runInNewContext(fs.readFileSync(path.join(aaRoot, 'assets/resident.js'), 'utf8'), hostContext);
+vm.runInNewContext(residentSource, hostContext);
 assert.equal(host.AaNativeMenu, undefined, 'No global namespace pollution');
 assert.equal(intervalsStarted, 0, 'Polling interval not started at resident registration');
+resident.reconnected(); // the service becomes ready at boot
+assert.deepEqual(serviceCalls, [], 'No settings are read before the view opens');
+viewAttached = true;
 
 // Run SDK
 vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/sdk.js'), 'utf8'), { window: view });
 
 // Run view script
-vm.runInNewContext(fs.readFileSync(path.join(aaRoot, 'assets/view.js'), 'utf8'), { window: view, document: document });
+vm.runInNewContext(viewSource, { window: view, document: document });
 
 // Deliver i18n dictionary to SDK
 let dictionary;
@@ -220,6 +410,31 @@ vm.runInNewContext(fs.readFileSync(path.join(aaRoot, 'assets/i18n.js'), 'utf8'),
     }
 });
 const texts = dictionary.languages.en_US;
+for (const [locale, language] of Object.entries(dictionary.languages)) {
+    for (const key of ['reboot', 'rebootQuestion', 'rebootFallback', 'always']) {
+        assert.equal(typeof language[key], 'string', locale + ' has the ' + key + ' translation');
+    }
+    for (const key of ['default', 'rebootNotice', 'rebootError']) {
+        assert.equal(Object.prototype.hasOwnProperty.call(language, key), false, locale + ' has no obsolete ' + key + ' text');
+    }
+    if (locale.indexOf('en_') !== 0) {
+        assert.notEqual(language.rebootQuestion, texts.rebootQuestion, locale + ' has a translated reboot question');
+    }
+    assert.equal(language.rebootFallback.length <= 48, true, locale + ' reboot fallback fits a short notification');
+}
+assert.equal(texts.reboot, 'Reboot to apply changes');
+assert.equal(texts.rebootQuestion, 'Do you want to reboot MZD to apply Android Auto settings?');
+assert.equal(texts.rebootFallback, 'Hold NAV + MUTE to reboot');
+assert.equal(texts.always, 'Always');
+
+// English fallbacks in the scripts match en_US
+for (const [, key, fallback] of viewSource.matchAll(/tr\('([a-zA-Z0-9_]+)', '([^']*)'\)/g)) {
+    assert.equal(fallback, texts[key], 'view.js fallback for ' + key + ' matches en_US');
+}
+for (const [name, key] of Object.entries({ saveError: 'saveError', reboot: 'reboot', rebootFallback: 'rebootFallback' })) {
+    assert(residentSource.includes(name + ": '" + texts[key] + "'"), 'resident.js default for ' + name + ' matches en_US');
+}
+
 for (const fn of viewEvents.message.slice()) {
     fn({
         source: parent,
@@ -258,14 +473,24 @@ function input(action, phase = 'step') {
     flush();
 }
 
+function residentMessage(data) {
+    hostEvents.message({ source: view, data: Object.assign({ token: 'fixture-token' }, data) });
+    flush();
+}
+
+const rebootRow = () => control.dataList.items[15];
+const dialogs = () => findElements(body, 'TemplateFull Dialog3Tmplt');
+
 // 1. Initial load
 flush();
 assert.equal(intervalsStarted, 1, 'Polling interval started on view open');
 assert.equal(sb, 'Android Auto Settings');
-assert.equal(control.dataList.items.length, 15);
+assert.equal(control.dataList.items.length, 16);
+assert.equal(control.props.smallItemText, true, 'AA settings use the Safety-tab compact text size');
+assert.equal(control.hasFocus, true, 'The settings list takes focus when it opens');
 
 // Check first row (touch): boolean toggle -> styleOnOff, value 1 (on)
-assert.equal(control.dataList.items[0].text1, 'Touchscreen while driving');
+assert.equal(control.dataList.items[0].text1, 'Touchscreen in Android Auto');
 assert.equal(control.dataList.items[0].itemStyle, 'styleOnOff');
 assert.equal(control.dataList.items[0].value, 1);
 assert.equal(control.dataList.items[0].checked, true);
@@ -283,224 +508,230 @@ assert.equal(control.dataList.items[7].itemStyle, 'style06');
 assert.equal(control.dataList.items[7].label1, 'Always');
 assert.equal(control.dataList.items[7].hasCaret, true);
 
-// 2. Click touch row (toggle to OFF)
-click(0);
-assert.equal(savedSettings.touch, false);
-assert.equal(control.dataList.items[0].value, 2);
-assert.equal(control.dataList.items[0].checked, false);
-assert.equal(writes, 1);
+// 1b. Reboot uses the OEM reset icon and is disabled until a change is saved
+assert.equal(rebootRow().text1, 'Reboot to apply changes');
+assert.equal(rebootRow().image1, 'common/images/icons/IcnListSynchronize_En.png');
+assert.equal(rebootRow().disabled, true, 'Reboot is disabled before any setting changes');
+click(15);
+assert.equal(dialogConfig, null, 'A disabled reboot row does not open the confirmation dialog');
 
-// Click again (toggle to ON)
+// 2. A save in progress keeps reboot disabled; a successful save enables it
+holdSaves();
+click(0);
+assert.equal(control.dataList.items[0].checked, false);
+assert.equal(rebootRow().disabled, true, 'Reboot stays disabled while a save is in progress');
+releaseSave();
+assert.equal(savedSettings.touch, false);
+assert.equal(writes, 1);
+assert.equal(rebootRow().disabled, false, 'A successful save enables reboot');
+
+// 3. Restoring the boot value disables reboot again
 click(0);
 assert.equal(savedSettings.touch, true);
-assert.equal(control.dataList.items[0].value, 1);
 assert.equal(control.dataList.items[0].checked, true);
 assert.equal(writes, 2);
+assert.equal(rebootRow().disabled, true, 'A setting toggled back to its boot value needs no reboot');
 
-// 3. Click hud_transport row (toggle to vbs / OFF)
+// 4. Click hud_transport row (toggle to vbs / OFF)
 click(2);
 assert.equal(savedSettings.hud_transport, 'vbs');
 assert.equal(control.dataList.items[2].value, 2);
 assert.equal(control.dataList.items[2].checked, false);
 assert.equal(writes, 3);
+assert.equal(rebootRow().disabled, false);
 
-// 3b. Rapid consecutive clicks while save is in flight (queueing & race safety)
-let holdService = true;
-const heldCallbacks = [];
-const origServiceRequest = resident.service.request;
-const holdRequest = function (op, args, cb) {
-    if (holdService && op === 'set') {
-        queue.push(() => {
-            writes++;
-            savedSettings[args.key] = args.value;
-            heldCallbacks.push(err => {
-                if (err) {
-                    cb(err);
-                } else {
-                    cb(null, { success: true, settings: Object.assign({}, savedSettings) });
-                }
-            });
-        });
-    } else {
-        origServiceRequest.call(this, op, args, cb);
-    }
-};
-resident.service.request = holdRequest;
+// 5. The confirmation dialog defaults to No and restores list focus
+click(15);
+assert.equal(dialogConfig.text1, 'Do you want to reboot MZD to apply Android Auto settings?');
+assert.equal(dialogConfig.initialFocus, 0, 'No is the default selection');
+assert.equal(dialogConfig.buttonConfig.button1.labelId, 'common.No', 'OEM dialog uses the localized No button first');
+assert.equal(dialogConfig.buttonConfig.button1.appData, 'no');
+assert.equal(dialogConfig.buttonConfig.button2.labelId, 'common.Yes', 'OEM dialog uses the localized Yes button second');
+assert.equal(dialogConfig.buttonConfig.button2.appData, 'yes');
+assert.equal(dialogs().length, 1, 'The OEM dialog covers the full interface');
+assert.equal(fw._frameworkState, 'idle', 'Opening the dialog does not enter the framework template-loading state');
+assert.equal(control.hasFocus, false, 'The list gives focus to the dialog');
+resident.reconnected();
+flush();
+assert.equal(dialogsCreated, 1, 'A settings refresh does not recreate the open dialog');
+assert.equal(dialogs().length, 1, 'Only one OEM dialog is shown');
+input('select');
+assert.equal(reboots, 0, 'Default No selection does not reboot');
+assert.equal(dialogs().length, 0, 'Selecting No removes the OEM dialog');
+assert.equal(control.hasFocus, true, 'Dismissing the dialog restores list focus');
+const focusBeforeDialogDismissal = control.focus;
+input('down');
+assert.notEqual(control.focus, focusBeforeDialogDismissal, 'List navigation works after dismissing the dialog');
 
-// User toggles touch to false (in flight, held)
+// 6. Yes requests the reboot
+click(15);
+assert.equal(dialogs().length, 1, 'Confirmation dialog can be opened again');
+input('right');
+input('select');
+assert.equal(dialogs().length, 0, 'Selecting Yes removes the OEM dialog');
+assert.equal(reboots, 1, 'Yes requests reboot through the GUI service');
+
+// 7. A failed reboot tells the driver how to reboot manually
+rebootError = 'Failed to reboot MZD (status 1)';
+click(15);
+input('right');
+input('select');
+assert.equal(reboots, 2);
+assert.equal(lastSbn.type, 'typeD');
+assert.equal(lastSbn.props.text1, 'Hold NAV + MUTE to reboot', 'Reboot failure shows the manual fallback');
+rebootError = null;
+
+// 8. A dialog that cannot be created leaves a working list
+dialogFailure = 'Simulated dialog failure';
+click(15);
+assert.equal(dialogs().length, 0, 'A failed dialog leaves no overlay');
+assert.equal(sb, 'Hold NAV + MUTE to reboot', 'A failed dialog shows the manual reboot fallback');
+assert.equal(control.hasFocus, true, 'A failed dialog restores list focus');
+click(1);
+assert.equal(savedSettings.hud, false, 'The list accepts selections after a failed dialog');
+assert.equal(sb, 'Android Auto Settings', 'The fallback notice clears on the next selection');
+click(1);
+assert.equal(savedSettings.hud, true);
+assert.equal(writes, 5);
+
+// 9. Opening the dialog by touch while the Back button has focus
+input('left');
+assert.equal(backFocused, true, 'Left from the list transfers focus to the Mazda Back button');
+assert.equal(control.hasFocus, false);
+click(15);
+assert.equal(backFocused, false, 'Opening the dialog releases the Back button');
+input('select');
+assert.equal(dialogs().length, 0);
+assert.equal(control.hasFocus, true, 'The list has focus after the dialog closes');
+assert.equal(backFocused, false, 'The Back button stays unfocused after the dialog closes');
+
+// 10. Rapid consecutive clicks queue; a reboot cannot overtake them
+holdSaves();
 click(0);
 assert.equal(control.dataList.items[0].checked, false);
-assert.equal(writes, 4);
-
-// User immediately toggles hud to false while touch save is still in flight
+assert.equal(writes, 6);
 click(1);
 assert.equal(control.dataList.items[1].checked, false);
-// Second request was queued in view.js, not yet sent to service
-assert.equal(writes, 4);
-
-// First save completes
-holdService = false;
-heldCallbacks.shift()();
-flush(); // Processes first response, which sends the queued second request and its response
-assert.equal(writes, 5);
-resident.service.request = origServiceRequest;
-
-// Verify both settings were successfully saved and UI reflects both
+assert.equal(writes, 6, 'Second save waits in the resident queue');
+assert.equal(rebootRow().disabled, true, 'Reboot is disabled while saves are queued');
+residentMessage({ type: 'aa-request', action: 'reboot' });
+assert.equal(reboots, 2, 'A reboot request cannot overtake queued saves');
+releaseSave();
+assert.equal(writes, 7);
 assert.equal(savedSettings.touch, false);
 assert.equal(savedSettings.hud, false);
 assert.equal(control.dataList.items[0].checked, false);
 assert.equal(control.dataList.items[1].checked, false);
-
-// Restore touch and hud to true
 click(0);
-assert.equal(savedSettings.touch, true);
 click(1);
+assert.equal(savedSettings.touch, true);
 assert.equal(savedSettings.hud, true);
-assert.equal(writes, 7);
+assert.equal(writes, 9);
 
-// 4. Click distance row -> enters distance submenu
+// 11. Distance submenu
 click(7);
 assert.equal(sb, 'Show HUD turns within');
-assert.equal(control.dataList.items.length, 10); // 10 distance options
-
-// Verify distance options: style03, image1 'tick', only 0m (Always) is checked
+assert.equal(control.dataList.items.length, 10);
 assert.equal(control.dataList.items[0].text1, 'Always');
 assert.equal(control.dataList.items[0].itemStyle, 'style03');
 assert.equal(control.dataList.items[0].image1, 'tick');
 assert.equal(control.dataList.items[0].checked, true);
-
 assert.equal(control.dataList.items[1].text1, '500 m');
-assert.equal(control.dataList.items[1].itemStyle, 'style03');
-assert.equal(control.dataList.items[1].image1, 'tick');
 assert.equal(control.dataList.items[1].checked, false);
-
 assert.equal(control.dataList.items[2].text1, '1 km');
 assert.equal(control.dataList.items[2].checked, false);
-
-// 5. Select 1 km option (index 2)
 click(2);
 assert.equal(savedSettings.hud_maneuver_max_distance_m, 1000);
-assert.equal(control.dataList.items[0].checked, false);
-assert.equal(control.dataList.items[2].checked, true);
-assert.equal(writes, 8);
-
-// 6. Navigate back to main settings menu
-input('back');
-assert.equal(sb, 'Android Auto Settings');
-assert.equal(control.dataList.items.length, 15);
-
-// Verify that the distance row now displays "1 km" on the right hand side
-assert.equal(control.dataList.items[7].text1, 'Show HUD turns within');
+assert.equal(sb, 'Android Auto Settings', 'Accepting a distance returns to Android Auto settings');
+assert.equal(control.dataList.items.length, 16);
 assert.equal(control.dataList.items[7].label1, '1 km');
 assert.equal(control.dataList.items[7].hasCaret, true);
+assert.equal(control.focus, 7, 'Returning restores focus to the distance setting');
+assert.equal(writes, 10);
 
-// 7. Back navigation from main menu closes view
-input('back');
-// Runtime calls onViewClose when view requests close
-resident.closed();
+// 12. Leaving through the Mazda Back button hands focus back to Applications
+input('left');
+assert.equal(backFocused, true);
+input('right');
+assert.equal(backFocused, false, 'Right from the Back button returns focus to the settings list');
+assert.equal(control.hasFocus, true);
+input('left');
+assert.equal(backFocused, true, 'Back button can be focused again');
+appsTemplate.hasFocus = false; // touching embedded controls lets Common take focus from the hidden list
+sbns.length = 0;
+input('select');
+assert(viewMessages.includes('mzd-gui-close'), 'Selecting the Back button closes the settings view');
+resident.closed(); // the runtime calls onViewClose when the view closes
+assert.equal(backFocused, false, 'Leaving through the Back button releases its focus');
+assert.equal(appsTemplate.hasFocus, true, 'The Applications list regains focus');
+assert.equal(sb, 'Applications', 'Closing Android Auto settings restores the Applications header even when its template is hidden');
+assert.equal(sbns.length, 1);
+assert.equal(lastSbn.props.text1, 'Reboot to apply changes', 'Leaving with saved changes prompts for a reboot');
 assert.equal(intervalsCleared, 1, 'Polling interval cleared on view close');
 assert.equal(host.refresh, undefined, 'Polling callback removed');
 assert.equal(control, null, 'List control destroyed on close');
 assert.equal(fw.sendEventToMmui, originalSend, 'Original sendEventToMmui restored');
 
-// Cleanup
 view.MzdGuiModule._dispose();
 flush();
 
-// 8. Test background save completion and SBN notification on exit
-lastSbn = null;
-holdService = true;
-resident.service.request = holdRequest;
-hostEvents.message({
-    source: view,
-    data: {
-        type: 'aa-request',
-        token: 'fixture-token',
-        action: 'set',
-        payload: { key: 'touch', value: false }
+// 13. Notifications use the view's language, also after the view closed
+residentMessage({
+    type: 'aa-request',
+    action: 'texts',
+    payload: {
+        saveError: 'Échec de l’enregistrement',
+        reboot: 'Redémarrer pour appliquer',
+        rebootFallback: 'Maintenir NAV + MUTE'
     }
 });
-flush();
-assert.equal(writes, 9);
 
-// Driver leaves menu while save is in flight
-hostEvents.message({
-    source: view,
-    data: {
-        type: 'aa-native-release',
-        token: 'fixture-token',
-        savingMessage: 'Saving Android Auto settings...',
-        savedMessage: 'Android Auto settings saved.'
-    }
-});
-flush();
-
-assert.notEqual(lastSbn, null, 'Saving SBN emitted on exit while save in flight');
-assert.equal(lastSbn.uiaId, 'androidauto');
-assert.equal(lastSbn.type, 'typeD');
-assert.equal(lastSbn.props.sbnStyle, 'Style02');
-assert.equal(lastSbn.props.text1, 'Saving Android Auto settings...');
-assert.equal(lastSbn.props.imagePath1, 'common/images/icons/IcnSbnApps.png');
-
-// Background save finishes
+// 14. A save that finishes after leaving shows the reboot notice
 lastSbn = null;
-holdService = false;
-heldCallbacks.shift()();
-flush();
-
-assert.notEqual(lastSbn, null, 'Saved SBN emitted when background save finished');
-assert.equal(lastSbn.type, 'typeD');
-assert.equal(lastSbn.props.text1, 'Android Auto settings saved.');
+holdSaves();
+residentMessage({ type: 'aa-request', action: 'set', payload: { key: 'touch', value: false } });
+assert.equal(writes, 11);
+assert.equal(lastSbn, null, 'No saving notification is shown');
+let reopened = null;
+viewEvents.message = [event => { if (event.data && event.data.type === 'aa-response') { reopened = event.data; } }];
+residentMessage({ type: 'aa-request', action: 'get' });
+assert.equal(savedSettings.touch, true, 'The held save is not written yet');
+assert.equal(reopened.state.touch, false, 'Reopening during a background save keeps the pending value');
+assert.equal(reopened.saving, true, 'Reopening during a background save keeps reboot disabled');
+sbns.length = 0;
+residentMessage({ type: 'aa-native-release' });
+resident.closed();
+assert.equal(sbns.length, 0, 'Leaving during a save waits for its result');
+releaseSave();
 assert.equal(savedSettings.touch, false);
+assert.equal(lastSbn.type, 'typeD');
+assert.equal(lastSbn.props.text1, 'Redémarrer pour appliquer', 'A save finishing after leaving prompts for a reboot');
 
-// 8b. Untrusted aa-native-release is ignored
+// 14b. Untrusted aa-native-release is ignored
 lastSbn = null;
-hostEvents.message({
-    source: {},
-    data: {
-        type: 'aa-native-release',
-        token: 'untrusted-token',
-        savingMessage: 'Spoofed toast',
-        savedMessage: 'Spoofed toast'
-    }
-});
+hostEvents.message({ source: {}, data: { type: 'aa-native-release', token: 'untrusted-token' } });
 assert.equal(lastSbn, null, 'Untrusted aa-native-release ignored');
 
-// 8c. Localized error SBN emitted when background save fails
-lastSbn = null;
-holdService = true;
-resident.service.request = holdRequest;
-hostEvents.message({
-    source: view,
-    data: {
-        type: 'aa-request',
-        token: 'fixture-token',
-        action: 'set',
-        payload: { key: 'force_street_name', value: true }
-    }
+// 15. A failed save after leaving shows only the error, even after an earlier success
+residentMessage({
+    type: 'aa-native-render',
+    menu: { page: 'home', title: 'Android Auto Settings', rows: [{ label: 'Touch', itemStyle: 'styleOnOff' }], index: 0 }
 });
-flush();
-hostEvents.message({
-    source: view,
-    data: {
-        type: 'aa-native-release',
-        token: 'fixture-token',
-        savingMessage: 'Enregistrement...',
-        savedMessage: 'Enregistré.',
-        errorMessage: 'Échec de l’enregistrement'
-    }
-});
-flush();
-assert.equal(lastSbn.props.text1, 'Enregistrement...');
-lastSbn = null;
-holdService = false;
-heldCallbacks.shift()('disk error');
-flush();
-assert.notEqual(lastSbn, null, 'Error SBN emitted when background save failed');
-assert.equal(lastSbn.type, 'errorNotification');
-assert.equal(lastSbn.props.text1, 'Échec de l’enregistrement');
+residentMessage({ type: 'aa-request', action: 'set', payload: { key: 'force_street_name', value: true } });
+assert.equal(savedSettings.force_street_name, true);
+holdSaves();
+residentMessage({ type: 'aa-request', action: 'set', payload: { key: 'hud', value: false } });
+sbns.length = 0;
+residentMessage({ type: 'aa-native-release' });
+resident.closed();
+assert.equal(sbns.length, 0, 'No reboot notice while a save is still running');
+releaseSave('disk error');
+assert.equal(savedSettings.hud, true, 'The failed save was not written');
+assert.equal(sbns.length, 1, 'No reboot notice follows a failed save');
+assert.equal(sbns[0].type, 'errorNotification');
+assert.equal(sbns[0].props.text1, 'Échec de l’enregistrement');
 
-// 8d. Concurrency: callbacks in syncFromService are queued and all invoked
+// 16. Concurrency: callbacks in syncFromService are queued and all invoked
 let pendingServiceCb = null;
 let getRequests = 0;
 resident.service.request = (op, args, cb) => {
@@ -514,16 +745,7 @@ resident.service.request = (op, args, cb) => {
     }
 };
 // Trigger first failure which calls syncFromService(cb1)
-hostEvents.message({
-    source: view,
-    data: {
-        type: 'aa-request',
-        token: 'fixture-token',
-        action: 'set',
-        payload: { key: 'touch', value: true }
-    }
-});
-flush();
+residentMessage({ type: 'aa-request', action: 'set', payload: { key: 'touch', value: true } });
 assert.equal(getRequests, 1, 'First get request started');
 assert.notEqual(pendingServiceCb, null, 'Service get request in flight');
 
@@ -538,11 +760,12 @@ viewEvents.message = [event => {
         broadcastCount++;
     }
 }];
-pendingServiceCb(null, { success: true, settings: Object.assign({}, savedSettings) });
+pendingServiceCb(null, serviceResult());
 flush();
 assert.equal(broadcastCount >= 1, true, 'Queued sync completed and broadcast state');
+resident.service.request = origServiceRequest;
 
-// 8e. Initial get failure broadcasts error to view even when cachedSettings is null
+// 17. Initial get failure broadcasts error to view even when cachedSettings is null
 {
     let errorReceived = null;
     const testView = {
@@ -559,6 +782,7 @@ assert.equal(broadcastCount >= 1, true, 'Queued sync completed and broadcast sta
     const testHostContext = {
         window: {
             MzdGuiResidents: {
+                ...residentsApi,
                 register(id, fn) {
                     fn({
                         view: () => ({ source: testView, token: 'err-token' }),
@@ -566,6 +790,9 @@ assert.equal(broadcastCount >= 1, true, 'Queued sync completed and broadcast sta
                         onViewClose: () => {},
                         onDispose: () => {},
                         onServiceReady: () => {},
+                        createNativeMenu: opts => residentsApi.createNativeMenu(opts),
+                        notify: (text, isError) => residentsApi.notify('android-auto', text, isError),
+                        log: msg => residentsApi.log('android-auto', msg),
                         service: {
                             request(op, args, cb) {
                                 if (op === 'get') {
@@ -579,7 +806,7 @@ assert.equal(broadcastCount >= 1, true, 'Queued sync completed and broadcast sta
         },
         document: hostContext.document
     };
-    vm.runInNewContext(fs.readFileSync(path.join(aaRoot, 'assets/resident.js'), 'utf8'), testHostContext);
+    vm.runInNewContext(residentSource, testHostContext);
     freshHostEvents({
         source: testView,
         data: { type: 'aa-request', token: 'err-token', action: 'get' }
@@ -587,7 +814,7 @@ assert.equal(broadcastCount >= 1, true, 'Queued sync completed and broadcast sta
     assert.equal(errorReceived, 'Initial connection failed', 'Error broadcast when cachedSettings is null');
 }
 
-// 8f. NativeMenu check is exception-safe when framework is temporarily undefined
+// 18. NativeMenu check is exception-safe when framework is temporarily undefined
 assert.doesNotThrow(() => {
     const origFw = host.framework;
     delete host.framework;
@@ -595,27 +822,62 @@ assert.doesNotThrow(() => {
     host.framework = origFw;
 }, 'check does not throw when framework is undefined');
 
-// 9. Re-entering view serves state immediately from resident cache
-let reloadedState = null;
+// 19. Every view open reads the settings again; outside edits show up but do not ask for a reboot
+let reloadedState = null, reloadedReboot = null;
+const getsBefore = serviceCalls.filter(op => op === 'get').length;
+savedSettings.compass_always_on = true; // edited over SSH
 viewEvents.message = [event => {
     if (event.data && event.data.type === 'aa-response') {
         reloadedState = event.data.state;
+        reloadedReboot = event.data.rebootRequired;
     }
 }];
-hostEvents.message({
-    source: view,
-    data: {
-        type: 'aa-request',
-        token: 'fixture-token',
-        action: 'get'
-    }
-});
-flush();
-assert.notEqual(reloadedState, null, 'Resident immediately returned cached state');
+residentMessage({ type: 'aa-request', action: 'get' });
+assert.equal(serviceCalls.filter(op => op === 'get').length, getsBefore + 1, 'Opening the view reads the settings again');
+assert.equal(reloadedState.compass_always_on, true, 'An outside edit shows up on the next open');
 assert.equal(reloadedState.hud_maneuver_max_distance_m, 1000);
 assert.equal(reloadedState.touch, false);
+assert.equal(reloadedReboot, true, 'Changes saved in the view still need a reboot');
+writeSetting('touch', true);
+writeSetting('hud_maneuver_max_distance_m', 0);
+writeSetting('hud_transport', 'svcnavi');
+writeSetting('force_street_name', false);
+residentMessage({ type: 'aa-request', action: 'get' });
+assert.equal(reloadedState.compass_always_on, true);
+assert.equal(reloadedReboot, false, 'An outside edit alone does not ask for a reboot');
 
 hostEvents.unload();
 flush();
 
-console.log('ANDROID_AUTO_VIEW_PASSED: MZD Connect styling, styleOnOff checkboxes, distance submenu with style03 checkmarks, value display on main menu, back navigation, SBN system toast and cleanup.');
+// 20. OEM dialog components that are already loaded are not loaded again
+{
+    const assetsBefore = head.children.length;
+    let fastMessage;
+    const fastWindow = Object.assign({}, host, {
+        Dialog3Tmplt: function () {},
+        MzdGuiResidents: {
+            ...residentsApi,
+            register(id, fn) {
+                fn({
+                    view: () => ({ source: view, frame: frame, token: 'fast-token' }),
+                    onMessage: f => { fastMessage = f; },
+                    onViewClose: () => {},
+                    onDispose: () => {},
+                    onServiceReady: () => {},
+                    createNativeMenu: opts => residentsApi.createNativeMenu(opts),
+                    notify: (text, isError) => residentsApi.notify('android-auto', text, isError),
+                    log: msg => residentsApi.log('android-auto', msg),
+                    service: { request() {} }
+                });
+            }
+        }
+    });
+    vm.runInNewContext(residentSource, { window: fastWindow, document: document });
+    fastMessage({
+        source: view,
+        data: { type: 'aa-native-render', token: 'fast-token', menu: { page: 'home', title: 'Fast', rows: [{ label: 'Row' }], index: 0 } }
+    });
+    assert.equal(head.children.length, assetsBefore, 'Already registered OEM dialog components are reused');
+}
+
+console.log('ANDROID_AUTO_VIEW_PASSED: MZD Connect styling, reboot row enabled only for changes saved in the view, fresh settings on every open, single OEM confirmation dialog, No/Yes and failed reboot, dialog failure recovery, Back button focus handoff, localized reboot notices, settings navigation and cleanup.');

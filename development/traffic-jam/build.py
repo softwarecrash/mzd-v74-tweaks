@@ -45,7 +45,7 @@ for id_, label in [('snake','Snake'), ('minesweeper','Minesweeper')]:
 <title>'''+label+''' - Traffic Jam</title><link rel="stylesheet" href="style.css"></head><body>
 <main id="stage"><aside><h1 id="title">'''+label+'''</h1><div class="label" id="metric-label"></div><div class="metric" id="metric"></div>
 <div class="label" id="best-label"></div><div id="best"></div><div id="extra"></div><div id="controls"></div></aside>
-<div id="court"><canvas id="board" width="528" height="396" aria-label="'''+label+''' playfield"></canvas></div>
+<div id="court"><canvas id="board" width="480" height="360" aria-label="'''+label+''' playfield"></canvas></div>
 <div id="keyboard"></div><div id="shade"></div><section id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
 <h2 id="dialog-title"></h2><p id="dialog-text"></p><div id="menu"></div></section></main>
 <script src="/data/integration/mzd-gui-runtime/sdk.js"></script><script>window.TrafficJamGame="'''+id_+'''";</script>

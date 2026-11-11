@@ -50,11 +50,12 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
    write(dest/'assets/resident.js','window.MzdGuiResidents.register("'+id_+'",function () {});\n')
    write(dest/'assets/service.lua','return function() return {request=function()return {}end}end\n')
   write(b/'startup','#!/bin/sh\n# unrelated SSH hook\necho original\n')
- if '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or traffic_profile:
+ if '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or '--helper-compat-only' in sys.argv or traffic_profile:
   write(b/'startup','#!/bin/sh\necho original\n')
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
- replacements={'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts)}
+ write(b/'watchdog','0\n')
+ replacements={'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+bp(b),'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts),'/sys/class/gpio/Watchdog\\ Disable/value':bp(b/'watchdog')}
  if '--ssh-coexist-only' in sys.argv:
   replacements['/tmp/mnt/resources']=bp(b/'resources')
   replacements['/sys/class/gpio/Watchdog\\ Disable/value']=bp(b/'watchdog')
@@ -69,7 +70,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
   p=usb/'tweaks/ssh/manifest.conf';write(p,p.read_text().replace('/jci/scripts/stage_wifi.sh',bp(b/'startup')))
   p=usb/'tweaks/ssh/managed-paths.tsv';write(p,p.read_text().replace('/tmp/mnt/resources',bp(b/'resources')))
   with mounts.open('a') as f:f.write('root / relfs rw 0 0\nmock '+bp(b/'resources')+' relfs rw 0 0\n')
-  write(usb/'tweaks/ssh/assets/service.sh',"#!/bin/sh\ncase \"$1\" in check) exit 0;;boot) touch "+shlex.quote(bp(b/'ssh-running'))+";;status) [ -f "+shlex.quote(bp(b/'ssh-running'))+" ];;stop) rm -f "+shlex.quote(bp(b/'ssh-running'))+";;*) exit 1;;esac\n")
+  write(usb/'tweaks/ssh/assets/service.sh',"#!/bin/sh\ncase \"$1\" in check|check-auth) exit 0;;boot) touch "+shlex.quote(bp(b/'ssh-running'))+";;status) [ -f "+shlex.quote(bp(b/'ssh-running'))+" ];;stop) rm -f "+shlex.quote(bp(b/'ssh-running'))+";;*) exit 1;;esac\n")
  for name in ['mount','sync']:write(bins/name,'#!/bin/sh\nprintf "'+name+'\\n" >> '+shlex.quote(bp(events))+'\n')
  write(bins/'df','#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nmock 1000000 1000 999000 1%% persist\\n"\n')
  # Simulate an install-time boot-hook copy failure without touching any real CMU file.
@@ -81,7 +82,7 @@ if [ "$destination" = '''+shlex.quote(bp(base/'mzd-gui-runtime'))+''' ] && [ -f 
 exec '''+copy_command+''' "$@"
 ''')
  write(bins/'rm','#!/bin/sh\nfor arg do destination=$arg; done\nif [ "$destination" = '+shlex.quote(bp(base/'mzd-gui-runtime'))+' ] && [ -f '+shlex.quote(bp(b/'fail-remove'))+' ]; then '+remove_command+' -f '+shlex.quote(bp(b/'fail-remove'))+'; exit 1; fi\nexec '+remove_command+' "$@"\n')
- if traffic_profile or any(flag in sys.argv for flag in ['--services-only','--wallpaper-only','--tetris-only','--tetris-config-only','--ssh-coexist-only']):
+ if traffic_profile or any(flag in sys.argv for flag in ['--services-only','--wallpaper-only','--tetris-only','--tetris-config-only','--ssh-coexist-only','--helper-compat-only']):
   # CMU BusyBox does not decode the literal backslash-t passed through -F.
   # Reject that nonportable form even when the host awk would accept it.
   write(bins/'awk','#!/bin/sh\nif [ \"$1\" = -F ] && [ \"$2\" = '+shlex.quote(r'\t')+' ]; then printf \"Unsupported CMU awk field separator.\\n\" >&2; exit 1; fi\nexec '+awk_command+' \"$@\"\n')
@@ -111,6 +112,55 @@ exec '''+copy_command+''' "$@"
   checks+=1
  hook=base/'developer_mode_GuiConfig.js';runtime=base/'mzd-gui-runtime';registry=base/'mzd-gui-registry.js';modules=base/'mzd-gui-modules'
  def absent():assert not hook.exists() and not runtime.exists() and not registry.exists() and not provider.exists() and not modules.exists()
+ if '--helper-compat-only' in sys.argv:
+  api=usb/'lib/gui-runtime/api.conf';current=api.read_text()
+  write(api,current.replace('view-lifecycle=1\n','').replace('version=0.5.0','version=0.4.0'))
+  call('gui-example','install')
+  write(api,current)
+  receipt=persist/'mzd-tweaks/installed/gui-example'
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  p=usb/'tweaks/gui-example/manifest.conf';write(p,p.read_text().replace('version=0.1.0','version=0.1.1'))
+  for id_,action in [('gui-example','update'),('gui-example','install'),('second-example','install')]:
+   r=call(id_,action,1)
+   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
+   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected action changed saved installation'
+  call('gui-example','uninstall');absent()
+  call('gui-example','install');call('second-example','install')
+  assert 'view-lifecycle=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
+  call('second-example','uninstall');call('gui-example','uninstall');absent()
+  # A phone-capable provider still needs replacement for parking support.
+  write(api,current.replace('parking-lifecycle=1\n',''))
+  call('gui-example','install');write(api,current)
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  r=call('second-example','install',1);assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr
+  assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  call('gui-example','uninstall');absent()
+  # A 0.5.3 helper still needs replacement for native-menu and service-request support.
+  helper_053=current.replace('native-menu=1\n','').replace('service-request=1\n','').replace('version=0.6.0','version=0.5.3')
+  write(api,helper_053)
+  call('gui-example','install');write(api,current)
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  r=call('wallpaper-manager','install',1)
+  assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
+  assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected install changed saved installation'
+  call('gui-example','uninstall');absent()
+  # Updating a consumer installed with 0.5.3 helper also refuses before removing the old version.
+  write(api,helper_053)
+  call('wallpaper-manager','install');write(api,current)
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';p_orig=p.read_text();write(p,p_orig.replace('version=0.4.3','version=0.4.4'))
+  for id_,action in [('wallpaper-manager','update'),('second-example','install')]:
+   r=call(id_,action,1)
+   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
+   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected action changed saved installation'
+  write(p,p_orig)
+  call('wallpaper-manager','uninstall');absent()
+  call('wallpaper-manager','install');call('second-example','install')
+  assert 'native-menu=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
+  assert 'service-request=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
+  call('second-example','uninstall');call('wallpaper-manager','uninstall');absent()
+  print('GUI_HELPER_COMPAT_PASSED:',checks,'real actions; old helper blocks install/update before mutation, saved uninstall and current reuse work.')
+  raise SystemExit(0)
  if '--ssh-coexist-only' in sys.argv:
   startup=b/'startup';original=startup.read_bytes();backup=Path(str(startup)+'.org')
   expected_hash=hashlib.md5(original).hexdigest()
@@ -136,9 +186,23 @@ exec '''+copy_command+''' "$@"
        remaining=removal[1];deep(remaining,'installed')
        assert (gui_block in startup.read_bytes())==(remaining==gui_id)
        assert (b'# MZD v74 SSH\n' in startup.read_bytes())==(remaining=='ssh')
-     absent();assert startup.read_bytes()==original and backup.read_bytes()==original
-     # Ordinary patch uninstall retains the verified shared OEM backup.
-     backup.unlink()
+       if remaining=='ssh':
+        for container in ['config-owners','data','gui-data']:
+         assert not (persist/'mzd-tweaks'/container).exists(), 'unused data container retained alongside SSH'
+     absent();assert startup.read_bytes()==original and not backup.exists()
+     assert not (persist/'mzd-tweaks').exists(), 'empty framework containers left after final uninstall'
+     # The last managed consumer removes its own shared OEM backup.
+  call('ssh','uninstall');assert not (persist/'mzd-tweaks').exists(), 'no-op uninstall recreated storage'
+  # Legacy GUI receipts lacked both original snapshots and startup ownership.
+  package_source=(usb/'lib/packages.sh').read_text();paths_source=(usb/'lib/gui-extension.sh').read_text()
+  write(usb/'lib/packages.sh',package_source.replace('. "$stage/package/lib/originals.sh" && mzd_originals_capture "$stage" || exit 1',''))
+  write(usb/'lib/gui-extension.sh','\n'.join(line for line in paths_source.splitlines() if '${MZD_GUI_STARTUP:-' not in line)+'\n')
+  call('tetris','install');before=startup.read_bytes();assert not backup.exists()
+  write(usb/'lib/packages.sh',package_source);write(usb/'lib/gui-extension.sh',paths_source)
+  refused=call('ssh','install',1)
+  assert 'Uninstall the older tweak first' in refused.stderr and startup.read_bytes()==before
+  assert not (persist/'mzd-tweaks/installed/ssh').exists() and not backup.exists()
+  call('tetris','uninstall');absent();assert startup.read_bytes()==original
   # Read-only checks must reject unknown, duplicate, partial or altered GUI data.
   valid=original.replace(b'#!/bin/sh\n',b'#!/bin/sh\n'+gui_block,1)
   malformed=[valid+b'# unrelated edit\n',valid.replace(gui_block,gui_block*2),valid.replace(b'supervisor.sh boot',b'supervisor.sh other'),valid.rstrip(b'\n')]
@@ -151,6 +215,12 @@ exec '''+copy_command+''' "$@"
   print('SSH_GUI_COEXIST_PASSED:',checks,'real actions/checks; both GUI consumers, both install/removal orders, exact OEM backup and unmanaged-change refusal.')
   raise SystemExit(0)
  if '--services-only' in sys.argv:
+  write(mounts,mounts.read_text().replace(bp(data)+' relfs rw',bp(data)+' relfs ro'))
+  write(bins/'mount','''#!/bin/sh
+awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}' '''+shlex.quote(bp(mounts))+''' > '''+shlex.quote(bp(mounts))+'''.next && mv '''+shlex.quote(bp(mounts))+'''.next '''+shlex.quote(bp(mounts))+'''
+''')
+  def data_readonly():
+   assert any(row.split()[1:4]==[bp(data),'relfs','ro'] for row in mounts.read_text().splitlines())
   startup=b/'startup';original=startup.read_bytes()
   call('gui-hello-world','install')
   call('gui-example','install');deep('gui-example','installed')
@@ -160,9 +230,13 @@ exec '''+copy_command+''' "$@"
   owner_bytes=(user_data/'owner').read_bytes();(user_data/'owner').write_bytes(owner_bytes.rstrip(b'\n'));deep('gui-example','broken');(user_data/'owner').write_bytes(owner_bytes);deep('gui-example','installed')
   write(user_data/'user-file','keep user data\n')
   call('second-example','install');assert startup.read_text().count('# MZD shared GUI services')==1
-  call('gui-example','uninstall');assert hook.exists() and startup.read_bytes()!=original and (user_data/'user-file').exists()
+  hook_before=hook.read_bytes();hook.unlink()
+  call('gui-example','uninstall');assert hook.exists() and startup.read_bytes()!=original and not user_data.exists()
+  assert hook.read_bytes()==hook_before and modules.is_dir() and (modules/'second-example').is_dir()
+  data_readonly()
   call('second-example','uninstall');assert hook.exists() and startup.read_bytes()==original and not (base/'mzd-gui-services.tsv').read_text()
   call('gui-hello-world','uninstall');absent();assert not (base/'mzd-gui-services.tsv').exists()
+  assert not modules.exists();data_readonly()
   # Old immutable providers and saved uninstallers must be removed explicitly.
   call('gui-hello-world','install')
   for q in [provider/'package/lib/gui-runtime/api.conf',runtime/'api.conf',persist/'mzd-tweaks/installed/gui-hello-world/package/lib/gui-runtime/api.conf']:
@@ -174,7 +248,7 @@ exec '''+copy_command+''' "$@"
   assert 'predates resident services' in diagnostics,diagnostics
   assert startup.read_bytes()==original and not (modules/'gui-example').exists() and not (persist/'mzd-tweaks/installed/gui-example').exists()
   call('gui-hello-world','uninstall');absent()
-  print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, retained user data and old-provider refusal.')
+  print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, owned data removal and old-provider refusal.')
   raise SystemExit(0)
  if traffic_profile:
   startup=b/'startup';original=startup.read_bytes()
@@ -186,7 +260,7 @@ exec '''+copy_command+''' "$@"
    user_data=persist/'mzd-tweaks/gui-data'/game_id
    owner=(user_data/'owner').read_bytes();write(user_data/'record.conf','best=42\n')
    assert (user_data/'record.conf').read_text()=='best=42\n'
-   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.1','version=0.1.2'))
+   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.2','version=0.1.3'))
    call(game_id,'update');assert (user_data/'record.conf').read_text()=='best=42\n' and (user_data/'owner').read_bytes()==owner
    call(game_id,'uninstall',extra=['--preserve-config']);assert (user_data/'record.conf').exists() and hook.exists()
    call(game_id,'install');assert (user_data/'record.conf').read_text()=='best=42\n'
@@ -210,7 +284,7 @@ exec '''+copy_command+''' "$@"
   write(user_data/'test-image.png','synthetic user data\n')
   write(user_data/'gallery/gallery.tsv','saved image and slideshow settings\n')
   saved={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
-  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.0','version=0.4.1'))
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.3','version=0.4.4'))
   call('wallpaper-manager','update')
   assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
   call('wallpaper-manager','uninstall',extra=['--preserve-config']);assert hook.exists() and (user_data/'test-image.png').exists()
@@ -266,7 +340,7 @@ exec '''+copy_command+''' "$@"
   score=persist/'mzd-tweaks/data/tetris/highscore.conf'
   assert score.exists() and score.read_text()==''
   write(score,'highscore=1234\n')
-  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.0','version=0.5.1'))
+  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.1','version=0.5.2'))
   call('tetris','update');assert score.read_text()=='highscore=1234\n'
   call('tetris','uninstall',extra=['--preserve-config']);assert score.exists();absent()
   call('tetris','install');assert score.read_text()=='highscore=1234\n'
@@ -381,3 +455,5 @@ exec '''+copy_command+''' "$@"
  call('gui-example','install');write(usb/'lib/gui-runtime/runtime.js','new incompatible USB runtime\n');write(usb/'tweaks/gui-example/assets/view.html','replacement USB view\n')
  call('gui-example','uninstall');absent()
 print('GUI_EXTENSIONS_PASSED:',checks,'real entrypoint checks; first/last lifecycle, mixed parents, reuse, saved removal and rollback.')
+if len(sys.argv)==1:
+ subprocess.run([sys.executable,str(Path(__file__).resolve()),'--helper-compat-only'],check=True)

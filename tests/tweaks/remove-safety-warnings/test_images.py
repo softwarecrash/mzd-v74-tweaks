@@ -124,6 +124,12 @@ with tempfile.TemporaryDirectory(prefix='cmu-safety-images-') as directory:
     write(fail,'1');failed=call('install',1,direct=True)
     assert tripped.exists(),('Injected write failure was not reached.',failed.stdout,failed.stderr,[p.read_text()[-4000:] for p in usb.glob('reports/remove-safety-warnings/*/run.log')])
     original();fail.unlink();tripped.unlink()
+    # Start the managed lifecycle from a clean original state after rollback probes.
+    for backup in internal.rglob('*.org'):backup.unlink()
+    saved_meta={}
+    for original_path in [target,*[images/r[0] for r in rows]]:
+        original_path.chmod(0o640);os.utime(original_path,(1234567800,1234567890))
+        st=original_path.stat();saved_meta[original_path]=(st.st_mode & 0o7777,st.st_uid,st.st_gid,st.st_mtime_ns)
     call('install');status('installed')
     assert all((images/r[0]).read_bytes()==(worker/'assets'/r[2]).read_bytes() for r in rows)
     backup=Path(str(first)+'.org');kept=backup.read_bytes();backup.unlink();status('broken');backup.write_bytes(kept)
@@ -131,6 +137,10 @@ with tempfile.TemporaryDirectory(prefix='cmu-safety-images-') as directory:
     # Removal must use the saved worker/assets, never the replacement USB files.
     (worker/'assets/transparent-800x50.png').write_bytes(b'replacement bad asset')
     call('uninstall');original()
+    assert not list(internal.rglob('*.org')), 'managed uninstall must remove all owned image/JS backups'
+    for original_path,expected in saved_meta.items():
+        st=original_path.stat()
+        assert (st.st_mode & 0o7777,st.st_uid,st.st_gid,st.st_mtime_ns)==expected
     shutil.copyfile(SOURCE/'assets/transparent-800x50.png',worker/'assets/transparent-800x50.png')
     status('uninstalled')
     # Unknown concurrent state during failed rollback is critical and remains archived.

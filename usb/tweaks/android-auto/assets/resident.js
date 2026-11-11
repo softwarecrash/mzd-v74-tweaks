@@ -1,212 +1,53 @@
-/* Local prototype adapter using the same OEM List2 factory as Applications. */
+/*
+ * Android Auto Settings resident. Uses the shared native menu runtime for the
+ * OEM List2 control and the OEM Dialog3 confirmation template, and owns the
+ * save queue, status bar notifications and the reboot request.
+ */
 (function (global) {
     'use strict';
-    function create(options) {
-        options = options || {};
-        var session = null, selection = null;
-        function send(type, value) {
-            if (session) {
-                session.frame.contentWindow.postMessage({
-                    type: type,
-                    token: session.token,
-                    index: value
-                }, '*');
-            }
-        }
-        function destroyList() {
-            if (session && session.control) {
-                try { global.framework.destroyControl(session.control); } catch (ignore) {}
-                session.control = null;
-            }
-        }
-        function close() {
-            var old = session, fw = global.framework, app;
-            if (!old) { return; }
-            global.clearTimeout(selection);
-            selection = null;
-            destroyList();
-            session = null;
-            if (typeof options.onClose === 'function') {
-                try { options.onClose(); } catch (ignore) {}
-            }
-            if (fw && fw.sendEventToMmui === old.backWrapper) {
-                fw.sendEventToMmui = old.originalSend;
-            }
-            if (old.container.parentNode) {
-                old.container.parentNode.removeChild(old.container);
-            }
-            old.frame.style.display = old.display;
-            old.root.style.cssText = old.css;
-            old.root.className = old.className;
-            if (fw && typeof fw.getCurrentApp === 'function' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
-                app = fw.getAppInstance('system');
-                if (!app._currentContextTemplate || !app._currentContextTemplate.divElt || app._currentContextTemplate.divElt.style.visibility !== 'hidden') {
-                    if (app._currentContextTemplate && app._currentContextTemplate.list2Ctrl) {
-                        app._currentContextTemplate.list2Ctrl.setLineNumbers();
-                    }
-                    if (fw.common && fw.common.setSbNameId) {
-                        fw.common.setSbNameId('system', 'Applications');
-                    }
-                }
-            }
-        }
-        function attach(frame, token) {
-            var fw = global.framework, root = frame.parentNode, container, originalSend;
-            if (session && session.frame === frame && session.token === token) { return; }
-            close();
-            if (!fw || typeof fw.instantiateControl !== 'function' || typeof fw.destroyControl !== 'function') {
-                throw new Error('Mazda list factory unavailable.');
-            }
-            container = document.createElement('div');
-            container.className = 'TemplateWithStatusLeft List2Tmplt';
-            container.style.cssText = 'position:absolute;left:0;top:0;width:740px;height:416px;';
-            session = {
-                frame: frame,
-                source: frame.contentWindow,
-                token: token,
-                root: root,
-                container: container,
-                control: null,
-                page: '',
-                signature: '',
-                css: root.style.cssText,
-                className: root.className,
-                display: frame.style.display,
-                originalSend: fw.sendEventToMmui
-            };
-            frame.style.display = 'none';
-            root.style.cssText = 'position:absolute;left:60px;top:64px;width:740px;height:416px;z-index:7;background:transparent;overflow:visible;';
-            root.className = '';
-            root.appendChild(container);
-            originalSend = session.originalSend;
-            session.backWrapper = function (uia, event) {
-                if (session && event === 'Global.GoBack' && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
-                    session.frame.contentWindow.postMessage({
-                        type: 'mzd-gui-input',
-                        token: session.token,
-                        action: 'back',
-                        phase: 'step'
-                    }, '*');
-                    return;
-                }
-                return originalSend.apply(this, arguments);
-            };
-            fw.sendEventToMmui = session.backWrapper;
-        }
-        function render(frame, token, menu) {
-            var fw = global.framework, items = [], i, row, captured, signature, current, oldPage;
-            if (!menu || typeof menu.title !== 'string' || !menu.rows || menu.rows.length > 202) {
-                throw new Error('Invalid native menu.');
-            }
-            attach(frame, token);
-            if (typeof options.onOpen === 'function') {
-                try { options.onOpen(); } catch (ignore) {}
-            }
-            current = session;
-            if (fw.common && fw.common.setSbName) {
-                fw.common.setSbName(menu.title.replace(/[.]png/gi, ''));
-            }
-            for (i = 0; i < menu.rows.length; i += 1) {
-                row = menu.rows[i];
-                items.push({
-                    appData: { aaIndex: i },
-                    text1Id: null,
-                    text1: row.label,
-                    itemStyle: row.itemStyle || (row.checkable ? 'style03' : row.detail ? 'style06' : 'style01'),
-                    image1: row.checkable ? (row.radio ? 'radio' : 'tick') : '',
-                    checked: row.checked === true,
-                    value: row.value != null ? row.value : (row.checked ? 1 : 2),
-                    label1Id: null,
-                    label1: row.detail || '',
-                    hasCaret: row.caret === true,
-                    disabled: row.disabled === true
-                });
-            }
-            signature = JSON.stringify(items);
-            oldPage = session.page;
-            if (session.control && oldPage === menu.page && session.signature === signature) {
-                return;
-            }
-            if (session.control && oldPage === menu.page) {
-                captured = session.control.getContextCapture();
-                session.control.setDataListAndUpdateItems({
-                    itemCountKnown: true,
-                    itemCount: items.length,
-                    items: items,
-                    vuiSupport: false
-                });
-                if (captured.focussedItem >= items.length) {
-                    captured.focussedItem = 0;
-                    captured.topItem = 0;
-                }
-                session.control.restoreContext(captured);
-            } else {
-                global.clearTimeout(selection);
-                destroyList();
-                session.container.innerHTML = '';
-                session.control = fw.instantiateControl('system', session.container, 'List2Ctrl', {
-                    titleConfiguration: 'noTitle',
-                    numberedList: true,
-                    focussedItem: menu.index || 0,
-                    dataList: {
-                        itemCountKnown: true,
-                        itemCount: items.length,
-                        items: items,
-                        vuiSupport: false
-                    },
-                    selectCallback: function (source, data) {
-                        if (session !== current || source !== current.control || !data) { return; }
-                        global.clearTimeout(selection);
-                        selection = global.setTimeout(function () {
-                            if (session === current && current.control === source) {
-                                send('aa-native-select', data.aaIndex);
-                            }
-                        }, 0);
-                    }
-                });
-                session.control.handleControllerEvent('acceptFocusInit');
-            }
-            session.page = menu.page;
-            session.signature = signature;
-        }
-        function input(frame, token, action, phase) {
-            var control, event, capture;
-            if (!session || session.frame !== frame || session.token !== token || !session.control) { return; }
-            control = session.control;
-            if (action === 'rotateRight' || action === 'rotateLeft') {
-                if (phase === 'release') { return; }
-                event = action === 'rotateRight' ? 'cw' : 'ccw';
-            } else {
-                if (['up', 'down', 'left', 'right', 'select'].indexOf(action) < 0) { return; }
-                if (phase === 'step') {
-                    control.handleControllerEvent(action + 'Start');
-                    event = action;
-                } else {
-                    event = phase === 'press' ? action + 'Start' : action;
-                }
-            }
-            control.handleControllerEvent(event);
-            capture = control.getContextCapture();
-            send('aa-native-focus', capture.focussedItem);
-        }
-        return {
-            render: render,
-            input: input,
-            close: close,
-            owns: function (source, token) {
-                return session && session.source === source && session.token === token;
-            },
-            check: function () {
-                if (session && (!document.documentElement.contains(session.frame) || !global.framework || typeof global.framework.getCurrentApp !== 'function' || global.framework.getCurrentApp() !== 'system' || global.framework.getCurrCtxtId() !== 'Applications')) {
-                    close();
-                }
-            }
-        };
-    }
 
     global.MzdGuiResidents.register('android-auto', function (context) {
-        'use strict';
-        var refreshTimer = null;
+        var TEXTS = {
+            saveError: 'Failed to save settings',
+            reboot: 'Reboot to apply changes',
+            rebootFallback: 'Hold NAV + MUTE to reboot'
+        };
+        var texts = {}, key;
+        for (key in TEXTS) {
+            if (Object.prototype.hasOwnProperty.call(TEXTS, key)) { texts[key] = TEXTS[key]; }
+        }
+        var refreshTimer = null, hostEnded = false;
+        // cachedSettings is working state for the open view and pending saves.
+        // Every view open reads libpatch.conf again through the service.
+        var cachedSettings = null, rebootRequired = false;
+        var queue = [], inFlight = null, syncing = false, syncCallbacks = [];
+        var viewOpen = false, saveFailed = false;
+
+        /*
+         * Notification rules (all share one SBN slot):
+         * - Leaving the list, or a batch finishing after the list was left,
+         *   shows the reboot notice when the saved settings differ from the
+         *   ones MZD booted with.
+         * - A failed save shows only its error. No reboot notice follows until
+         *   the list is opened again.
+         */
+        function saving() {
+            return !!inFlight || queue.length > 0;
+        }
+
+        function beginSettingsView() {
+            if (viewOpen) { return; }
+            viewOpen = true;
+            saveFailed = false;
+        }
+
+        function endSettingsView() {
+            if (!viewOpen) { return; }
+            viewOpen = false;
+            // A save still in progress shows its own result when it finishes.
+            if (!saving() && rebootRequired && !saveFailed) { context.notify(texts.reboot, false); }
+        }
+
         function startPolling() {
             if (!refreshTimer) {
                 refreshTimer = global.setInterval(function () {
@@ -221,27 +62,20 @@
             }
         }
 
-        var nativeMenu = create({
-            onOpen: startPolling,
+        var nativeMenu = context.createNativeMenu({
+            prefix: 'aa',
+            dialog: true,
+            onOpen: function () {
+                beginSettingsView();
+                startPolling();
+            },
             onClose: stopPolling
         });
-        var hostEnded = false;
-        var cachedSettings = null, cachedLoaded = false;
-        var queue = [], inFlight = false, syncing = false;
-        var syncCallbacks = [];
-        var lastSavedMessage = '', lastErrorMessage = '';
 
-        function showSbn(text, isError) {
-            var fw = global.framework;
-            if (fw && fw.common && typeof fw.common.startTimedSbn === 'function') {
-                try {
-                    fw.common.startTimedSbn('androidauto', 'AASettingsNotification', isError ? 'errorNotification' : 'typeD', {
-                        sbnStyle: 'Style02',
-                        imagePath1: 'common/images/icons/IcnSbnApps.png',
-                        text1: text
-                    });
-                } catch (ignore) {}
-            }
+        function leaveSettingsView() {
+            nativeMenu.close(true);
+            stopPolling();
+            endSettingsView();
         }
 
         function frameToken(source) {
@@ -257,10 +91,21 @@
                         type: 'aa-response',
                         token: current.token,
                         state: cachedSettings,
+                        rebootRequired: rebootRequired,
+                        saving: saving(),
                         error: error || ''
                     }, '*');
                 } catch (ignore) {}
             }
+        }
+
+        // A fresh read can miss saves that are still queued or running; keep
+        // their values so reopening the view does not flash the old ones.
+        function withPendingSaves(settings) {
+            var i;
+            if (inFlight) { settings[inFlight.key] = inFlight.value; }
+            for (i = 0; i < queue.length; i += 1) { settings[queue[i].key] = queue[i].value; }
+            return settings;
         }
 
         function syncFromService(cb) {
@@ -271,8 +116,8 @@
                 var cbs, i;
                 syncing = false;
                 if (!error && result && result.settings) {
-                    cachedSettings = result.settings;
-                    cachedLoaded = true;
+                    cachedSettings = withPendingSaves(result.settings);
+                    rebootRequired = result.rebootRequired === true;
                     broadcastState('');
                 } else if (error) {
                     broadcastState(error);
@@ -287,10 +132,10 @@
             });
         }
 
-        function hasQueuedKey(key) {
+        function hasQueuedKey(name) {
             var i;
             for (i = 0; i < queue.length; i += 1) {
-                if (queue[i].key === key) { return true; }
+                if (queue[i].key === name) { return true; }
             }
             return false;
         }
@@ -298,39 +143,72 @@
         function drainQueue() {
             if (hostEnded || inFlight || queue.length === 0) { return; }
             var next = queue.shift();
-            inFlight = true;
+            inFlight = next;
             context.service.request('set', { key: next.key, value: next.value }, function (error, result) {
-                inFlight = false;
+                var k;
+                inFlight = null;
                 if (error) {
                     queue = [];
-                    if (lastSavedMessage || lastErrorMessage) {
-                        showSbn(lastErrorMessage || 'Failed to save Android Auto settings', true);
-                        lastSavedMessage = '';
-                        lastErrorMessage = '';
-                    }
+                    saveFailed = true;
+                    context.notify(texts.saveError, true);
                     syncFromService(function () {
                         broadcastState(error);
                     });
                     return;
                 }
                 if (result && result.settings) {
-                    for (var k in result.settings) {
-                        if (Object.prototype.hasOwnProperty.call(result.settings, k)) {
-                            if (!hasQueuedKey(k)) {
-                                cachedSettings[k] = result.settings[k];
-                            }
+                    for (k in result.settings) {
+                        if (Object.prototype.hasOwnProperty.call(result.settings, k) && !hasQueuedKey(k)) {
+                            cachedSettings[k] = result.settings[k];
                         }
                     }
+                    rebootRequired = result.rebootRequired === true;
                 }
                 broadcastState('');
                 if (queue.length > 0) {
                     drainQueue();
-                } else {
-                    if (lastSavedMessage) {
-                        showSbn(lastSavedMessage, false);
-                        lastSavedMessage = '';
-                        lastErrorMessage = '';
-                    }
+                } else if (!viewOpen && rebootRequired && !saveFailed) {
+                    context.notify(texts.reboot, false);
+                }
+            });
+        }
+
+        function queueSetting(name, value) {
+            var i;
+            if (!cachedSettings) { cachedSettings = {}; }
+            cachedSettings[name] = value;
+            for (i = 0; i < queue.length; i += 1) {
+                if (queue[i].key === name) {
+                    queue[i].value = value;
+                    drainQueue();
+                    return;
+                }
+            }
+            queue.push({ key: name, value: value });
+            drainQueue();
+        }
+
+        function setTexts(payload) {
+            var name;
+            if (!payload) { return; }
+            for (name in TEXTS) {
+                if (Object.prototype.hasOwnProperty.call(TEXTS, name) && typeof payload[name] === 'string' && payload[name]) {
+                    texts[name] = payload[name];
+                }
+            }
+        }
+
+        function requestReboot() {
+            // The view disables the reboot row while saving, but its state can be
+            // out of date. Never let a reboot overtake a queued save.
+            if (saving() || !rebootRequired) {
+                broadcastState('');
+                return;
+            }
+            context.service.request('reboot', {}, function (error) {
+                if (error) {
+                    context.log('Reboot failed: ' + error);
+                    context.notify(texts.rebootFallback, false);
                 }
             });
         }
@@ -338,20 +216,13 @@
         function receive(event) {
             var data = event.data, token = frameToken(event.source), frames, frame, i;
             if (data && data.type === 'aa-native-release') {
-                if ((token && data.token === token) || (nativeMenu && nativeMenu.owns(event.source, data.token))) {
-                    nativeMenu.close();
-                    if (inFlight || queue.length > 0) {
-                        lastSavedMessage = data.savedMessage || 'Android Auto settings saved.';
-                        lastErrorMessage = data.errorMessage || 'Failed to save Android Auto settings';
-                        if (data.savingMessage) {
-                            showSbn(data.savingMessage, false);
-                        }
-                    }
+                if ((token && data.token === token) || nativeMenu.owns(event.source, data.token)) {
+                    leaveSettingsView();
                 }
                 return;
             }
             if (!token || !data || data.token !== token) { return; }
-            if (data.type === 'aa-native-render' || data.type === 'aa-native-input') {
+            if (data.type === 'aa-native-render' || data.type === 'aa-native-input' || data.type === 'aa-native-dialog') {
                 frames = document.getElementsByTagName('iframe');
                 for (i = 0; i < frames.length; i += 1) {
                     if (frames[i].contentWindow === event.source) { frame = frames[i]; }
@@ -360,58 +231,42 @@
                 try {
                     if (data.type === 'aa-native-render') {
                         nativeMenu.render(frame, token, data.menu);
-                    } else {
+                    } else if (data.type === 'aa-native-input') {
                         nativeMenu.input(frame, token, data.action, data.phase);
+                    } else {
+                        nativeMenu.dialog(frame, token, data.dialog);
                     }
                 } catch (failure) {
-                    nativeMenu.close();
+                    nativeMenu.close(false);
                     event.source.postMessage({
                         type: 'aa-native-error',
                         token: token,
+                        scope: 'menu',
                         message: String(failure.message || failure)
                     }, '*');
                 }
                 return;
             }
-            if (data.type === 'aa-request') {
-                if (data.action === 'get') {
-                    if (cachedLoaded && cachedSettings) {
-                        broadcastState('');
-                    } else {
-                        syncFromService();
-                    }
-                    return;
-                }
-                if (data.action === 'set' && data.payload && data.payload.key) {
-                    if (!cachedSettings) { cachedSettings = {}; }
-                    cachedSettings[data.payload.key] = data.payload.value;
-                    var found = false;
-                    for (i = 0; i < queue.length; i += 1) {
-                        if (queue[i].key === data.payload.key) {
-                            queue[i].value = data.payload.value;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        queue.push({ key: data.payload.key, value: data.payload.value });
-                    }
-                    drainQueue();
-                }
+            if (data.type !== 'aa-request') { return; }
+            if (data.action === 'get') {
+                syncFromService();
+            } else if (data.action === 'texts') {
+                setTexts(data.payload);
+            } else if (data.action === 'reboot') {
+                requestReboot();
+            } else if (data.action === 'set' && data.payload && data.payload.key) {
+                queueSetting(data.payload.key, data.payload.value);
             }
         }
         context.onMessage(receive);
-        context.onViewClose(function () {
-            nativeMenu.close();
-            stopPolling();
-        });
+        context.onViewClose(leaveSettingsView);
         context.onDispose(function () {
             hostEnded = true;
-            nativeMenu.close();
-            stopPolling();
+            leaveSettingsView();
         });
+        // The service becomes ready at boot; read settings only for an open view.
         context.onServiceReady(function () {
-            if (cachedLoaded) {
+            if (context.view()) {
                 syncFromService();
             }
         });

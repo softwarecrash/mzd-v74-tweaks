@@ -64,7 +64,9 @@ jobs:
       - name: Verify all shared-target patch combinations
         run: python tests/contract/test_combinations.py
       - name: Exercise the real SSH supervisor with fake system commands
-        run: python tests/contract/test_ssh_service.py
+        run: |
+          python tests/contract/test_ssh_service.py
+          python tests/contract/test_ssh_readiness.py
       - name: Test variable component bundles and settings configuration
         run: |
           python tests/contract/test_components.py
@@ -198,6 +200,7 @@ jobs:
       - run: node tests/tweaks/traffic-jam/behavior.cjs
       - run: node tests/tweaks/tetris/highscore.cjs
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
+      - run: node tests/tweaks/wallpaper-manager/preview-service.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs

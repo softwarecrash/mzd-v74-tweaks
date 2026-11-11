@@ -1,10 +1,10 @@
 (function () {
     'use strict';
-    var game = new TetrisEngine.Game(), cell = 22, highscore=0, scoreHandler=null;
+    var game = new TetrisEngine.Game(), cell = 19, highscore=0, scoreHandler=null;
     var board = document.getElementById('board'), ctx = board.getContext('2d');
     var preview = document.getElementById('next'), previewType = -1;
     var menu = [], choice = 0, screen = 'ready', keys = {}, held = {}, pressed = {}, lastStamp = '';
-    var last = new Date().getTime(), exitHandler = null, timer, destroyed = false;
+    var last = new Date().getTime(), exitHandler = null, timer, destroyed = false, suspended = false;
     function tr(key, fallback, values) { var sdk = window.MzdGuiModule; return sdk && sdk.t ? sdk.t(key,fallback,values) : fallback.replace(/\{([a-zA-Z0-9_]+)\}/g,function (match,name) { return values && Object.prototype.hasOwnProperty.call(values,name) ? String(values[name]) : match; }); }
     function el(id) { return document.getElementById(id); }
     function text(id, value) { el(id).textContent = value; }
@@ -13,12 +13,12 @@
     function fit() {
         var w = window.innerWidth || document.documentElement.clientWidth;
         var h = window.innerHeight || document.documentElement.clientHeight;
-        var scale = Math.min(1, w / 800, h / 480), stage = el('stage');
+        var scale = Math.min(1, w / 800, h / 416), stage = el('stage');
         // An identity transform still creates problematic layers on CMU Presto.
         stage.style.transform = scale < 1 ? 'scale(' + scale + ')' : 'none';
         stage.style.OTransform = scale < 1 ? 'scale(' + scale + ')' : 'none';
         stage.style.left = Math.max(0, (w - 800 * scale) / 2) + 'px';
-        stage.style.top = Math.max(0, (h - 480 * scale) / 2) + 'px';
+        stage.style.top = Math.max(0, (h - 416 * scale) / 2) + 'px';
     }
     function tile(context, x, y, color, size, ghost) {
         var px = x * size, py = y * size;
@@ -129,7 +129,7 @@
     }
     function select() { if (menu[choice] && !menu[choice].disabled) { menu[choice].action(); } }
     function input(action) {
-        if (destroyed) { return; }
+        if (destroyed || suspended) { return; }
         if (screen !== 'play') {
             if (action === 'up' || action === 'left' || action === 'rotateLeft') { moveMenu(-1); }
             else if (action === 'down' || action === 'right' || action === 'rotateRight') { moveMenu(1); }
@@ -151,6 +151,7 @@
         checkOver(); render(false);
     }
     function press(action) {
+        if (destroyed || suspended) { return; }
         if (pressed[action]) { return; }
         pressed[action] = true;
         input(action);
@@ -179,6 +180,8 @@
         if (action) { release(action); delete keys[event.keyCode]; event.preventDefault(); }
     }
     function blur() { keys = {}; pressed = {}; clearHeld(); pause(); }
+    function suspend() { if (destroyed) { return; } suspended = true; blur(); window.clearInterval(timer); timer = null; }
+    function resumeView() { if (destroyed) { return; } suspended = false; last = new Date().getTime(); if (timer === null) { timer = window.setInterval(frame,33); } }
     function visibility() { if (document.hidden || document.webkitHidden) { blur(); } }
     function wheel(event) {
         var delta = typeof event.deltaY === 'number' ? event.deltaY : -(event.wheelDelta || 0);
@@ -221,7 +224,7 @@
     function frame() {
         var now = new Date().getTime(), dt = Math.max(0, Math.min(0.1, (now - last) / 1000)), action, item;
         last = now;
-        if (screen === 'play') {
+        if (!suspended && screen === 'play') {
             for (action in held) {
                 if (Object.prototype.hasOwnProperty.call(held, action)) {
                     item = held[action]; item.elapsed += dt;
@@ -246,7 +249,7 @@
     window.addEventListener('blur', blur, false); window.addEventListener('resize', fit, false);
     // Pick one wheel event family to avoid duplicate rotations.
     document.addEventListener('onwheel' in document ? 'wheel' : 'mousewheel', wheel, false);
-    window.MzdTetris = { setHighscore:setHighscore,setScoreHandler:function(fn){scoreHandler=fn;}, translate:translate, input: input, press: press, release: release, pause: pause, destroy: destroy,
+    window.MzdTetris = { setHighscore:setHighscore,setScoreHandler:function(fn){scoreHandler=fn;}, translate:translate, input: input, press: press, release: release, pause: pause, suspend:suspend, resumeView:resumeView, destroy: destroy,
         setExitHandler: function (fn) { exitHandler = typeof fn === 'function' ? fn : null; },
         getState: function () { return { state: game.state, screen: screen, score: game.score, lines: game.lines,
             menuChoice: choice, menuItems: menu.length, menuVisible: screen !== 'play',

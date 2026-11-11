@@ -63,6 +63,11 @@ sh tools/preview-menu.sh --emu /path/to/mzd-emu
 sh tools/preview-menu.sh --tweak <id> --emu
 ```
 
+**VS Code**:
+Inside a VS Code integrated terminal the script stops mzd-emu from opening the
+system browser (set `MZD_OPEN_BROWSER=1` to override). Cmd/Ctrl+click the printed
+GUI URL to open it in the Simple Browser.
+
 **Path resolution**:
 When `--emu` is invoked without a path argument, the script resolves the emulator
 location in the following order:
@@ -76,12 +81,36 @@ location in the following order:
 - Stages the target tweak manifest, assets, and translations into
   `<mzd-emu>/data/integration/mzd-gui-modules/<id>/`.
 - Generates `<mzd-emu>/data/integration/mzd-gui-registry.js` using `usb/lib/gui-registry.awk`.
-- Starts the emulator with `npm start`.
+- Generates the GUI hook `<mzd-emu>/data/integration/developer_mode_GuiConfig.js`
+  from `tools/preview-gui-services.js` and the real `usb/lib/gui-runtime/boot.js`.
+  The Lua module services do not run in the emulator, so that file emulates them
+  in the browser. Keep it in sync with each `assets/service/entry.lua`. Android Auto
+  settings and Wallpaper Manager fixture state persist in browser local storage,
+  and an emulated reboot reloads the page. A previous hand-written hook is kept
+  once as `developer_mode_GuiConfig.js.orig`.
+- Wallpaper Manager uses browser-generated 800 x 480 PNG fixtures for its gallery
+  and USB list. Its preview supports selecting, previewing, importing and deleting
+  those fixtures; it does not copy wallpaper files into the emulator or repository.
+  The local-storage key is `mzd-preview-wallpaper-manager`.
+- Starts the emulator with `npm start`. If it is already running, reload the page.
 
 This provides faithful visual and interaction validation (e.g. testing `List2Ctrl`
 scrolling, focus, multicontroller inputs, and status bar toast notifications) before
 hardware testing. Note that this is a browser fixture, not evidence that the
 persistent shell package was installed correctly on hardware.
+
+For Wallpaper Manager, use:
+
+```sh
+sh tools/preview-menu.sh --tweak wallpaper-manager --emu ../mzd-emu
+```
+
+In the emulator, open Applications > Wallpaper Manager. Focus gallery rows to
+preview their images; select an image to apply it, or include images in the
+slideshow. Import from USB uses generated preview PNGs rather than a real USB
+mount. Clear `mzd-preview-wallpaper-manager` from browser local storage to reset
+the fixture. The generic desktop preview (`--no-open` or without `--emu`) does
+not emulate module services and is not a functional Wallpaper Manager preview.
 
 1. Boot to the ordinary home screen; open Applications. Both neutral entries
    appear once. No extension view should have loaded before selection.

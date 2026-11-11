@@ -10,7 +10,8 @@ mzd_gui_data_owned() (
     printf 'MZD_GUI_DATA_V1\n%s\n' "$2" | cmp -s - "$1/owner"
 )
 mzd_gui_capabilities() (
-    needs_i18n=0; needs_resident=0; needs_config=0
+    needs_i18n=0; needs_resident=0; needs_config=0; needs_originals=0
+    if mzd_line_is original-state=1 "$ROOT/lib/gui-runtime/api.conf"; then needs_originals=1; fi
     if [ -n "${CONFIGS:-}" ];then needs_config=1;fi
     [ -z "$GUI_TRANSLATIONS" ] || needs_i18n=1
     [ -z "$GUI_RESIDENT$GUI_SERVICE" ] || needs_resident=1
@@ -37,7 +38,23 @@ mzd_gui_capabilities() (
                 mzd_gui_error 'This GUI provider or saved consumer predates resident services. Remove its GUI consumers with their saved uninstallers, then reinstall using the updated package.'; exit 1;
             }
         fi
+        if [ "$needs_originals" = 1 ]; then
+            mzd_line_is original-state=1 "$receipt/package/lib/gui-runtime/api.conf" || {
+                mzd_gui_error 'The installed GUI helper or a saved consumer is too old. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
+            }
+        fi
     done
+    # The deployed provider is reused, never replaced by a consumer update.
+    # Reject before removing an old consumer if this USB expects newer view support.
+    if [ -d "$MZD_GUI_PROVIDER" ]; then
+        for capability in view-lifecycle=1 parking-lifecycle=1 native-menu=1 service-request=1; do
+            if mzd_line_is "$capability" "$ROOT/lib/gui-runtime/api.conf"; then
+                mzd_line_is "$capability" "$MZD_GUI_PROVIDER/package/lib/gui-runtime/api.conf" || {
+                    mzd_gui_error 'The installed GUI helper is too old. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
+                }
+            fi
+        done
+    fi
 )
 
 mzd_gui_startup_ok() {

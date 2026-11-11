@@ -77,3 +77,9 @@ a score of zero; the service creates a missing file on the first saved record.
 Scores are saved at game over, restart or Exit, without writing every frame.
 Values are validated and published by atomic rename. Update preserves the score;
 Uninstall asks whether to keep it. The installed assets and package are immutable.
+
+The playfield uses 800x416 below the original Mazda status bar. A phone call
+suspends the view, clears held input and stops its game timer. Returning to the
+same Applications context restores the current board/menu; a running game
+returns paused and requires Continue. Home, music, navigation or a new
+Applications visit closes the view normally.

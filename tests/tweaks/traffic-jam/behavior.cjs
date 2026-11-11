@@ -14,17 +14,17 @@ for(let first of [0,15,176,191,88]){m=new Mines(()=>0.23);m.cursor=first;m.revea
 m=new Mines(()=>0.4);m.tick(1000);assert.equal(m.elapsed,0);m.reveal();m.tick(500);assert.equal(m.elapsed,500);m.cursor=m.cells.findIndex(c=>c.mine);m.reveal();assert.equal(m.state,'lost');m.tick(500);assert.equal(m.elapsed,500);checks++;
 m=new Mines(()=>0.4);m.reveal();for(let n=0;n<m.cells.length;n++){if(!m.cells[n].mine){m.cursor=n;m.reveal();}}assert.equal(m.state,'won');assert.equal(m.opened,162);m.start();m.move('left');m.move('up');assert.equal(m.cursor,0);checks++;
 function view(id){
- let interval,now=1000,disposed,input,message,closed=0,language,sent=[],events={},docEvents={};
+ let interval,now=1000,disposed,input,message,closed=0,language,suspend,resume,layout,sent=[],events={},docEvents={};
  const context=new Proxy({}, {get(t,k){return t[k]||(t[k]=()=>{});},set(t,k,v){t[k]=v;return true;}});
  function node(){return {style:{},children:[],textContent:'',setAttribute(){},appendChild(n){this.children.push(n);},getContext(){return context;},set innerHTML(v){this.children=[];}};}
  const nodes={};for(const n of ['stage','board','title','metric-label','best-label','best','controls','keyboard','extra','metric','court','shade','dialog','dialog-title','dialog-text','menu'])nodes[n]=node();
  const document={documentElement:{},getElementById:n=>nodes[n],createElement:node,addEventListener(n,f){docEvents[n]=f;},removeEventListener(n){delete docEvents[n];}};
- const sdk={t:(k,f)=>f,onInput(f){input=f;},onDispose(f){disposed=f;},onMessage(f){message=f;},loadLanguage(f){language=f;},send(n,v){sent.push([n,v]);},ready(){},close(){closed++;}};
- const w={TrafficJamGame:id,MzdGuiModule:sdk,innerWidth:800,innerHeight:480,setInterval(f){interval=f;return 1;},clearInterval(){interval=null;},addEventListener(n,f){events[n]=f;},removeEventListener(n){delete events[n];}};
+ const sdk={setLayout(value){layout=value;},onSuspend(fn){suspend=fn;},onResume(fn){resume=fn;},t:(k,f)=>f,onInput(f){input=f;},onDispose(f){disposed=f;},onMessage(f){message=f;},loadLanguage(f){language=f;},send(n,v){sent.push([n,v]);},ready(){},close(){closed++;}};
+ const w={TrafficJamGame:id,MzdGuiModule:sdk,innerWidth:800,innerHeight:416,setInterval(f){interval=f;return 1;},clearInterval(){interval=null;},addEventListener(n,f){events[n]=f;},removeEventListener(n){delete events[n];}};
  const sandbox={window:w,document,Date:class extends Date{constructor(){super(now);}static now(){return now;}}};
  vm.runInNewContext(fs.readFileSync(path.join(root,'usb/tweaks',id,'assets/engine.js'),'utf8'),sandbox);
  vm.runInNewContext(fs.readFileSync(path.join(root,'usb/tweaks',id,'assets/app.js'),'utf8'),sandbox);
- return {api:w.TrafficJamView,nodes,sent,input,message,events,docEvents,tick(ms){now+=ms;if(interval)interval();},language,dispose(){disposed();},closed(){return closed;},hasTimer(){return !!interval;}};
+ return {api:w.TrafficJamView,nodes,suspend,resume,layout,sent,input,message,events,docEvents,tick(ms){now+=ms;if(interval)interval();},language,dispose(){disposed();},closed(){return closed;},hasTimer(){return !!interval;}};
 }
 for(const id of ['snake','minesweeper']){
  let factory,handler,ready,current,request,received=[];
@@ -73,3 +73,13 @@ for(const id of ['snake','minesweeper']){
  assert(!JSON.stringify(catalog).includes('\uFFFD'));checks++;
 }
 console.log('TRAFFIC_JAM_PASSED:',checks,'rules, safe first opening, idempotent flag directions, commander phases, pause, suspension, menus, config bridge, translations and disposal.');
+
+for(const id of ['snake','minesweeper']){
+ const v=view(id);assert.equal(v.layout,'with-status-bar');assert.equal(v.nodes.stage.style.transform,'none');
+ v.input('select','press');v.input('select','release');if(id==='minesweeper')v.input('select','press');
+ v.suspend();assert.equal(v.api.mode(),'paused');assert(!v.hasTimer());
+ const state=JSON.stringify(v.api.game);v.tick(10000);v.input('select','press');assert.equal(JSON.stringify(v.api.game),state);
+ v.resume();assert.equal(v.api.mode(),'paused');assert(v.hasTimer());v.tick(500);assert.equal(JSON.stringify(v.api.game),state);
+ v.input('select','press');assert.equal(v.api.mode(),'play');v.dispose();v.resume();assert(!v.hasTimer());
+}
+console.log('TRAFFIC_JAM_PHONE_PASSED: both views opt in, release timers/input, retain board/time and return paused until explicit Continue.');

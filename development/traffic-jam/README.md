@@ -22,3 +22,9 @@ Browser keyboard controls are also usable by serving a package directory with
 Python's HTTP server and opening `assets/index.html`; missing CMU fonts/background
 fall back to local fonts/a dark background, without writing persistent records.
 These isolated tests are not evidence of physical CMU rendering or input timing.
+
+All three games opt into the shared status-bar layout and phone lifecycle.
+Snake/Minesweeper retain the 24x18 and 16x12 rule grids, respectively, with a
+native 480x360 canvas inside an 800x416 view. A call stops timers and clears
+held input; the existing board returns with its pause menu and never starts
+playing automatically. Result and pre-game menus remain unchanged.

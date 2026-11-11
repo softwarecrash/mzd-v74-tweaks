@@ -71,6 +71,13 @@ Subsequent consumers reuse compatible, byte-verified support and update only the
 derived registry. Different compatible USB runtime versions do not replace an
 existing provider implicitly.
 
+Provider 0.5.0 declares `view-lifecycle=1` for status-bar layouts and phone
+suspend/resume. Current USB packages reject GUI installations and updates when
+the installed provider lacks this capability, before removing any installed
+consumer. Uninstall all GUI tweaks, optionally keeping their settings, then
+reinstall from the current USB package. Removing an older consumer remains
+available through its saved uninstaller.
+
 The registry contains data only. Applications entries exist at boot, while a
 consumer HTML view and its JavaScript load only when selected. Each intermediate menu exists only while a registered consumer uses its path.
 Removing the last consumer of one path retains other paths and shared support
@@ -83,8 +90,11 @@ in addition to package-controller serialization.
 Unknown developer hooks, links, unregistered module folders and changed owned
 files cause refusal. The helper does not chain, adopt or overwrite foreign hooks.
 An existing separately managed hook therefore needs an explicit migration; it
-cannot be silently adopted. Status remains read-only. Backups and write verification
-support rollback for caught failures. Reports retain transaction backups. A
+cannot be silently adopted. Removal and Restore also tolerate a missing generated
+boot hook when the saved provider and remaining shared support verify; if other
+consumers remain, the hook is restored from that verified provider snapshot.
+Status remains read-only. Backups and write verification support rollback for
+caught failures. Reports retain transaction backups. A
 rollback failure returns critical severity and says not to reboot. Power loss
 cannot be handled by a running shell trap and is not yet proven recoverable.
 
@@ -104,6 +114,30 @@ MzdGuiModule.onDispose(function () {
 MzdGuiModule.ready(); // Call after the view is usable, within eight seconds.
 // MzdGuiModule.close();
 ```
+
+Views default to a fullscreen 800x480 area. A view can opt into the original
+Mazda status bar with `MzdGuiModule.setLayout('with-status-bar')`; its iframe
+then occupies 800x416 below the 64-pixel bar. Use `fullscreen` to return to the
+default. Fit the view to its iframe dimensions. Layout requests use the same
+source/token checks as other view messages and do not change native contexts.
+If a resident temporarily replaces the view root with a native settings list,
+request the layout again after releasing that list to restore the view title.
+
+A view can opt into phone interruption handling by registering
+`MzdGuiModule.onSuspend(fn)` and `MzdGuiModule.onResume(fn)`. Stop view timers
+and data requests on suspend; rebuild any native settings list on resume. The
+same iframe remains in memory, hidden and detached from resident access during
+the call. The SDK and parent release input to the native phone interface.
+Known phone-call contexts and the `backupparking` contexts `BackupCameraDisplay`,
+`BUCAndPSMDisplay` and `ParkingSensorDisplay` qualify. Switching between these
+displays keeps the view suspended until it returns to its original menu. Resume requires the original
+Applications context sequence and a completed framework transition. Temporary
+Applications ready/displayed callbacks mask the incoming OEM list during the
+return animation and remove the polling delay at completion; original callbacks
+are delegated and restored when the session closes. Deliberate
+navigation or an unknown return identity closes the view. Without opt-in,
+context changes retain the existing close behavior. No synthetic MMUI messages
+or forced native context switches are used.
 
 Messages require the active iframe source and per-open token. Exceptions, load
 errors and startup timeouts close a direct Applications view or return a grouped
@@ -163,12 +197,14 @@ independent registration, load/timeout/error handling and idempotent cleanup.
 A failure in one cooperative resident does not replace or close other modules.
 As with views, this is not a sandbox against hostile code or infinite loops.
 
-Because the resident persists across view openings, it can maintain in-memory state
-caches to render views instantly on subsequent opens, queue rapid consecutive user
+Because the resident persists across view openings, it can keep in-memory state
+(Android Auto Settings still reads its settings again on every open), queue rapid consecutive user
 requests safely, and continue asynchronous persistence to its Lua backend service
 even if the driver closes the view before writes complete. When completing saves
 in the background, residents can display non-intrusive native Status Bar Notifications
-(SBN) via `framework.common.startTimedSbn` to confirm that changes were saved safely.
+(SBN) via `framework.common.startTimedSbn` to confirm that changes were saved safely,
+or that a reboot is needed to apply them. Keep notifications best-effort: a failed
+SBN must not stop a save.
 
 A registered Lua entrypoint returns `function(context) ... end`. It returns a
 table with `request(operation,args)`, optional `image(kind,key)`, `tick()` and
@@ -177,7 +213,23 @@ there is no shared arbitrary command/path endpoint. `context.files` provides
 checked file operations, `context.data` is its owned mutable data folder, and
 `context.urls` generates token-protected binary image URLs. Lua dependencies are
 loaded relative to that service's entrypoint with a per-module cache. Services
-share one process and are trusted, not a privilege boundary.
+share one process and are trusted, not a privilege boundary. A service must not
+read or write module files while it starts or from `tick()`; it reads them when a
+request needs them, so a drive without the view does no extra disk access.
+
+Tweak workers never reboot (see the [worker contract](Worker-contract.md)). A GUI
+service may offer a reboot operation only to apply its own saved settings, and
+only under these rules:
+
+- The driver confirms it in the view. Default to **No**.
+- The resident sends it only after every queued save has finished.
+- It covers only changes made through that service. Whoever changes the files
+  another way, for example over SSH, is responsible for the reboot.
+- The service refuses it when nothing is waiting to be applied, flushes writes
+  before calling `reboot`, and reports a failed command with its exit status.
+- The view gives a manual fallback when the request fails.
+
+Android Auto Settings is the reference implementation (`usb/tweaks/android-auto/assets`).
 
 The first service consumer adds one adjacent marker/command pair to the existing
 `/jci/scripts/stage_wifi.sh`, under the same target lock as SSH. It starts the
@@ -185,12 +237,13 @@ shared Lua/LuaSocket host via the owned supervisor. Original GUI JS and native
 MMUI binaries are not changed. Removing the last service consumer removes only
 that pair and stops the verified owned process; ordinary GUI consumers may remain.
 The final GUI consumer removes the verified shared GUI hook/runtime/registries.
-Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is retained
-separately from immutable snapshots. Unknown existing data folders are refused.
-Consumers that offer complete user-data removal must declare their module data
-directory with `config.<name>.path` in the manifest (trailing `/`). The package
-controller then removes it after successful uninstall unless `--preserve-config`
-was requested. Wallpaper Manager declares its entire module data directory,
+Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is separate
+from immutable snapshots. Unknown existing data folders are refused. New managed
+uninstall removes the owned module data after its writers have stopped. Consumers
+that offer preservation must declare their module data directory with
+`config.<name>.path` in the manifest (trailing `/`); `--preserve-config` then keeps
+that data. Undeclared service staging data is removed even when an unrelated
+config elsewhere is preserved. Wallpaper Manager declares its entire module data directory,
 including imported images and settings; Update preserves it automatically.
 
 The service binds an ephemeral port on 127.0.0.1. A RAM-only descriptor supplies
@@ -274,3 +327,7 @@ module-specific resident messages. Types are prefixed `mzd-module-`; SDK adds
 the view token. The resident must still validate the active view, token, type
 and payload, and use only its own scoped `context.service` API. This does not
 expose arbitrary filesystem or shell access to view messages.
+
+Provider 0.5.1 declares `parking-lifecycle=1`; GUI installation/update refuses a provider without that capability before removing a consumer. Remove all GUI consumers before provisioning the new helper.
+
+Provider 0.6.0 declares `native-menu=1` and `service-request=1` for native menus and resident service requests (`createNativeMenu`, `onServiceRequest`, and `sdk.request`). GUI installation/update refuses a provider without these capabilities before removing a consumer. Remove all GUI consumers before provisioning the new helper.

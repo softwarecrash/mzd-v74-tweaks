@@ -4,7 +4,7 @@
     var id = window.TrafficJamGame, snake = id === 'snake', sdk = window.MzdGuiModule;
     var game = new (snake ? window.SnakeEngine : window.MinesweeperEngine).Game();
     var board = document.getElementById('board'), ctx = board.getContext('2d');
-    var mode = 'ready', menu = [], choice = 0, best = 0, unsaved = false, ended = false, held = {}, keys = {}, requestId = 0;
+    var mode = 'ready', menu = [], choice = 0, best = 0, unsaved = false, ended = false, suspended = false, held = {}, keys = {}, requestId = 0;
     var last = new Date().getTime(), timer;
     function el(name) { return document.getElementById(name); }
     function text(name,value) { el(name).textContent = value; }
@@ -24,13 +24,13 @@
         text('keyboard',snake ? tr('snakeKeys','Keyboard: arrows steer, Enter / Esc pause') : tr('mineKeys','Keyboard: arrows move, Enter opens, M sets flag, N removes flag, Esc pauses'));
     }
     function fit() {
-        var w = window.innerWidth || 800, h = window.innerHeight || 480, scale = Math.min(1,w / 800,h / 480), stage = el('stage');
+        var w = window.innerWidth || 800, h = window.innerHeight || 416, scale = Math.min(1,w / 800,h / 416), stage = el('stage');
         stage.style.transform = scale < 1 ? 'scale(' + scale + ')' : 'none'; stage.style.OTransform = stage.style.transform;
-        stage.style.left = Math.max(0,(w - scale * 800) / 2) + 'px'; stage.style.top = Math.max(0,(h - scale * 480) / 2) + 'px';
+        stage.style.left = Math.max(0,(w - scale * 800) / 2) + 'px'; stage.style.top = Math.max(0,(h - scale * 416) / 2) + 'px';
     }
     function draw() {
-        var n, p, x, y, c, size = snake ? 22 : 33, colors = ['','#c4d8ff','#9ed9aa','#ff7770','#d5b6ff','#e5bb7a','#84d5d4','#ddd','#aaa'];
-        ctx.fillStyle = '#08090b'; ctx.fillRect(0,0,528,396);
+        var n, p, x, y, c, size = snake ? 20 : 30, colors = ['','#c4d8ff','#9ed9aa','#ff7770','#d5b6ff','#e5bb7a','#84d5d4','#ddd','#aaa'];
+        ctx.fillStyle = '#08090b'; ctx.fillRect(0,0,480,360);
         if (snake) {
             for (n = 0; n < game.body.length; n += 1) { p = game.body[n]; ctx.fillStyle = n ? '#c5c6c8' : '#fff'; ctx.fillRect(p.x * size + 1,p.y * size + 1,size - 2,size - 2); }
             if (game.apple) { ctx.fillStyle = '#ff2801'; ctx.fillRect(game.apple.x * size + 3,game.apple.y * size + 3,size - 6,size - 6); }
@@ -43,8 +43,8 @@
                 if (c.flag && !c.open) {
                     ctx.fillStyle = '#ff2801'; ctx.fillRect(x + 11,y + 7,3,19); ctx.fillRect(x + 14,y + 7,10,8);
                 } else if (c.mine && (c.open || game.state === 'lost')) {
-                    ctx.fillStyle = '#ff2801'; ctx.beginPath(); ctx.arc(x + 16,y + 16,7,0,Math.PI * 2,false); ctx.fill();
-                } else if (c.open && c.count) { ctx.fillStyle = colors[c.count]; ctx.fillText(String(c.count),x + 16,y + 17); }
+                    ctx.fillStyle = '#ff2801'; ctx.beginPath(); ctx.arc(x + size/2,y + size/2,7,0,Math.PI * 2,false); ctx.fill();
+                } else if (c.open && c.count) { ctx.fillStyle = colors[c.count]; ctx.fillText(String(c.count),x + size/2,y + size/2+1); }
             }
             x = game.cursor % game.width * size; y = Math.floor(game.cursor / game.width) * size;
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(x + 2,y + 2,size - 4,size - 4);
@@ -82,7 +82,7 @@
     }
     function completed() { if (mode === 'play' && game.state !== 'playing') { record(); result(); } }
     function input(action,phase) {
-        if (ended) { return true; }
+        if (ended || suspended) { return true; }
         if (phase === 'release') { delete held[action]; }
         if (action === 'back') {
             if (phase !== 'press') { if (mode === 'play') { dialog('paused'); } else if (mode === 'paused') { resume(); } else if (mode === 'result') { dialog('finished'); } else if (mode === 'finished') { result(); } else { exit(); } }
@@ -108,6 +108,8 @@
         draw(); completed(); return true;
     }
     function pause() { if (mode === 'play') { dialog('paused'); } }
+    function suspend() { if (ended) { return; } suspended = true; held = {}; keys = {}; pause(); window.clearInterval(timer); timer = null; }
+    function resumeView() { if (ended) { return; } suspended = false; last = new Date().getTime(); if (timer === null) { timer = window.setInterval(frame,50); } }
     function visibility() { if (document.hidden || document.webkitHidden) { pause(); } }
     function down(event) {
         var action = {37:'left',39:'right',38:'up',40:'down',13:'select',77:'rotateRight',78:'rotateLeft',27:'back',8:'back'}[event.keyCode];
@@ -119,6 +121,8 @@
         document.removeEventListener('visibilitychange',visibility,false); window.removeEventListener('keydown',down,true); window.removeEventListener('keyup',up,true);
     }
     if (sdk) {
+        if (sdk.setLayout) { sdk.setLayout('with-status-bar'); }
+        if (sdk.onSuspend && sdk.onResume) { sdk.onSuspend(suspend); sdk.onResume(resumeView); }
         sdk.onInput(input); sdk.onDispose(dispose);
         sdk.onMessage(function (data) {
             if (data.type !== 'mzd-module-' + id + '-record-result') { return; }
@@ -132,9 +136,9 @@
         sdk.send(id + '-record',{id:++requestId}); sdk.ready();
     } else { window.addEventListener('keydown',down,true); window.addEventListener('keyup',up,true); }
     window.addEventListener('resize',fit,false); window.addEventListener('blur',pause,false); document.addEventListener('visibilitychange',visibility,false);
-    timer = window.setInterval(function () {
+    function frame() {
         var now = new Date().getTime(), elapsed = Math.max(0,now - last), action, position, displayed; last = now;
-        if (mode !== 'play' || ended) { return; }
+        if (mode !== 'play' || ended || suspended) { return; }
         if (elapsed > 1500) { pause(); return; }
         position = snake ? game.body[0].x + ':' + game.body[0].y : game.cursor;
         if (!snake) { for (action in held) { if (Object.prototype.hasOwnProperty.call(held,action) && now >= held[action]) { game.move(action); held[action] = now + 120; } } }
@@ -142,7 +146,8 @@
         if (position !== (snake ? game.body[0].x + ':' + game.body[0].y : game.cursor) || game.state !== 'playing') { draw(); }
         else { displayed = metric(); if (el('metric').textContent !== displayed) { text('metric',displayed); } }
         completed();
-    },50);
+    }
+    timer = window.setInterval(frame,50);
     labels(); fit(); dialog('ready'); draw();
     // A small inspection surface for isolated controller tests; no framework globals.
     window.TrafficJamView = {input:input,destroy:dispose,game:game,mode:function () { return mode; }};

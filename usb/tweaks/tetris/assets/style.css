@@ -3,28 +3,28 @@
 @font-face { font-family: Tipperary; src: url("/jci/fonts/TipperarySemibold.ttf"); font-weight: bold; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #08090b; color: #ffffff; font-family: Tipperary, Arial, sans-serif; }
-#stage { width: 800px; height: 480px; position: absolute; overflow: hidden; background: #000 url("/jci/gui/common/images/background.png") no-repeat 0 0; transform-origin: 0 0; -o-transform-origin: 0 0; }
-.left-panel { position: absolute; left: 30px; top: 48px; width: 226px; }
+#stage { width: 800px; height: 416px; position: absolute; overflow: hidden; background: #000 url("/jci/gui/common/images/background.png") no-repeat 0 0; transform-origin: 0 0; -o-transform-origin: 0 0; }
+.left-panel { position: absolute; left: 30px; top: 20px; width: 226px; }
 .eyebrow { color: #c8c8c8; font-size: 10px; letter-spacing: 2.1px; font-weight: bold; }
-h1 { margin: 10px 0 27px; font-size: 52px; line-height: 1; letter-spacing: -2px; }
+h1 { margin: 10px 0 20px; font-size: 44px; line-height: 1; letter-spacing: -2px; }
 .score-label, .metric-label { color: #929497; font-size: 10px; letter-spacing: 1.8px; }
 #score { font-family: Tipperary, Arial, sans-serif; font-size: 36px; letter-spacing: 1px; line-height: 1.5; color: #ff2801; }
 .numbers { margin-top: 19px; overflow: hidden; }.numbers > div { float: left; width: 104px; }
 .metric-label { display: block; }strong { display: block; font-family: Tipperary, Arial, sans-serif; font-size: 27px; margin-top: 6px; font-weight: normal; }
 .progress { height: 3px; background: #41434a; margin-top: 22px; width: 200px; }#progress-fill { height: 3px; width: 0; background: #ff2801; }
 .progress-caption { font-size: 11px; color: #c8c8c8; margin-top: 9px; }
-.tag { margin-top: 42px; font-size: 8px; letter-spacing: 1px; color: #929497; white-space: nowrap; }.tag .tag-dot { width: 5px; height: 5px; background: #ff2801; display: inline-block; margin-right: 7px; }
-#court { position: absolute; left: 282px; top: 12px; width: 236px; height: 456px; border: 1px solid #54565c; padding: 7px; background: #08090b; }
-#board { display: block; width: 220px; height: 440px; }
-.right-panel { position: absolute; left: 549px; top: 42px; width: 222px; }
+.tag { margin-top: 20px; font-size: 8px; letter-spacing: 1px; color: #929497; white-space: nowrap; }.tag .tag-dot { width: 5px; height: 5px; background: #ff2801; display: inline-block; margin-right: 7px; }
+#court { position: absolute; left: 297px; top: 10px; width: 206px; height: 396px; border: 1px solid #54565c; padding: 7px; background: #08090b; }
+#board { display: block; width: 190px; height: 380px; }
+.right-panel { position: absolute; left: 549px; top: 20px; width: 222px; }
 .preview { width: 180px; height: 102px; margin-top: 12px; background: transparent; border: 1px solid #555; }
 #next { position: relative; width: 144px; height: 96px; margin-left: 17px; }
 .preview-block { position: absolute; width: 22px; height: 22px; border: 1px solid #ddd; }
-.control-title { margin-top: 28px; margin-bottom: 12px; }
-.control-row { height: 30px; font-size: 14px; color: #e5e6eb; }.key { display: inline-block; width: 65px; color: #ff2801; font-family: Consolas, monospace; font-size: 10px; letter-spacing: .8px; }
+.control-title { margin-top: 20px; margin-bottom: 12px; }
+.control-row { height: 28px; font-size: 14px; color: #e5e6eb; }.key { display: inline-block; width: 65px; color: #ff2801; font-family: Consolas, monospace; font-size: 10px; letter-spacing: .8px; }
 .keyboard { margin-top: 18px; color: #929497; font-size: 8px; line-height: 1.8; letter-spacing: .3px; }
-#shade { position: absolute; left: 0; top: 0; width: 800px; height: 480px; background: #080808; }
-#dialog { position: absolute; left: 230px; top: 100px; width: 340px; padding: 26px; background: #080808; border: 1px solid #777; border-top: 1px solid #777; text-align: center; }
+#shade { position: absolute; left: 0; top: 0; width: 800px; height: 416px; background: #080808; }
+#dialog { position: absolute; left: 230px; top: 54px; width: 340px; padding: 26px; background: #080808; border: 1px solid #777; border-top: 1px solid #777; text-align: center; }
 h2 { font-size: 32px; letter-spacing: -1px; margin: 12px 0; }#dialog-text { color: #c8c8c8; font-size: 13px; margin: 0 0 24px; line-height: 1.4; }
 #menu .menu-entry { display: block; width: 100%; height: 40px; line-height: 38px; margin-top: 8px; border: 1px solid #54565c; background: transparent; color: #ffffff; font-family: Tipperary, Arial, sans-serif; font-size: 16px; text-align: left; padding: 0 15px; cursor: pointer; }
 #menu .menu-entry.selected { background: #300800 url("/jci/gui/common/controls/List2/images/ListFocus.png") no-repeat center; background-size: 100% 100%; color: #ffffff; border-color: #ff2801; font-weight: normal; }

@@ -1,19 +1,19 @@
 @font-face { font-family: Tipperary; src: url('/jci/fonts/Tipperary.ttf'); }
 * { box-sizing: border-box; }
 html,body { width:100%;height:100%;padding:0;margin:0;overflow:hidden;background:#08090b;color:#fff;font-family:Tipperary,Arial,sans-serif; }
-#stage { position:absolute;width:800px;height:480px;overflow:hidden;background:#08090b url('/jci/gui/common/images/background.png') no-repeat;transform-origin:0 0;-o-transform-origin:0 0; }
-aside { position:absolute;left:24px;top:34px;width:196px; }
-h1 { font-size:27px;margin:0 0 24px;font-weight:normal; }
-.label { color:#aaa;font-size:15px;margin-top:15px; }
+#stage { position:absolute;width:800px;height:416px;overflow:hidden;background:#08090b url('/jci/gui/common/images/background.png') no-repeat;transform-origin:0 0;-o-transform-origin:0 0; }
+aside { position:absolute;left:24px;top:18px;width:196px; }
+h1 { font-size:27px;margin:0 0 16px;font-weight:normal; }
+.label { color:#aaa;font-size:15px;margin-top:12px; }
 .metric { color:#ff2801;font-size:30px;line-height:1.4; }
 #best { color:#fff;font-size:24px; }
 #extra { color:#ccc;font-size:16px;margin-top:14px; }
-#controls { white-space:pre-line;font-size:15px;line-height:1.5;margin-top:22px; }
-#keyboard { position:absolute;left:244px;top:445px;width:528px;font-size:12px;color:#aaa; }
-#court { position:absolute;left:243px;top:33px;border:1px solid #777;background:#08090b; }
-#board { display:block;width:528px;height:396px; }
-#shade { position:absolute;left:0;top:0;width:800px;height:480px;background:#08090b; }
-#dialog { position:absolute;left:220px;top:90px;width:360px;border:1px solid #777;background:#08090b;padding:24px;text-align:center; }
+#controls { white-space:pre-line;font-size:14px;line-height:1.4;margin-top:16px; }
+#keyboard { position:absolute;left:260px;top:385px;width:480px;font-size:12px;color:#aaa; }
+#court { position:absolute;left:259px;top:16px;border:1px solid #777;background:#08090b; }
+#board { display:block;width:480px;height:360px; }
+#shade { position:absolute;left:0;top:0;width:800px;height:416px;background:#08090b; }
+#dialog { position:absolute;left:220px;top:60px;width:360px;border:1px solid #777;background:#08090b;padding:24px;text-align:center; }
 h2 { font-weight:normal;font-size:30px;margin:0 0 14px; }
 #dialog-text { color:#bbb;font-size:18px; }
 .menu-entry { margin-top:12px;height:44px;line-height:42px;border:1px solid #777;color:#fff;font-size:20px;background:#161719;cursor:pointer; }

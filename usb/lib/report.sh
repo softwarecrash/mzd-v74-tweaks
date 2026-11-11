@@ -98,10 +98,16 @@ mzd_fatal() {
   mzd_fail "$@"
 }
 
-# Explicit session start: script path, tweak ID, optional cleanup function.
+# Explicit session start: script path, tweak ID, optional cleanup and report phase.
 # Only MZD_USB/MZD_REPORT/MZD_CLEANUP are shared session variables.
 mzd_begin() {
+  if [ "${ACTION:-}" = uninstall ] && [ -f "${ROOT:-}/originals/records.tsv" ] && [ "${MZD_ORIGINALS_CLEANUP:-0}" != 1 ]; then
+    printf 'This installation needs the newer installer for complete cleanup. Use the USB package it was installed with or a newer version. Nothing changed.\n' >&2
+    exit 1
+  fi
   MZD_CLEANUP=${3:-}
+  mzd_report_phase=${4:-$ACTION}
+  case "$mzd_report_phase" in "$ACTION"|"$ACTION-cleanup") ;; *) exit 1 ;; esac
   MZD_USB=${MZD_ORIGIN_USB:-$(dirname "$1")}
   while [ "$MZD_USB" != / ] && ! grep -q " $MZD_USB " /proc/mounts
   do
@@ -118,7 +124,7 @@ mzd_begin() {
   . "${ROOT:-$(dirname "$1")/../..}/lib/datetime.sh" || exit 1
   mzd_datetime_snapshot
   # CMU clocks and PIDs can repeat across boots. Never reuse stale rollback state.
-  MZD_REPORT=$(mktemp -d "$MZD_USB/reports/$2/$ACTION-$(mzd_datetime_name)-XXXXXX") || exit 1
+  MZD_REPORT=$(mktemp -d "$MZD_USB/reports/$2/$mzd_report_phase-$(mzd_datetime_name)-XXXXXX") || exit 1
   if [ -n "${MZD_SETTINGS_FILE:-}" ]; then
     [ -f "$MZD_SETTINGS_FILE" ] && [ ! -L "$MZD_SETTINGS_FILE" ] || exit 1
     cp "$MZD_SETTINGS_FILE" "$MZD_REPORT/settings.conf" && cmp -s "$MZD_SETTINGS_FILE" "$MZD_REPORT/settings.conf" || exit 1

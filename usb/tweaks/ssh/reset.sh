@@ -5,7 +5,7 @@ SELF=$(readlink -f "$0") || exit 1
 HERE=$(dirname "$SELF")
 ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 SERVICE=/tmp/mnt/resources/mzd-tweaks/ssh
-RAM=/tmp/mzd-aio-ssh
+RAM=/tmp/mzd-ssh
 TARGET=/jci/scripts/stage_wifi.sh
 fail() { printf 'SSH reset: %s\n' "$*" >&2; exit 1; }
 critical() { printf 'SSH reset: %s Do NOT reboot.\n' "$*" >&2; exit 2; }
@@ -23,8 +23,11 @@ check() {
     for path in "$SERVICE"/* "$SERVICE"/.[!.]* "$SERVICE"/..?*; do
         [ -e "$path" ] || [ -L "$path" ] || continue
         case "${path##*/}" in
-            service.sh|sshd_config|password.hash)
+            service.sh|sshd_config|password.hash|public.key)
                 [ ! -L "$path" ] && cmp -s "$path" "$HERE/assets/${path##*/}" || fail 'Unknown or altered service file; manual review required.' ;;
+            settings.conf)
+                expected=${MZD_SETTINGS_FILE:-$HERE/assets/settings.conf}
+                [ ! -L "$path" ] && cmp -s "$path" "$expected" || fail 'Unknown or altered SSH settings.' ;;
             enabled)
                 [ -f "$path" ] && [ ! -L "$path" ] || fail 'Invalid enabled marker.'
                 [ "$(cat "$path")" = enabled ] || fail 'Unknown enabled marker.' ;;
@@ -68,7 +71,7 @@ case "$1" in
         [ -e "$SERVICE" ] || exit 0
         # Runtime must already have been removed by the prepare phase.
         [ ! -e "$RAM" ] || critical 'SSH runtime still exists; payload retained.'
-        rm -f "$SERVICE/enabled" "$SERVICE/service.sh" "$SERVICE/sshd_config" "$SERVICE/password.hash" || exit 1
+        rm -f "$SERVICE/enabled" "$SERVICE/service.sh" "$SERVICE/sshd_config" "$SERVICE/password.hash" "$SERVICE/public.key" "$SERVICE/settings.conf" || exit 1
         rmdir "$SERVICE" || fail 'Service directory could not be removed.'
         # Remove the now-empty owned parent, retaining any other tweak folders.
         rmdir "$(dirname "$SERVICE")" 2>/dev/null || :

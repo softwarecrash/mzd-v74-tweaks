@@ -2907,6 +2907,8 @@ test("MUTABLE_CONFIG_UI", async (t) => {
     assert.equal(x.nodes["dialog-title"].textContent, "Keep configuration?");
     assert(!x.calls.some((a) => a[0] === "action" && a[2] === "uninstall"));
     x.click("action");
+    assert.equal(x.nodes["dialog-title"].textContent, "No List Beep");
+    assert.equal(x.nodes["dialog-state"].textContent, "Uninstalling");
     x.pump();
     assert(
       x.calls.some(
@@ -2921,6 +2923,8 @@ test("MUTABLE_CONFIG_UI", async (t) => {
   await t.test("Back runs a plain uninstall", () => {
     x = installedWithConfig();
     x.click("back");
+    assert.equal(x.nodes["dialog-title"].textContent, "No List Beep");
+    assert.equal(x.nodes["dialog-state"].textContent, "Uninstalling");
     x.pump();
     assert(
       x.calls.some(
@@ -3229,4 +3233,17 @@ test("AGGREGATE_RECOVERY", async (t) => {
       x.click("back");
     }
   );
+});
+
+
+test("SSH_CONDITIONAL_KEY_MANIFEST", () => {
+  const raw = fs.readFileSync(path.join(ROOT, "tweaks/ssh/manifest.conf"), "utf8");
+  assert.equal(parseConf("ssh", raw).id, "ssh");
+  for (const invalid of [
+    raw.replace("asset=public.key", "asset=../public.key"),
+    raw.replace("asset_source=public.key", "asset_source=../public.key"),
+    raw.replace("asset_when=install", "asset_when=unknown"),
+    raw.replace(/^setting.ssh_key.asset_source=.*\n/m, ""),
+    raw + "setting.ssh_password.asset=public.key\nsetting.ssh_password.asset_source=other.key\nsetting.ssh_password.asset_when=enabled\n"
+  ]) assert.throws(() => parseConf("ssh", invalid));
 });

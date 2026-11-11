@@ -3,7 +3,7 @@ import re
 
 NAME = re.compile(r'[a-z][a-z0-9_]{0,31}')
 TOKEN = re.compile(r'[a-z0-9][a-z0-9_-]{0,31}')
-FIELDS = {'type', 'label', 'default', 'min', 'max', 'step', 'unit', 'help', 'options'}
+FIELDS = {'type', 'label', 'default', 'min', 'max', 'step', 'unit', 'help', 'options', 'asset', 'asset_source', 'asset_when'}
 
 
 def integer(value):
@@ -22,6 +22,7 @@ def definitions(raw):
         if len(parts) != 3 or parts[1] not in result or parts[2] not in FIELDS or len(value.encode('utf-8')) > (4096 if parts[2] == 'options' else 256):
             raise ValueError('Invalid setting field: ' + key)
         result[parts[1]][parts[2]] = value
+    seen_assets = set()
     for name, d in result.items():
         kind = d.get('type')
         if kind not in ('number', 'boolean', 'choice') or not d.get('label') or 'default' not in d:
@@ -37,6 +38,12 @@ def definitions(raw):
                 raise ValueError('Invalid choices: ' + name)
         elif 'options' in d:
             raise ValueError('Options on non-choice setting: ' + name)
+        if any(k in d for k in ('asset', 'asset_source', 'asset_when')):
+            if (kind != 'choice' or not all(k in d for k in ('asset', 'asset_source', 'asset_when'))
+                or any(not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*\.(conf|key)', d[k]) for k in ('asset', 'asset_source'))
+                or not valid(d, d['asset_when']) or d['asset'] in seen_assets):
+                raise ValueError('Invalid conditional asset: ' + name)
+            seen_assets.add(d['asset'])
         if not valid(d, d['default']):
             raise ValueError('Invalid default: ' + name)
     return result

@@ -123,7 +123,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     write(driver, '. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\nmzd_manifest_load "$1"\n')
     options64=' '.join('opt'+str(i).zfill(2)+'x'*27 for i in range(64))
     extended=original.replace('stock medium large',options64).replace('profile.default=stock','profile.default='+options64.split()[0])
-    for text, accepted in [(extended,True),(extended.replace(options64,options64+' extra'),False),(original.replace('setting.profile.options=stock medium large','setting.profile.options='+('a'*4097)),False),(original, True), (original.replace('Log storage limit','Literal $(touch injected)'), True),
+    conditional=original+'setting.profile.asset=example.conf\nsetting.profile.asset_source=public.key\nsetting.profile.asset_when=stock\n'
+    for text, accepted in [(conditional,True),(conditional.replace('asset_source=public.key','asset_source=../public.key'),False),(conditional.replace('asset_when=stock','asset_when=unknown'),False),(conditional.replace('setting.profile.asset_when=stock\n',''),False),(conditional+'setting.compress.asset=example.conf\nsetting.compress.asset_source=public.key\nsetting.compress.asset_when=true\n',False),(extended,True),(extended.replace(options64,options64+' extra'),False),(original.replace('setting.profile.options=stock medium large','setting.profile.options='+('a'*4097)),False),(original, True), (original.replace('Log storage limit','Literal $(touch injected)'), True),
                            (original.replace('step=5','step=0'), False),
                            (original.replace('default=20','default=21'), False),
                            (original+'setting.unknown.type=number\n', False),

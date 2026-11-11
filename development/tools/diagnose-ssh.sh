@@ -127,10 +127,10 @@ collect() {
         esac
     done
     section 'Managed RAM state (password overlay contents omitted)'
-    run ls -ld /tmp/mzd-aio-ssh
+    run ls -ld /tmp/mzd-ssh
     for file in owner supervisor.pid daemon.pid sshd.pid; do
-        if [ -f "/tmp/mzd-aio-ssh/$file" ] && [ ! -L "/tmp/mzd-aio-ssh/$file" ]; then
-            printf '%s: ' "$file"; awk 'NR<=3 {print}' "/tmp/mzd-aio-ssh/$file"
+        if [ -f "/tmp/mzd-ssh/$file" ] && [ ! -L "/tmp/mzd-ssh/$file" ]; then
+            printf '%s: ' "$file"; awk 'NR<=3 {print}' "/tmp/mzd-ssh/$file"
         fi
     done
     section 'Network addresses and routes (inspection only)'
@@ -141,7 +141,7 @@ collect() {
     section 'TCP listeners and firewall (inspection only)'
     run netstat -lntp
     run iptables -S INPUT
-    run iptables -S MZD_AIO_SSH
+    run iptables -S MZD_SSH
     section 'Completed - no repair attempted'
 }
 

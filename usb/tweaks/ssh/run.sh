@@ -13,7 +13,7 @@ set -u
 
 # Help and invalid actions return before reports, mounts or system changes.
 mzd_worker_usage() {
-    echo 'Usage: sh run.sh <install|uninstall|status>'
+    echo 'Usage: sh run.sh <install|uninstall|status|preflight>'
     echo 'No arguments or --help: show usage without changing anything.'
 }
 
@@ -29,10 +29,10 @@ case "$ACTION" in
         mzd_worker_usage
         exit 0
         ;;
-    install|uninstall|status)
+    install|uninstall|status|preflight)
         ;;
     *)
-        echo 'Unknown action. Use install, uninstall or status.' >&2
+        echo 'Unknown action. Use install, uninstall, status or preflight.' >&2
         exit 1
         ;;
 esac
@@ -45,7 +45,7 @@ HERE=$(dirname "$SELF")
 ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 # Public actions go through persistent package management. The controller
 # sets MZD_WORKER_DIRECT only for its saved worker and deep inspection calls.
-if [ "${MZD_WORKER_DIRECT:-}" != 1 ]; then
+if [ "${MZD_WORKER_DIRECT:-}" != 1 ] && [ "$ACTION" != preflight ]; then
     exec sh "$ROOT/installer.sh" action "$(basename "$HERE")" "$ACTION"
 fi
 for library in manifest report system patch status; do
@@ -59,6 +59,16 @@ done
 
 # Metadata and execution settings have one source of truth.
 mzd_manifest_load "$HERE/manifest.conf" || exit 1
+if [ "$ACTION" = preflight ]; then
+    ssh_auth_reason=$(sh "$HERE/assets/service.sh" check-auth 2>&1); ssh_auth_code=$?
+    if [ "$ssh_auth_code" != 0 ]; then
+        printf '%s\n' "$ssh_auth_reason" >&2
+        printf 'block\t%s\n' "$(printf '%s' "$ssh_auth_reason" | tr '\r\n\t' '   ')"
+        exit 1
+    fi
+    printf 'info\tSSH authentication settings are valid.\n'
+    exit 0
+fi
 PATCH_FILE="$HERE/assets/change.patch"
 
 # --- SSH payload preparation ------------------------------------------------
@@ -127,14 +137,22 @@ mzd_worker_original() (
 )
 
 # Never replace an unknown service payload, even if the boot hook looks known.
+ssh_payload_source() {
+    case "$1" in
+        settings.conf) printf '%s\n' "${MZD_SETTINGS_FILE:-$PAYLOAD/settings.conf}" ;;
+        *) printf '%s\n' "$PAYLOAD/$1" ;;
+    esac
+}
+
 ssh_payload_ok() {
     if [ ! -d "$SERVICE" ] || [ -L "$SERVICE" ]
     then
         return 1
     fi
-    for _file in service.sh sshd_config password.hash
+    for _file in service.sh sshd_config password.hash public.key settings.conf
     do
-        if [ -L "$SERVICE/$_file" ] || ! cmp -s "$PAYLOAD/$_file" "$SERVICE/$_file"
+        _source=$(ssh_payload_source "$_file") || return 1
+        if [ -L "$SERVICE/$_file" ] || ! cmp -s "$_source" "$SERVICE/$_file"
         then
             return 1
         fi
@@ -152,7 +170,7 @@ mzd_check_prerequisites() {
 # Worker-specific persistent-state checks; shared status code knows no tweak IDs.
 mzd_status_assets() {
     mzd_require_assets "$PAYLOAD/service.sh" "$PAYLOAD/sshd_config" \
-        "$PAYLOAD/password.hash" "$PAYLOAD/usb-log-marker.txt"
+        "$PAYLOAD/password.hash" "$PAYLOAD/usb-log-marker.txt" "$PAYLOAD/public.key" "$PAYLOAD/settings.conf"
 }
 
 mzd_status_target_missing() {
@@ -188,7 +206,7 @@ mzd_check_status() {
 }
 
 ssh_prepare() {
-    for _file in service.sh sshd_config password.hash usb-log-marker.txt
+    for _file in service.sh sshd_config password.hash usb-log-marker.txt public.key settings.conf
     do
         mzd_asset_readable "$PAYLOAD/$_file" || mzd_fail 'SSH asset is missing or unreadable.'
     done
@@ -222,18 +240,19 @@ ssh_prepare() {
         _stage="$SERVICE.new-$$"
         mkdir "$_stage" || mzd_fail 'Cannot prepare SSH service directory.'
 
-        # Publish a directory only after all three payload files are verified.
-        for _file in service.sh sshd_config password.hash
+        # Publish a directory only after all payload files and saved settings are verified.
+        for _file in service.sh sshd_config password.hash public.key settings.conf
         do
-            if ! cp "$PAYLOAD/$_file" "$_stage/$_file" || ! cmp -s "$PAYLOAD/$_file" "$_stage/$_file"
+            _source=$(ssh_payload_source "$_file") || exit 1
+            if ! cp "$_source" "$_stage/$_file" || ! cmp -s "$_source" "$_stage/$_file"
             then
-                rm -f "$_stage/service.sh" "$_stage/sshd_config" "$_stage/password.hash"
+                rm -f "$_stage/service.sh" "$_stage/sshd_config" "$_stage/password.hash" "$_stage/public.key" "$_stage/settings.conf"
                 rmdir "$_stage"
                 mzd_fail 'Cannot copy and verify SSH service payload.'
             fi
         done
         if ! chmod 700 "$_stage/service.sh" ||
-            ! chmod 600 "$_stage/sshd_config" "$_stage/password.hash"
+            ! chmod 600 "$_stage/sshd_config" "$_stage/password.hash" "$_stage/public.key" "$_stage/settings.conf"
         then
             mzd_fail 'Cannot set SSH payload permissions.'
         fi
@@ -253,6 +272,22 @@ ssh_rollback_hook() {
     fi
 }
 
+ssh_wait_ready() {
+    ssh_start_pid=$1
+    ssh_wait_start=$(cut -d. -f1 /proc/uptime) || return 1
+    while :; do
+        if ssh_start_status=$(sh "$SERVICE/service.sh" status 2>&1); then
+            printf '%s\n' "$ssh_start_status" >&3
+            return 0
+        fi
+        # A dead startup process cannot become ready; keep its diagnostics.
+        kill -0 "$ssh_start_pid" 2>/dev/null || return 1
+        ssh_wait_now=$(cut -d. -f1 /proc/uptime) || return 1
+        [ "$((ssh_wait_now-ssh_wait_start))" -lt 15 ] || return 1
+        sleep 1
+    done
+}
+
 ssh_complete() {
     if [ "$ACTION" = install ]
     then
@@ -268,17 +303,20 @@ ssh_complete() {
         # Detach caller pipes, retaining a startup log until the supervisor is ready.
         # Runtime logging is separate; WLAN need not have an address yet.
         sh "$SERVICE/service.sh" boot "$USB" > "$MZD_REPORT/ssh-start.log" 2>&1 3>&- 4>&- &
-        sleep 2
-        if ! sh "$SERVICE/service.sh" status
+        if ! ssh_wait_ready "$!"
         then
-            printf 'SSH startup check failed after 2 seconds. Startup diagnostics:\n' >&4
+            printf 'SSH startup readiness check failed (maximum 15 seconds). Startup diagnostics:\n' >&4
             cat "$MZD_REPORT/ssh-start.log" >&4
             rm -f "$SERVICE/enabled"
             sh "$SERVICE/service.sh" stop || mzd_fatal 'SSH startup and service cleanup failed. Do NOT reboot.'
             ssh_rollback_hook || exit $?
             mzd_fail 'SSH did not start. The new boot hook and runtime changes were reverted.'
         fi
-        printf 'SSH: port 22, user cmu, password jci.\n' >&3
+        if grep -q '^ssh_password=enabled$' "$SERVICE/settings.conf"; then
+            printf 'SSH: port 22, user cmu, password jci.\n' >&3
+        else
+            printf 'SSH: port 22, user cmu, public-key login; password login disabled.\n' >&3
+        fi
 
     elif [ -d "$SERVICE" ]
     then
@@ -288,7 +326,7 @@ ssh_complete() {
         rm -f "$SERVICE/enabled"
         sync
         sh "$SERVICE/service.sh" stop || mzd_fatal 'Boot hook removed; service cleanup failed. Do NOT reboot.'
-        for _file in service.sh sshd_config password.hash
+        for _file in service.sh sshd_config password.hash public.key settings.conf
         do
             rm -f "$SERVICE/$_file"
         done
