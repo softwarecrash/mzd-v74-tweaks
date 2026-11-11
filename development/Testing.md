@@ -217,3 +217,14 @@ I/O under QEMU. A physical CMU visual/gameplay test remains separate evidence.
 For visual and interaction validation of GUI extensions before hardware deployment:
 - `sh tools/preview-menu.sh`: Generates a standalone interactive HTML preview of the tweak's menu entry and settings view in a local desktop browser.
 - `sh tools/preview-menu.sh --emu [path]`: Stages the tweak into the [mzd-emu](https://github.com/ScorpAL/mzd-emu) browser emulator using genuine `/jci` files from the CMU. See [Gui-extension-testing.md](Gui-extension-testing.md) for setup, `/jci` prerequisites, and emulator options.
+
+Wallpaper Manager requires its module service, so use the emulator for a
+functional preview:
+
+```sh
+sh tools/preview-menu.sh --tweak wallpaper-manager --emu <path>
+```
+
+The emulator hook provides browser-generated 800 x 480 PNG gallery and USB
+fixtures; the generic desktop preview does not load that service. See the
+[Wallpaper Manager preview notes](wallpaper-manager/README.md#browser-preview).
