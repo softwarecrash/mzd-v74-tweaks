@@ -90,8 +90,11 @@ in addition to package-controller serialization.
 Unknown developer hooks, links, unregistered module folders and changed owned
 files cause refusal. The helper does not chain, adopt or overwrite foreign hooks.
 An existing separately managed hook therefore needs an explicit migration; it
-cannot be silently adopted. Status remains read-only. Backups and write verification
-support rollback for caught failures. Reports retain transaction backups. A
+cannot be silently adopted. Removal and Restore also tolerate a missing generated
+boot hook when the saved provider and remaining shared support verify; if other
+consumers remain, the hook is restored from that verified provider snapshot.
+Status remains read-only. Backups and write verification support rollback for
+caught failures. Reports retain transaction backups. A
 rollback failure returns critical severity and says not to reboot. Power loss
 cannot be handled by a running shell trap and is not yet proven recoverable.
 
@@ -234,12 +237,13 @@ shared Lua/LuaSocket host via the owned supervisor. Original GUI JS and native
 MMUI binaries are not changed. Removing the last service consumer removes only
 that pair and stops the verified owned process; ordinary GUI consumers may remain.
 The final GUI consumer removes the verified shared GUI hook/runtime/registries.
-Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is retained
-separately from immutable snapshots. Unknown existing data folders are refused.
-Consumers that offer complete user-data removal must declare their module data
-directory with `config.<name>.path` in the manifest (trailing `/`). The package
-controller then removes it after successful uninstall unless `--preserve-config`
-was requested. Wallpaper Manager declares its entire module data directory,
+Module user data under `/tmp/mnt/data_persist/mzd-tweaks/gui-data/<id>` is separate
+from immutable snapshots. Unknown existing data folders are refused. New managed
+uninstall removes the owned module data after its writers have stopped. Consumers
+that offer preservation must declare their module data directory with
+`config.<name>.path` in the manifest (trailing `/`); `--preserve-config` then keeps
+that data. Undeclared service staging data is removed even when an unrelated
+config elsewhere is preserved. Wallpaper Manager declares its entire module data directory,
 including imported images and settings; Update preserves it automatically.
 
 The service binds an ephemeral port on 127.0.0.1. A RAM-only descriptor supplies
@@ -325,3 +329,5 @@ and payload, and use only its own scoped `context.service` API. This does not
 expose arbitrary filesystem or shell access to view messages.
 
 Provider 0.5.1 declares `parking-lifecycle=1`; GUI installation/update refuses a provider without that capability before removing a consumer. Remove all GUI consumers before provisioning the new helper.
+
+Provider 0.6.0 declares `native-menu=1` and `service-request=1` for native menus and resident service requests (`createNativeMenu`, `onServiceRequest`, and `sdk.request`). GUI installation/update refuses a provider without these capabilities before removing a consumer. Remove all GUI consumers before provisioning the new helper.

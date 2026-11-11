@@ -18,8 +18,10 @@ for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash'
       }}},
       instantiateControl(a,p,t,props){list={handleControllerEvent(e){events.push(e);return e==='leftStart'?'giveFocusLeft':'consumed';},getContextCapture(){return {focussedItem:0,topItem:0};},restoreContext(){},setDataListAndUpdateItems(){}};return list;},destroyControl(){}
     };
-    const win={framework:fw,MzdGuiResidents:{register(){}},setTimeout(fn){callback=fn;return 1;},clearTimeout(){}};
-    const document={createElement:node};
+    const head=node(), body=node();
+    const document={head,body,createElement:node,getElementById:()=>null,getElementsByTagName:n=>n==='head'?[head]:n==='body'?[body]:[],documentElement:{contains:()=>true}};
+    const win={framework:fw,addEventListener(){},removeEventListener(){},setTimeout(fn){callback=fn;return 1;},clearTimeout(){}};
+    vm.runInNewContext(fs.readFileSync(path.join(root,'usb/lib/gui-runtime/residents.js'),'utf8'),{window:win,document});
     let code=fs.readFileSync(source,'utf8');
     if(id==='drivedash') code=code.slice(0,code.indexOf("    global.MzdGuiResidents.register('drivedash'"))+"    global.DriveDashNativeMenu={create:create}; }(window));";
     vm.runInNewContext(code,{window:win,document});

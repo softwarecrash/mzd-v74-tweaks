@@ -5,7 +5,7 @@
     var modules = [], groups = [], rows = [], names = [], fw, proto, originalInit, originalStructure, originalSend;
     var initWrapper, structureWrapper, sendWrapper, active = null, installed = false, attempts = 0, timer, languageCleanups = [];
     var prefix = 'MzdGui.Open.';
-    function note(message) { try { if (window.log && window.log.info) { window.log.info('[mzd-gui] ' + message); } } catch (ignore) {} }
+    function log(message) { try { if (window.log && window.log.info) { window.log.info('[mzd-gui] ' + message); } } catch (ignore) {} }
     function applications() { return fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications'; }
     function label(item) {
         var i, depth;
@@ -36,7 +36,7 @@
             if (j === master.items.length) {
                 row = {appData:{appName:name,isVisible:true,audioSourceId:'None',mmuiEvent:prefix+all[n].kind+'.'+all[n].id},text1Id:null,text1:all[n].label,itemStyle:'style01',hasCaret:all[n].kind === 'menu',disabled:false};
                 master.items.push(row); rows.push(row);
-            } else if (rows.indexOf(master.items[j]) < 0) { note('Conflicting Applications entry: ' + name); continue; }
+            } else if (rows.indexOf(master.items[j]) < 0) { log('Conflicting Applications entry: ' + name); continue; }
             if (rows.indexOf(master.items[j]) >= 0) { master.items[j].text1 = all[n].label; }
             if (map.Applications.indexOf(name) < 0) { map.Applications.push(name); names.push(name); }
         }
@@ -72,7 +72,7 @@
         if (!old) { return; } active = null;
         releaseReturnHooks(old);
         window.clearTimeout(old.timeout); window.clearTimeout(old.selectionTimer); window.clearInterval(old.monitor);
-        if (old.module && window.MzdGuiResidents) { window.MzdGuiResidents.view(old.module.id,null); }
+        if (old.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(old.module.id,null); }
         if (old.languageCleanup) { old.languageCleanup(); }
         disposeMenu(old);
         if (old.baseTemplate && old.baseTemplate.divElt && old.baseTemplate.divElt.style.visibility === 'hidden') {
@@ -94,7 +94,7 @@
     function disposeMenu(session) {
         var control = session.listCtrl;
         session.listCtrl = null;
-        if (control) { try { fw.destroyControl(control); } catch (error) { note('List cleanup: ' + error); } }
+        if (control) { try { fw.destroyControl(control); } catch (error) { log('List cleanup: ' + error); } }
     }
     function selectEntry(item) {
         if (item.kind === 'menu') { active.parent = item.path; submenu(''); }
@@ -106,7 +106,7 @@
         if (session.languageCleanup) { session.languageCleanup(); session.languageCleanup = null; }
         disposeMenu(session);
         if (session.frame) { try { if (session.frame.contentWindow.MzdGuiModule) { session.frame.contentWindow.MzdGuiModule._dispose(); } } catch (ignore) {} }
-        if (session.module && window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,null); }
+        if (session.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(session.module.id,null); }
         session.module = null;
         session.frame = null; session.list = []; session.keys = {}; root.innerHTML = '';
         root.className = 'TemplateWithStatusLeft List2Tmplt';
@@ -154,7 +154,7 @@
         frame.onerror = guarded(function () { if (active === session && active.frame === frame) { failed('View failed to load'); } });
         active.timeout = window.setTimeout(guarded(function () { if (active === session && active.frame === frame) { failed('View startup timed out'); } }),8000);
         frame.src = module.entrypoint + '#mzdgui=' + active.token; active.root.appendChild(frame);
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.view(module.id,{source:frame.contentWindow,frame:frame,token:active.token}); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(module.id,{source:frame.contentWindow,frame:frame,token:active.token}); }
     }
     function layout(mode) {
         if (!active || !active.frame || !applications() || ['fullscreen','with-status-bar'].indexOf(mode) < 0) { return; }
@@ -168,11 +168,11 @@
         }
     }
     function failed(message) {
-        note(message);
+        log(message);
         if (!active) { return; }
         if (active.suspended) { close(false); return; }
         try { if (active.parent) { submenu(message + ' - select an entry to retry'); } else { close(true); } }
-        catch (error) { note(String(error)); close(false); }
+        catch (error) { log(String(error)); close(false); }
     }
     function clearReturnMask(session) {
         if (session.returnMask) {
@@ -210,13 +210,13 @@
                     session.returnMask = template.divElt;
                     template.divElt.className = (template.divElt.className || '')+' MzdGuiReturnMask';
                 }
-            } catch (error) { note('Return preparation: '+error); close(false); }
+            } catch (error) { log('Return preparation: '+error); close(false); }
             return result;
         };
         hooks.displayed = function () {
             var result = typeof hooks.oldDisplayed === 'function' ? hooks.oldDisplayed.apply(this,arguments) : undefined;
             try { if (active === session && session.suspended) { checkContext(); } }
-            catch (error) { note('Return completion: '+error); close(false); }
+            catch (error) { log('Return completion: '+error); close(false); }
             return result;
         };
         session.returnHooks = hooks; entry.readyFunction = hooks.ready; entry.displayedFunction = hooks.displayed;
@@ -238,12 +238,12 @@
             if (!session.suspended) {
                 session.suspended = true; session.keys = {};
                 // Release native settings and resident access before hiding the root.
-                if (window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,null); }
+                if (window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(session.module.id,null); }
                 session.root.style.display = 'none';
                 if (typeof session.frame.blur === 'function') { session.frame.blur(); }
                 if (typeof window.focus === 'function') { window.focus(); }
                 session.frame.contentWindow.postMessage({type:'mzd-gui-suspend',token:session.token},'*');
-                note('View suspended for native interruption: '+session.module.id);
+                log('View suspended for native interruption: '+session.module.id);
             }
             return;
         }
@@ -260,10 +260,10 @@
         template.divElt.style.visibility = 'hidden';
         clearReturnMask(session);
         session.suspended = false; session.keys = {}; session.root.style.display = '';
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.view(session.module.id,{source:session.frame.contentWindow,frame:session.frame,token:session.token}); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(session.module.id,{source:session.frame.contentWindow,frame:session.frame,token:session.token}); }
         session.frame.contentWindow.postMessage({type:'mzd-gui-resume',token:session.token},'*');
         session.frame.contentWindow.focus();
-        note('View resumed after phone: '+session.module.id);
+        log('View resumed after phone: '+session.module.id);
     }
     function open(id) {
         var n, root, session, baseTemplate;
@@ -309,7 +309,7 @@
         var data = event.data;
         if (!active || !active.frame || event.source !== active.frame.contentWindow || !data || data.token !== active.token) { return; }
         if (active.suspended && data.type !== 'mzd-gui-error') { return; }
-        if (active.module && window.MzdGuiResidents) { window.MzdGuiResidents.message(active.module.id,event); }
+        if (active.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.message === 'function') { window.MzdGuiResidents.message(active.module.id,event); }
         if (data.type === 'mzd-gui-language-request' && active.module) {
             if (active.languageCleanup) { active.languageCleanup(); }
             var session = active, deliver = function (value) {
@@ -318,16 +318,50 @@
             if (window.MzdGuiI18n) { active.languageCleanup = window.MzdGuiI18n.load(active.module.id,deliver); }
             else { deliver({language:'en_US',direction:'ltr',texts:{}}); }
         }
+        if (data.type === 'mzd-gui-units-request' && active.frame) {
+            var units = window.MzdGuiResidents && typeof window.MzdGuiResidents.units === 'function' ?
+                window.MzdGuiResidents.units(active.module ? active.module.id : null) :
+                { speedUnit: null, distanceUnit: null, tempUnit: null, language: 'en_US' };
+            active.frame.contentWindow.postMessage({ type: 'mzd-gui-units', token: active.token, value: units }, '*');
+        }
+        if (data.type === 'mzd-gui-notify' && typeof data.text === 'string') {
+            if (window.MzdGuiResidents && typeof window.MzdGuiResidents.notify === 'function') {
+                window.MzdGuiResidents.notify(active.module ? active.module.id : 'system', data.text, data.isError);
+            } else {
+                var notifyFw = window.framework;
+                if (notifyFw && notifyFw.common && typeof notifyFw.common.startTimedSbn === 'function') {
+                    var str = String(data.text || '');
+                    var head = document.getElementsByTagName('head')[0];
+                    if (head) {
+                        var style = document.getElementById('mzd-gui-sbn-style');
+                        if (!style) {
+                            style = document.createElement('style');
+                            style.id = 'mzd-gui-sbn-style';
+                            head.appendChild(style);
+                        }
+                        style.textContent = str.length > 34 ? '.SbnCtrl_Style02_Text1 { font-size: 26px !important; }' : '';
+                    }
+                    try {
+                        notifyFw.common.startTimedSbn(active.module ? active.module.id : 'system', 'MzdGuiNotification', data.isError ? 'errorNotification' : 'typeD', {
+                            sbnStyle: 'Style02',
+                            imagePath1: data.isError ? 'common/images/icons/IcnSbnSystemError.png' : 'common/images/icons/IcnSbnApps.png',
+                            text1: str
+                        });
+                    } catch (ignore) {}
+                }
+            }
+        }
         if (data.type === 'mzd-gui-lifecycle' && data.message === 'phone') { active.phoneLifecycle = true; watchReturn(active); }
         else if (data.type === 'mzd-gui-layout') { layout(data.message); }
         else if (data.type === 'mzd-gui-ready') { active.ready = true; window.clearTimeout(active.timeout); try { active.frame.contentWindow.focus(); } catch (ignore) {} }
         else if (data.type === 'mzd-gui-close') { if (active.parent) { submenu(''); } else { close(true); } }
         else if (data.type === 'mzd-gui-error') { failed(String(data.message || 'Module error').substring(0,512)); }
+        else if (data.type === 'mzd-gui-log') { log(String(data.message || '').substring(0,512)); }
     }
     function guarded(fn) {
         return function () {
             try { return fn.apply(this,arguments); }
-            catch (error) { note(String(error)); try { close(false); } catch (ignore) {} }
+            catch (error) { log(String(error)); try { close(false); } catch (ignore) {} }
         };
     }
     var safeDown = guarded(down), safeUp = guarded(up), safeReceive = guarded(receive);
@@ -336,7 +370,7 @@
         installed = false;
         while (languageCleanups.length) { languageCleanups.pop()(); }
         if (window.MzdGuiI18n) { window.MzdGuiI18n.dispose(); }
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.dispose(); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.dispose === 'function') { window.MzdGuiResidents.dispose(); }
         window.clearInterval(timer);
         try { close(false); } catch (ignore) {}
         window.removeEventListener('keydown',safeDown,true); window.removeEventListener('keyup',safeUp,true); window.removeEventListener('message',safeReceive,false);
@@ -356,8 +390,8 @@
         if (!fw || !proto || typeof proto._initApplicationsDataList !== 'function' || typeof proto._updateApplicationStructure !== 'function' ||
             typeof fw.sendEventToMmui !== 'function' || typeof fw.getAppInstance !== 'function' || typeof fw.getCurrentApp !== 'function' || typeof fw.getCurrCtxtId !== 'function') { return false; }
         originalInit = proto._initApplicationsDataList; originalStructure = proto._updateApplicationStructure; originalSend = fw.sendEventToMmui;
-        initWrapper = function () { var result = originalInit.apply(this,arguments); try { decorate(this); } catch (error) { disable(); note(String(error)); } return result; };
-        structureWrapper = function () { var result = originalStructure.apply(this,arguments); try { decorate(this); } catch (error) { disable(); note(String(error)); } return result; };
+        initWrapper = function () { var result = originalInit.apply(this,arguments); try { decorate(this); } catch (error) { disable(); log(String(error)); } return result; };
+        structureWrapper = function () { var result = originalStructure.apply(this,arguments); try { decorate(this); } catch (error) { disable(); log(String(error)); } return result; };
         sendWrapper = function (uiaId,eventId) {
             if (eventId === 'Global.GoBack' && active && active.parent && !active.frame && applications()) { try { menuBack(); } catch (error) { failed(String(error)); } return; }
             if (typeof eventId === 'string' && eventId.indexOf(prefix) === 0) { try { if (uiaId === 'system') { open(eventId.substring(prefix.length)); } } catch (error) { failed(String(error)); } return; }
@@ -375,7 +409,7 @@
                 })); }
             });
         }
-        if (window.MzdGuiResidents) { window.MzdGuiResidents.start(modules); }
+        if (window.MzdGuiResidents && typeof window.MzdGuiResidents.start === 'function') { window.MzdGuiResidents.start(modules); }
         return true;
     }
     try {
@@ -400,7 +434,7 @@
         if (!modules.length) { return; }
         window.MzdGuiRuntime = {api:1};
         if (!install()) {
-            timer = window.setInterval(function () { attempts += 1; try { if (install() || attempts >= 120) { window.clearInterval(timer); } } catch (error) { disable(); note(String(error)); } },500);
+            timer = window.setInterval(function () { attempts += 1; try { if (install() || attempts >= 120) { window.clearInterval(timer); } } catch (error) { disable(); log(String(error)); } },500);
         }
-    } catch (error) { disable(); note('Startup stopped: ' + error); }
+    } catch (error) { disable(); log('Startup stopped: ' + error); }
 }());

@@ -87,6 +87,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-shims-') as temporary:
     (beta/'assets/shim-example.so').write_bytes(b'not-the-old-shim')
     call(['action','shim-beta','uninstall'])
     assert config.read_text()==stock and second.read_text()==stock
+    assert not config.with_name(config.name+'.org').exists()
+    assert not second.with_name(second.name+'.org').exists()
     assert gpio.read_text()=='0\n'
     print('SHIM_LIFECYCLE_PASSED:',checks,'real controller operations, two shared-config shims, saved removal and OEM backups.')
 
@@ -99,9 +101,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-shims-') as temporary:
     (bins/'mv').unlink()
     call(['action','shim-alpha','uninstall'])
     # Wrong OEM snapshots and unsupported library headers are refused before writes.
-    backup=config.with_name(config.name+'.org');before=backup.read_bytes();backup.write_bytes(b'foreign backup')
+    backup=config.with_name(config.name+'.org');assert not backup.exists();backup.write_bytes(b'foreign backup')
     call(['action','shim-alpha','install'],1);assert config.read_text()==stock and not payload.exists()
-    backup.write_bytes(before)
+    backup.unlink()
     asset=alpha/'assets/shim-example.so';original_asset=asset.read_bytes();asset.write_bytes(b'not ARM')
     call(['action','shim-alpha','install'],1);assert config.read_text()==stock and not payload.exists()
     asset.write_bytes(original_asset)

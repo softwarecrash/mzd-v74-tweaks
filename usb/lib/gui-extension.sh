@@ -18,6 +18,17 @@ mzd_gui_assets() (
 )
 mzd_gui_paths() (
     mzd_gui_assets "$1" || exit 1
+    if [ -n "$GUI_SERVICE" ]; then
+        printf 'patch\t%s\n' "${MZD_GUI_STARTUP:-/jci/scripts/stage_wifi.sh}"
+        module_data="${MZD_GUI_USER_DATA:-/tmp/mnt/data_persist/mzd-tweaks/gui-data}/$ID"
+        declared=0
+        if [ -n "$CONFIGS" ]; then
+            . "${1%/tweaks/*}/lib/config-data.sh" || exit 1
+            records=$(mzd_config_records "$1") || exit 1
+            if printf '%s\n' "$records" | awk -F "$(printf '\t')" -v p="$module_data" '$2=="dir" && $3==p {found=1} END {exit !found}'; then declared=1; fi
+        fi
+        [ "$declared" = 1 ] || printf 'create\t%s\n' "$module_data"
+    fi
     printf 'create\t%s/%s\ncreate\t%s/%s/manifest.conf\n' "$MZD_GUI_MODULES" "$ID" "$MZD_GUI_MODULES" "$ID"
     find "$1/assets" -print | LC_ALL=C sort | while IFS= read -r path; do printf 'create\t%s/%s/%s\n' "$MZD_GUI_MODULES" "$ID" "${path#"$1/"}"; done
 )
@@ -58,6 +69,8 @@ mzd_gui_module_complete() (
         diff -r "$source/assets" "$target/assets" >/dev/null
 )
 mzd_gui_support() (
+    allow_missing_hook=0
+    [ "${1:-}" != remove ] || allow_missing_hook=1
     if [ ! -e "$MZD_GUI_PROVIDER" ]; then
         [ ! -e "$MZD_GUI_HOOK" ] && [ ! -e "$MZD_GUI_RUNTIME" ] && [ ! -e "$MZD_GUI_REGISTRY" ] && [ ! -e "$MZD_GUI_SERVICES" ] || mzd_gui_error 'Foreign GUI hook/runtime exists; nothing overwritten.'
         exit $?
@@ -76,9 +89,12 @@ mzd_gui_support() (
     if [ -e "$MZD_GUI_SERVICES" ] || [ -e "$MZD_GUI_PROVIDER/services.tsv" ]; then
         [ ! -L "$MZD_GUI_SERVICES" ] && [ ! -L "$MZD_GUI_PROVIDER/services.tsv" ] && cmp -s "$MZD_GUI_SERVICES" "$MZD_GUI_PROVIDER/services.tsv" || mzd_gui_error 'Shared service registry is missing or changed.'
     fi
-    cmp -s "$MZD_GUI_HOOK" "$MZD_GUI_PROVIDER/package/lib/gui-runtime/boot.js" &&
-        diff -r "$MZD_GUI_PROVIDER/package/lib/gui-runtime" "$MZD_GUI_RUNTIME" >/dev/null &&
+    diff -r "$MZD_GUI_PROVIDER/package/lib/gui-runtime" "$MZD_GUI_RUNTIME" >/dev/null &&
         cmp -s "$MZD_GUI_REGISTRY" "$MZD_GUI_PROVIDER/registry.js" || mzd_gui_error 'Deployed GUI support is missing or changed.'
+    if ! cmp -s "$MZD_GUI_HOOK" "$MZD_GUI_PROVIDER/package/lib/gui-runtime/boot.js"; then
+        [ "$allow_missing_hook" = 1 ] && [ ! -e "$MZD_GUI_HOOK" ] && [ ! -L "$MZD_GUI_HOOK" ] ||
+            mzd_gui_error 'Deployed GUI support is missing or changed.'
+    fi
 )
 # Caller has loaded this exact manifest; verification helpers use subshells.
 mzd_gui_record_loaded() (
@@ -243,7 +259,10 @@ mzd_gui_transaction_finish() {
 }
 mzd_gui_mutate() (
     operation=$1
-    mzd_gui_locations && mzd_gui_support && mzd_gui_module_owned "$HERE" "$MZD_GUI_MODULES/$ID" || exit 1
+    mzd_gui_locations || exit 1
+    if [ "$operation" = uninstall ]; then mzd_gui_support remove || exit 1
+    else mzd_gui_support || exit 1; fi
+    mzd_gui_module_owned "$HERE" "$MZD_GUI_MODULES/$ID" || exit 1
     mzd_gui_services_preflight || exit 1
     [ "$operation" != install ] || mzd_gui_capabilities || exit 1
     if [ -n "$GUI_SERVICE" ] || [ -s "$MZD_GUI_SERVICES" ]; then mzd_system_lock /tmp/mzd-stage_wifi-tweak.lock || exit 1; fi
@@ -263,6 +282,10 @@ mzd_gui_mutate() (
     trap mzd_gui_transaction_finish 0
     trap 'exit 2' INT TERM
     mzd_gui_services_stop || exit 1
+    if [ "$operation" = uninstall ] && [ -s "$GUI_TX/records" ] &&
+        [ ! -e "$MZD_GUI_HOOK" ] && [ ! -L "$MZD_GUI_HOOK" ]; then
+        mzd_gui_put hook "$MZD_GUI_PROVIDER/package/lib/gui-runtime/boot.js" || exit 1
+    fi
     if [ "$operation" = install ]; then
         mkdir -p "$MZD_GUI_MODULES" "$(dirname "$MZD_GUI_PROVIDER")" || exit 1
         mkdir "$GUI_TX/module" || exit 1
@@ -335,7 +358,7 @@ mzd_gui_reset() {
     # an installation: do not initialize its service or rewrite shared support.
     if [ ! -e "$MZD_GUI_MODULES/$ID" ] && [ ! -L "$MZD_GUI_MODULES/$ID" ] &&
         [ ! -e "$MZD_PACKAGE_STORE/$ID" ] && [ ! -L "$MZD_PACKAGE_STORE/$ID" ]; then exit 0; fi
-    mzd_gui_locations && mzd_gui_support && mzd_gui_module_owned "$HERE" "$MZD_GUI_MODULES/$ID" || exit 1
+    mzd_gui_locations && mzd_gui_support remove && mzd_gui_module_owned "$HERE" "$MZD_GUI_MODULES/$ID" || exit 1
     [ "$1" != check ] || exit 0
     [ "${ACTION:-}" = run ] && [ -d "${MZD_SYSTEM:-}" ] && [ -d "${MZD_RESET_DIR:-}" ] || exit 1
     if [ "$1" = prepare ]; then

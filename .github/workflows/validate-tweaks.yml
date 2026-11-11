@@ -188,6 +188,7 @@ jobs:
       - run: node tests/tweaks/traffic-jam/behavior.cjs
       - run: node tests/tweaks/tetris/highscore.cjs
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
+      - run: node tests/tweaks/wallpaper-manager/preview-service.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs

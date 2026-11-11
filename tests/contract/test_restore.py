@@ -103,9 +103,9 @@ esac
       # covered separately; here its reset hook and the real Restore execute.
       write(usb/'tweaks/ssh/run.sh','#!/bin/sh\n[ "$1" = status ] || exit 1\nif grep -qF "# MZD v74 SSH" '+shlex.quote(bp(second))+'; then echo installed; else echo uninstalled; fi\n')
       write(usb/'tweaks/ssh/assets/must-not-restore.org','package asset, not a system backup\n')
-      entry=store/'ssh';store.mkdir()
+      entry=store/'ssh';stage=store/'.stage-ssh';store.mkdir()
       driver=base/'register.sh'
-      write(driver,'#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\n. '+shlex.quote(bp(package_lib))+'\nmzd_package_stage '+shlex.quote(bp(usb))+' '+shlex.quote(bp(entry))+' ssh || exit 1\nmzd_package_inventory '+shlex.quote(bp(entry))+' > '+shlex.quote(bp(entry/'package.files'))+' || exit 1\nmzd_package_set_state '+shlex.quote(bp(entry))+' installed\n')
+      write(driver,'#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\n. '+shlex.quote(bp(package_lib))+'\nmzd_package_stage '+shlex.quote(bp(usb))+' '+shlex.quote(bp(stage))+' ssh || exit 1\nmv '+shlex.quote(bp(stage))+' '+shlex.quote(bp(entry))+' || exit 1\nmzd_package_inventory '+shlex.quote(bp(entry))+' > '+shlex.quote(bp(entry/'package.files'))+' || exit 1\nmzd_package_set_state '+shlex.quote(bp(entry))+' installed\n')
       setup=subprocess.run([SHELL,bp(driver)],capture_output=True,text=True,timeout=25)
       assert setup.returncode==0,(setup.stdout,setup.stderr)
       # The new USB reset payload deliberately no longer matches the installation.

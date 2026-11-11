@@ -166,8 +166,8 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
             write(owned/'run.sh','#!/bin/sh\nexit 91\n')
             (owned/'managed-paths.tsv').unlink(missing_ok=True)
             if owner_mode=='parent-container':write(owned/'managed-paths.tsv','create\t'+bp(internal)+'\n')
-            driver=base/'register.sh'
-            write(driver,'#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\n. '+shlex.quote(bp(usb/'lib/packages.sh'))+'\nmkdir -p '+shlex.quote(bp(store))+'\nmzd_package_stage '+shlex.quote(bp(usb))+' '+shlex.quote(bp(store/owner))+' '+owner+'\n')
+            driver=base/'register.sh';stage=store/('.stage-'+owner)
+            write(driver,'#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n. '+shlex.quote(bp(usb/'lib/manifest.sh'))+'\n. '+shlex.quote(bp(usb/'lib/packages.sh'))+'\nmkdir -p '+shlex.quote(bp(store))+'\nmzd_package_stage '+shlex.quote(bp(usb))+' '+shlex.quote(bp(stage))+' '+owner+' || exit 1\nmv '+shlex.quote(bp(stage))+' '+shlex.quote(bp(store/owner))+'\n')
             r=subprocess.run([SHELL,bp(driver)],capture_output=True,text=True,timeout=45);assert r.returncode==0,(r.stdout,r.stderr)
         if owner_mode=='unrelated':
             saved={p:p.read_bytes() for p in store.rglob('*') if p.is_file()}
