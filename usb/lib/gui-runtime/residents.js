@@ -357,7 +357,7 @@
                 throw new Error('Mazda list factory unavailable.');
             }
             container = document.createElement('div');
-            container.className = 'TemplateWithStatusLeft List2Tmplt';
+            container.className = 'TemplateWithStatusLeft List2Tmplt mzd-custom-menu';
             container.style.cssText = 'position:absolute;left:0;top:0;width:740px;height:416px;';
             session = {
                 frame: frame,
@@ -378,6 +378,10 @@
             root.style.cssText = 'position:absolute;left:60px;top:64px;width:740px;height:416px;z-index:7;background:transparent;overflow:visible;';
             root.className = '';
             root.appendChild(container);
+            var baseStyle = document.createElement('style');
+            baseStyle.textContent = '.mzd-custom-menu .List2Ctrl .ListItem.styleStep .label1{width:320px!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .line1{display:none!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .image1.spinner,.mzd-custom-menu .List2Ctrl .ListItem.styleStep.saving .image1,.mzd-custom-menu .List2Ctrl .ListItem.styleStep .image1[style*="Refreshing"]{-o-animation:infinite_rotation 2s linear infinite!important;-webkit-animation:infinite_rotation 2s linear infinite!important;animation:infinite_rotation 2s linear infinite!important;}';
+            container.appendChild(baseStyle);
+            session.baseStyle = baseStyle;
             if (options.split || options.splitClass) {
                 style = document.createElement('style');
                 style.textContent = '.' + splitClass + ' .List2Ctrl{width:390px!important;overflow:hidden}.' + splitClass + ' .List2Ctrl .line1{max-width:300px!important;overflow:hidden;text-overflow:ellipsis}.' + splitClass + ' .List2Ctrl .mask,.' + splitClass + ' .List2Ctrl .scroller{max-width:390px!important}';
@@ -422,7 +426,7 @@
                 try { options.preview(menu.previewId || null, frame); } catch (ignore) {}
             }
             if (menu.split) {
-                session.container.className = 'TemplateWithStatusLeft List2Tmplt ' + splitClass;
+                session.container.className = 'TemplateWithStatusLeft List2Tmplt mzd-custom-menu ' + splitClass;
                 if (!session.previewPane) {
                     session.previewPane = document.createElement('div');
                     session.previewPane.style.cssText = 'position:absolute;left:408px;top:65px;width:300px;color:white;font-size:22px;white-space:normal;word-wrap:break-word;';
@@ -444,23 +448,30 @@
                     session.previewPane.appendChild(caption);
                 }
             } else {
-                session.container.className = 'TemplateWithStatusLeft List2Tmplt';
+                session.container.className = 'TemplateWithStatusLeft List2Tmplt mzd-custom-menu';
                 if (session.previewPane) {
                     session.previewPane.style.display = 'none';
                 }
             }
             for (i = 0; i < menu.rows.length; i += 1) {
                 row = menu.rows[i];
+                var isStep = row.itemStyle === 'styleStep';
+                var spinnerImg = (row.spinner || row.saving) ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : '';
                 items.push({
                     appData: { itemIndex: i, aaIndex: i, wallpaperIndex: i },
                     text1Id: null,
-                    text1: row.label,
+                    text1: isStep ? (row.text1 || '') : row.label,
                     itemStyle: row.itemStyle || (row.checkable ? 'style03' : row.detail ? 'style06' : 'style01'),
-                    image1: row.checkable ? (row.radio ? 'radio' : 'tick') : (row.image1 || ''),
+                    image1: isStep ? (spinnerImg || row.image1 || '') : (row.checkable ? (row.radio ? 'radio' : 'tick') : (spinnerImg || row.image1 || '')),
                     checked: row.checked === true,
                     value: row.value != null ? row.value : (row.checked ? 1 : 2),
                     label1Id: null,
-                    label1: row.detail || '',
+                    label1: isStep ? (row.label || row.label1 || '') : (row.detail || ''),
+                    label2Id: null,
+                    label2: isStep ? (row.valueText != null ? String(row.valueText) : (row.value != null ? String(row.value) : '')) : (row.label2 || ''),
+                    min: isStep ? row.min : undefined,
+                    max: isStep ? row.max : undefined,
+                    increment: isStep ? (row.increment != null ? row.increment : 1) : undefined,
                     hasCaret: row.caret === true,
                     disabled: row.disabled === true
                 });
@@ -487,6 +498,9 @@
                 global.clearTimeout(selection);
                 destroyList();
                 session.container.innerHTML = '';
+                if (session.baseStyle) {
+                    session.container.appendChild(session.baseStyle);
+                }
                 if (session.splitStyle) {
                     session.container.appendChild(session.splitStyle);
                 }
@@ -501,14 +515,16 @@
                         items: items,
                         vuiSupport: false
                     },
-                    selectCallback: function (source, data) {
+                    selectCallback: function (source, data, params) {
                         if (session !== current || source !== current.control || !data) { return; }
                         session.signature = null;
                         global.clearTimeout(selection);
                         selection = global.setTimeout(function () {
                             if (session === current && current.control === source) {
                                 var idx = data.itemIndex != null ? data.itemIndex : (data.aaIndex != null ? data.aaIndex : data.wallpaperIndex);
-                                send(prefix + '-native-select', { index: idx });
+                                var msg = { index: idx };
+                                if (params) { msg.params = params; }
+                                send(prefix + '-native-select', msg);
                             }
                         }, 0);
                     }

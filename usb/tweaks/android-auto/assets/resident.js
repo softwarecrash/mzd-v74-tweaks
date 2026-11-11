@@ -19,7 +19,7 @@
         var refreshTimer = null, hostEnded = false;
         // cachedSettings is working state for the open view and pending saves.
         // Every view open reads libpatch.conf again through the service.
-        var cachedSettings = null, rebootRequired = false;
+        var cachedSettings = null, cachedLimits = {}, cachedUnavailable = {}, rebootRequired = false;
         var queue = [], inFlight = null, syncing = false, syncCallbacks = [];
         var viewOpen = false, saveFailed = false;
 
@@ -91,6 +91,8 @@
                         type: 'aa-response',
                         token: current.token,
                         state: cachedSettings,
+                        limits: cachedLimits,
+                        unavailable: cachedUnavailable,
                         rebootRequired: rebootRequired,
                         saving: saving(),
                         error: error || ''
@@ -117,7 +119,9 @@
                 syncing = false;
                 if (!error && result && result.settings) {
                     cachedSettings = withPendingSaves(result.settings);
-                    rebootRequired = result.rebootRequired === true;
+                    cachedLimits = result.limits || {};
+                    cachedUnavailable = result.unavailable || {};
+                    rebootRequired = result.rebootRequired === true || result.restart_required === true;
                     broadcastState('');
                 } else if (error) {
                     broadcastState(error);
@@ -162,7 +166,9 @@
                             cachedSettings[k] = result.settings[k];
                         }
                     }
-                    rebootRequired = result.rebootRequired === true;
+                    if (result.limits) { cachedLimits = result.limits; }
+                    if (result.unavailable) { cachedUnavailable = result.unavailable; }
+                    rebootRequired = result.rebootRequired === true || result.restart_required === true;
                 }
                 broadcastState('');
                 if (queue.length > 0) {
