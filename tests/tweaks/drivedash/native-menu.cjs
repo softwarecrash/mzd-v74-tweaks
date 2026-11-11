@@ -1,15 +1,19 @@
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
+const path = require('node:path');
 let receive,closed,created=0,updates=0;
 const root={style:{cssText:'original-root'},className:'original',appendChild(node){node.parentNode=this;},removeChild(node){node.parentNode=null;}};
 const frame={parentNode:root,style:{display:'block'},contentWindow:{postMessage(){}}};
 const view={source:frame.contentWindow,token:'native-test'};
 const control={handleControllerEvent(){},getContextCapture(){return {focussedItem:1,topItem:0};},setDataListAndUpdateItems(data){updates++;this.data=data;},restoreContext(capture){assert.equal(capture.focussedItem,1);}};
 const framework={instantiateControl(app,parent,name,properties){created++;assert.equal(app,'system');assert.equal(name,'List2Ctrl');assert.equal(parent.className,'TemplateWithStatusLeft List2Tmplt');control.data=properties.dataList;return control;},destroyControl(){},sendEventToMmui(){},getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=> ({_currentContextTemplate:{divElt:{style:{visibility:'hidden'}}}}),common:{setSbName(){}}};
-const window={framework,clearTimeout(){},MzdGuiResidents:{register(id,factory){factory({view:()=>view,onMessage:fn=>{receive=fn;},onViewClose:fn=>{closed=fn;},onDispose(){}});}}};
 const document={createElement:()=> ({style:{},className:'',innerHTML:''}),getElementsByTagName:()=>[frame]};
-vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/resident.js','utf8'),{window,document});
+const rootPath = path.resolve(__dirname, '../../..');
+const residentsWin = { framework, clearTimeout() {}, setTimeout(fn) { return 1; }, addEventListener() {}, removeEventListener() {} };
+vm.runInNewContext(fs.readFileSync(path.join(rootPath, 'usb/lib/gui-runtime/residents.js'), 'utf8'), { window: residentsWin, document });
+const window={framework,clearTimeout(){},setTimeout(fn){return 1;},MzdGuiResidents:{createNativeMenu:residentsWin.MzdGuiResidents.createNativeMenu,register(id,factory){factory({view:()=>view,onServiceRequest(){},onMessage:fn=>{receive=fn;},onViewClose:fn=>{closed=fn;},onDispose(){}});}}};
+vm.runInNewContext(fs.readFileSync(path.join(rootPath, 'usb/tweaks/drivedash/assets/resident.js'), 'utf8'),{window,document});
 function render(checked){receive({source:frame.contentWindow,data:{type:'drivedash-native-render',token:'native-test',menu:{title:'Speed units',page:'speed',index:1,rows:[{label:'Automatic',radio:true,checkable:true,checked:!checked},{label:'km/h',radio:true,checkable:true,checked}]}}});}
 render(false);assert.equal(created,1);assert.equal(frame.style.display,'none');
 assert.equal(control.data.items[0].itemStyle,'style03');assert.equal(control.data.items[0].image1,'radio');

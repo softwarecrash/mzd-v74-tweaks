@@ -34,20 +34,47 @@ function fixture(native, live, initial, deferred, bitmap=false) {
     nodes.stage.style.visibility='hidden';
     const parent = {postMessage: data => messages.push(data)};
     let input, dispose, suspend, resume;
+    const serviceCallbacks = {};
+    let serviceSerial = 0;
+    let unitsCallback = null;
     const window = {parent, innerWidth: 800, innerHeight: 416, location: {hash: native ? '#mzdgui=preview-token' : '', search: live ? '?lang=de_DE&data=cmu' : '?lang=de_DE'},
         localStorage: {getItem: key => saved[key] || null, setItem: (key, value) => {saved[key] = value;}},
         addEventListener: (name, fn) => {events[name] = fn;}, removeEventListener: name => {delete events[name];},
         setTimeout: fn => {timeouts.set(++timeoutId,fn);return timeoutId;},clearTimeout: id => {timeouts.delete(id);},
         setInterval: fn => {const id = intervals.size+1; intervals.set(id, fn); return id;}, clearInterval: id => intervals.delete(id),
-        MzdGuiModule: {onSuspend: fn => {suspend=fn;}, onResume: fn => {resume=fn;}, setLayout: value => messages.push({type:'layout',value}), onInput: fn => {input = fn;}, onDispose: fn => {dispose = fn;}, ready() {}, loadLanguage: fn => fn('de_DE', 'ltr')}
+        MzdGuiModule: {
+            token: native ? 'preview-token' : '',
+            onSuspend: fn => {suspend=fn;},
+            onResume: fn => {resume=fn;},
+            setLayout: value => messages.push({type:'layout',value}),
+            onInput: fn => {input = fn;},
+            onDispose: fn => {dispose = fn;},
+            ready() {},
+            loadLanguage: fn => fn('de_DE', 'ltr'),
+            getUnits: fn => {
+                messages.push({type:'mzd-gui-units-request'});
+                unitsCallback = fn;
+            },
+            request: (operation, args, callback, timeoutMs) => {
+                const id = ++serviceSerial;
+                messages.push({type:'mzd-gui-service-request', id, operation, args, values: args ? args.values : undefined});
+                serviceCallbacks[id] = callback;
+            }
+        }
     };
     if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
     for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
-    if (live && !deferred) { const load = messages.find(m=>m.type==='drivedash-preferences'); assert.ok(load); events.message({source:parent,data:{type:'drivedash-preferences-result',token:'preview-token',id:load.id,result:initial || {}}}); }
-    if (native && !deferred && messages.some(m=>m.type==='drivedash-system-settings')) events.message({source:parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'mph',tempUnit:'F'}}});
-    return {window, context, nodes, stats, events, intervals, texts, labels, messages, saved, input, dispose, suspend, resume,timeouts};
+    if (live && !deferred) {
+        const load = messages.find(m=>m.operation==='preferences');
+        assert.ok(load);
+        serviceCallbacks[load.id](null, initial || {});
+    }
+    if (native && !deferred && unitsCallback) {
+        unitsCallback({language:'de_DE',speedUnit:'mph',tempUnit:'F'});
+    }
+    return {window, context, nodes, stats, events, intervals, texts, labels, messages, saved, input, dispose, suspend, resume, timeouts, serviceCallbacks, getUnitsCallback: () => unitsCallback};
 }
 
 const f = fixture(false), model = f.window.DriveDashModel;
@@ -112,11 +139,7 @@ n.input('back','step');
 assert.equal(n.intervals.size,1);
 assert.ok(n.messages.some(m => m.type==='drivedash-native-release'));
 assert.equal(n.input('back','step'),false);
-// Snapshot is read once; automatic choices use CMU units even for simulated values.
-n.events.message({source:n.window.parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'mph',tempUnit:'F'}}});
 assert.ok(n.texts.includes('mph'));assert.ok(n.texts.includes('72\u00b0F'));
-n.events.message({source:n.window.parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'en_US',speedUnit:'kmh'}}});
-assert.equal(n.nodes.settings.textContent,'Einstellungen','A second snapshot must not change a running view.');
 n.nodes.settings.onclick();
 n.events.message({source:n.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:3}});
 n.events.message({source:n.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:1}});
@@ -127,58 +150,64 @@ assert.equal(n.messages.filter(m=>m.type==='drivedash-native-render').at(-1).men
 assert.ok(n.messages.filter(m=>m.type==='drivedash-native-render').at(-1).menu.rows[1].checked);
 n.events.message({source:n.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:0}});
 assert.equal(n.nodes.settings.textContent,'Einstellungen','Automatic restores the startup CMU language.');
-assert.equal(n.messages.filter(m=>m.type==='drivedash-system-settings').length,1);
+assert.equal(n.messages.filter(m=>m.type==='mzd-gui-units-request').length,1);
 n.dispose(); assert.equal(n.intervals.size,0);
+
 // Live view uses the authenticated resident bridge and never falls back to demo data.
 const live = fixture(true,true);
 assert.equal(live.intervals.size,0);
-const sample = live.messages.find(m => m.type==='drivedash-sample');
+const sample = live.messages.find(m => m.operation==='sample');
 assert.ok(sample);assert.equal(live.nodes.demo.textContent,'KEINE FAHRZEUGDATEN');
-live.events.message({source:live.window.parent,data:{type:'drivedash-sample-result',token:'preview-token',id:sample.id,result:{source:'cmu',available:true,speedKph:12,rpm:700}}});
+live.serviceCallbacks[sample.id](null,{source:'cmu',available:true,speedKph:12,rpm:700});
 assert.equal(live.nodes.demo.textContent,'FAHRZEUGDATEN');
 live.nodes.settings.onclick();
 const liveMenu = live.messages.filter(m => m.type==='drivedash-native-render').at(-1);
 assert.ok(!liveMenu.menu.rows.some(row => row.id==='animated'));
 live.dispose();
+
 const allManual = fixture(true,false,{language:'en_US',speedUnit:'kmh',tempUnit:'C'});
-assert.equal(allManual.messages.filter(m=>m.type==='drivedash-system-settings').length,0);
+assert.equal(allManual.messages.filter(m=>m.type==='mzd-gui-units-request').length,0);
 assert.equal(allManual.nodes.settings.textContent,'Settings');
 allManual.nodes.settings.onclick();
 allManual.events.message({source:allManual.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:3}});
 allManual.events.message({source:allManual.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:0}});
-const firstAuto = allManual.messages.find(m=>m.type==='drivedash-system-settings');
-assert.ok(firstAuto.fields.language);assert.equal(firstAuto.fields.speedUnit,false);assert.equal(firstAuto.fields.tempUnit,false);
+const firstAuto = allManual.messages.find(m=>m.type==='mzd-gui-units-request');
+assert.ok(firstAuto);
 allManual.dispose();
+
 const mixed = fixture(true,false,{language:'de_DE',speedUnit:'auto',tempUnit:'C'});
-const mixedRequest = mixed.messages.find(m=>m.type==='drivedash-system-settings');
-assert.equal(mixedRequest.fields.language,false);assert.equal(mixedRequest.fields.speedUnit,true);assert.equal(mixedRequest.fields.tempUnit,false);
+const mixedRequest = mixed.messages.find(m=>m.type==='mzd-gui-units-request');
+assert.ok(mixedRequest);
 mixed.dispose();
+
 const savedLive = fixture(true,true,{version:1,language:'en_US',design:'oem-style',speedUnit:'mph',tempUnit:'F',animated:true});
-assert.equal(savedLive.messages.filter(m=>m.type==='drivedash-system-settings').length,0,'Read persistent choices before querying automatic settings.');
+assert.equal(savedLive.messages.filter(m=>m.type==='mzd-gui-units-request').length,0,'Read persistent choices before querying automatic settings.');
 assert.equal(savedLive.nodes.settings.textContent,'Settings');
 savedLive.nodes.settings.onclick();
 savedLive.events.message({source:savedLive.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:1}});
 savedLive.events.message({source:savedLive.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index:1}});
-const save = savedLive.messages.filter(m=>m.type==='drivedash-preferences').at(-1);
+const save = savedLive.messages.filter(m=>m.operation==='preferences').at(-1);
 assert.equal(save.values.speedUnit,'kmh');
 assert.equal(savedLive.intervals.size,0,'Saving must keep settings open.');
 savedLive.dispose();
+
 // No English frame or sensor polling before preferences and locale have resolved.
 const startup = fixture(true,true,null,true);
 assert.equal(startup.texts.length,0);assert.equal(startup.nodes.stage.style.visibility,'hidden');
-assert.equal(startup.messages.filter(m=>m.type==='drivedash-sample').length,0);
-const loadPreferences = startup.messages.find(m=>m.type==='drivedash-preferences');
-startup.events.message({source:startup.window.parent,data:{type:'drivedash-preferences-result',token:'preview-token',id:loadPreferences.id,result:{}}});
-assert.ok(startup.messages.some(m=>m.type==='drivedash-system-settings'));assert.equal(startup.texts.length,0);
+assert.equal(startup.messages.filter(m=>m.operation==='sample').length,0);
+const loadPreferences = startup.messages.find(m=>m.operation==='preferences');
+startup.serviceCallbacks[loadPreferences.id](null, {});
+assert.ok(startup.messages.some(m=>m.type==='mzd-gui-units-request'));assert.equal(startup.texts.length,0);
 assert.equal(startup.nodes.stage.style.visibility,'hidden');
-startup.events.message({source:startup.window.parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE',speedUnit:'kmh',tempUnit:'C'}}});
+startup.getUnitsCallback()({language:'de_DE',speedUnit:'kmh',tempUnit:'C'});
 assert.equal(startup.nodes.stage.style.visibility,'visible');assert.ok(startup.texts.includes('Au\u00dfen'));assert.ok(!startup.texts.includes('Outside'));
-assert.equal(startup.messages.filter(m=>m.type==='drivedash-sample').length,1);startup.dispose();
+assert.equal(startup.messages.filter(m=>m.operation==='sample').length,1);startup.dispose();
+
 // Missing localization cannot hide the screen forever or produce a late language flip.
 const fallback = fixture(true,false,null,true);
 assert.equal(fallback.texts.length,0);[...fallback.timeouts.values()][0]();
 assert.equal(fallback.nodes.stage.style.visibility,'visible');assert.equal(fallback.nodes.settings.textContent,'Settings');
-fallback.events.message({source:fallback.window.parent,data:{type:'drivedash-system-settings-result',token:'preview-token',settings:{language:'de_DE'}}});
+if (fallback.getUnitsCallback()) { fallback.getUnitsCallback()({language:'de_DE'}); }
 assert.equal(fallback.nodes.settings.textContent,'Settings');fallback.dispose();
 console.log('DRIVEDASH_PREVIEW_PASSED: ES5, missing data, conversions, shared i18n, live skin switch, saved browser choices, native menu messages and timer cleanup.');
 
@@ -209,15 +238,15 @@ const movingNeedle=raster.window.DriveDashNeedle;assert.equal(typeof movingNeedl
 console.log('DRIVEDASH_BITMAP_PASSED: native-size PNG and loaded-image rendering path, with vector fallback covered by the other view fixtures.');
 
 const liveNeedle=fixture(true,true);
-let request=liveNeedle.messages.filter(m=>m.type==='drivedash-sample').at(-1);
-function rpmReply(rpm){liveNeedle.events.message({source:liveNeedle.window.parent,data:{type:'drivedash-sample-result',token:'preview-token',id:request.id,result:{source:'cmu',available:true,rpm,speedKph:0}}});}
+let request=liveNeedle.messages.filter(m=>m.operation==='sample').at(-1);
+function rpmReply(rpm){liveNeedle.serviceCallbacks[request.id](null,{source:'cmu',available:true,rpm,speedKph:0});}
 rpmReply(1000);
 const [pollId,poll]=[...liveNeedle.timeouts][0];liveNeedle.timeouts.delete(pollId);poll();
-request=liveNeedle.messages.filter(m=>m.type==='drivedash-sample').at(-1);rpmReply(3000);
+request=liveNeedle.messages.filter(m=>m.operation==='sample').at(-1);rpmReply(3000);
 assert(liveNeedle.timeouts.size>=2,'polling and needle redraw timers are separate');
-const sampleCount=liveNeedle.messages.filter(m=>m.type==='drivedash-sample').length;
+const sampleCount=liveNeedle.messages.filter(m=>m.operation==='sample').length;
 liveNeedle.suspend();assert.equal(liveNeedle.timeouts.size,0,'phone suspension stops both timer types');
-assert.equal(liveNeedle.messages.filter(m=>m.type==='drivedash-sample').length,sampleCount,'animation does not request extra samples');
+assert.equal(liveNeedle.messages.filter(m=>m.operation==='sample').length,sampleCount,'animation does not request extra samples');
 liveNeedle.dispose();assert.equal(liveNeedle.timeouts.size,0);
 console.log('DRIVEDASH_ANIMATION_LIFECYCLE_PASSED: interpolation timer is separate from sensor polling and both stop during phone suspension.');
 

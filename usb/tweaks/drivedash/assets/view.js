@@ -5,26 +5,24 @@
     var needle = new window.DriveDashNeedle(), needleTimer = null;
     var source, data = null, ended = false, suspended = false, initialized = false, page = 'gauge', focus = 0;
     var storageKey = 'mzd-drivedash-design-preview-v1', language = 'en_US', context = document.getElementById('gauge').getContext('2d');
-    var match = /(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash), token = match ? match[1] : '';
-    var live = window.location.protocol === 'file:' || /[?&]data=cmu(?:&|$)/.test(window.location.search), requestId = 0, pendingRequest = null;
-    var preferenceSerial = 0, pendingPreference = null, loadingPreferences = live, preferenceError = '';
-    var preferences = new window.DriveDashPreferences(function (args,callback) {
-        var id = ++preferenceSerial, timeout;
-        timeout = window.setTimeout(function () {
-            if (pendingPreference && pendingPreference.id === id) { pendingPreference = null; callback('Settings request timed out.'); }
-        },10000);
-        pendingPreference = {id:id,callback:callback,timer:timeout};
-        post({type:'drivedash-preferences',id:id,values:args.values});
+    var token = (sdk && sdk.token) ? sdk.token : ((/(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash) || ['',''])[1]);
+    var live = window.location.protocol === 'file:' || /[?&]data=cmu(?:&|$)/.test(window.location.search);
+    var loadingPreferences = live, preferenceError = '';
+    var preferences = new window.DriveDashPreferences(function (args, callback) {
+        if (sdk && sdk.request) {
+            sdk.request('preferences', args, callback, 10000);
+        } else {
+            callback('Preferences service unavailable.');
+        }
     });
-    var system = {language:'en_US'}, systemPending = null, systemRead = {}, systemTimer = null;
+    var system = {language:'en_US'}, systemPending = false, systemRead = false, systemTimer = null;
     var nativeMenu = !!token, config, stored = null, languageMatch = /[?&]lang=([a-zA-Z_]+)/.exec(window.location.search);
     source = live ? new window.DriveDashLive(function (callback) {
-        var id = ++requestId, timeout;
-        timeout = window.setTimeout(function () {
-            if (pendingRequest && pendingRequest.id === id) { pendingRequest = null; callback('Data request timed out.'); }
-        },5000);
-        pendingRequest = {id:id,callback:callback,timer:timeout};
-        post({type:'drivedash-sample',id:id});
+        if (sdk && sdk.request) {
+            sdk.request('sample', {}, callback, 5000);
+        } else {
+            callback('Data reader unavailable.');
+        }
     }) : new window.DriveDashDemo();
     function t(key) { var all = window.DriveDashLanguages, dictionary = all[language] || all[language.split('_')[0] === 'de' ? 'de_DE' : 'en_US']; return dictionary[key] || all.en_US[key] || key; }
     function post(value) { value.token = token; window.parent.postMessage(value,'*'); }
@@ -36,12 +34,12 @@
         document.documentElement.lang = language.replace('_','-');
     }
     applyLanguage();
-    function finishSystemRead() {
-        if (!systemPending) { return; }
-        if (systemPending.language) { systemRead.language = true; }
-        if (systemPending.speedUnit) { systemRead.speedUnit = true; }
-        if (systemPending.tempUnit) { systemRead.tempUnit = true; }
-        window.clearTimeout(systemTimer); systemTimer = null; systemPending = null;
+    function applyUnits(units) {
+        if (units) {
+            if (units.speedUnit === 'kmh' || units.speedUnit === 'mph') { system.speedUnit = units.speedUnit; }
+            if (units.tempUnit === 'C' || units.tempUnit === 'F') { system.tempUnit = units.tempUnit; }
+            if (typeof units.language === 'string' && /^[a-z]{2,3}(_[a-zA-Z]{2})?$/.test(units.language)) { system.language = units.language; }
+        }
     }
     function finishStartup() {
         if (ended || suspended || initialized || loadingPreferences || systemPending) { return; }
@@ -49,14 +47,26 @@
         document.getElementById('stage').style.visibility = 'visible';
     }
     function requestSystem() {
-        var fields = {language:config.language === 'auto' && !systemRead.language,speedUnit:config.speedUnit === 'auto' && !systemRead.speedUnit,tempUnit:config.tempUnit === 'auto' && !systemRead.tempUnit};
-        if (!token || systemPending || (!fields.language && !fields.speedUnit && !fields.tempUnit)) { return; }
-        systemPending = fields;
+        var needs = config.language === 'auto' || config.speedUnit === 'auto' || config.tempUnit === 'auto';
+        if (!token || systemPending || systemRead || !needs) { return; }
+        systemPending = true;
         systemTimer = window.setTimeout(function () {
             if (ended) { return; }
-            finishSystemRead(); finishStartup();
-        },5000);
-        post({type:'drivedash-system-settings',fields:fields});
+            systemPending = false; systemRead = true; finishStartup();
+        }, 5000);
+        if (sdk && sdk.getUnits) {
+            sdk.getUnits(function (units) {
+                if (ended || !systemPending) { return; }
+                window.clearTimeout(systemTimer); systemTimer = null;
+                systemPending = false; systemRead = true;
+                applyUnits(units);
+                applyLanguage(); finishStartup();
+                if (page === 'gauge') { renderGauge(); } else { renderMenu(); }
+            });
+        } else {
+            window.clearTimeout(systemTimer); systemTimer = null;
+            systemPending = false; systemRead = true; finishStartup();
+        }
     }
     function save() {
         if (live) {
@@ -154,27 +164,12 @@
     function receive(event) {
         var value = event.data;
         if (event.source !== window.parent || !value || value.token !== token || ended) { return; }
-        if (value.type === 'drivedash-preferences-result' && pendingPreference && pendingPreference.id === value.id) {
-            var preference = pendingPreference; pendingPreference = null; window.clearTimeout(preference.timer); preference.callback(value.error || null,value.result);
-        }
-        if (value.type === 'drivedash-system-settings-result' && systemPending && value.settings) {
-            finishSystemRead();
-            if (value.settings.speedUnit === 'kmh' || value.settings.speedUnit === 'mph') { system.speedUnit = value.settings.speedUnit; }
-            if (value.settings.tempUnit === 'C' || value.settings.tempUnit === 'F') { system.tempUnit = value.settings.tempUnit; }
-            if (typeof value.settings.language === 'string' && /^[a-z]{2,3}(_[a-zA-Z]{2})?$/.test(value.settings.language)) { system.language = value.settings.language; }
-            applyLanguage(); requestSystem(); finishStartup(); if (page === 'gauge') { renderGauge(); } else { renderMenu(); }
-        }
-        if (value.type === 'drivedash-sample-result' && pendingRequest && pendingRequest.id === value.id) {
-            var pending = pendingRequest; pendingRequest = null; window.clearTimeout(pending.timer); pending.callback(value.error || null,value.result);
-        }
         if (value.type === 'drivedash-native-error') { nativeMenu = false; renderMenu(); }
         if (value.type === 'drivedash-native-select') { choose(value.index); }
         if (value.type === 'drivedash-native-focus') { focus = value.index; }
     }
     function dispose() {
         if (ended) { return; } source.stop(); stopNeedle(); session.pause(); window.clearTimeout(systemTimer);
-        if (pendingPreference) { window.clearTimeout(pendingPreference.timer); pendingPreference = null; }
-        if (pendingRequest) { window.clearTimeout(pendingRequest.timer); pendingRequest = null; }
         if (nativeMenu) { post({type:'drivedash-native-release'}); } ended = true;
         window.removeEventListener('message',receive,false); window.removeEventListener('resize',fit,false);
     }
