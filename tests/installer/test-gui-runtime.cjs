@@ -111,6 +111,7 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
   };
   let sbName = "Applications";
   const sent = [];
+  const sbns = [];
   const fw = {
     common: {
       setSbName(name) {
@@ -118,6 +119,9 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
       },
       setSbNameId(uia, id) {
         sbName = id;
+      },
+      startTimedSbn(uiaId, sbnId, type, props) {
+        sbns.push({ uiaId, sbnId, type, props });
       }
     },
     _frameworkState: "idle",
@@ -202,9 +206,27 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
       intervals.delete(id);
     }
   };
+  const headNode = node("head");
   const doc = {
+    head: headNode,
     body: node("body"),
     createElement: node,
+    getElementsByTagName(name) {
+      if (name === "head") return [headNode];
+      return [];
+    },
+    getElementById(id) {
+      function find(n) {
+        if (!n) return null;
+        if (n.id === id) return n;
+        for (const c of n.children || []) {
+          const f = find(c);
+          if (f) return f;
+        }
+        return null;
+      }
+      return find(headNode) || find(this.body);
+    },
     activeElement: { focus() {} }
   };
   load(RUNTIME, runtime, { window: win, document: doc });
@@ -220,6 +242,7 @@ function harness(failStartup = false, unavailable = false, extraModules = []) {
     original,
     System,
     sent,
+    sbns: () => sbns,
     listeners,
     timeouts,
     intervals,
@@ -1002,4 +1025,80 @@ test("submenu hands focus to the OEM Back arrow and restores Applications", () =
   key("keydown",13); key("keyup",13);
   assert(!focused); assert(restored); assert.equal(h.doc.body.children.length,0);
   assert.equal(h.title(),"Applications");
+});
+
+test("toast notifications: routes to MzdGuiResidents when present, falls back to SBN otherwise", async (t) => {
+  // Case A: MzdGuiResidents present -> delegated to MzdGuiResidents.notify
+  {
+    const h = harness();
+    h.open("one");
+    const f = h.frame();
+    const token = f.src.split("#mzdgui=")[1];
+    let residentNotified = null;
+    h.win.MzdGuiResidents = {
+      notify(id, text, isError) {
+        residentNotified = { id, text, isError };
+        return true;
+      }
+    };
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: "Notice from view", isError: false }
+    });
+    assert.deepEqual(residentNotified, {
+      id: "one",
+      text: "Notice from view",
+      isError: false
+    });
+    assert.equal(h.sbns().length, 0, "fallback SBN should not be called when MzdGuiResidents.notify is used");
+  }
+
+  // Case B: MzdGuiResidents absent -> fallback to startTimedSbn with font-size styling
+  {
+    const h = harness();
+    h.open("one");
+    const f = h.frame();
+    const token = f.src.split("#mzdgui=")[1];
+    delete h.win.MzdGuiResidents;
+    const longText = "This notification message is definitely longer than thirty-five characters!";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: longText, isError: true }
+    });
+    assert.equal(h.sbns().length, 1);
+    assert.equal(h.sbns()[0].uiaId, "one");
+    assert.equal(h.sbns()[0].sbnId, "MzdGuiNotification");
+    assert.equal(h.sbns()[0].type, "errorNotification");
+    assert.equal(h.sbns()[0].props.sbnStyle, "Style02");
+    assert.equal(h.sbns()[0].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
+    assert.equal(h.sbns()[0].props.text1, longText);
+
+    const style = h.doc.head.children.find(e => e.id === "mzd-gui-sbn-style");
+    assert(style);
+    assert(style.textContent.includes("font-size: 26px !important"));
+
+    // Exact 34 chars with isError: false uses IcnSbnApps.png and resets font override
+    const short34 = "1234567890123456789012345678901234";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: short34, isError: false }
+    });
+    assert.equal(h.sbns().length, 2);
+    assert.equal(h.sbns()[1].type, "typeD");
+    assert.equal(h.sbns()[1].props.imagePath1, "common/images/icons/IcnSbnApps.png");
+    assert.equal(h.sbns()[1].props.text1, short34);
+    assert.equal(style.textContent, "");
+
+    // Exact 35 chars ("Select at least one slideshow image") switches to 26px font override
+    const exact35 = "Select at least one slideshow image";
+    h.event("message", {
+      source: f.contentWindow,
+      data: { type: "mzd-gui-notify", token, text: exact35, isError: true }
+    });
+    assert.equal(h.sbns().length, 3);
+    assert.equal(h.sbns()[2].type, "errorNotification");
+    assert.equal(h.sbns()[2].props.imagePath1, "common/images/icons/IcnSbnSystemError.png");
+    assert.equal(h.sbns()[2].props.text1, exact35);
+    assert(style.textContent.includes("font-size: 26px !important"));
+  }
 });

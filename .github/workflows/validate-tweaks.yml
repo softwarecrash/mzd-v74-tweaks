@@ -204,6 +204,7 @@ jobs:
           lua5.1 tests/tweaks/drivedash/service.lua
           for file in usb/tweaks/drivedash/assets/service/*.lua; do luac5.1 -p "$file"; done
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
+      - run: node tests/tweaks/wallpaper-manager/preview-service.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs

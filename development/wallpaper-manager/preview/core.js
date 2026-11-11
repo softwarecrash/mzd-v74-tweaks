@@ -26,6 +26,7 @@
         function candidates() { return config.slides.filter(allowed); }
         function snapshot() {
             return {images:catalog.filter(function (image) { return allowed(image.id); }),active:active,
+                selected:config.selected,
                 enabled:config.enabled,interval:config.interval,slides:candidates(),error:error,preview:true};
         }
         function notify() { var value = snapshot(), j; for (j = 0; j < listeners.length; j += 1) { listeners[j](value); } }
@@ -44,7 +45,7 @@
             options.paint(id,function (failed) {
                 if (ended || request !== generation) { return; }
                 if (failed) {
-                    active = null; config.enabled = false; cancel(); error = 'Image could not be loaded. Mazda background restored.';
+                    active = null; config.enabled = false; cancel(); error = 'Image could not be loaded. Mazda background restored';
                     options.paint(null,function () {}); notify();
                 }
             });
@@ -63,7 +64,7 @@
                 config.selected = value; config.enabled = false; cancel(); save(); show(value);
             } else if (name === 'slideshow-mode') {
                 if (value !== 0 && intervals.indexOf(value) < 0) { throw new Error('Unsupported slideshow interval.'); }
-                if (value !== 0 && !candidates().length) { throw new Error('Select at least one slideshow image.'); }
+                if (value !== 0 && !candidates().length) { throw new Error('Select at least one slideshow image'); }
                 config.enabled = value !== 0;
                 if (value === 0) { config.selected = active; }
                 else {
@@ -72,7 +73,7 @@
                 }
                 save(); schedule(); notify();
             } else if (name === 'slideshow') {
-                if (!candidates().length) { throw new Error('Select at least one slideshow image.'); }
+                if (!candidates().length) { throw new Error('Select at least one slideshow image'); }
                 config.enabled = !config.enabled;
                 if (config.enabled && candidates().indexOf(active) < 0) { show(candidates()[0]); }
                 save(); schedule(); notify();

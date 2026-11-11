@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
    write(dest/'assets/resident.js','window.MzdGuiResidents.register("'+id_+'",function () {});\n')
    write(dest/'assets/service.lua','return function() return {request=function()return {}end}end\n')
   write(b/'startup','#!/bin/sh\n# unrelated SSH hook\necho original\n')
- if '--drivedash-only' in sys.argv or '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or traffic_profile:
+ if '--drivedash-only' in sys.argv or '--tetris-only' in sys.argv or '--tetris-config-only' in sys.argv or '--helper-compat-only' in sys.argv or traffic_profile:
   write(b/'startup','#!/bin/sh\necho original\n')
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
@@ -83,7 +83,7 @@ if [ "$destination" = '''+shlex.quote(bp(base/'mzd-gui-runtime'))+''' ] && [ -f 
 exec '''+copy_command+''' "$@"
 ''')
  write(bins/'rm','#!/bin/sh\nfor arg do destination=$arg; done\nif [ "$destination" = '+shlex.quote(bp(base/'mzd-gui-runtime'))+' ] && [ -f '+shlex.quote(bp(b/'fail-remove'))+' ]; then '+remove_command+' -f '+shlex.quote(bp(b/'fail-remove'))+'; exit 1; fi\nexec '+remove_command+' "$@"\n')
- if traffic_profile or any(flag in sys.argv for flag in ['--drivedash-only','--services-only','--wallpaper-only','--tetris-only','--tetris-config-only','--ssh-coexist-only']):
+ if traffic_profile or any(flag in sys.argv for flag in ['--drivedash-only','--services-only','--wallpaper-only','--tetris-only','--tetris-config-only','--ssh-coexist-only','--helper-compat-only']):
   # CMU BusyBox does not decode the literal backslash-t passed through -F.
   # Reject that nonportable form even when the host awk would accept it.
   write(bins/'awk','#!/bin/sh\nif [ \"$1\" = -F ] && [ \"$2\" = '+shlex.quote(r'\t')+' ]; then printf \"Unsupported CMU awk field separator.\\n\" >&2; exit 1; fi\nexec '+awk_command+' \"$@\"\n')
@@ -136,6 +136,30 @@ exec '''+copy_command+''' "$@"
   r=call('second-example','install',1);assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr
   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
   call('gui-example','uninstall');absent()
+  # A 0.5.3 helper still needs replacement for native-menu and service-request support.
+  helper_053=current.replace('native-menu=1\n','').replace('service-request=1\n','').replace('version=0.6.0','version=0.5.3')
+  write(api,helper_053)
+  call('gui-example','install');write(api,current)
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  r=call('wallpaper-manager','install',1)
+  assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
+  assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected install changed saved installation'
+  call('gui-example','uninstall');absent()
+  # Updating a consumer installed with 0.5.3 helper also refuses before removing the old version.
+  write(api,helper_053)
+  call('wallpaper-manager','install');write(api,current)
+  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';p_orig=p.read_text();write(p,p_orig.replace('version=0.4.3','version=0.4.4'))
+  for id_,action in [('wallpaper-manager','update'),('second-example','install')]:
+   r=call(id_,action,1)
+   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
+   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected action changed saved installation'
+  write(p,p_orig)
+  call('wallpaper-manager','uninstall');absent()
+  call('wallpaper-manager','install');call('second-example','install')
+  assert 'native-menu=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
+  assert 'service-request=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
+  call('second-example','uninstall');call('wallpaper-manager','uninstall');absent()
   print('GUI_HELPER_COMPAT_PASSED:',checks,'real actions; old helper blocks install/update before mutation, saved uninstall and current reuse work.')
   raise SystemExit(0)
  if '--ssh-coexist-only' in sys.argv:
@@ -261,7 +285,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
   write(user_data/'test-image.png','synthetic user data\n')
   write(user_data/'gallery/gallery.tsv','saved image and slideshow settings\n')
   saved={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
-  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.2','version=0.4.3'))
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.3','version=0.4.4'))
   call('wallpaper-manager','update')
   assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
   call('wallpaper-manager','uninstall',extra=['--preserve-config']);assert hook.exists() and (user_data/'test-image.png').exists()
