@@ -107,8 +107,8 @@
         line(ctx,416,298,518,298,'#171f25',2);
         ctx.restore();
     }
-    var background = typeof window.Image === 'function' ? new window.Image() : null;
-    if (background) { background.src = 'skins/oem-style-background.png'; }
+    var background = null;
+    function loadBackground(){if(!background && typeof window.Image==='function'){background=new window.Image();background.src='skins/oem-style-background.png';}}
     function drawInstrument(ctx,m,t) {
         var cx = 400, cy = 249, i, a, g;
         ctx.clearRect(0,0,800,416);
@@ -153,16 +153,16 @@
     }
     var cached=null,cachedContext=null,cachedKey=null;
     function draw(ctx,m,t) {
-        var values={},key,name;
-        for(name in m){if(Object.prototype.hasOwnProperty.call(m,name) && name!=='rpm'){values[name]=m[name];}}
-        key=JSON.stringify(values)+[t('outside'),t('trip'),t('coolant'),t('average'),t('fuel'),t('rpm')].join('|')+(background && background.complete ? 'ready':'loading');
+        var key;
+        loadBackground();
+        key=[m.speed,m.speedUnit,m.outside,m.coolant,m.tempUnit,m.gear,m.trip,m.tripUnit,m.average,m.averageUnit,m.engineLoad,m.battery,m.fuel,t('outside'),t('trip'),t('coolant'),t('average'),t('fuel'),t('rpm'),background && background.complete ? 'ready':'loading'].join('|');
         if(!cached && typeof document!=='undefined' && document.createElement){
             cached=document.createElement('canvas');cached.width=800;cached.height=416;cachedContext=cached.getContext('2d');
         }
         if(cachedContext){
-            if(key!==cachedKey){values.rpm=null;drawInstrument(cachedContext,values,t);cachedKey=key;}
+            if(key!==cachedKey){drawInstrument(cachedContext,m,t);cachedKey=key;}
             ctx.clearRect(0,0,800,416);ctx.drawImage(cached,0,0);
-        }else{values.rpm=null;drawInstrument(ctx,values,t);}
+        }else{drawInstrument(ctx,m,t);}
         drawNeedle(ctx,m.rpm);
     }
     window.DriveDashSkins.register({id:'oem-style',labelKey:'design.oem-style',drawBackground:drawBackground,draw:draw});

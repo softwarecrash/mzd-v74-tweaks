@@ -3,8 +3,8 @@
     'use strict';
     var PI=Math.PI;
     function register(theme){
-        var image=typeof global.Image==='function'?new global.Image():null,cache=null,cacheContext=null,key=null;
-        if(image){image.src='skins/'+theme.id+'-background.png';}
+        var image=null,cache=null,cacheContext=null,key=null;
+        function loadBackground(){if(!image && typeof global.Image==='function'){image=new global.Image();image.src='skins/'+theme.id+'-background.png';}}
         function text(ctx,value,x,y,size,color){ctx.font=size+'px DriveDashMazda, Arial, sans-serif';ctx.textAlign='center';ctx.fillStyle=color||theme.ink;ctx.fillText(value,x,y);}
         function arc(ctx,x,y,r,start,end,color,width){ctx.beginPath();ctx.arc(x,y,r,start,end);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
         function circle(ctx,x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,2*PI);ctx.fillStyle=color;ctx.fill();}
@@ -66,7 +66,8 @@
                 text(ctx,cards[i][0],cardX+cardW/2,363,15,theme.muted);text(ctx,cards[i][1],cardX+cardW/2,391,cards[i][1].length>10?17:25);}
         }
         function draw(ctx,m,t){
-            var ready=!!(image&&image.complete&&image.width===800&&image.height===416),next=JSON.stringify([ready,m.speed,m.speedUnit,m.coolant,m.outside,m.tempUnit,m.average,m.averageUnit,m.trip,m.tripUnit,t('coolant'),t('outside'),t('average'),t('trip'),t('rpm')]);
+            loadBackground();
+            var ready=!!(image&&image.complete&&image.width===800&&image.height===416),next=[ready,m.speed,m.speedUnit,m.coolant,m.outside,m.tempUnit,m.average,m.averageUnit,m.trip,m.tripUnit,t('coolant'),t('outside'),t('average'),t('trip'),t('rpm')].join('|');
             var a,x=theme.rpmX,y=164;
             if(!cache&&typeof document!=='undefined'&&document.createElement){cache=document.createElement('canvas');cache.width=800;cache.height=416;cacheContext=cache.getContext('2d');}
             if(cacheContext){if(next!==key){base(cacheContext,m,t,ready);key=next;}ctx.clearRect(0,0,800,416);ctx.drawImage(cache,0,0);}else{base(ctx,m,t,ready);}

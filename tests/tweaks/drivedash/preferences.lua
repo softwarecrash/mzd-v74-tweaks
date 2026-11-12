@@ -16,5 +16,7 @@ assert(factory.create(fs,path,function()error('Unexpected mkdir')end).request({}
 value.speedUnit='kmh';failRename=true;assert(not pcall(store.request,{values=value}));assert(content[path]==saved and not content[path..'.fixture.tmp'])
 failRename=false;value.speedUnit='invalid';assert(not pcall(store.request,{values=value}));assert(content[path]==saved)
 content[path]=saved..'animated=false\n';assert(not pcall(store.request,{}),'Duplicate false values must be rejected.')
+content[path]=saved:gsub('\n','\r\n');assert(store.request({}).language=='de_DE','Windows CRLF settings accepted.');
+content[path]='  \r\n'..saved..' \t\r\n';assert(store.request({}).speedUnit=='mph','Whitespace lines accepted.');
 content[path]='';assert(store.request({}).tempUnit=='auto')
 print('DRIVEDASH_PREFERENCES_PASSED: lazy defaults, persistent reload, false values, strict fields, atomic write failure and temporary cleanup.')

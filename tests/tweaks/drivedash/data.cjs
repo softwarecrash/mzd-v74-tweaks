@@ -46,9 +46,19 @@ assert.equal(courseBetween(48,11,49,12).gpsCourseDeg,null,'GPS jumps cannot beco
 const compass=model.createSession();
 compass.update(sample(1,40,1200,{gpsLatitudeDeg:48,gpsLongitudeDeg:11}));
 assert.equal(compass.update(sample(2,40,1200,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N');
-assert.equal(compass.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsCourseDeg,null,'No direction claimed at rest.');
+assert.equal(compass.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N','Hold the last driving course at rest.');
 compass.pause();
 assert.equal(compass.update(sample(4,40,1200,{gpsLatitudeDeg:48.0002,gpsLongitudeDeg:11})).gpsCourseDeg,null,'Resume needs new position pair.');
 assert.equal(courseBetween(48,11,48.000001,11).gpsCourseDeg,null,'Ignore movements below three meters.');
 assert.equal(courseBetween(0,0,0.0001,0).gpsCourseDeg,null,'Reject missing zero-position origin.');
 console.log('DRIVEDASH_COMPASS_PASSED: cardinal courses, dateline, jitter, jumps, stationary and pause handling.');
+
+let wallTime=0;const cw={};
+vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/data.js','utf8'),{window:cw,Date:class{getTime(){return wallTime;}}});
+const hold=cw.DriveDashData.createSession();
+hold.update(sample(1,40,800,{gpsLatitudeDeg:48,gpsLongitudeDeg:11}));
+hold.update(sample(2,40,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11}));
+wallTime=25000;assert.equal(hold.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N');
+wallTime=50000;assert.equal(hold.update(sample(4,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N','Fresh stationary positions retain direction.');
+wallTime=80000;assert.equal(hold.update({source:'unavailable'}).gpsDirection,'N','Retain through thirty seconds without GPS.');
+wallTime=80001;assert.equal(hold.update({source:'unavailable'}).gpsDirection,null,'Expire after thirty seconds without fresh positions.');

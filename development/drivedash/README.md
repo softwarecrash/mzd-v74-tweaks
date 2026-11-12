@@ -3,8 +3,9 @@
 Development draft for issue #62, with a browser demo and an initial read-only
 CMU data adapter. The installable package and single asset source now live in
 `usb/tweaks/drivedash/`. No additional AIO tweaks are bundled.
-The normal browser emulator remains explicitly marked DEMO; native reads have
-not yet been verified on hardware.
+Core readings, rendering and lifecycle were exercised on vehicle and bench CMUs
+during development. The current five-skin SDK build and GPS-course compass still
+need a new physical acceptance run; simulator checks do not replace that run.
 
 The first skin is named **OEM Style**, inspired by Mazda instrument clusters. The
 application is skin-independent: `skins/registry.js` manages renderers, and each
@@ -232,3 +233,10 @@ SDK design selector. Their static instrument layers are cached; RPM animation
 only draws the cached layer and moving needle/readout. Missing artwork falls back
 to the theme colour while keeping live instruments usable. The native Mazda
 status bar remains above the skin.
+
+Tap the instrument canvas or press the commander Select button to open Settings.
+Use the Mazda status-bar Home control to leave the app. The browser demo cycles
+through 88, 100, 180, 240, 288, 320 and 360 km/h and back over about 40 seconds;
+these are simulated values only. Static demo mode remains at 88 km/h. Background
+PNGs load only when their skin is first drawn. Live polling waits at least 100 ms
+after a reply, including slow requests. Settings accept LF/CRLF and blank lines.

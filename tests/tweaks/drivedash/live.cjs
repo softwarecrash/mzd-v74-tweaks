@@ -16,9 +16,11 @@ fire(250);requests.shift()('timeout');assert.equal(received.at(-1).speedKph,77,'
 source.stop();assert.equal(timers.size,0);
 source.start(value=>received.push(value));source.stop();source.start(value=>received.push(value));
 assert.equal(requests.length,1,'Reopen must wait for the outstanding request.');
-requests.shift()(null,{source:'cmu',available:true,speedKph:111});assert.equal(requests.length,1);assert.notEqual(received.at(-1).speedKph,111);
+requests.shift()(null,{source:'cmu',available:true,speedKph:111});assert.equal(requests.length,0);fire(100);assert.equal(requests.length,1);assert.notEqual(received.at(-1).speedKph,111);
 requests.shift()(null,{source:'cmu',available:false,coolantC:65});assert.equal(received.at(-1).coolantC,65,'Valid partial snapshots must retain their slow fields.');
 fire(1000);const before=received.length;source.stop();requests.shift()(null,{source:'cmu',available:true,speedKph:99});assert.equal(received.length,before);assert.equal(timers.size,0);
 console.log('DRIVEDASH_LIVE_PASSED: three-failure threshold, recovery/reset, serialized requests, delayed reply isolation, partial readings and close cleanup.');
 
-source.start(()=>{});clock+=170;requests.shift()(null,{source:'cmu',available:true});assert([...timers.values()].some(t=>t.ms===80),'query duration counts toward sample period');source.stop();
+source.start(()=>{});clock+=170;requests.shift()(null,{source:'cmu',available:true});assert([...timers.values()].some(t=>t.ms===100),'minimum rest after a slow query');source.stop();
+
+source.start(()=>{});clock+=500;requests.shift()(null,{source:'cmu',available:true});assert([...timers.values()].some(t=>t.ms===100),'overdue requests must still rest');source.stop();

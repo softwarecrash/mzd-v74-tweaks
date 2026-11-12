@@ -12,7 +12,7 @@ return function(context)
         interval=0.2,slowInterval=1,
         readBatch=function(fields)return batch.read(fields,run)end,
         gps=function()return gps.read(run)end,
-        run=function(program,args,timeout)return process.run(program,args,nil,nil,timeout)end,
+        run=run,
         now=function()
             local file=assert(io.open('/proc/uptime','r'))
             local value=assert(file:read('*n'));file:close();return value

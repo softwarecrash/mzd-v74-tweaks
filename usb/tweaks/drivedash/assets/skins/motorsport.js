@@ -13,8 +13,7 @@
         for(i=0;i<32;i+=1){x=24+i*20.5;on=rpm!==null&&rpm>i*250;color=on?(i>=26?'#f02b21':i>=22?'#f67612':'#f6bf17'):(i>=26?'#3e1516':'#24292b');polygon(ctx,[[x+8,40],[x+26,40],[x+18,66],[x,66]],color,null);}
         polygon(ctx,[[31,36],[691,36],[680,71],[20,71]],null,'#b9bdba');text(ctx,'x1000 '+t('rpm'),784,65,15,'right',muted);
         panel(ctx,12,91,509,249);
-        polygon(ctx,[[12,92],[21,92],[12,130],[12,108]],'#bc241c',null);
-        text(ctx,m.speed,201,285,220,'center');text(ctx,m.speedUnit,340,316,25,'right',muted);
+        text(ctx,m.speed,385,285,190,'right');text(ctx,m.speedUnit,340,316,25,'right',muted);
         if(m.gear&&m.gear!=='--'){
             polygon(ctx,[[421,147],[499,147],[508,156],[491,277],[417,277],[409,269]],'#090b0c','#a7adac');
             text(ctx,m.gear,458,249,86,'center');

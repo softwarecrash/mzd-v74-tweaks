@@ -36,14 +36,15 @@
     function createSession() {
         var stats = {elapsedSeconds:0,movingSeconds:0,speedObservedSeconds:0,idleSeconds:0,engineIdleSeconds:0};
         var previous = null, lastSequence = null, movingIntegral = 0, engineObserved = 0;
-        var position = null, course = null, courseStamp = null;
+        var position = null, course = null, gpsSeenAt = null;
         function updateCourse(out, stamp, fresh, live) {
-            var rad = Math.PI/180, lat, lon, a, distance, angle, dt;
-            if (!live) { position = null; course = null; courseStamp = null; return; } // Demo supplies an explicitly simulated course.
-            if (out.source === 'unavailable' || out.speedKph === null || out.speedKph < 3 ||
-                    out.gpsLatitudeDeg === null || out.gpsLongitudeDeg === null ||
-                    out.gpsLatitudeDeg === 0 && out.gpsLongitudeDeg === 0) {
-                position = null; course = null; courseStamp = null;
+            var rad = Math.PI/180, lat, lon, a, distance, angle, dt, now = new Date().getTime()/1000;
+            if (out.source === 'demo') { position = null; course = null; gpsSeenAt = null; return; }
+            if (gpsSeenAt !== null && (now-gpsSeenAt > 30 || now < gpsSeenAt)) { course = null; position = null; }
+            var validPosition = live && out.gpsLatitudeDeg !== null && out.gpsLongitudeDeg !== null && !(out.gpsLatitudeDeg === 0 && out.gpsLongitudeDeg === 0);
+            if (validPosition && fresh.gps === true) { gpsSeenAt = now; }
+            if (!validPosition || out.speedKph === null || out.speedKph < 3) {
+                position = null; // Hold the last course at rest; never follow stationary jitter.
             } else if (fresh.gps === true) {
                 if (position) {
                     dt = stamp-position.stamp;
@@ -51,15 +52,14 @@
                     lon = (out.gpsLongitudeDeg-position.lon)*rad;
                     a = Math.sin(lat/2)*Math.sin(lat/2)+Math.cos(position.lat*rad)*Math.cos(out.gpsLatitudeDeg*rad)*Math.sin(lon/2)*Math.sin(lon/2);
                     distance = 6371000*2*Math.atan2(Math.sqrt(Math.min(1,a)),Math.sqrt(Math.max(0,1-a)));
-                    if (dt <= 0 || dt > 5 || distance > 100+dt*60) { position = null; course = null; courseStamp = null; }
+                    if (dt <= 0 || dt > 5 || distance > 100+dt*60) { position = null; }
                     else if (distance >= 3) {
                         angle = Math.atan2(Math.sin(lon)*Math.cos(out.gpsLatitudeDeg*rad),Math.cos(position.lat*rad)*Math.sin(out.gpsLatitudeDeg*rad)-Math.sin(position.lat*rad)*Math.cos(out.gpsLatitudeDeg*rad)*Math.cos(lon));
-                        course = (angle/rad+360)%360; courseStamp = stamp; position = null;
+                        course = (angle/rad+360)%360; position = null;
                     }
                 }
                 if (!position) { position = {lat:out.gpsLatitudeDeg,lon:out.gpsLongitudeDeg,stamp:stamp}; }
             }
-            if (courseStamp !== null && (stamp-courseStamp > 5 || stamp < courseStamp)) { course = null; }
             out.gpsCourseDeg = course;
             out.gpsDirection = course === null ? null : ['N','NE','E','SE','S','SW','W','NW'][Math.round(course/45)%8];
         }
@@ -102,7 +102,7 @@
             out.engineIdlePercent = engineObserved > 0 ? stats.engineIdleSeconds*100/engineObserved : null;
             return out;
         }
-        return {update:update,pause:function () { previous = null; lastSequence = null; position = null; course = null; courseStamp = null; }};
+        return {update:update,pause:function () { previous = null; lastSequence = null; position = null; course = null; gpsSeenAt = null; }};
     }
     global.DriveDashData = {version:1,fields:fields.map(function (f) { return {key:f[0],unit:f[1],labelKey:'data.'+f[0]}; }),normalize:normalize,createSession:createSession};
 }(window));

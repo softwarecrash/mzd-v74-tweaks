@@ -46,6 +46,7 @@ jobs:
           python tests/contract/test_gui_extensions.py --critical-only
           python tests/contract/test_gui_extensions.py --ssh-coexist-only
           python tests/contract/test_gui_extensions.py --services-only
+          python tests/contract/test_gui_extensions.py --drivedash-only
           python tests/contract/test_gui_extensions.py --wallpaper-only
           python tests/contract/test_gui_extensions.py --restore-only
           python tests/contract/test_gui_extensions.py --i18n-compat-only
@@ -94,12 +95,17 @@ jobs:
         run: python tests/contract/test_report_messages.py
       - name: Validate factory Lua syntax
         run: |
-          sudo apt-get install -y lua5.1
           for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua usb/tweaks/*/assets/*/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
       - name: Test Hello entrypoint
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint
         run: python tests/contract/test_terminal.py
+      - name: Test drivedash Lua domain
+        run: |
+          lua5.1 tests/tweaks/drivedash/collector.lua
+          lua5.1 tests/tweaks/drivedash/gps.lua
+          lua5.1 tests/tweaks/drivedash/preferences.lua
+          lua5.1 tests/tweaks/drivedash/service.lua
   busybox:
     # Prepares the CMU-like BusyBox 1.19.2 (ARM, static; tools/busybox/README.md) for the tweak tests:
     # tools/busybox/prepare.sh builds it and runs all checks of the BusyBox itself, but only when the files of
@@ -194,15 +200,6 @@ jobs:
           node tests/tweaks/drivedash/native-menu.cjs
           node tests/tweaks/drivedash/live.cjs
           node tests/tweaks/drivedash/preferences.cjs
-      - name: Test drivedash Lua domain
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y lua5.1
-          lua5.1 tests/tweaks/drivedash/collector.lua
-          lua5.1 tests/tweaks/drivedash/gps.lua
-          lua5.1 tests/tweaks/drivedash/preferences.lua
-          lua5.1 tests/tweaks/drivedash/service.lua
-          for file in usb/tweaks/drivedash/assets/service/*.lua; do luac5.1 -p "$file"; done
       - run: node tests/tweaks/wallpaper-manager/preview.cjs
       - run: node tests/tweaks/wallpaper-manager/preview-service.cjs
       - run: node tests/tweaks/wallpaper-manager/cmu-client.cjs

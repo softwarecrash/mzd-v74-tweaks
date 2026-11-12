@@ -94,8 +94,10 @@ drive-average counter. Independently collected/cumulative averages may differ.
 clockwise from true north. `gpsDirection` is its nearest eight-point direction.
 It does not assume a reference for the raw OEM `gpsHeadingDeg`, which remains
 unchanged. The view session requires vehicle speed of at least 3 km/h, movement
-of at least 3 metres, and samples no more than 5 seconds apart. Missing positions,
-implausible jumps, stopping and pausing clear the course. This is driving course,
+of at least 3 metres, and samples no more than 5 seconds apart. Stopping or implausible jumps stop bearing recalculation while retaining the last
+course. It expires after more than 30 seconds without fresh valid position data;
+pausing/resetting the session clears it immediately. Fresh stationary positions
+keep the last driving course available. This is driving course,
 not a magnetic heading or proof of GPS fix quality. The simulator supplies an
 explicitly simulated course. Classic rotates its cardinal ring using this field
 and shows no cardinal direction when it is unavailable. Real driving verification

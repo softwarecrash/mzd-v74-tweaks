@@ -174,6 +174,7 @@
         window.removeEventListener('message',receive,false); window.removeEventListener('resize',fit,false);
     }
     document.getElementById('settings').onclick = function () { open('settings'); };
+    document.getElementById('gauge').onclick = function () { if (!ended && !suspended && initialized && page === 'gauge') { open('settings'); } };
     document.getElementById('menu-back').onclick = back;
     window.addEventListener('message',receive,false); window.addEventListener('resize',fit,false); window.addEventListener('unload',dispose,false);
     if (sdk && sdk.setLayout) { sdk.setLayout('with-status-bar'); }

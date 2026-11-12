@@ -15,7 +15,7 @@ for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skin
 
 function fixture(native, live, initial, deferred, bitmap=false) {
     const timeouts = new Map(); let timeoutId = 0;
-    const stats = {bitmapDraws:0,rotations:[]};
+    const stats = {bitmapDraws:0,rotations:[],imageLoads:[]};
     const events = {}, intervals = new Map(), texts = [], labels = [], messages = [], saved = {};
     if (initial) saved['mzd-drivedash-design-preview-v1']=JSON.stringify(initial);
     const drawing = new Proxy({}, {get(target, key) {
@@ -63,7 +63,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
             }
         }
     };
-    if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;};
+    if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;Object.defineProperty(this,'src',{set(value){stats.imageLoads.push(value);}});};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
     for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
@@ -289,3 +289,16 @@ for(const design of ['sakura','midnight-rose']){
  illustrated.dispose();
 }
 console.log('DRIVEDASH_ILLUSTRATED_PASSED: both themes, shared live values, translations, no-image fallback and ES5.');
+
+for(const design of ['oem-style','classic','motorsport','sakura','midnight-rose']){
+ const lazy=fixture(false,false,{design},false,true);
+ assert.deepEqual(lazy.stats.imageLoads,design==='classic'||design==='motorsport'?[]:['skins/'+design+'-background.png'],'Only selected skin loads its bitmap.');
+ lazy.nodes.gauge.onclick();assert.equal(lazy.nodes['menu-title'].textContent,'Einstellungen','Tapping gauge opens settings.');lazy.dispose();
+}
+
+let demoClock=0,demoTick,demoState;
+const dw={setInterval(fn){demoTick=fn;return 1;},clearInterval(){}};
+vm.runInNewContext(source('demo.js'),{window:dw,Date:class{getTime(){return demoClock;}}});
+const highSpeedDemo=new dw.DriveDashDemo();highSpeedDemo.start(value=>{demoState=value;},true);
+for(const [seconds,speed] of [[16,288],[20,320],[24,360]]){demoClock=seconds*1000;demoTick();assert.equal(demoState.speedKph,speed);}
+highSpeedDemo.stop();

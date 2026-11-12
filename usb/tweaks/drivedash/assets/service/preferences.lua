@@ -23,12 +23,15 @@ function M.create(fs,path,mkdir)
         if text=='' then return defaults()end
         local value,seen={},{}
         for line in text:gmatch('[^\n]+')do
-            local key,raw=line:match('^([A-Za-z]+)=([^\r]+)$')
-            assert(key and not seen[key],'Invalid settings file.');seen[key]=true
-            if key=='version' then value[key]=tonumber(raw)
-            elseif key=='animated' then
-                assert(raw=='true' or raw=='false','Invalid animation setting.');value[key]=raw=='true'
-            else value[key]=raw end
+            line=line:gsub('\r$','')
+            if not line:match('^%s*$')then
+                local key,raw=line:match('^([A-Za-z]+)=([^\r]+)$')
+                assert(key and not seen[key],'Invalid settings file.');seen[key]=true
+                if key=='version' then value[key]=tonumber(raw)
+                elseif key=='animated' then
+                    assert(raw=='true' or raw=='false','Invalid animation setting.');value[key]=raw=='true'
+                else value[key]=raw end
+            end
         end
         return valid(value)
     end

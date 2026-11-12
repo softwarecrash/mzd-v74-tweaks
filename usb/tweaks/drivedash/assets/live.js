@@ -11,15 +11,15 @@
             request(function (error, result) {
                 pending = false;
                 if (!active) { return; }
-                if (mine !== generation) { poll(); return; }
+                if (mine !== generation) { timer = global.setTimeout(poll,100); return; }
                 if (error || !result || result.source !== 'cmu') {
                     failures += 1;
-                    if (failures === 3) { callback({source:'unavailable'}); }
+                    if (failures >= 3) { callback({source:'unavailable'}); }
                     delay = failures < 3 ? 250 : Math.min(8000,Math.max(1000,delay*2));
                 } else {
                     failures = 0; callback(result); delay = result.available ? 250 : 1000;
                 }
-                if (active && mine === generation) { timer = global.setTimeout(poll,Math.max(0,delay-(new Date().getTime()-began))); }
+                if (active && mine === generation) { timer = global.setTimeout(poll,Math.max(100,delay-(new Date().getTime()-began))); }
             });
         }
         return {start:function (fn) {
