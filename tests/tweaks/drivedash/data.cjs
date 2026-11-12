@@ -62,3 +62,10 @@ wallTime=25000;assert.equal(hold.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,g
 wallTime=50000;assert.equal(hold.update(sample(4,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N','Fresh stationary positions retain direction.');
 wallTime=80000;assert.equal(hold.update({source:'unavailable'}).gpsDirection,'N','Retain through thirty seconds without GPS.');
 wallTime=80001;assert.equal(hold.update({source:'unavailable'}).gpsDirection,null,'Expire after thirty seconds without fresh positions.');
+
+// Fresh fixes arrive about every 2-2.5 s; one missed read (5.2 s gap) still gives a course.
+const cadence=model.createSession();
+const at=(sequence,seconds,lat,lon)=>({source:'cmu',available:true,sequence,sampleSeconds:seconds,speedKph:50,rpm:1800,gpsLatitudeDeg:lat,gpsLongitudeDeg:lon,fresh:{speedKph:true,rpm:true,gps:true}});
+cadence.update(at(1,0,48,11));
+assert.equal(cadence.update(at(2,2.4,48.0003,11)).gpsDirection,'N');
+assert.equal(cadence.update(at(3,7.6,48.0003,11.0006)).gpsDirection,'E','One missed GPS read still gives a course.');

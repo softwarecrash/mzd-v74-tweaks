@@ -40,7 +40,8 @@ the last value; the third clears it. Success resets the failure counter. A sessi
 idle for ten seconds resets the cache. Opening settings or leaving
 stops new requests. One already executing request may finish within its deadline.
 There is no background trip recorder or legacy websocketd. GPS uses one bounded
-read-only LDS query in the secondary rotation while the instrument is open.
+read-only LDS query at most every two seconds while the instrument is open,
+backing off to at most once a minute after three failed queries.
 
 Speed/RPM, temperatures, vehicle trip counter and stored average consumption use
 the native SMDB fields. Initial stationary real-car readings confirmed RPM and

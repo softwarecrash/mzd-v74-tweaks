@@ -52,7 +52,7 @@
                     lon = (out.gpsLongitudeDeg-position.lon)*rad;
                     a = Math.sin(lat/2)*Math.sin(lat/2)+Math.cos(position.lat*rad)*Math.cos(out.gpsLatitudeDeg*rad)*Math.sin(lon/2)*Math.sin(lon/2);
                     distance = 6371000*2*Math.atan2(Math.sqrt(Math.min(1,a)),Math.sqrt(Math.max(0,1-a)));
-                    if (dt <= 0 || dt > 5 || distance > 100+dt*60) { position = null; }
+                    if (dt <= 0 || dt > 7 || distance > 100+dt*60) { position = null; }
                     else if (distance >= 3) {
                         angle = Math.atan2(Math.sin(lon)*Math.cos(out.gpsLatitudeDeg*rad),Math.cos(position.lat*rad)*Math.sin(out.gpsLatitudeDeg*rad)-Math.sin(position.lat*rad)*Math.cos(out.gpsLatitudeDeg*rad)*Math.cos(lon));
                         course = (angle/rad+360)%360; position = null;
