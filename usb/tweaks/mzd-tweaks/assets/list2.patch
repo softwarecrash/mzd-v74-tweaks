@@ -1,0 +1,183 @@
+--- target.data
++++ target.data
+@@ -125,10 +125,10 @@
+         listReorderScrollTimeout :              0, // @SW00155245, needs faster scroll during re-oreder
+ 
+         // multicontroller hold timeouts and intervals
+-        autoscrollTier1Timeout :                1500,
+-        autoscrollTier2Timeout :                5000,
+-        autoscrollTier1Interval :               500,
+-        autoscrollTier2Interval :               1000,
++        get autoscrollTier1Timeout() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 500 : 1500; },
++        get autoscrollTier2Timeout() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 1500 : 5000; },
++        get autoscrollTier1Interval() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 300 : 500; },
++        get autoscrollTier2Interval() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 500 : 1000; },
+ 
+         hvThreshold :                           45 * (Math.PI/180),
+ 
+@@ -6380,7 +6380,7 @@
+                         this._tiltHoldTimeoutId = null;
+                         log.debug('Schedule autoscroll tier 1');
+                         this._tiltHoldTimeoutId = setTimeout(function() {                               // schedule first autoscroll tier
+-                            this._beep('Long', 'Multicontroller');                                      // produce beep
++                            if (!window.mzdTweaks || window.mzdTweaks.list_beep !== false) { this._beep('Long', 'Multicontroller'); } // produce beep
+                             log.debug('Start autoscroll tier 1');
+                             this._handleMCDown();                                                       // do the first scroll down
+                             clearInterval(this._tiltHoldIntervalId);                                    // clear any redundand intervals
+@@ -6447,7 +6447,7 @@
+                         this._tiltHoldTimeoutId = null;
+                         log.debug('Schedule autoscroll tier 1');
+                         this._tiltHoldTimeoutId = setTimeout(function() {                             // schedule first autoscroll tier
+-                            this._beep('Long', 'Multicontroller');                                    // produce beep
++                            if (!window.mzdTweaks || window.mzdTweaks.list_beep !== false) { this._beep('Long', 'Multicontroller'); } // produce beep
+                             log.debug('Start autoscroll tier 1');
+                             this._handleMCUp();                                                       // do the first scroll up
+                             clearInterval(this._tiltHoldIntervalId);                                  // clear any redundand intervals
+@@ -6812,6 +6812,8 @@
+             // get relative focussed index before moving the focus
+             var rfi = this._getRelativeFocussedIndex();
+ 
++            var currentFocussedIndex = this._getFocussedIndex();
++
+             // attempt focus move
+             if (rfi <= bottomFocusThreshold)
+             {
+@@ -6831,6 +6833,27 @@
+ 
+             // get relative focussed index after moving the focus
+             rfi = this._getRelativeFocussedIndex();
++
++            if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
++            {
++                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
++                {
++                    // An unchanged focus can also mean normal scrolling.
++                    // Wrap only if no selectable item remains in this direction.
++                    var nextIndex = currentFocussedIndex + 1;
++                    while (nextIndex < this.dataList.itemCount && this.dataList.items[nextIndex] && this.dataList.items[nextIndex].disabled) nextIndex++;
++                    if (nextIndex >= this.dataList.itemCount)
++                    {
++                        var index = 0;
++                        while (index < this.dataList.itemCount && this.dataList.items[index] && this.dataList.items[index].disabled) index++;
++                        if (index < this.dataList.itemCount && this.dataList.items[index] && !this.dataList.items[index].disabled)
++                        {
++                            this._manageFocus(index);
++                            return 'consumed';
++                        }
++                    }
++                }
++            }
+         }
+ 
+         // attempt scroll if the focus has passed the threshold
+@@ -6906,6 +6929,8 @@
+             // get relative focussed index before moving the focus
+             var rfi = this._getRelativeFocussedIndex();
+ 
++            var currentFocussedIndex = this._getFocussedIndex();
++
+             // attempt focus move
+             if (rfi >= 1)
+             {
+@@ -6925,6 +6950,27 @@
+ 
+             // get relative focussed index after moving the focus
+             rfi = this._getRelativeFocussedIndex();
++
++            if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
++            {
++                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
++                {
++                    // An unchanged focus can also mean normal scrolling.
++                    // Wrap only if no selectable item remains in this direction.
++                    var nextIndex = currentFocussedIndex - 1;
++                    while (nextIndex >= 0 && this.dataList.items[nextIndex] && this.dataList.items[nextIndex].disabled) nextIndex--;
++                    if (nextIndex < 0)
++                    {
++                        var index = this.dataList.itemCount - 1;
++                        while (index >= 0 && this.dataList.items[index] && this.dataList.items[index].disabled) index--;
++                        if (index >= 0 && this.dataList.items[index] && !this.dataList.items[index].disabled)
++                        {
++                            this._manageFocus(index);
++                            return 'consumed';
++                        }
++                    }
++                }
++            }
+         }
+ 
+         // attempt scroll if the focus is at the first item
+@@ -6996,6 +7042,8 @@
+                 // get relative focussed index before moving the focus
+                 var rfi = this._getRelativeFocussedIndex();
+ 
++                var currentFocussedIndex = this._getFocussedIndex();
++
+                 // attempt focus move
+                 if (rfi <= bottomFocusThreshold)
+                 {
+@@ -7015,6 +7063,27 @@
+ 
+                 // get relative focussed index after moving the focus
+                 rfi = this._getRelativeFocussedIndex();
++
++                if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
++                {
++                    if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
++                    {
++                        // An unchanged focus can also mean normal scrolling.
++                        // Wrap only if no selectable item remains in this direction.
++                        var nextIndex = currentFocussedIndex + 1;
++                        while (nextIndex < this.dataList.itemCount && this.dataList.items[nextIndex] && this.dataList.items[nextIndex].disabled) nextIndex++;
++                        if (nextIndex >= this.dataList.itemCount)
++                        {
++                            var index = 0;
++                            while (index < this.dataList.itemCount && this.dataList.items[index] && this.dataList.items[index].disabled) index++;
++                            if (index < this.dataList.itemCount && this.dataList.items[index] && !this.dataList.items[index].disabled)
++                            {
++                                this._manageFocus(index);
++                                return 'consumed';
++                            }
++                        }
++                    }
++                }
+             }
+             // attempt scroll if the focus has passed the threshold
+             if (rfi > bottomFocusThreshold)
+@@ -7080,6 +7149,8 @@
+                 // get relative focussed index before moving the focus
+                 var rfi = this._getRelativeFocussedIndex();
+ 
++                var currentFocussedIndex = this._getFocussedIndex();
++
+                 // attempt focus move
+                 if (rfi >= 1)
+                 {
+@@ -7099,6 +7170,27 @@
+ 
+                 // get relative focussed index after moving the focus
+                 rfi = this._getRelativeFocussedIndex();
++
++                if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
++                {
++                    if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
++                    {
++                        // An unchanged focus can also mean normal scrolling.
++                        // Wrap only if no selectable item remains in this direction.
++                        var nextIndex = currentFocussedIndex - 1;
++                        while (nextIndex >= 0 && this.dataList.items[nextIndex] && this.dataList.items[nextIndex].disabled) nextIndex--;
++                        if (nextIndex < 0)
++                        {
++                            var index = this.dataList.itemCount - 1;
++                            while (index >= 0 && this.dataList.items[index] && this.dataList.items[index].disabled) index--;
++                            if (index >= 0 && this.dataList.items[index] && !this.dataList.items[index].disabled)
++                            {
++                                this._manageFocus(index);
++                                return 'consumed';
++                            }
++                        }
++                    }
++                }
+             }
+ 
+             // attempt scroll if the focus is at the first item

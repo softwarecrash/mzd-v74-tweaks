@@ -13,6 +13,7 @@ CASES = {
     'carplay-hud': 'component-bundle',
     'cluster-language': 'component-bundle',
     'fuel-consumption-ending': 'component-bundle',
+    'mzd-tweaks': 'component-bundle',
     'list-beep': 'shared-patch',
     'list-loop': 'shared-patch',
     'shorter-delay': 'shared-patch',

@@ -203,7 +203,10 @@ mzd_manifest_load() {
     fi
     [ -z "$CONFIGS" ] || [ "$TYPE" != command ] || { mzd_manifest_error 'Command tweaks cannot own persistent config.';return 1; }
     if [ -n "$COMPONENTS" ]; then
-        [ "$COMPONENTS:$TYPE:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$LOCK_GROUP" = components.tsv:files:reset.sh:true:sm-config ] || { mzd_manifest_error 'Components require components.tsv, files, reset.sh, restart and sm-config lock.'; return 1; }
+        case "$COMPONENTS:$TYPE:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$LOCK_GROUP" in
+            components.tsv:files:reset.sh:true:sm-config|components.tsv:files:reset.sh:true:jci-gui) ;;
+            *) mzd_manifest_error 'Components require components.tsv, files, reset.sh, restart and sm-config or jci-gui lock.'; return 1 ;;
+        esac
         [ -z "$SHIM_ASSET$SHIM_PATH$SHIM_SERVICE$SHIM_EXTRA_TARGETS$SHIM_CHECKS" ] || { mzd_manifest_error 'Use either components or single-shim metadata.'; return 1; }
         if [ -n "${PAYLOAD_DIR:-}" ]; then
             case "$PAYLOAD_DIR" in

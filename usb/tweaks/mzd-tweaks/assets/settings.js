@@ -1,0 +1,6 @@
+window.mzdTweaks = {
+    "main_menu_loop": false,
+    "list_loop": false,
+    "list_beep": true,
+    "short_delay": false
+};

@@ -138,7 +138,7 @@ def parse(text):
     if values.get('components'):
         if (values['components'] != 'components.tsv' or values['type'] != 'files'
                 or values.get('reset_entrypoint') != 'reset.sh' or values['reboot_required'] != 'true'
-                or values.get('lock_group') != 'sm-config'):
+                or values.get('lock_group') not in ('sm-config', 'jci-gui')):
             raise ValueError('Invalid component bundle metadata.')
         if any(values.get(k) for k in ('shim_service', 'shim_asset', 'shim_path', 'shim_extra_targets', 'shim_checks')):
             raise ValueError('Use either components or single-shim metadata.')
