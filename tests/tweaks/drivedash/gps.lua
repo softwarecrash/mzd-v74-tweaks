@@ -12,16 +12,16 @@ end
 assert(gps.read(run).gpsSpeedKph==87.5)
 result.stdoutTruncated=true;assert(gps.read(run)==nil);result.stdoutTruncated=false
 result.exitCode=1;assert(gps.read(run)==nil)
--- The GPS slot is serialised with SMDB, cached, and uses the same retention rule.
+-- GPS stays fresh independently of the twelve slow fields at production cadence.
 local collector=assert(loadfile('usb/tweaks/drivedash/assets/service/collector.lua'))()
 local now,fail,calls=0,false,0
-local reader=collector.create({now=function()return now end,run=function()return {started=true,exitCode=0,stdout='0\n'}end,
+local reader=collector.create({interval=0.2,slowInterval=1,now=function()return now end,
+    run=function()return {started=true,exitCode=0,stdout='0\n'}end,
     gps=function()calls=calls+1;if not fail then return value end end})
 local sample
-for i=1,13 do sample=reader.sample();now=now+0.5 end
-assert(calls==1 and sample.gpsAltitudeM==-12.5)
+for i=0,120 do now=i*0.25;sample=reader.sample()end
+assert(calls==16 and sample.gpsAltitudeM==-12.5)
 fail=true
-for i=1,12 do sample=reader.sample();now=now+0.5 end
-for i=1,2 do sample=reader.sample();now=now+0.5;assert(sample.gpsAltitudeM==-12.5)end
-sample=reader.sample();assert(sample.gpsAltitudeM==nil)
-print('DRIVEDASH_GPS_PASSED: bounded LDS argv, typed parsing, invalid replies, serial scheduling and three-failure retention.')
+for i=1,3 do now=30+i*2;sample=reader.sample();assert((sample.gpsAltitudeM~=nil)==(i<3))end
+now=50;sample=reader.sample();assert(sample.gpsAltitudeM==nil)
+print('DRIVEDASH_GPS_PASSED: bounded parsing, independent two-second cadence, failure retention and idle reset.')

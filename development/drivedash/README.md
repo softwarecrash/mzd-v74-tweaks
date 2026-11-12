@@ -4,8 +4,7 @@ Development draft for issue #62, with a browser demo and an initial read-only
 CMU data adapter. The installable package and single asset source now live in
 `usb/tweaks/drivedash/`. No additional AIO tweaks are bundled.
 Core readings, rendering and lifecycle were exercised on vehicle and bench CMUs
-during development. The current five-skin SDK build and GPS-course compass still
-need a new physical acceptance run; simulator checks do not replace that run.
+during development. The five-skin SDK build passed the [bench acceptance run](../test-runs/2026-11-12-drivedash-five-skins-bench.md). GPS-course behavior still needs real driving; simulator checks do not replace that run.
 
 The first skin is named **OEM Style**, inspired by Mazda instrument clusters. The
 application is skin-independent: `skins/registry.js` manages renderers, and each
@@ -84,8 +83,8 @@ returns from settings to the gauge; Back on the gauge returns to Applications.
 In standalone preview a matching HTML menu is used because no OEM List2 factory
 is available. Vehicle simulation pauses while settings are open and stops on exit.
 
-The emulator shows appearance and input behavior. Real vehicle data, CPU usage,
-Opera rendering and real config persistence on hardware remain unverified;
+The emulator shows appearance and input behavior. Real vehicle data and config persistence have earlier hardware coverage; the
+current GPS-course cadence and CPU usage still require driving checks;
 package/config lifecycle and failure handling have isolated container coverage.
 
 Instrument photo references for the BM approximation:
@@ -108,14 +107,14 @@ fixed fields using `/jci/smdb/smdb-read` and the existing argv-only process runn
 The shared host has already loaded the runner; the factory reuses
 `package.loaded.process`. The host and its scoped require facade are unchanged.
 There is no new executable, shell loop, websocketd or SMDB write. A bounded
-read-only LDS GPS query occupies one secondary sampling slot.
+read-only LDS GPS query runs at most once every two seconds, independently of the secondary-field rotation.
 The factory performs no reads at startup and registers no tick callback.
 The manifest declares the resident, service, translations and owned config
 directory. Its config template includes the shared data ownership marker, so
 seeded defaults and the existing GUI lifecycle agree on the directory owner.
 
-A sample reads speed and RPM, plus one rotating secondary field or GPS group. Repeated
-requests within 500 ms reuse the result. Each command receives a one-second deadline
+A sample batches speed and RPM plus one due rotating secondary field. GPS has its own two-second cadence. Repeated
+requests within 200 ms reuse the result. Each command receives a one-second deadline
 (the shared runner additionally allows its existing TERM/KILL cleanup grace).
 Valid readings survive two consecutive failed attempts; the third failure
 clears only the affected field. A successful read resets its failure counter.
@@ -211,7 +210,8 @@ authoring tool `render-background.cjs` (development-only `@napi-rs/canvas` 1.1.0
 pass the private Mazda fonts directory). No renderer package or font files are
 installed on the CMU. The original vector routine remains as a load-error fallback.
 Texts, data and needle remain dynamic. Needle movement interpolates only the
-displayed RPM for 350 ms with redraws at most every 50 ms while moving; measured
+displayed RPM with a critically damped response bounded to one second and redraws
+at most every 33 ms while moving; measured
 samples, statistics and service polling remain unchanged. Settings, phone
 suspension and disposal cancel the redraw timer. The cleaner fixed instrument outlines were confirmed visually on the bench CMU.
 Needle motion with changing real vehicle RPM and CPU behavior still need checks.
@@ -240,3 +240,8 @@ through 88, 100, 180, 240, 288, 320 and 360 km/h and back over about 40 seconds;
 these are simulated values only. Static demo mode remains at 88 km/h. Background
 PNGs load only when their skin is first drawn. Live polling waits at least 100 ms
 after a reply, including slow requests. Settings accept LF/CRLF and blank lines.
+
+Settings loading makes at most three attempts, with two and four seconds between
+attempts. After failure the settings menu stays read-only until the app is reopened;
+saved values are never replaced with defaults. Lazy artwork completion redraws
+only the active gauge, including static demos, without a background timer.

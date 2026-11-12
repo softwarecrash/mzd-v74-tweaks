@@ -24,3 +24,8 @@ console.log('DRIVEDASH_LIVE_PASSED: three-failure threshold, recovery/reset, ser
 source.start(()=>{});clock+=170;requests.shift()(null,{source:'cmu',available:true});assert([...timers.values()].some(t=>t.ms===100),'minimum rest after a slow query');source.stop();
 
 source.start(()=>{});clock+=500;requests.shift()(null,{source:'cmu',available:true});assert([...timers.values()].some(t=>t.ms===100),'overdue requests must still rest');source.stop();
+
+source.start(value=>{if(value.source==='cmu')throw new Error('render failure');});
+assert.throws(()=>requests.shift()(null,{source:'cmu',available:true}),/render failure/);
+assert.equal(timers.size,1,'Rendering errors must not stop polling');
+source.stop();assert.equal(timers.size,0);

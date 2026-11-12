@@ -4,7 +4,7 @@
     var PI=Math.PI;
     function register(theme){
         var image=null,cache=null,cacheContext=null,key=null;
-        function loadBackground(){if(!image && typeof global.Image==='function'){image=new global.Image();image.src='skins/'+theme.id+'-background.png';}}
+        function loadBackground(){if(!image && typeof global.Image==='function'){image=new global.Image();image.onload=function(){global.DriveDashSkins.invalidate(theme.id);};image.src='skins/'+theme.id+'-background.png';}}
         function text(ctx,value,x,y,size,color){ctx.font=size+'px DriveDashMazda, Arial, sans-serif';ctx.textAlign='center';ctx.fillStyle=color||theme.ink;ctx.fillText(value,x,y);}
         function arc(ctx,x,y,r,start,end,color,width){ctx.beginPath();ctx.arc(x,y,r,start,end);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
         function circle(ctx,x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,2*PI);ctx.fillStyle=color;ctx.fill();}

@@ -7,7 +7,7 @@
     var storageKey = 'mzd-drivedash-design-preview-v1', language = 'en_US', context = document.getElementById('gauge').getContext('2d');
     var token = (sdk && sdk.token) ? sdk.token : ((/(?:^|[&#])mzdgui=([a-zA-Z0-9-]+)(?:&|$)/.exec(window.location.hash) || ['',''])[1]);
     var live = window.location.protocol === 'file:' || /[?&]data=cmu(?:&|$)/.test(window.location.search);
-    var loadingPreferences = live, preferenceError = '';
+    var loadingPreferences = live, preferencesLoaded = !live, preferenceError = '', preferenceAttempt = 0, preferenceTimer = null;
     var preferences = new window.DriveDashPreferences(function (args, callback) {
         if (sdk && sdk.request) {
             sdk.request('preferences', args, callback, 10000);
@@ -70,6 +70,7 @@
     }
     function save() {
         if (live) {
+            if (!preferencesLoaded) { return; }
             preferences.save(config,function (error) {
                 preferenceError = error ? 'settingsNotSaved' : '';
                 if (!ended && page !== 'gauge') { renderMenu(); }
@@ -103,6 +104,7 @@
                 {id:'speed',label:t('speedUnits'),detail:t(config.speedUnit),caret:true},
                 {id:'temperature',label:t('temperatureUnits'),detail:config.tempUnit === 'auto' ? t('auto') : t(config.tempUnit === 'F' ? 'fahrenheit' : 'celsius'),caret:true},
                 {id:'language',label:t('language'),detail:config.language === 'auto' ? t('auto') : t('language.'+config.language),caret:true}];
+            if (!preferencesLoaded) { for (i = 0; i < settings.length; i += 1) { settings[i].disabled = true; } }
             if (preferenceError) { settings.splice(0,0,{id:'settingsError',label:t(preferenceError),disabled:true}); }
             if (!live) { settings.splice(4,0,{id:'animated',label:t('animate'),detail:t(config.animated ? 'on' : 'off')}); }
             return settings;
@@ -142,7 +144,7 @@
     }
     function back() { if (page === 'gauge') { return false; } if (page === 'settings') { resume(); } else { open('settings'); } return true; }
     function choose(position) {
-        var row = rows()[position]; if (!row || row.disabled || ended) { return; } focus = position;
+        var row = rows()[position]; if (!row || row.disabled || ended || !preferencesLoaded) { return; } focus = position;
         if (page === 'settings') {
             if (row.id === 'animated') { config.animated = !config.animated; save(); renderMenu(); return; }
             open(row.id); return;
@@ -169,7 +171,7 @@
         if (value.type === 'drivedash-native-focus') { focus = value.index; }
     }
     function dispose() {
-        if (ended) { return; } source.stop(); stopNeedle(); session.pause(); window.clearTimeout(systemTimer);
+        if (ended) { return; } source.stop(); stopNeedle(); session.pause(); window.clearTimeout(systemTimer); window.clearTimeout(preferenceTimer); skins.onInvalidate(null);
         if (nativeMenu) { post({type:'drivedash-native-release'}); } ended = true;
         window.removeEventListener('message',receive,false); window.removeEventListener('resize',fit,false);
     }
@@ -190,12 +192,20 @@
     if (sdk) { sdk.onInput(input); sdk.onDispose(dispose); sdk.ready(); }
     fit();
     if (!token && languageMatch) { system.language = languageMatch[1]; applyLanguage(); }
-    if (live) {
+    skins.onInvalidate(function (id) { if (config.design === id) { renderGauge(); } });
+    function loadPreferences() {
+        if (ended) { return; }
+        preferenceAttempt += 1;
         preferences.load(function (error,value) {
             if (ended) { return; }
-            loadingPreferences = false; preferenceError = error ? 'settingsLoadFailed' : '';
-            config = model.settings(error ? null : value,designIds(),Object.keys(window.DriveDashLanguages));
+            if (error && preferenceAttempt < 3) {
+                preferenceTimer = window.setTimeout(loadPreferences,preferenceAttempt * 2000);
+                return;
+            }
+            loadingPreferences = false; preferencesLoaded = !error; preferenceError = error ? 'settingsLoadFailed' : '';
+            if (!error) { config = model.settings(value,designIds(),Object.keys(window.DriveDashLanguages)); }
             applyLanguage(); requestSystem(); finishStartup();
         });
-    } else { requestSystem(); finishStartup(); }
+    }
+    if (live) { loadPreferences(); } else { requestSystem(); finishStartup(); }
 }());

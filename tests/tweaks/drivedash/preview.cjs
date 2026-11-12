@@ -15,7 +15,7 @@ for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skin
 
 function fixture(native, live, initial, deferred, bitmap=false) {
     const timeouts = new Map(); let timeoutId = 0;
-    const stats = {bitmapDraws:0,rotations:[],imageLoads:[]};
+    const stats = {bitmapDraws:0,rotations:[],imageLoads:[],images:[],timerDelays:[]};
     const events = {}, intervals = new Map(), texts = [], labels = [], messages = [], saved = {};
     if (initial) saved['mzd-drivedash-design-preview-v1']=JSON.stringify(initial);
     const drawing = new Proxy({}, {get(target, key) {
@@ -41,7 +41,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
     const window = {parent, innerWidth: 800, innerHeight: 416, location: {hash: native ? '#mzdgui=preview-token' : '', search: live ? '?lang=de_DE&data=cmu' : '?lang=de_DE'},
         localStorage: {getItem: key => saved[key] || null, setItem: (key, value) => {saved[key] = value;}},
         addEventListener: (name, fn) => {events[name] = fn;}, removeEventListener: name => {delete events[name];},
-        setTimeout: fn => {timeouts.set(++timeoutId,fn);return timeoutId;},clearTimeout: id => {timeouts.delete(id);},
+        setTimeout: (fn,ms) => {stats.timerDelays.push(ms);timeouts.set(++timeoutId,fn);return timeoutId;},clearTimeout: id => {timeouts.delete(id);},
         setInterval: fn => {const id = intervals.size+1; intervals.set(id, fn); return id;}, clearInterval: id => intervals.delete(id),
         MzdGuiModule: {
             token: native ? 'preview-token' : '',
@@ -63,7 +63,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
             }
         }
     };
-    if (bitmap) window.Image = function () {this.complete=true;this.width=800;this.height=416;Object.defineProperty(this,'src',{set(value){stats.imageLoads.push(value);}});};
+    if (bitmap) window.Image = function () {stats.images.push(this);this.complete=true;this.width=800;this.height=416;Object.defineProperty(this,'src',{set(value){stats.imageLoads.push(value);}});};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
     for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
@@ -302,3 +302,25 @@ vm.runInNewContext(source('demo.js'),{window:dw,Date:class{getTime(){return demo
 const highSpeedDemo=new dw.DriveDashDemo();highSpeedDemo.start(value=>{demoState=value;},true);
 for(const [seconds,speed] of [[16,288],[20,320],[24,360]]){demoClock=seconds*1000;demoTick();assert.equal(demoState.speedKph,speed);}
 highSpeedDemo.stop();
+
+const retry = fixture(true,true,null,true);
+function failLoad(f) {const request=f.messages.filter(m=>m.operation==='preferences').at(-1);f.serviceCallbacks[request.id]('temporary');}
+function retryTimer(f,delay){assert.equal(f.stats.timerDelays.at(-1),delay);const [id,fn]=[...f.timeouts].at(-1);f.timeouts.delete(id);fn();}
+failLoad(retry);assert.equal(retry.nodes.stage.style.visibility,'hidden');retryTimer(retry,2000);
+failLoad(retry);retryTimer(retry,4000);failLoad(retry);
+retry.getUnitsCallback()({language:'de_DE'});
+retry.nodes.settings.onclick();retry.input('select','release');
+assert(!retry.messages.some(m=>m.values),'Failed load cannot overwrite settings');
+assert.equal(retry.messages.filter(m=>m.operation==='preferences').length,3);
+retry.dispose();assert.equal(retry.timeouts.size,0);
+const recovery=fixture(true,true,null,true);failLoad(recovery);retryTimer(recovery,2000);
+const load=recovery.messages.filter(m=>m.operation==='preferences').at(-1);
+recovery.serviceCallbacks[load.id](null,{design:'classic',language:'de_DE',speedUnit:'mph',tempUnit:'F'});
+assert.equal(recovery.nodes.stage.style.visibility,'visible');
+recovery.nodes.settings.onclick();assert.equal(recovery.messages.at(-1).menu.rows[0].detail,'Classic');recovery.dispose();
+const cancelled=fixture(true,true,null,true);failLoad(cancelled);cancelled.dispose();assert.equal(cancelled.timeouts.size,0);
+const artwork=fixture(false,false,{animated:false},false,true);
+const image=artwork.stats.images[0];const draws=artwork.stats.bitmapDraws;image.onload();
+assert(artwork.stats.bitmapDraws>draws,'Static demo redraws when its image loads');
+artwork.suspend();const stopped=artwork.stats.bitmapDraws;image.onload();assert.equal(artwork.stats.bitmapDraws,stopped);
+artwork.dispose();image.onload();assert.equal(artwork.stats.bitmapDraws,stopped);

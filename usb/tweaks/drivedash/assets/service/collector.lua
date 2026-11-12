@@ -21,7 +21,8 @@ function M.create(deps)
     local nextSlow,lastSample,sequence=1,nil,0
     local fresh={}
     local batchValues,lastSlow=nil,nil
-    local count=#slow+(deps.gps and 1 or 0)
+    local count=#slow
+    local lastGps=nil
     local gpsValues,gpsMisses={},0
     local function read(field)
         -- SSH and boot launches can have different inherited library paths.
@@ -47,13 +48,13 @@ function M.create(deps)
         local now=deps.now()
         -- No view requests for ten seconds means a new session, not fresh data.
         if lastSample and (now-lastSample>=10 or now<lastSample)then
-            values,misses={},{};gpsValues={};gpsMisses=0;nextSlow=1;lastSample=nil;lastSlow=nil
+            values,misses={},{};gpsValues={};gpsMisses=0;nextSlow=1;lastSample=nil;lastSlow=nil;lastGps=nil
         end
         if not lastSample or now-lastSample>=(deps.interval or 0.5) then
             fresh={}
             local slowDue=not lastSlow or now-lastSlow>=(deps.slowInterval or 0)
             local fields={{'speedKph',current,'VehicleSpeed',0,40000,function(n)return n/100 end},{'rpm',current,'EngineSpeed',0,8000,function(n)return n*2 end}}
-            if slowDue and nextSlow<=#slow then fields[#fields+1]=slow[nextSlow]end
+            if slowDue then fields[#fields+1]=slow[nextSlow]end
             if deps.readBatch then
                 local ok,result=pcall(deps.readBatch,fields)
                 batchValues=ok and type(result)=='table' and result or {}
@@ -61,8 +62,16 @@ function M.create(deps)
             fresh.speedKph=read({'speedKph',current,'VehicleSpeed',0,40000,function(n)return n/100 end})
             fresh.rpm=read({'rpm',current,'EngineSpeed',0,8000,function(n)return n*2 end})
             if slowDue then
-            lastSlow=now
-            if nextSlow>#slow then
+                lastSlow=now
+                local field=slow[nextSlow]
+                local ok=read(field)
+                fresh[field[1]]=ok
+                -- Retry known fields; unsupported fields cannot stall discovery.
+                if ok or values[field[1]]==nil then nextSlow=nextSlow%count+1 end
+            end
+            -- GPS has its own cadence, independent of the slow-field rotation.
+            if deps.gps and (not lastGps or now-lastGps>=(deps.gpsInterval or 2))then
+                lastGps=now
                 local ok,result=pcall(deps.gps)
                 if ok and type(result)=='table' then
                     gpsValues=result;gpsMisses=0;fresh.gps=true
@@ -70,14 +79,6 @@ function M.create(deps)
                     gpsMisses=gpsMisses+1
                     if gpsMisses>=3 then gpsValues={}end
                 end
-                if fresh.gps or next(gpsValues)==nil then nextSlow=1 end
-            else
-                local field=slow[nextSlow]
-                local ok=read(field)
-                fresh[field[1]]=ok
-                -- Retry a known field promptly; unsupported fields cannot stall discovery.
-                if ok or values[field[1]]==nil then nextSlow=nextSlow%count+1 end
-            end
             end
             sequence=sequence+1
             lastSample=deps.now()

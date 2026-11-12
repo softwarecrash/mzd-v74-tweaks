@@ -102,6 +102,7 @@ jobs:
         run: python tests/contract/test_terminal.py
       - name: Test drivedash Lua domain
         run: |
+          lua5.1 tests/tweaks/drivedash/batch.lua
           lua5.1 tests/tweaks/drivedash/collector.lua
           lua5.1 tests/tweaks/drivedash/gps.lua
           lua5.1 tests/tweaks/drivedash/preferences.lua

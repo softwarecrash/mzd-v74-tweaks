@@ -12,18 +12,21 @@
                 pending = false;
                 if (!active) { return; }
                 if (mine !== generation) { timer = global.setTimeout(poll,100); return; }
-                if (error || !result || result.source !== 'cmu') {
-                    failures += 1;
-                    if (failures >= 3) { callback({source:'unavailable'}); }
-                    delay = failures < 3 ? 250 : Math.min(8000,Math.max(1000,delay*2));
-                } else {
-                    failures = 0; callback(result); delay = result.available ? 250 : 1000;
+                try {
+                    if (error || !result || result.source !== 'cmu') {
+                        failures += 1;
+                        delay = failures < 3 ? 250 : Math.min(8000,Math.max(1000,delay*2));
+                        if (failures >= 3) { callback({source:'unavailable'}); }
+                    } else {
+                        failures = 0; delay = result.available ? 250 : 1000; callback(result);
+                    }
+                } finally {
+                    if (active && mine === generation) { timer = global.setTimeout(poll,Math.max(100,delay-(new Date().getTime()-began))); }
                 }
-                if (active && mine === generation) { timer = global.setTimeout(poll,Math.max(100,delay-(new Date().getTime()-began))); }
             });
         }
         return {start:function (fn) {
-            stop(); active = true; callback = fn; delay = 250; failures = 0; callback({source:'unavailable'}); poll();
+            stop(); active = true; callback = fn; delay = 250; failures = 0; try { callback({source:'unavailable'}); } finally { poll(); }
         },stop:stop};
     };
 }(window));

@@ -108,7 +108,7 @@
         ctx.restore();
     }
     var background = null;
-    function loadBackground(){if(!background && typeof window.Image==='function'){background=new window.Image();background.src='skins/oem-style-background.png';}}
+    function loadBackground(){if(!background && typeof window.Image==='function'){background=new window.Image();background.onload=function(){window.DriveDashSkins.invalidate('oem-style');};background.src='skins/oem-style-background.png';}}
     function drawInstrument(ctx,m,t) {
         var cx = 400, cy = 249, i, a, g;
         ctx.clearRect(0,0,800,416);

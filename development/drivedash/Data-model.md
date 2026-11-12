@@ -55,13 +55,13 @@ are formatted as `m:ss` or `h:mm:ss`. No field changes language independently.
 ## Sampling and lifecycle
 
 Speed and RPM are read on every new sample; one secondary slot rotates through
-the other fields. GPS occupies one slot, with one LDS query supplying all five
-GPS fields. All commands use the existing process runner and a one-second
-deadline. Requests within 500 ms reuse the sample. Two failed reads retain the
+the other fields at most once per second. GPS is queried independently at most
+once every two seconds, with one LDS query supplying all five GPS fields. All commands use the existing process runner and a one-second
+deadline. Requests within 200 ms reuse the sample. Two failed reads retain the
 last good field; the third removes it. No new reads run when the view is closed
 or showing settings, and the collector invalidates its cache after ten idle
-seconds. Additional fields lengthen the secondary-field rotation; they do not
-create parallel processes or polling loops.
+seconds. Additional fields lengthen the secondary-field rotation. Each batch runs at most
+three bounded SMDB processes concurrently; there are no background polling loops.
 
 Collector metadata contains `schemaVersion`, monotonic `sampleSeconds`,
 `sequence` and per-sample `fresh` flags. Reused samples have the same sequence.
