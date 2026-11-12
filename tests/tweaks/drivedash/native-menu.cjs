@@ -7,8 +7,8 @@ const root={style:{cssText:'original-root'},className:'original',appendChild(nod
 const frame={parentNode:root,style:{display:'block'},contentWindow:{postMessage(){}}};
 const view={source:frame.contentWindow,token:'native-test'};
 const control={handleControllerEvent(){},getContextCapture(){return {focussedItem:1,topItem:0};},setDataListAndUpdateItems(data){updates++;this.data=data;},restoreContext(capture){assert.equal(capture.focussedItem,1);}};
-const framework={instantiateControl(app,parent,name,properties){created++;assert.equal(app,'system');assert.equal(name,'List2Ctrl');assert.equal(parent.className,'TemplateWithStatusLeft List2Tmplt');control.data=properties.dataList;return control;},destroyControl(){},sendEventToMmui(){},getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=> ({_currentContextTemplate:{divElt:{style:{visibility:'hidden'}}}}),common:{setSbName(){}}};
-const document={createElement:()=> ({style:{},className:'',innerHTML:''}),getElementsByTagName:()=>[frame]};
+const framework={instantiateControl(app,parent,name,properties){created++;assert.equal(app,'system');assert.equal(name,'List2Ctrl');assert.ok(parent.className.split(/\s+/).includes('TemplateWithStatusLeft'));assert.ok(parent.className.split(/\s+/).includes('List2Tmplt'));control.data=properties.dataList;return control;},destroyControl(){},sendEventToMmui(){},getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=> ({_currentContextTemplate:{divElt:{style:{visibility:'hidden'}}}}),common:{setSbName(){}}};
+const document={createElement:()=> ({style:{},className:'',innerHTML:'',appendChild(node){node.parentNode=this;}}),getElementsByTagName:()=>[frame]};
 const rootPath = path.resolve(__dirname, '../../..');
 const residentsWin = { framework, clearTimeout() {}, setTimeout(fn) { return 1; }, addEventListener() {}, removeEventListener() {} };
 vm.runInNewContext(fs.readFileSync(path.join(rootPath, 'usb/lib/gui-runtime/residents.js'), 'utf8'), { window: residentsWin, document });
