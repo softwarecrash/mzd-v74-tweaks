@@ -27,7 +27,7 @@ Optional sponsor links can be placed directly after the contributor's name.
 | [Snake](usb/tweaks/snake/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Minesweeper](usb/tweaks/minesweeper/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Touch While Driving](usb/tweaks/touch-while-driving/) | v74 implementation: [@softwarecrash](https://github.com/softwarecrash) |
-| [Instrument Cluster / HUD Language (test release)](usb/tweaks/cluster-language/) | shim: [@patrikguth](https://github.com/patrikguth); release: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
+| [Instrument Cluster and HUD Language](usb/tweaks/cluster-language/) | [@patrikguth](https://github.com/patrikguth); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
 | [SSH Access, including automatic Wi-Fi activation](usb/tweaks/ssh/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Backup JCI](usb/tweaks/backup-jci/) | launcher implementation: [@softwarecrash](https://github.com/softwarecrash); earlier v74 script: [@piotrmocko](https://github.com/piotrmocko) |
 | [Log Collector](usb/tweaks/logs-collector/) | launcher implementation: [@softwarecrash](https://github.com/softwarecrash); earlier v74 script: [@piotrmocko](https://github.com/piotrmocko) |

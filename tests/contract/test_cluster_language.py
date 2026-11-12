@@ -1,4 +1,4 @@
-"""Cluster-language real package on synthetic CMU files; the release library is not executed."""
+"""Cluster-language real package on synthetic CMU files; the shim is not executed (see shim/run.sh)."""
 from pathlib import Path
 import hashlib
 import os
@@ -21,8 +21,20 @@ def write(p,s):
 
 def md5(b):return hashlib.md5(b).hexdigest()
 
-assert hashlib.sha256((ROOT/'usb/tweaks/cluster-language/assets/libpatch-svcjciblmsettings.so').read_bytes()).hexdigest() == 'b8953d42edb9f7ada2b7b4c3742b4e382e5d9f14d2207eb0163b02587eb1d33a'
 checks=0
+# The GUI list and the shim must offer the same languages, in the agreed order:
+# off, English variants, then alphabetical.
+source=(ROOT/'src/mazda/patches/libpatch-svcjciblmsettings/cluster_language.c').read_text()
+table=re.findall(r'\{"([a-z-]+)", (\d+)\},',source)
+codes=[int(code) for name,code in table]
+assert len(set(codes))==len(codes) and all(1<=code<=255 for code in codes)
+assert len(table)==26
+manifest=(ROOT/'usb/tweaks/cluster-language/manifest.conf').read_text()
+options=re.search(r'^setting\.hud_display_language\.options=(.*)$',manifest,re.M).group(1).split(' ')
+assert options[0]=='off' and sorted(options[1:])==sorted(name for name,code in table) and len(options)<=64
+assert options[1:4]==['en-uk','en-us','en-au']
+labels=re.search(r'^setting\.hud_display_language\.labels=(.*)$',manifest,re.M).group(1).split('|')
+assert len(labels)==len(options) and labels[4:]==sorted(labels[4:])
 with tempfile.TemporaryDirectory(prefix='cmu-cluster-') as temporary:
     base=Path(temporary);usb=base/'usb';internal=base/'internal';persist=base/'persist'
     bins=base/'bin';mounts=base/'mounts';version=base/'version';gpio=base/'watchdog';lock=base/'packages.lock'
@@ -83,7 +95,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-cluster-') as temporary:
         assert r.returncode==0 and r.stdout==state+'\n',(r.returncode,r.stdout,r.stderr)
         assert before=={p.relative_to(usb).as_posix():hashlib.md5(p.read_bytes()).hexdigest() for p in usb.rglob('*') if p.is_file()},'Status wrote to USB'
         checks+=1;return r
-    settings=base/'settings.conf';write(settings,'hud_display_language=english\n')
+    settings=base/'settings.conf';write(settings,'hud_display_language=en-uk\nhud_display_code=0\n')
     deep(folder/'run.sh',settings,'uninstalled')
     config.unlink();r=deep(folder/'run.sh',settings,'unavailable');assert 'Missing target' in r.stderr;write(config,stock)
     call(['manifest','cluster-language'])
@@ -100,7 +112,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-cluster-') as temporary:
     call(['action','cluster-language','install'],1);assert config.read_text()==stock and not payload_dir.exists();module.write_bytes(original_module)
     # Complete public controller, defaults from the real manifest.
     call(['action','cluster-language','install'])
-    assert (payload_dir/'libpatch.conf').read_text()=='hud_display_language = off\n'
+    assert (payload_dir/'libpatch.conf').read_text()=='hud_display_language = off\nhud_display_code = 0\n'
     library=payload_dir/'libpatch-svcjciblmsettings.so'
     assert library.read_bytes()==(folder/'assets/libpatch-svcjciblmsettings.so').read_bytes()
     for path in [config,second]:
@@ -116,6 +128,15 @@ with tempfile.TemporaryDirectory(prefix='cmu-cluster-') as temporary:
     # A changed native module / unavailable HUD must not prevent saved removal.
     module.write_bytes(b'changed after install');env['TEST_HUD']='unknown'
     (folder/'assets/libpatch-svcjciblmsettings.so').write_bytes(b'new invalid USB version')
+    call(['action','cluster-language','uninstall'])
+    assert config.read_text()==stock and second.read_text()==stock and not payload_dir.exists()
+    # USB user settings reach the generated file, the only way to set a manual code.
+    (folder/'assets/libpatch-svcjciblmsettings.so').write_bytes(original_library)
+    module.write_bytes(original_module);env['TEST_HUD']='whud'
+    write(usb/'user/cluster-language/settings.conf','hud_display_language=hu\nhud_display_code=200\n')
+    call(['action','cluster-language','install'])
+    assert (payload_dir/'libpatch.conf').read_text()=='hud_display_language = hu\nhud_display_code = 200\n'
+    deep(saved/'tweaks/cluster-language/run.sh',saved/'settings.conf','installed')
     call(['action','cluster-language','uninstall'])
     assert config.read_text()==stock and second.read_text()==stock and not payload_dir.exists()
     assert not lock.exists() and gpio.read_text()=='0\n'
