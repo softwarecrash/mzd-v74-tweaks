@@ -235,6 +235,14 @@ return function(context)
     -- another way (for example over SSH) is responsible for that reboot. A
     -- service restart forgets the baselines.
     local applied = {}
+    local current_values = {}
+
+    local function is_reboot_required()
+        for k, v in pairs(applied) do
+            if current_values[k] ~= v then return true end
+        end
+        return false
+    end
 
     local function remember(updates)
         local current
@@ -242,20 +250,21 @@ return function(context)
             if applied[k] == nil then
                 if k == DPI then
                     local ok, val = pcall(package_dpi)
-                    if ok then applied[k] = val end
+                    if ok then
+                        applied[k] = val
+                        if current_values[k] == nil then current_values[k] = val end
+                    end
                 else
                     current = current or read_settings()
                     applied[k] = current[k]
+                    if current_values[k] == nil then current_values[k] = current[k] end
                 end
             end
         end
     end
 
     local function result(settings, limits, unavailable)
-        local reboot_required = false
-        for k, v in pairs(applied) do
-            if settings[k] ~= v then reboot_required = true end
-        end
+        local reboot_required = is_reboot_required()
         return {
             success = true,
             settings = settings,
@@ -277,6 +286,9 @@ return function(context)
             args = args or {}
             if operation == 'get' then
                 local settings, limits, unavailable = get_full_settings()
+                for k, v in pairs(settings) do
+                    current_values[k] = v
+                end
                 return result(settings, limits, unavailable)
             elseif operation == 'set' then
                 local key = args.key
@@ -285,20 +297,23 @@ return function(context)
                 if key == DPI then
                     remember({ [key] = value })
                     apply_dpi(value)
-                    local settings, limits, unavailable = get_full_settings()
-                    return result(settings, limits, unavailable)
+                    current_values[DPI] = value
+                    local _, limits = package_dpi()
+                    return result({ [DPI] = value }, limits, {})
                 end
                 assert(valid_update(key, value), 'Invalid value for ' .. key)
                 remember({ [key] = value })
                 write_settings({ [key] = value })
-                local settings, limits, unavailable = get_full_settings()
-                return result(settings, limits, unavailable)
+                local settings = read_settings()
+                for k, v in pairs(settings) do
+                    current_values[k] = v
+                end
+                return result(settings, {}, {})
             elseif operation == 'reboot' then
                 -- Only the GUI asks for this, after the driver confirms it and
                 -- every queued save has finished. On success MZD restarts, so
                 -- usually no response arrives.
-                local full_settings, limits, unavailable = get_full_settings()
-                assert(next(applied) ~= nil and result(full_settings, limits, unavailable).rebootRequired, 'No saved changes to apply')
+                assert(next(applied) ~= nil and is_reboot_required(), 'No saved changes to apply')
                 local dir = path:match('^(.*)/')
                 if dir and fs.exists(dir) then
                     fs.sync_directory(dir)
@@ -312,6 +327,7 @@ return function(context)
                 if settings[DPI] ~= nil then
                     remember({ [DPI] = settings[DPI] })
                     apply_dpi(settings[DPI])
+                    current_values[DPI] = settings[DPI]
                 end
                 local valid_updates = {}
                 for k, v in pairs(settings) do
@@ -324,6 +340,9 @@ return function(context)
                     write_settings(valid_updates)
                 end
                 local full_settings, limits, unavailable = get_full_settings()
+                for k, v in pairs(full_settings) do
+                    current_values[k] = v
+                end
                 return result(full_settings, limits, unavailable)
             else
                 error('Unknown operation: ' .. tostring(operation))
