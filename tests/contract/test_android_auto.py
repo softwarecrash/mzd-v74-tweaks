@@ -821,7 +821,11 @@ assert(same.restart_required == false and not io.open(apply_args, "r"))
 -- A change runs the saved apply script with one validated argument
 local changed = dpi_service.request("set", {{ key = "resolution_dpi", value = 130 }})
 assert(changed.restart_required == true and changed.settings.resolution_dpi == 130, "Expected applied DPI 130")
+assert(changed.settings.touch == nil, "DPI set does not read libpatch.conf")
 assert(files.read(apply_args) == "resolution_dpi=130\\n", "Unexpected apply arguments: " .. files.read(apply_args))
+local libpatch_set = dpi_service.request("set", {{ key = "touch", value = false }})
+assert(libpatch_set.restart_required == true and libpatch_set.settings.touch == false)
+assert(libpatch_set.settings.resolution_dpi == nil, "libpatch set does not read manifest or settings.conf")
 local saved_view = dpi_service.request("save", {{ settings = {{ resolution_dpi = 131, touch = false }} }})
 assert(saved_view.restart_required == true and saved_view.settings.resolution_dpi == 131 and saved_view.settings.touch == false)
 

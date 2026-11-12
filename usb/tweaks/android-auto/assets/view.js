@@ -6,8 +6,9 @@
         return;
     }
     var token = sdk.token, tr = sdk.t;
-    var ended = false, state = null, limits = {}, unavailable = {}, rebootRequired = false, saving = false, savingDpi = false, dpiDebounceTimer = null, rebootDialogOpen = false;
+    var ended = false, state = null, limits = {}, unavailable = {}, rebootRequired = false, saving = false, savingDpi = false, rebootDialogOpen = false;
     var page = 'home', index = 0, positions = {home: 0, distance: 0}, notice = '';
+    var committedDpi = null, pendingDpi = null, inDpiSecondary = false;
 
     var SETTINGS = [
         { key: 'touch', type: 'bool' },
@@ -67,10 +68,8 @@
     }
 
     function commitDpi(val) {
-        if (dpiDebounceTimer) {
-            window.clearTimeout(dpiDebounceTimer);
-            dpiDebounceTimer = null;
-        }
+        pendingDpi = null;
+        committedDpi = val;
         savingDpi = true;
         render();
         post({
@@ -81,12 +80,8 @@
     }
 
     function flushDpi() {
-        if (dpiDebounceTimer) {
-            window.clearTimeout(dpiDebounceTimer);
-            dpiDebounceTimer = null;
-            if (state && typeof state.resolution_dpi === 'number') {
-                commitDpi(state.resolution_dpi);
-            }
+        if (pendingDpi != null) {
+            commitDpi(pendingDpi);
         }
     }
 
@@ -204,6 +199,7 @@
     }
 
     function back() {
+        flushDpi();
         notice = '';
         if (!state || page === 'home') { return false; }
         page = 'home';
@@ -240,23 +236,23 @@
             return;
         }
 
+        if (row.type !== 'step') {
+            flushDpi();
+        }
+
         if (row.type === 'step') {
+            inDpiSecondary = true;
             var val = (params && typeof params.value === 'number') ? params.value : (typeof params === 'number' ? params : null);
             if (val == null || val < row.min || val > row.max) { return; }
             state[row.key] = val;
-            render();
             var isFinal = params && (params.final === true || params.finalAdjust === true || params.finalAdjustment === true);
-            if (dpiDebounceTimer) {
-                window.clearTimeout(dpiDebounceTimer);
-                dpiDebounceTimer = null;
+            if (val !== committedDpi) {
+                pendingDpi = val;
+            } else {
+                pendingDpi = null;
             }
             if (isFinal) {
-                commitDpi(val);
-            } else {
-                dpiDebounceTimer = window.setTimeout(function () {
-                    dpiDebounceTimer = null;
-                    commitDpi(val);
-                }, 800);
+                flushDpi();
             }
             return;
         }
@@ -298,8 +294,16 @@
         }
         if (data.type === 'aa-native-focus') {
             if (typeof data.index === 'number' && data.index >= 0) {
+                var prevIndex = index;
                 index = data.index;
                 positions[page] = index;
+                var wasSecondary = inDpiSecondary;
+                inDpiSecondary = (index === 0 && data.secondary === true);
+                if (page === 'home') {
+                    if ((prevIndex === 0 && index !== 0) || (wasSecondary && !inDpiSecondary)) {
+                        flushDpi();
+                    }
+                }
             }
             return;
         }
@@ -330,14 +334,19 @@
             }
             if (data.state) {
                 state = data.state;
+                if (typeof state.resolution_dpi === 'number' && !savingDpi && pendingDpi == null) {
+                    committedDpi = state.resolution_dpi;
+                }
                 if (data.limits) { limits = data.limits; }
                 if (data.unavailable) { unavailable = data.unavailable; }
                 rebootRequired = data.rebootRequired === true || data.restart_required === true;
             }
             if (data.error) {
                 savingDpi = false;
-                notice = state ? tr('error', 'Failed to save') : tr('serviceUnavailable', 'Service unavailable. Please retry.');
-                if (status) { status.textContent = notice; }
+                pendingDpi = null;
+                if (status && !state) {
+                    status.textContent = tr('serviceUnavailable', 'Service unavailable. Please retry.');
+                }
             } else if (status && !notice) {
                 status.textContent = '';
             }

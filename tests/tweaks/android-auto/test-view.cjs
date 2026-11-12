@@ -487,6 +487,7 @@ const dialogs = () => findElements(body, 'TemplateFull Dialog3Tmplt');
 
 function stepDpi(val, isFinal = true) {
     control.focus = 0;
+    control.dataList.items[0].value = val;
     control.props.selectCallback(control, control.dataList.items[0].appData, { value: val, finalAdjustment: isFinal });
     flush();
 }
@@ -535,15 +536,15 @@ assert.equal(rebootRow().disabled, true, 'Reboot is disabled before any setting 
 click(16);
 assert.equal(dialogConfig, null, 'A disabled reboot row does not open the confirmation dialog');
 
-// 1c. Resolution DPI stepping, debouncing, spinner, and reboot requirement
-// Turning rotary knob without finalAdjustment updates value locally but debounces save
+// 1c. Resolution DPI stepping, deferred save, spinner, and reboot requirement
+// Turning rotary knob without finalAdjustment updates value locally but defers save
 stepDpi(122, false);
 assert.equal(dpiRow().value, 122);
-assert.equal(writes, 0, 'Debounced step does not send save immediately');
+assert.equal(writes, 0, 'In-flight adjust does not send save immediately');
 assert.equal(dpiRow().disabled, false);
 assert.equal(dpiRow().image1, '');
 
-// Firing the debounce timer (or stepping with isFinal=true) triggers the save
+// Stepping with isFinal=true (pressing Enter / clicking knob) triggers the save
 holdSaves();
 stepDpi(122, true);
 assert.equal(writes, 1);
@@ -556,9 +557,39 @@ assert.equal(dpiRow().disabled, false, 'DPI row re-enabled after save completes'
 assert.equal(dpiRow().image1, '', 'DPI row spinner removed after save completes');
 assert.equal(rebootRow().disabled, false, 'Changing DPI enables reboot');
 
+// Stepping without finalAdjustment, then losing secondary focus (+/- deactivation) commits save
+stepDpi(135, false);
+assert.equal(dpiRow().value, 135);
+assert.equal(writes, 1, 'In-flight adjust does not save yet');
+holdSaves();
+viewEvents.message.forEach(fn => fn({
+    source: view.parent,
+    data: { type: 'aa-native-focus', token: 'fixture-token', index: 0, secondary: false }
+}));
+flush();
+assert.equal(writes, 2, 'Exiting secondary multicontroller triggers DPI save');
+assert.equal(dpiRow().image1, 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png', 'DPI row shows left spinner during save');
+releaseSave();
+assert.equal(savedSettings.resolution_dpi, 135);
+assert.equal(dpiRow().image1, '', 'Spinner removed after save');
+
+// Stepping without finalAdjustment, then moving focus to row 1 commits save
+stepDpi(138, false);
+assert.equal(dpiRow().value, 138);
+assert.equal(writes, 2);
+holdSaves();
+viewEvents.message.forEach(fn => fn({
+    source: view.parent,
+    data: { type: 'aa-native-focus', token: 'fixture-token', index: 1 }
+}));
+flush();
+assert.equal(writes, 3, 'Moving focus away from row 0 triggers DPI save');
+releaseSave();
+assert.equal(savedSettings.resolution_dpi, 138);
+
 // Stepping DPI back to baseline (141) disables reboot again
 stepDpi(141, true);
-assert.equal(writes, 2);
+assert.equal(writes, 4);
 assert.equal(savedSettings.resolution_dpi, 141);
 assert.equal(rebootRow().disabled, true, 'Restoring boot DPI disables reboot row');
 
@@ -576,7 +607,7 @@ customServiceResult = {
 residentMessage({ type: 'aa-request', action: 'get' });
 assert.equal(dpiRow().disabled, true, 'Unavailable DPI disables the stepper row');
 click(0);
-assert.equal(writes, 2, 'Clicking disabled DPI row does not trigger save');
+assert.equal(writes, 4, 'Clicking disabled DPI row does not trigger save');
 customServiceResult = null;
 residentMessage({ type: 'aa-request', action: 'get' });
 assert.equal(dpiRow().disabled, false, 'Available DPI restores row enablement');
@@ -588,14 +619,14 @@ assert.equal(control.dataList.items[1].checked, false);
 assert.equal(rebootRow().disabled, true, 'Reboot stays disabled while a save is in progress');
 releaseSave();
 assert.equal(savedSettings.touch, false);
-assert.equal(writes, 3);
+assert.equal(writes, 5);
 assert.equal(rebootRow().disabled, false, 'A successful save enables reboot');
 
 // 3. Restoring the boot value disables reboot again
 click(1);
 assert.equal(savedSettings.touch, true);
 assert.equal(control.dataList.items[1].checked, true);
-assert.equal(writes, 4);
+assert.equal(writes, 6);
 assert.equal(rebootRow().disabled, true, 'A setting toggled back to its boot value needs no reboot');
 
 // 4. Click hud_transport row (toggle to vbs / OFF)
@@ -603,7 +634,7 @@ click(3);
 assert.equal(savedSettings.hud_transport, 'vbs');
 assert.equal(control.dataList.items[3].value, 2);
 assert.equal(control.dataList.items[3].checked, false);
-assert.equal(writes, 5);
+assert.equal(writes, 7);
 assert.equal(rebootRow().disabled, false);
 
 // 5. The confirmation dialog defaults to No and restores list focus
@@ -658,7 +689,7 @@ assert.equal(savedSettings.hud, false, 'The list accepts selections after a fail
 assert.equal(sb, 'Android Auto Settings', 'The fallback notice clears on the next selection');
 click(2);
 assert.equal(savedSettings.hud, true);
-assert.equal(writes, 7);
+assert.equal(writes, 9);
 
 // 9. Opening the dialog by touch while the Back button has focus
 input('left');
@@ -675,15 +706,15 @@ assert.equal(backFocused, false, 'The Back button stays unfocused after the dial
 holdSaves();
 click(1);
 assert.equal(control.dataList.items[1].checked, false);
-assert.equal(writes, 8);
+assert.equal(writes, 10);
 click(2);
 assert.equal(control.dataList.items[2].checked, false);
-assert.equal(writes, 8, 'Second save waits in the resident queue');
+assert.equal(writes, 10, 'Second save waits in the resident queue');
 assert.equal(rebootRow().disabled, true, 'Reboot is disabled while saves are queued');
 residentMessage({ type: 'aa-request', action: 'reboot' });
 assert.equal(reboots, 2, 'A reboot request cannot overtake queued saves');
 releaseSave();
-assert.equal(writes, 9);
+assert.equal(writes, 11);
 assert.equal(savedSettings.touch, false);
 assert.equal(savedSettings.hud, false);
 assert.equal(control.dataList.items[1].checked, false);
@@ -692,7 +723,7 @@ click(1);
 click(2);
 assert.equal(savedSettings.touch, true);
 assert.equal(savedSettings.hud, true);
-assert.equal(writes, 11);
+assert.equal(writes, 13);
 
 // 11. Distance submenu
 click(8);
@@ -713,7 +744,17 @@ assert.equal(control.dataList.items.length, 17);
 assert.equal(control.dataList.items[8].label1, '1 km');
 assert.equal(control.dataList.items[8].hasCaret, true);
 assert.equal(control.focus, 8, 'Returning restores focus to the distance setting');
-assert.equal(writes, 12);
+assert.equal(writes, 14);
+
+// Save error preserves header title in the view and does not set title to 'Failed to save'
+for (const fn of viewEvents.message) {
+    fn({
+        source: view.parent,
+        data: { type: 'aa-response', token: 'fixture-token', error: 'Failed to save settings', saving: false }
+    });
+}
+flush();
+assert.equal(sb, 'Android Auto Settings', 'Header title preserved on save error');
 
 // 12. Leaving through the Mazda Back button hands focus back to Applications
 input('left');
@@ -756,7 +797,7 @@ residentMessage({
 lastSbn = null;
 holdSaves();
 residentMessage({ type: 'aa-request', action: 'set', payload: { key: 'touch', value: false } });
-assert.equal(writes, 13);
+assert.equal(writes, 15);
 assert.equal(lastSbn, null, 'No saving notification is shown');
 let reopened = null;
 viewEvents.message = [event => { if (event.data && event.data.type === 'aa-response') { reopened = event.data; } }];

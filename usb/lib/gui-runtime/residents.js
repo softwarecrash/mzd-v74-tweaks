@@ -489,6 +489,9 @@
                     items: items,
                     vuiSupport: false
                 });
+                if (typeof session.control.setLoading === 'function') {
+                    session.control.setLoading(false);
+                }
                 if (captured.focussedItem >= items.length) {
                     captured.focussedItem = 0;
                     captured.topItem = 0;
@@ -508,6 +511,7 @@
                     titleConfiguration: 'noTitle',
                     numberedList: true,
                     smallItemText: true,
+                    loadingOverlayEnabled: false,
                     focussedItem: menu.index || 0,
                     dataList: {
                         itemCountKnown: true,
@@ -517,11 +521,35 @@
                     },
                     selectCallback: function (source, data, params) {
                         if (session !== current || source !== current.control || !data) { return; }
+                        var idx = data.itemIndex != null ? data.itemIndex : (data.aaIndex != null ? data.aaIndex : data.wallpaperIndex);
+                        var dl = (source && source.dataList && source.dataList.items) ? source.dataList : (source && source.config && source.config.dataList && source.config.dataList.items ? source.config.dataList : null);
+                        if (params && typeof params.value === 'number' && dl) {
+                            var it = dl.items[idx];
+                            if (it && it.itemStyle === 'styleStep') {
+                                it.value = params.value;
+                                it.label2 = String(params.value);
+                                var dom = typeof source._getDOMItem === 'function' ? source._getDOMItem(idx) : null;
+                                if (!dom && source.items && source.items[idx]) { dom = source.items[idx].domElt; }
+                                if (dom && typeof dom.querySelector === 'function') {
+                                    var label2Span = dom.querySelector('.label2');
+                                    if (label2Span) { label2Span.textContent = String(params.value); }
+                                    if (dom.classList) {
+                                        if (typeof it.min === 'number') {
+                                            if (params.value <= it.min) { dom.classList.add('minReached'); }
+                                            else { dom.classList.remove('minReached'); }
+                                        }
+                                        if (typeof it.max === 'number') {
+                                            if (params.value >= it.max) { dom.classList.add('maxReached'); }
+                                            else { dom.classList.remove('maxReached'); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         session.signature = null;
                         global.clearTimeout(selection);
                         selection = global.setTimeout(function () {
                             if (session === current && current.control === source) {
-                                var idx = data.itemIndex != null ? data.itemIndex : (data.aaIndex != null ? data.aaIndex : data.wallpaperIndex);
                                 var msg = { index: idx };
                                 if (params) { msg.params = params; }
                                 send(prefix + '-native-select', msg);
@@ -529,6 +557,9 @@
                         }, 0);
                     }
                 });
+                if (session.control && typeof session.control.setLoading === 'function') {
+                    session.control.setLoading(false);
+                }
                 focusList();
             }
             session.page = menu.page;
@@ -562,7 +593,9 @@
             }
             dispatchControllerEvent(control, event);
             if (!session) { return; }
-            send(prefix + '-native-focus', { index: control.getContextCapture().focussedItem });
+            var capture = control.getContextCapture ? control.getContextCapture() : { focussedItem: 0 };
+            var isSecondary = control._inSecondaryMulticontroller === true;
+            send(prefix + '-native-focus', { index: capture.focussedItem, secondary: isSecondary });
         }
         return {
             render: render,

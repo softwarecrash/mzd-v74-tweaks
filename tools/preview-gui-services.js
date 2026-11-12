@@ -19,16 +19,24 @@
     // Like entry.lua, a key's baseline is its value before its first write.
     function androidAuto() {
         var key = 'mzd-preview-android-auto', settings = stored(key, defaults['android-auto'] || {}), applied = {};
+        if (typeof settings.resolution_dpi !== 'number') { settings.resolution_dpi = 141; }
         function remember(name) {
             if (!applied.hasOwnProperty(name)) { applied[name] = settings[name]; }
         }
         function result() {
             var name, rebootRequired = false;
             for (name in applied) { if (applied.hasOwnProperty(name) && settings[name] !== applied[name]) { rebootRequired = true; } }
-            return { success: true, settings: copy(settings), rebootRequired: rebootRequired };
+            return {
+                success: true,
+                settings: copy(settings),
+                limits: { resolution_dpi: { min: 100, max: 160, step: 1 } },
+                unavailable: {},
+                rebootRequired: rebootRequired
+            };
         }
         function valid(name, value) {
             if (!settings.hasOwnProperty(name)) { return false; }
+            if (name === 'resolution_dpi') { return typeof value === 'number' && value >= 100 && value <= 160; }
             if (name === 'hud_transport') { return value === 'svcnavi' || value === 'vbs'; }
             if (name === 'hud_maneuver_max_distance_m') { return typeof value === 'number' && value >= 0; }
             return typeof value === 'boolean';
@@ -36,6 +44,12 @@
         function save() { window.localStorage.setItem(key, JSON.stringify(settings)); }
         return function (operation, args) {
             var name;
+            if (window.mzdPreviewFailSave && (operation === 'set' || operation === 'save')) {
+                throw new Error('Simulated save failure');
+            }
+            if (window.mzdPreviewFailReboot && operation === 'reboot') {
+                throw new Error('Simulated reboot failure');
+            }
             if (operation === 'get') { return result(); }
             if (operation === 'set') {
                 if (!valid(args.key, args.value)) { throw new Error('Invalid setting'); }
@@ -182,6 +196,11 @@
     var modules = { 'android-auto': androidAuto() };
     window.MzdGuiServices = {
         request: function (module, operation, args, callback) {
+            var delay = 150;
+            if (module === 'android-auto' && (operation === 'set' || operation === 'save') &&
+                ((args && args.key === 'resolution_dpi') || (args && args.settings && args.settings.resolution_dpi !== undefined))) {
+                delay = 2000;
+            }
             window.setTimeout(function () {
                 var value, service;
                 if (module === 'wallpaper-manager' && !modules[module]) {
@@ -192,7 +211,7 @@
                 service = modules[module];
                 try { value = service(operation, args || {}); } catch (error) { callback(String(error.message || error)); return; }
                 callback(null, value);
-            }, 150);
+            }, delay);
         },
         onReady: function (fn) {
             listeners.push(fn);

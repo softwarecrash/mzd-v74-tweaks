@@ -623,6 +623,7 @@ test("residents notifications, units and applications context", async (t) => {
 test("createNativeMenu full features", async (t) => {
   let instantiatedControl = null;
   const controlEvents = [];
+  const loadingStates = [];
   const appTemplateEvents = [];
   let appLinesRestored = 0;
   let instantiatedTemplate = null;
@@ -653,6 +654,7 @@ test("createNativeMenu full features", async (t) => {
         container,
         type,
         config,
+        dataList: config.dataList,
         handleControllerEvent(event) {
           controlEvents.push(event);
           return "consumed";
@@ -665,6 +667,9 @@ test("createNativeMenu full features", async (t) => {
         },
         setDataListAndUpdateItems(dl) {
           this.dataList = dl;
+        },
+        setLoading(state) {
+          loadingStates.push(state);
         }
       };
       return instantiatedControl;
@@ -724,6 +729,8 @@ test("createNativeMenu full features", async (t) => {
 
     assert.equal(statusTitle, "WallpaperConfig");
     assert(instantiatedControl);
+    assert.equal(instantiatedControl.config.loadingOverlayEnabled, false);
+    assert(loadingStates.includes(false));
     assert.equal(instantiatedControl.config.focussedItem, 1);
 
     const items = instantiatedControl.config.dataList.items;
@@ -766,6 +773,8 @@ test("createNativeMenu full features", async (t) => {
 
     // Test styleStep selection with params
     instantiatedControl.config.selectCallback(instantiatedControl, { itemIndex: 4 }, { value: 142, finalAdjustment: true });
+    assert.equal(instantiatedControl.dataList.items[4].value, 142);
+    assert.equal(instantiatedControl.dataList.items[4].label2, "142");
     assert.equal(timers.size, 1);
     cb = [...timers.values()][0];
     timers.clear();
