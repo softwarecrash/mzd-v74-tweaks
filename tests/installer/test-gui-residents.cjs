@@ -623,6 +623,7 @@ test("residents notifications, units and applications context", async (t) => {
 test("createNativeMenu full features", async (t) => {
   let instantiatedControl = null;
   const controlEvents = [];
+  const loadingStates = [];
   const appTemplateEvents = [];
   let appLinesRestored = 0;
   let instantiatedTemplate = null;
@@ -653,6 +654,7 @@ test("createNativeMenu full features", async (t) => {
         container,
         type,
         config,
+        dataList: config.dataList,
         handleControllerEvent(event) {
           controlEvents.push(event);
           return "consumed";
@@ -665,6 +667,9 @@ test("createNativeMenu full features", async (t) => {
         },
         setDataListAndUpdateItems(dl) {
           this.dataList = dl;
+        },
+        setLoading(state) {
+          loadingStates.push(state);
         }
       };
       return instantiatedControl;
@@ -717,16 +722,19 @@ test("createNativeMenu full features", async (t) => {
         { label: "Option 1" },
         { label: "Option 2", checkable: true, checked: true, radio: true },
         { label: "Option 3", detail: "Subtitle detail", caret: true },
-        { label: "Option 4", disabled: true }
+        { label: "Option 4", disabled: true },
+        { label: "Resolution DPI", itemStyle: "styleStep", value: 141, min: 100, max: 160, increment: 1, spinner: true }
       ]
     });
 
     assert.equal(statusTitle, "WallpaperConfig");
     assert(instantiatedControl);
+    assert.equal(instantiatedControl.config.loadingOverlayEnabled, false);
+    assert(loadingStates.includes(false));
     assert.equal(instantiatedControl.config.focussedItem, 1);
 
     const items = instantiatedControl.config.dataList.items;
-    assert.equal(items.length, 4);
+    assert.equal(items.length, 5);
     assert.equal(items[0].text1, "Option 1");
     assert.equal(items[0].itemStyle, "style01");
 
@@ -742,10 +750,20 @@ test("createNativeMenu full features", async (t) => {
 
     assert.equal(items[3].disabled, true);
 
+    assert.equal(items[4].itemStyle, "styleStep");
+    assert.equal(items[4].label1, "Resolution DPI");
+    assert.equal(items[4].label2, "141");
+    assert.equal(items[4].text1, "");
+    assert.equal(items[4].min, 100);
+    assert.equal(items[4].max, 160);
+    assert.equal(items[4].increment, 1);
+    assert.equal(items[4].image1, "common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png");
+
     // Test selection callback triggering postMessage
     instantiatedControl.config.selectCallback(instantiatedControl, { itemIndex: 2 });
     assert.equal(timers.size, 1);
-    const cb = [...timers.values()][0];
+    let cb = [...timers.values()][0];
+    timers.clear();
     cb();
 
     assert.equal(frame.contentWindow.messages.length, 1);
@@ -753,7 +771,26 @@ test("createNativeMenu full features", async (t) => {
     assert.equal(frame.contentWindow.messages[0].token, token);
     assert.equal(frame.contentWindow.messages[0].index, 2);
 
+    // Test styleStep selection with params
+    instantiatedControl.config.selectCallback(instantiatedControl, { itemIndex: 4 }, { value: 142, finalAdjustment: true });
+    assert.equal(instantiatedControl.dataList.items[4].value, 142);
+    assert.equal(instantiatedControl.dataList.items[4].label2, "142");
+    assert.equal(timers.size, 1);
+    cb = [...timers.values()][0];
+    timers.clear();
+    cb();
+
+    assert.equal(frame.contentWindow.messages.length, 2);
+    assert.equal(frame.contentWindow.messages[1].index, 4);
+    assert.deepEqual(frame.contentWindow.messages[1].params, { value: 142, finalAdjustment: true });
+
+    // Verify style element in container
+    const container = instantiatedControl.container;
+    const styles = container.children.filter(c => c.tag === "style");
+    assert(styles.some(s => s.textContent.includes(".ListItem.styleStep .label1{width:320px!important;}")));
+
     menu.close();
+    assert.equal(container.parentNode, null, "Container removed on close");
   });
 
   await t.test("dispatches rotary and directional input to control", () => {
@@ -872,7 +909,7 @@ test("createNativeMenu full features", async (t) => {
       split: false,
       rows: [{ label: "Home Item" }]
     });
-    assert.equal(session.container.className, "TemplateWithStatusLeft List2Tmplt");
+    assert.equal(session.container.className, "TemplateWithStatusLeft List2Tmplt mzd-custom-menu");
     assert.equal(session.previewPane.style.display, "none");
 
     menu.close();
@@ -891,7 +928,7 @@ test("createNativeMenu full features", async (t) => {
     });
 
     const session = menu.getSession();
-    assert.equal(session.container.className, "TemplateWithStatusLeft List2Tmplt customSplitClass");
+    assert.equal(session.container.className, "TemplateWithStatusLeft List2Tmplt mzd-custom-menu customSplitClass");
     assert(session.splitStyle);
     assert(session.splitStyle.textContent.indexOf(".customSplitClass .List2Ctrl") >= 0);
 
@@ -911,7 +948,7 @@ test("createNativeMenu full features", async (t) => {
     });
 
     const session1 = menuDot.getSession();
-    assert.equal(session1.container.className, "TemplateWithStatusLeft List2Tmplt dottedSplit");
+    assert.equal(session1.container.className, "TemplateWithStatusLeft List2Tmplt mzd-custom-menu dottedSplit");
     assert(session1.splitStyle.textContent.indexOf(".dottedSplit .List2Ctrl") >= 0);
     menuDot.close();
 
@@ -927,7 +964,7 @@ test("createNativeMenu full features", async (t) => {
     });
 
     const session2 = menuBlank.getSession();
-    assert.equal(session2.container.className, "TemplateWithStatusLeft List2Tmplt wallpaperImportSplit");
+    assert.equal(session2.container.className, "TemplateWithStatusLeft List2Tmplt mzd-custom-menu wallpaperImportSplit");
     assert(session2.splitStyle.textContent.indexOf(".wallpaperImportSplit .List2Ctrl") >= 0);
     menuBlank.close();
   });

@@ -6,8 +6,9 @@
         return;
     }
     var token = sdk.token, tr = sdk.t;
-    var ended = false, state = null, rebootRequired = false, saving = false, rebootDialogOpen = false;
+    var ended = false, state = null, limits = {}, unavailable = {}, rebootRequired = false, saving = false, savingDpi = false, rebootDialogOpen = false;
     var page = 'home', index = 0, positions = {home: 0, distance: 0}, notice = '';
+    var committedDpi = null, pendingDpi = null, inDpiSecondary = false;
 
     var SETTINGS = [
         { key: 'touch', type: 'bool' },
@@ -66,7 +67,26 @@
         post({type: 'aa-request', action: 'set', payload: {key: key, value: value}});
     }
 
+    function commitDpi(val) {
+        pendingDpi = null;
+        committedDpi = val;
+        savingDpi = true;
+        render();
+        post({
+            type: 'aa-request',
+            action: 'set',
+            payload: { key: 'resolution_dpi', value: val }
+        });
+    }
+
+    function flushDpi() {
+        if (pendingDpi != null) {
+            commitDpi(pendingDpi);
+        }
+    }
+
     function openRebootDialog() {
+        flushDpi();
         rebootDialogOpen = true;
         post({
             type: 'aa-native-dialog',
@@ -102,6 +122,25 @@
             }
             return result;
         }
+
+        var dpiLimits = (limits && limits.resolution_dpi) || (state && state.limits && state.limits.resolution_dpi) || { min: 100, max: 160, step: 1 };
+        var dpiUnavailable = (unavailable && unavailable.resolution_dpi) || (state && state.unavailable && state.unavailable.resolution_dpi);
+        var currentDpi = (state && typeof state.resolution_dpi === 'number') ? state.resolution_dpi : 141;
+        var dpiDisabled = saving || savingDpi || (state && state.resolution_dpi_disabled === true) || !!dpiUnavailable;
+        result.push({
+            id: 'resolution_dpi',
+            key: 'resolution_dpi',
+            type: 'step',
+            label: tr('resolution_dpi', 'Resolution DPI'),
+            itemStyle: 'styleStep',
+            value: currentDpi,
+            min: dpiLimits.min,
+            max: dpiLimits.max,
+            increment: dpiLimits.step,
+            disabled: dpiDisabled,
+            spinner: savingDpi === true
+        });
+
         for (i = 0; i < SETTINGS.length; i += 1) {
             def = SETTINGS[i];
             if (def.type === 'bool') {
@@ -140,7 +179,7 @@
             action: 'reboot',
             label: tr('reboot', 'Reboot to apply changes'),
             image1: 'common/images/icons/IcnListSynchronize_En.png',
-            disabled: saving || !rebootRequired
+            disabled: saving || savingDpi || !rebootRequired
         });
         return result;
     }
@@ -160,6 +199,7 @@
     }
 
     function back() {
+        flushDpi();
         notice = '';
         if (!state || page === 'home') { return false; }
         page = 'home';
@@ -168,13 +208,17 @@
         return true;
     }
 
-    function activate(position) {
+    function activate(position, params) {
         if (ended || !state || rebootDialogOpen) { return; }
         notice = '';
         index = position;
         var row = entries()[index];
         if (!row || row.disabled) { return; }
         positions[page] = index;
+
+        if (row.type !== 'step') {
+            flushDpi();
+        }
 
         if (row.action === 'reboot') {
             openRebootDialog();
@@ -188,6 +232,27 @@
                 saveSetting('hud_maneuver_max_distance_m', row.meters);
             } else {
                 render();
+            }
+            return;
+        }
+
+        if (row.type !== 'step') {
+            flushDpi();
+        }
+
+        if (row.type === 'step') {
+            inDpiSecondary = true;
+            var val = (params && typeof params.value === 'number') ? params.value : (typeof params === 'number' ? params : null);
+            if (val == null || val < row.min || val > row.max) { return; }
+            state[row.key] = val;
+            var isFinal = params && (params.final === true || params.finalAdjust === true || params.finalAdjustment === true);
+            if (val !== committedDpi) {
+                pendingDpi = val;
+            } else {
+                pendingDpi = null;
+            }
+            if (isFinal) {
+                flushDpi();
             }
             return;
         }
@@ -224,13 +289,21 @@
         var data = event.data, confirmed;
         if (event.source !== window.parent || !data || data.token !== token || ended) { return; }
         if (data.type === 'aa-native-select') {
-            activate(data.index);
+            activate(data.index, data.params);
             return;
         }
         if (data.type === 'aa-native-focus') {
             if (typeof data.index === 'number' && data.index >= 0) {
+                var prevIndex = index;
                 index = data.index;
                 positions[page] = index;
+                var wasSecondary = inDpiSecondary;
+                inDpiSecondary = (index === 0 && data.secondary === true);
+                if (page === 'home') {
+                    if ((prevIndex === 0 && index !== 0) || (wasSecondary && !inDpiSecondary)) {
+                        flushDpi();
+                    }
+                }
             }
             return;
         }
@@ -256,13 +329,24 @@
         }
         if (data.type === 'aa-response') {
             saving = data.saving === true;
+            if (!saving) {
+                savingDpi = false;
+            }
             if (data.state) {
                 state = data.state;
-                rebootRequired = data.rebootRequired === true;
+                if (typeof state.resolution_dpi === 'number' && !savingDpi && pendingDpi == null) {
+                    committedDpi = state.resolution_dpi;
+                }
+                if (data.limits) { limits = data.limits; }
+                if (data.unavailable) { unavailable = data.unavailable; }
+                rebootRequired = data.rebootRequired === true || data.restart_required === true;
             }
             if (data.error) {
-                notice = state ? tr('error', 'Failed to save') : tr('serviceUnavailable', 'Service unavailable. Please retry.');
-                if (status) { status.textContent = notice; }
+                savingDpi = false;
+                pendingDpi = null;
+                if (status && !state) {
+                    status.textContent = tr('serviceUnavailable', 'Service unavailable. Please retry.');
+                }
             } else if (status && !notice) {
                 status.textContent = '';
             }
@@ -288,6 +372,7 @@
 
     function dispose() {
         if (ended) { return; }
+        flushDpi();
         post({type: 'aa-native-release'});
         ended = true;
         window.removeEventListener('message', receive, false);
