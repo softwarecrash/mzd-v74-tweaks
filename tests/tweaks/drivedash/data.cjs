@@ -1,0 +1,71 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const window = {};
+for (const name of ['data','model']) vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/'+name+'.js','utf8'),{window,Date});
+const model = window.DriveDashData;
+const sample = (sequence,speed,rpm=800,extra={}) => ({source:'cmu',available:true,sequence,sampleSeconds:sequence,speedKph:speed,rpm,fresh:{speedKph:true,rpm:true,gps:true},...extra});
+const session = model.createSession();
+let value = session.update(sample(0,0));
+value = session.update(sample(2,0));
+assert.equal(value.elapsedSeconds,2);assert.equal(value.idleSeconds,2);assert.equal(value.engineIdleSeconds,2);
+value = session.update(sample(3,36));
+value = session.update(sample(5,72,2400,{gpsAltitudeM:-12}));
+assert.equal(value.movingAvgKph,54);assert.equal(value.movingSeconds,2);assert.equal(value.topSpeedKph,72);assert.equal(value.maxRpm,2400);
+assert.equal(value.gpsMinAltitudeM,-12);assert.equal(value.gpsMaxAltitudeM,-12);
+const elapsed = value.elapsedSeconds;
+assert.equal(session.update(sample(5,72)).elapsedSeconds,elapsed,'Cached sequence cannot add time.');
+value = session.update(sample(6,72,2400,{fresh:{speedKph:false,rpm:false}}));
+value = session.update(sample(7,0));assert.equal(value.movingSeconds,2,'Retained values cannot add moving time.');
+session.pause();value = session.update(sample(9,0));assert.equal(value.engineIdleSeconds,2,'Settings pauses cannot count as idle time.');
+const beforeGap=value.elapsedSeconds;
+value=session.update(sample(40,0));assert.equal(value.elapsedSeconds,beforeGap,'No interpolation through long gaps.');
+value=session.update({source:'unavailable'});assert.equal(value.speedKph,null);assert.equal(value.topSpeedKph,72);
+value=model.normalize({batteryPercent:254,rpm:NaN,gpsLatitudeDeg:999});
+assert.equal(value.batteryPercent,null);assert.equal(value.rpm,null);assert.equal(value.gpsLatitudeDeg,null);
+for(const f of model.fields)assert(Object.hasOwn(value,f.key),f.key);
+assert.equal(value.gpsDirection,null);assert.equal(value.gpsFixValid,null);
+const config=window.DriveDashModel.settings({speedUnit:'mph',tempUnit:'F'},['oem-style']);
+const display=window.DriveDashModel.display({intakeC:20,gpsAltitudeM:100,gpsSpeedKph:160.9344,driveAvgL100:10,elapsedSeconds:3661,gearNumber:3,leverPosition:4},config,k=>({decimal:'.'}[k]||k));
+assert.equal(display.data.intakeC,20);assert.equal(display.formatted.intakeC,'68');assert.equal(display.formatted.gpsAltitudeM,'328');
+assert.equal(display.formatted.gpsSpeedKph,'100');assert.equal(display.formatted.driveAvgL100,'23.5');assert.equal(display.formatted.elapsedSeconds,'1:01:01');
+assert.equal(display.data.gearNumber,3);assert.equal(display.data.leverPosition,4);
+console.log('DRIVEDASH_DATA_PASSED: canonical nullable fields, SI values, common formatting, weighted statistics, fresh-only integration, pause and gap handling.');
+// GPS course uses position changes, independently of the OEM angle reference.
+function courseBetween(lat,lon,lat2,lon2){
+ const c=model.createSession();
+ assert.equal(c.update(sample(1,40,1200,{gpsLatitudeDeg:lat,gpsLongitudeDeg:lon})).gpsCourseDeg,null);
+ return c.update(sample(2,40,1200,{gpsLatitudeDeg:lat2,gpsLongitudeDeg:lon2}));
+}
+assert.equal(courseBetween(48,11,48.0001,11).gpsDirection,'N');
+assert.equal(courseBetween(48,11,48,11.0001).gpsDirection,'E');
+assert.equal(courseBetween(48,11,47.9999,11).gpsDirection,'S');
+assert.equal(courseBetween(48,11,48,10.9999).gpsDirection,'W');
+assert.equal(courseBetween(0,179.9999,0,-179.9999).gpsDirection,'E');
+assert.equal(courseBetween(48,11,49,12).gpsCourseDeg,null,'GPS jumps cannot become headings.');
+const compass=model.createSession();
+compass.update(sample(1,40,1200,{gpsLatitudeDeg:48,gpsLongitudeDeg:11}));
+assert.equal(compass.update(sample(2,40,1200,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N');
+assert.equal(compass.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N','Hold the last driving course at rest.');
+compass.pause();
+assert.equal(compass.update(sample(4,40,1200,{gpsLatitudeDeg:48.0002,gpsLongitudeDeg:11})).gpsCourseDeg,null,'Resume needs new position pair.');
+assert.equal(courseBetween(48,11,48.000001,11).gpsCourseDeg,null,'Ignore movements below three meters.');
+assert.equal(courseBetween(0,0,0.0001,0).gpsCourseDeg,null,'Reject missing zero-position origin.');
+console.log('DRIVEDASH_COMPASS_PASSED: cardinal courses, dateline, jitter, jumps, stationary and pause handling.');
+
+let wallTime=0;const cw={};
+vm.runInNewContext(fs.readFileSync('usb/tweaks/drivedash/assets/data.js','utf8'),{window:cw,Date:class{getTime(){return wallTime;}}});
+const hold=cw.DriveDashData.createSession();
+hold.update(sample(1,40,800,{gpsLatitudeDeg:48,gpsLongitudeDeg:11}));
+hold.update(sample(2,40,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11}));
+wallTime=25000;assert.equal(hold.update(sample(3,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N');
+wallTime=50000;assert.equal(hold.update(sample(4,0,800,{gpsLatitudeDeg:48.0001,gpsLongitudeDeg:11})).gpsDirection,'N','Fresh stationary positions retain direction.');
+wallTime=80000;assert.equal(hold.update({source:'unavailable'}).gpsDirection,'N','Retain through thirty seconds without GPS.');
+wallTime=80001;assert.equal(hold.update({source:'unavailable'}).gpsDirection,null,'Expire after thirty seconds without fresh positions.');
+
+// Fresh fixes arrive about every 2-2.5 s; one missed read (5.2 s gap) still gives a course.
+const cadence=model.createSession();
+const at=(sequence,seconds,lat,lon)=>({source:'cmu',available:true,sequence,sampleSeconds:seconds,speedKph:50,rpm:1800,gpsLatitudeDeg:lat,gpsLongitudeDeg:lon,fresh:{speedKph:true,rpm:true,gps:true}});
+cadence.update(at(1,0,48,11));
+assert.equal(cadence.update(at(2,2.4,48.0003,11)).gpsDirection,'N');
+assert.equal(cadence.update(at(3,7.6,48.0003,11.0006)).gpsDirection,'E','One missed GPS read still gives a course.');

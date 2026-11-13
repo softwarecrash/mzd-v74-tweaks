@@ -1,0 +1,32 @@
+/* Serialized service requests; tolerate two consecutive transport failures. */
+(function (global) {
+    'use strict';
+    global.DriveDashLive = function (request) {
+        var active = false, generation = 0, timer = null, pending = false, callback = null, delay = 250, failures = 0;
+        function stop() { active = false; generation += 1; global.clearTimeout(timer); timer = null; callback = null; }
+        function poll() {
+            var mine = generation, began = new Date().getTime();
+            if (!active || pending) { return; }
+            pending = true;
+            request(function (error, result) {
+                pending = false;
+                if (!active) { return; }
+                if (mine !== generation) { timer = global.setTimeout(poll,100); return; }
+                try {
+                    if (error || !result || result.source !== 'cmu') {
+                        failures += 1;
+                        delay = failures < 3 ? 250 : Math.min(8000,Math.max(1000,delay*2));
+                        if (failures >= 3) { callback({source:'unavailable'}); }
+                    } else {
+                        failures = 0; delay = result.available ? 250 : 1000; callback(result);
+                    }
+                } finally {
+                    if (active && mine === generation) { timer = global.setTimeout(poll,Math.max(100,delay-(new Date().getTime()-began))); }
+                }
+            });
+        }
+        return {start:function (fn) {
+            stop(); active = true; callback = fn; delay = 250; failures = 0; try { callback({source:'unavailable'}); } finally { poll(); }
+        },stop:stop};
+    };
+}(window));
