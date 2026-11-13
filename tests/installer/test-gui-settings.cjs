@@ -444,19 +444,60 @@ test('host passes menu options through and runs the open and close hooks', () =>
   assert.deepEqual(ctx.logs, ['onOpen failed: Error: ignored'], 'and it is logged, not hidden');
 });
 
-test('host starts from the initial state and can read the service at start', () => {
-  const seen = [];
-  const initial = { a: 1 };
-  const { ctx, host, source } = hostPage({ prefix: 'p', initialState: initial, syncOnStart: true, onState: (s, r) => seen.push([plain(s), r === null]) });
-  initial.a = 99;
+test('host reads the service at start and on service ready, and shows nothing unconfirmed', () => {
+  const states = [], confirmed = [];
+  const { ctx, host, source } = hostPage({
+    prefix: 'p', syncOnStart: true, initialState: { a: 1 },
+    onState: (s, r) => states.push([plain(s), r === null]),
+    onConfirmed: (s) => confirmed.push(plain(s))
+  });
+  assert.equal(host.settings(), null, 'there is no initial state option; nothing is known before the first read');
   assert.equal(ctx.requests.length, 1, 'syncOnStart reads at registration');
-  assert.equal(ctx.requests[0].op, 'get');
-  assert.deepEqual(plain(host.settings()), { a: 1 }, 'the initial state is a copy');
   viewRequest(ctx, 'get');
   assert.equal(ctx.requests.length, 1, 'a view joins the read that is already running');
-  assert.deepEqual(lastResponse(source).state, { a: 1 }, 'the view sees the initial state while the service answers');
+  assert.equal(lastResponse(source), undefined, 'the view gets no state before the service answered');
+
+  take(ctx, 'get').cb('Module service is starting or unavailable. Please retry.');
+  assert.deepEqual(ctx.logs, [], 'the expected boot failure is not logged');
+  assert.equal(lastResponse(source).state, null, 'the view gets the error without any state');
+  ctx.current = null;
+  ctx.handlers.ready();
+  assert.equal(ctx.requests.length, 1, 'with syncOnStart the host reads when the service is ready, also with no view open');
+  take(ctx, 'get').cb(null, { settings: { a: 2 } });
+  assert.deepEqual(confirmed, [{ a: 2 }], 'onConfirmed gets the service values');
+  assert.deepEqual(states, [[{ a: 2 }, false]]);
+  ctx.handlers.ready();
+  take(ctx, 'get').cb('Disk error');
+  assert.deepEqual(ctx.logs, ['Settings read failed: Disk error'], 'a later failed read with no view open is logged');
+});
+
+test('host onConfirmed sees only saved values and a failed save restores them', () => {
+  const states = [], confirmed = [];
+  const { ctx, host, source } = hostPage({
+    prefix: 'p',
+    onState: (s) => states.push(plain(s)),
+    onConfirmed: (s) => confirmed.push(plain(s))
+  });
+  viewRequest(ctx, 'get');
+  take(ctx, 'get').cb(null, { settings: { a: 1, b: 1 } });
+  confirmed.length = 0; states.length = 0;
+
+  viewRequest(ctx, 'set', { key: 'a', value: 2 });
   viewRequest(ctx, 'set', { key: 'b', value: 2 });
-  assert.deepEqual(seen, [[{ a: 1, b: 2 }, true]], 'a local change reaches onState without a service result');
+  assert.deepEqual(states, [{ a: 2, b: 1 }, { a: 2, b: 2 }], 'onState follows local changes at once');
+  assert.deepEqual(confirmed, [], 'onConfirmed waits for the service');
+  take(ctx, 'set').cb(null, { settings: { a: 2, b: 1 } });
+  assert.deepEqual(confirmed, [{ a: 2, b: 1 }], 'a saved value is confirmed, the queued one is not');
+  assert.deepEqual(plain(host.settings()), { a: 2, b: 2 }, 'the view state keeps the queued value');
+
+  take(ctx, 'set').cb('Disk full');
+  assert.deepEqual(plain(host.settings()), { a: 2, b: 1 }, 'a failed save goes back to the confirmed values at once');
+  assert.deepEqual(states[states.length - 1], { a: 2, b: 1 }, 'and tells onState');
+  assert.deepEqual(confirmed, [{ a: 2, b: 1 }], 'nothing new is confirmed');
+  take(ctx, 'get').cb('Module service timed out. Please retry.');
+  assert.deepEqual(plain(host.settings()), { a: 2, b: 1 }, 'also when the follow-up read fails');
+  assert.deepEqual(lastResponse(source).state, { a: 2, b: 1 });
+  assert(ctx.logs.indexOf('Settings save failed: Disk full') >= 0, 'the failed save is logged');
 });
 
 test('host onRequest handles custom requests and hook failures never break it', () => {

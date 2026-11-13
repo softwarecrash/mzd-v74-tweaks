@@ -26,6 +26,10 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
     file.parent.mkdir(parents=True)
     (base / 'fixture/lib').mkdir()
     shutil.copyfile(ROOT / 'usb/lib/configs.awk', base / 'fixture/lib/configs.awk')
+    # Component bundle cases read the shared component reader and a component table.
+    for name in ['components.sh', 'components.awk', 'config-map.awk']:
+        shutil.copyfile(ROOT / 'usb/lib' / name, base / 'fixture/lib' / name)
+    shutil.copyfile(ROOT / 'development/examples/bundle/components.tsv', file.parent / 'components.tsv')
     marker = base / 'must-not-exist'
     driver.write_text('. ' + shlex.quote(bp(ROOT / 'usb/lib/manifest.sh')) + '\n'
                       'mzd_manifest_load "$1" || exit 1\nprintf \'%s\\n\' "$NAME" "$DESCRIPTION" "$APP" "$ORIGINAL" "$LOCK"\n',
@@ -67,6 +71,12 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
               ('bad shim service',shim.replace('shim_service=jciMMUI','shim_service=jciMMUI;reboot'),False),
               ('bad extra hash',shim.replace(':030e918f5d6edcd62d196ee37b86fe99',':bad'),False),
               ('duplicate shim target',shim.replace('shim_extra_targets=', 'shim_extra_targets=/jci/sm/sm.conf:74d9fc389b74fb01d0cfc2615a82c782 '),False)]
+    bundle=''.join(line for line in (ROOT/'development/examples/bundle/manifest.conf').read_text().splitlines(keepends=True)
+                   if not line.startswith(('settings=','setting.')))
+    cases += [('components with sm-config lock',bundle,True),
+              ('components with jci-gui lock',bundle.replace('lock_group=sm-config','lock_group=jci-gui'),True),
+              ('components with another lock',bundle.replace('lock_group=sm-config','lock_group=List2Ctrl'),False),
+              ('components without lock',bundle.replace('lock_group=sm-config\n',''),False)]
     gui=(ROOT/'development/examples/gui-extension/manifest.conf').read_text()
     cases += [('GUI extension',gui,True),
               ('GUI game container',gui.replace('gui_menu_path=','gui_menu_path=Games'),True),

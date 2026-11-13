@@ -1,7 +1,8 @@
 /*
  * MZD Tweaks resident and view on the shared settings code (usb/lib/gui-runtime/settings-host.js and settings-view.js).
  * The resident keeps window.mzdTweaks, read by the patched OEM code, in step with the saved
- * settings; the view only declares four On/Off rows. Fake contexts, no CMU.
+ * settings: it changes only after the service confirmed a read or a save. The view only
+ * declares four On/Off rows. Fake contexts, no CMU.
  * Run: node tests/tweaks/mzd-tweaks/settings.cjs
  */
 const assert = require('node:assert/strict');
@@ -26,8 +27,8 @@ function residentPage(boot) {
   const head = { appendChild(script) { scripts.push(script); } };
   const document = { head: head, documentElement: head, createElement: () => ({}) };
   vm.runInNewContext(settingsHostSource, { window: win });
-  const registered = [];
-  win.MzdGuiResidents = { register(id, factory) { registered.push(id); win.factory = factory; } };
+  const registered = [], logs = [];
+  win.MzdGuiResidents = { register(id, factory) { registered.push(id); win.factory = factory; }, log(id, message) { logs.push([id, message]); } };
   vm.runInNewContext(residentSource, { window: win, document: document });
 
   const source = { messages: [], postMessage(message) { this.messages.push(plain(message)); } };
@@ -36,12 +37,14 @@ function residentPage(boot) {
   ctx.onMessage = fn => { ctx.handlers.message = fn; };
   ctx.onViewClose = () => {};
   ctx.onDispose = () => {};
-  ctx.onServiceReady = () => {};
+  ctx.logs = [];
+  ctx.log = message => ctx.logs.push(message);
+  ctx.onServiceReady = fn => { ctx.handlers.ready = fn; };
   ctx.notify = (text, isError) => ctx.notes.push([text, isError]);
   ctx.createNativeMenu = options => { ctx.options = options; return { close() {}, check() {}, owns: () => false }; };
   ctx.service = { request(op, args, cb) { ctx.requests.push({ op: op, args: plain(args), cb: cb }); } };
   win.factory(ctx);
-  return { win, ctx, source, scripts, registered };
+  return { win, ctx, source, scripts, registered, logs };
 }
 
 function request(ctx, action, payload) {
@@ -67,16 +70,18 @@ function lastResponse(source) {
   assert.equal(page.scripts[0].src, '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js', 'the boot script is still requested');
   const prevented = [];
   assert.equal(page.scripts[0].onerror({ preventDefault() { prevented.push(true); } }), true);
-  assert.deepEqual(prevented, [true], 'a missing boot script stays silent');
+  assert.deepEqual(prevented, [true], 'a missing boot script does not raise a page error');
+  assert.equal(page.logs.length, 1, 'a missing boot script is logged');
+  assert.equal(page.logs[0][0], 'mzd-tweaks');
 
   assert.equal(page.ctx.options.prefix, 'mzd-tweaks');
   assert.equal(page.ctx.options.dialog, false, 'no dialogs are needed');
   assert.deepEqual(page.ctx.requests.map(r => r.op), ['get'], 'the saved settings are read at startup, before any view opens');
 
-  // A view that opens while the first read runs sees the boot values.
+  // A view that opens while the first read runs gets no unconfirmed values.
   request(page.ctx, 'get');
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
-  assert.deepEqual(lastResponse(page.source).state, DEFAULTS);
+  assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
   complete(page.ctx, 'get', null, { settings: { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true } });
   assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true },
@@ -86,26 +91,43 @@ function lastResponse(source) {
 
 {
   const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false });
-  assert.equal(lastResponse(page.source).state.list_loop, true, 'values from the boot script are shown without waiting for the service');
+  assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
   assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false },
     'existing globals are kept');
+}
+
+{
+  // At boot the service is usually still starting: the first read fails at once.
+  const page = residentPage({ main_menu_loop: true, list_loop: false, list_beep: true, short_delay: false });
+  complete(page.ctx, 'get', 'Module service is starting or unavailable. Please retry.');
+  assert.deepEqual(page.ctx.logs, [], 'the expected boot failure is not logged');
+  assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'a failed read keeps the boot values');
+  page.ctx.current = null;
+  page.ctx.handlers.ready();
+  assert.deepEqual(page.ctx.requests.map(r => r.op), ['get'], 'the settings are read when the service is ready, with no view open');
+  complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS, { list_loop: true }) });
+  assert.deepEqual(plain(page.win.mzdTweaks), Object.assign({}, DEFAULTS, { list_loop: true }), 'the service values reach the globals');
+  page.ctx.handlers.ready();
+  complete(page.ctx, 'get', 'Disk error');
+  assert.deepEqual(page.ctx.logs, ['Settings read failed: Disk error'], 'a later failed read with no view open is logged');
 }
 
 {
   const page = residentPage();
   complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
   request(page.ctx, 'set', { key: 'short_delay', value: true });
-  assert.equal(page.win.mzdTweaks.short_delay, true, 'a change takes effect at once, before the service has saved it');
+  assert.equal(page.win.mzdTweaks.short_delay, false, 'the globals wait until the service has saved the change');
   assert.equal(page.ctx.requests.length, 1);
   assert.deepEqual(page.ctx.requests[0].args, { key: 'short_delay', value: true });
 
-  // A second change while saving also reaches the globals, and the older answer never undoes it.
+  // A second change while saving waits for its own confirmation.
   request(page.ctx, 'set', { key: 'list_loop', value: true });
-  assert.equal(page.win.mzdTweaks.list_loop, true);
+  assert.equal(page.win.mzdTweaks.list_loop, false);
   complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { short_delay: true }) });
-  assert.equal(page.win.mzdTweaks.list_loop, true, 'a queued value is not overwritten by the service result');
-  assert.equal(page.win.mzdTweaks.short_delay, true);
+  assert.equal(page.win.mzdTweaks.short_delay, true, 'a confirmed save reaches the globals');
+  assert.equal(page.win.mzdTweaks.list_loop, false, 'a queued value is not applied before it is saved');
   complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { short_delay: true, list_loop: true }) });
+  assert.equal(page.win.mzdTweaks.list_loop, true);
   assert.equal(lastResponse(page.source).saving, false);
 }
 
@@ -113,12 +135,15 @@ function lastResponse(source) {
   const page = residentPage();
   complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
   request(page.ctx, 'set', { key: 'main_menu_loop', value: true });
-  assert.equal(page.win.mzdTweaks.main_menu_loop, true);
+  assert.equal(page.win.mzdTweaks.main_menu_loop, false);
   complete(page.ctx, 'set', 'Disk full');
-  complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
-  assert.equal(page.win.mzdTweaks.main_menu_loop, false, 'a failed save puts the stored value back into the globals');
+  assert.equal(page.win.mzdTweaks.main_menu_loop, false, 'a failed save never reaches the globals');
+  assert.equal(lastResponse(page.source).state.main_menu_loop, false, 'the view goes back to the saved value at once');
+  complete(page.ctx, 'get', 'Module service timed out. Please retry.');
+  assert.equal(page.win.mzdTweaks.main_menu_loop, false, 'also when the follow-up read fails');
+  assert.equal(lastResponse(page.source).state.main_menu_loop, false);
   assert.deepEqual(page.ctx.notes, [['Failed to save settings', true]]);
-  assert.equal(lastResponse(page.source).error, 'Disk full');
+  assert.deepEqual(page.ctx.logs, ['Settings save failed: Disk full']);
 }
 
 // --- View -------------------------------------------------------------------
@@ -178,4 +203,4 @@ function viewPage(options) {
   assert.deepEqual(missing.posts, [], 'and nothing is sent');
 }
 
-console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, startup read, immediate globals on change, queued values kept, failed save restored, four On/Off rows with default-on end beep, no reboot row.');
+console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, no unconfirmed state, read on service ready, globals only after a confirmed save, failed save restored, four On/Off rows with default-on end beep, no reboot row.');

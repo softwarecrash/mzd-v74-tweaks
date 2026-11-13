@@ -81,6 +81,7 @@
             }
         } catch (failure) {
             nativeMenu.close(options.leaveOnError === true);
+            context.log('Native ' + data.type + ' failed: ' + String(failure.message || failure));
             try {
                 event.source.postMessage({
                     type: prefix + '-native-error',
@@ -100,7 +101,9 @@
         var prefix = options.prefix || 'mzd';
         var texts = copy(copy({}, DEFAULT_TEXTS), options.texts);
         var refreshTimer = null, hostEnded = false, viewOpen = false, saveFailed = false;
-        var settings = options.initialState ? copy({}, options.initialState) : null;
+        // settings: what the view shows, including values still being saved.
+        // confirmed: the last values the service reported as saved.
+        var settings = null, confirmed = null;
         var limits = {}, unavailable = {}, rebootRequired = false;
         var queue = [], inFlight = null, syncing = false, syncCallbacks = [];
         var nativeMenu, menuOptions;
@@ -196,6 +199,7 @@
         // Service values never overwrite a value that is still waiting to be saved.
         function accept(result, full) {
             var key, i;
+            confirmed = copy(full || !confirmed ? {} : confirmed, result.settings);
             if (full || !settings) { settings = {}; }
             for (key in result.settings) {
                 if (has.call(result.settings, key) && !hasQueuedKey(key) && !(inFlight && inFlight.key === key)) {
@@ -210,9 +214,12 @@
             if (full || result.unavailable) { unavailable = result.unavailable || {}; }
             rebootRequired = result.rebootRequired === true || result.restart_required === true;
             hook('onState', settings, result);
+            hook('onConfirmed', copy({}, confirmed), result);
         }
 
-        function sync(callback) {
+        // quiet skips the log line for the boot attempt, which is expected to
+        // fail while the service is still starting.
+        function sync(callback, quiet) {
             if (callback) { syncCallbacks.push(callback); }
             if (settings) { broadcast(''); }
             if (syncing) { return; }
@@ -225,6 +232,7 @@
                     accept(result, true);
                     broadcast('');
                 } else if (error) {
+                    if (!quiet && !currentView(context)) { context.log('Settings read failed: ' + error); }
                     broadcast(error);
                 }
                 for (i = 0; i < callbacks.length; i += 1) {
@@ -243,6 +251,12 @@
                 if (error) {
                     queue = [];
                     saveFailed = true;
+                    context.log('Settings save failed: ' + error);
+                    // Go back to the saved values even if the follow-up read also fails.
+                    if (confirmed) {
+                        settings = copy({}, confirmed);
+                        hook('onState', settings, null);
+                    }
                     context.notify(texts.saveError, true);
                     sync(function () { broadcast(error); });
                     return;
@@ -335,9 +349,10 @@
             hook('onDispose');
         });
         context.onServiceReady(function () {
-            if (currentView(context)) { sync(); }
+            if (options.syncOnStart === true || currentView(context)) { sync(); }
         });
-        if (options.syncOnStart === true) { sync(); }
+        // onServiceReady does not fire when the service is already running.
+        if (options.syncOnStart === true) { sync(null, true); }
         return api;
     }
 

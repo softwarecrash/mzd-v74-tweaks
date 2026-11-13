@@ -173,7 +173,8 @@ See [the shim example](examples/shim/README.md).
 
 `components=components.tsv` declares a mixed files/configuration/shims/patches
 transaction. It requires `type=files`, `reset_entrypoint=reset.sh`,
-`reboot_required=true` and `lock_group=sm-config`. It cannot be combined with
+`reboot_required=true` and `lock_group=sm-config` (native configuration and shims) or
+`lock_group=jci-gui` (JCI GUI patches only, as in MZD Tweaks). It cannot be combined with
 single-shim manifest fields. Optional `payload_dir=/tmp/mnt/data_persist/custom-dir`
 allows configuring a custom persistent folder for payload files (`shim`, `file`,
 `config`), defaulting to `/tmp/mnt/data_persist/mzd-tweaks/shims/<id>`. Component/config-map
@@ -215,7 +216,7 @@ does not run a worker; the normal Install/Run action applies the draft later.
 Installed settings remain read-only. Boolean controls are unchanged. Choice
 labels continue to use the existing token display; tweaks own their terminology.
 
-Optional GUI `gui_resident` and `gui_service` paths declare shared resident/service capabilities; service requires resident. See [Shared GUI extensions](Gui-extensions.md#optional-resident-and-service-capabilities-provider-020-development) for authoring and old-provider refusal.
+Optional GUI `gui_resident` and `gui_service` paths declare shared resident/service capabilities; service requires resident. See [Shared GUI extensions](Gui-extensions.md#optional-resident-and-service-capabilities-gui-api-level-2) for authoring and old-provider refusal.
 
 Optional GUI field: `gui_translations=assets/i18n.js` declares a scoped JavaScript
 translation dictionary for `gui-extension` consumers. Omit it for unchanged

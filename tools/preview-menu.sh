@@ -130,7 +130,7 @@ mzd_manifest_load "$MANIFEST_CONF" || {
 }
 
 if [ "$TYPE" != "gui-extension" ] && [ -z "${GUI_API:-}" ]; then
-    echo "Error: Tweak $TWEAK_ID is not a GUI extension (requires type=gui-extension or gui_api=1)." >&2
+    echo "Error: Tweak $TWEAK_ID is not a GUI extension (requires type=gui-extension or gui_api)." >&2
     exit 1
 fi
 

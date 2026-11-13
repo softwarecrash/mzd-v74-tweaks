@@ -78,8 +78,9 @@ positive integer that only grows. A tweak declares in `gui_api` the lowest level
 `gui_api=1` works with any provider. Installing or updating a tweak is refused, before any
 installed consumer is removed, unless the installed provider **and the saved runtime copy of
 every installed GUI consumer** (it runs on uninstall) are at least that level. The message
-asks to uninstall all GUI tweaks (settings can be kept when offered) and reinstall from the
-current USB package. The provider is never replaced by a consumer install or update; removing
+names every installed GUI tweak to uninstall (their uninstallers offer to keep settings) and
+asks to install them again from this USB; it falls back to "Uninstall all GUI tweaks first."
+when no names are found. Nothing is changed. The provider is never replaced by a consumer install or update; removing
 an older consumer remains available through its saved uninstaller. The SDK is therefore not
 required to be backward compatible across levels.
 
@@ -166,7 +167,7 @@ See [Acceptance testing](Gui-extension-testing.md) for the neutral browser and
 physical CMU sequence, including the split between SSH checks and human input.
 
 
-## Optional resident and service capabilities (provider 0.2.0, development)
+## Optional resident and service capabilities (GUI API level 2)
 
 Plain views (`gui_api=1`) are unchanged. Two optional manifest paths opt into additional
 shared support; they are not specific to games or wallpaper:
@@ -349,7 +350,7 @@ A resident that uses `MzdSettingsHost` must check that it exists before using it
 `settings-host.js` may have failed to load while the resident did load. Throw a clear error,
 for example `throw new Error('Shared settings code is unavailable.')`: the runtime logs it and
 stops only that resident. If `settings-view.js` is missing, a view should say so (Android Auto
-and MZD Tweaks show the existing `menuError` text) and call `ready()` so the message stays
+and MZD Tweaks show their translated `menuError` text) and call `ready()` so the message stays
 visible until the driver goes back.
 
 A view adds the script after the SDK:
@@ -362,7 +363,11 @@ A view adds the script after the SDK:
 
 The resident creates the host. The host routes native menu messages, keeps the
 last settings, queues `set` requests (a newer value for a queued key replaces
-it) and shows the save-error and reboot notifications:
+it) and shows the save-error and reboot notifications. It keeps two copies: the
+view state, which includes values still being saved, and the confirmed values,
+which the service last reported as saved. When a save fails, the view state goes
+back to the confirmed values. Until the first successful `get` there is no state,
+and the view shows its loading or service-unavailable status:
 
 ```js
 window.MzdGuiResidents.register('example-id', function (context) {
@@ -371,7 +376,9 @@ window.MzdGuiResidents.register('example-id', function (context) {
         dialog: true,        // preload the OEM Dialog3 template
         reboot: true,        // forward confirmed reboot requests to the service
         texts: { saveError: 'Failed to save settings' }, // used until the view sends localized texts
-        onState: function (settings, result) {}          // after every service result or queued change
+        syncOnStart: true,   // read the settings at start and when the service becomes ready
+        onState: function (settings, result) {},         // view state: after every service result or queued change
+        onConfirmed: function (settings, result) {}      // saved values only: after every successful get or set
     });
 });
 ```
@@ -379,9 +386,14 @@ window.MzdGuiResidents.register('example-id', function (context) {
 The service implements `get` and `set {key, value}`. Both return `{settings}`, with
 optional `limits` (per key `{min, max, step}`), `unavailable` (per key reason) and
 `rebootRequired`. `reboot` follows the rules in
-[Optional resident and service capabilities](#optional-resident-and-service-capabilities-provider-020-development).
-Other host options: `initialState`, `syncOnStart`, `onRequest(action, payload, host)`
-for custom view requests, `split`, `preview`, `onOpen`, `onClose` and `onDispose`.
+[Optional resident and service capabilities](#optional-resident-and-service-capabilities-gui-api-level-2).
+Use `onConfirmed`, not `onState`, for anything outside the view that must only see saved
+values, such as globals read by patched OEM code (MZD Tweaks does this). Other host options:
+`onRequest(action, payload, host)` for custom view requests, `split`, `preview`, `onOpen`,
+`onClose` and `onDispose`. The actions `get`, `set`, `texts` and `reboot` are reserved and
+never reach `onRequest`. `create` returns the `host` object that `onRequest` also receives:
+`nativeMenu`, `sync(callback)`, `settings()`, `save(key, value)`, `broadcast(error)`,
+`leave()` and `saving()`.
 Residents with their own menus can still use
 `MzdSettingsHost.handleNativeMessage(nativeMenu, context, prefix, event, options)`
 for the native menu routing alone.
@@ -404,6 +416,14 @@ window.MzdSettingsView.create(window.MzdGuiModule, {
     }
 });
 ```
+
+Other view options: `statusElement` (an element for the loading, service-unavailable and menu
+error texts), `texts` (extra localized texts sent to the resident) and
+`onState(state, data, api)` (after every state message). The view shows the
+`serviceUnavailable` text while it has no state; once the list is shown, the resident reports
+errors as notifications. Translate `loading`, `serviceUnavailable` and `menuError` in every settings view. The
+`rebootQuestion` and `rebootFallback` texts are needed only by tweaks that use a `reboot` row
+and `reboot: true`.
 
 Built-in row types cover only common patterns:
 
@@ -440,7 +460,7 @@ every hook is optional:
 | `activate(def, row, params, api)` | When the driver selects an enabled row. `params` carries a stepper value. |
 | `focus(def, info, api)` | When focus moves away from this row or leaves its stepper. `info` is `{index, previous, secondary}`. |
 | `flush(def, api)` | Before another row is activated, Back, a dialog or view disposal. Lets deferred rows save. |
-| `response(def, data, api)` | After every resident state message, including errors. |
+| `response(def, data, api)` | After every resident message once a state has been received, including later errors. |
 
 `api` offers `t`, `state()`, `limits()`, `unavailable()`, `saving()`,
 `pending(key)`, `rebootRequired()`, `save(key, value)`, `request(action, payload)`,

@@ -1,6 +1,13 @@
 /*
  * MZD Tweaks resident. The shared settings host owns the native menu and the
  * save queue; this file keeps window.mzdTweaks in sync for the patched OEM code.
+ *
+ * Three sources set window.mzdTweaks, in this order:
+ * 1. The inline defaults below, so the patched OEM code always finds the object.
+ * 2. settings.js, written by the service; it loads asynchronously at boot,
+ *    before the service is running, and holds the last saved values.
+ * 3. The service, through onConfirmed. It runs after a successful read
+ *    (syncOnStart) and after each successful save, never for unsaved values.
  */
 (function (global) {
     'use strict';
@@ -20,10 +27,17 @@
         bootScript.src = '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js';
         bootScript.onerror = function (event) {
             if (event && event.preventDefault) { event.preventDefault(); }
+            if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be loaded; using defaults until the service answers.');
+            }
             return true;
         };
         (document.head || document.documentElement).appendChild(bootScript);
-    } catch (ignore) {}
+    } catch (failure) {
+        if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+            global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be added: ' + failure);
+        }
+    }
 
     global.MzdGuiResidents.register('mzd-tweaks', function (context) {
         if (!global.MzdSettingsHost) {
@@ -40,18 +54,10 @@
             }
         }
 
-        var initial = {};
-        for (var key in global.mzdTweaks) {
-            if (Object.prototype.hasOwnProperty.call(global.mzdTweaks, key)) {
-                initial[key] = global.mzdTweaks[key];
-            }
-        }
-
         global.MzdSettingsHost.create(context, {
             prefix: 'mzd-tweaks',
-            initialState: initial,
             syncOnStart: true,
-            onState: applyGlobals
+            onConfirmed: applyGlobals
         });
     });
 }(window));

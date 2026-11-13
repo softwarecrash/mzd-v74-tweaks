@@ -234,7 +234,7 @@ Install the USB version. There is no automatic reinstall or receipt deletion.
 ## Shared GUI extensions
 
 `type=gui-extension` saves each consumer independently and manages the common
-provider automatically. Packages declaring `gui_api=1` (such as hybrid bundle
+provider automatically. Packages declaring `gui_api` (such as hybrid bundle
 workers) also register as GUI consumers, contributing to the shared provider
 lifecycle. Package payload tracking (`mzd_package_payload_paths`) automatically
 includes the tweak's GUI module files alongside its component targets.

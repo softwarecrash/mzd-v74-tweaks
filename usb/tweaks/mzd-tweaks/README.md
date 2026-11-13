@@ -1,6 +1,6 @@
 # MZD Tweaks
 
-Combine essential JavaScript interface enhancements into one bundle with live in-flight toggles directly in the Mazda Applications menu.
+Adds four interface enhancements, each with an on/off setting in the Mazda Applications menu.
 
 Features included:
 - **Main Menu Loop**: Wrap between the first and last main-menu icons.
@@ -10,24 +10,22 @@ Features included:
 
 ## Configuration
 
-Unlike static patches, MZD Tweaks provides an **MZD Tweaks** menu in **Applications**:
-- Features can be turned on or off in real time without rebooting the CMU.
-- Toggles apply in flight to the running Opera browser immediately.
-- Settings are saved to `/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.conf` and `settings.js`.
-- At boot, settings are loaded directly into browser global variables without additional service overhead.
-
-### USB Pre-Configuration
-You can pre-configure default settings on your computer before installation by placing a `settings.conf` file on your USB drive under `user/mzd-tweaks/settings.conf`:
-
-```ini
-main_menu_loop=true
-list_loop=true
-list_beep=false
-short_delay=true
-```
+MZD Tweaks adds an **MZD Tweaks** menu in **Applications**:
+- Each feature can be turned on or off there. The change is saved and then
+  applied to the running interface; no reboot is needed after the first one.
+- The menu is the only way to change these settings. There is no USB
+  pre-configuration file.
+- Settings are saved to `/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.conf`
+  and `settings.js`. Both files are written completely before either one replaces
+  the saved copy, so a failed save keeps the previous settings.
+- At boot, `settings.js` sets the saved values before the module service starts.
+  The tweak then reads the settings once from the service.
 
 ## Installation & Removal
 
 Supported firmware: **74.00.324**.
-- **Install**: Select MZD Tweaks in the USB installer and choose **Install**. A single reboot is required after initial installation to load the patched JavaScript templates into Opera.
-- **Uninstall**: Select **Uninstall** in the installer. Choose whether to keep or remove user configuration when prompted. Factory OEM files are verified and restored.
+- **Install**: Select MZD Tweaks in the USB installer and choose **Install**. One
+  reboot is required after installation to load the patched OEM controls
+  (`List2Ctrl.js`, `MainMenuCtrl.js`).
+- **Uninstall**: Select **Uninstall** in the installer. Choose whether to keep or
+  remove the saved settings when prompted. Factory OEM files are verified and restored.

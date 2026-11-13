@@ -195,4 +195,110 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     assert target_list2.read_text() == stock_list2
     assert target_mainmenu.read_text() == stock_mainmenu
 
+    def refused(args):
+        global checks
+        command = 'exec /bin/sh ' + ' '.join(shlex.quote(a) for a in [bp(usb / 'installer.sh'), *args])
+        r = subprocess.run([SHELL, '-c', command], env=env, capture_output=True, text=True, timeout=150)
+        assert r.returncode != 0, (args, r.stdout, r.stderr)
+        checks += 1
+        return r
+
+    def status(state):
+        global checks
+        cfg = dict(env, MZD_WORKER_DIRECT='1', MZD_SETTINGS_FILE=bp(settings_conf))
+        r = subprocess.run([SHELL, '-c', 'exec /bin/sh ' + shlex.quote(bp(folder / 'run.sh')) + ' status'], env=cfg, capture_output=True, text=True, timeout=90)
+        assert r.returncode == 0 and r.stdout == state + '\n', (r.returncode, r.stdout, r.stderr)
+        checks += 1
+        return r
+
+    registry = data / 'integration/mzd-gui-registry.js'
+    services = data / 'integration/mzd-gui-services.tsv'
+    org_list2 = target_list2.with_name('List2Ctrl.js.org')
+    org_mainmenu = target_mainmenu.with_name('MainMenuCtrl.js.org')
+
+    def not_registered():
+        assert not registry.exists() or 'mzd-tweaks' not in registry.read_text()
+        assert not services.exists() or 'mzd-tweaks' not in services.read_text()
+
+    # Full uninstall removed the saved settings and the GUI registration.
+    assert not (data_dir / 'settings.conf').exists() and not (data_dir / 'settings.js').exists(), 'full uninstall removes the settings'
+    not_registered()
+    assert not (data / 'integration/developer_mode_GuiConfig.js').exists(), 'the last GUI consumer removes the boot hook'
+    assert startup.read_text() == '#!/bin/sh\necho original\n'
+
+    # OEM backups hold the exact stock files.
+    call(['action', 'mzd-tweaks', 'install'])
+    assert org_list2.read_text() == stock_list2, 'List2Ctrl.js.org is the stock file'
+    assert org_mainmenu.read_text() == stock_mainmenu, 'MainMenuCtrl.js.org is the stock file'
+
+    # One target reverted: the shared bundle status reports it with a reason. It maps a
+    # partial component state to unavailable (shared bundle.sh behaviour, not MZD Tweaks).
+    patched_mainmenu = target_mainmenu.read_text()
+    write(target_mainmenu, stock_mainmenu)
+    saved = store / 'mzd-tweaks/package'
+    r = deep(saved / 'tweaks/mzd-tweaks/run.sh', saved / 'settings.conf', 'unavailable')
+    assert 'Partial component installation' in r.stderr, r.stderr
+    write(target_mainmenu, patched_mainmenu)
+    deep(saved / 'tweaks/mzd-tweaks/run.sh', saved / 'settings.conf', 'installed')
+
+    # Changed settings survive an uninstall that keeps the configuration.
+    custom_conf = 'main_menu_loop=true\nlist_loop=true\nlist_beep=false\nshort_delay=true\n'
+    custom_js = 'window.mzdTweaks = {\n    "main_menu_loop": true,\n    "list_loop": true,\n    "list_beep": false,\n    "short_delay": true\n};\n'
+    (data_dir / 'settings.conf').write_text(custom_conf)
+    (data_dir / 'settings.js').write_text(custom_js)
+    call(['action', 'mzd-tweaks', 'uninstall', '--preserve-config'])
+    call(['action', 'mzd-tweaks', 'install'])
+    assert (data_dir / 'settings.conf').read_text() == custom_conf, 'install keeps saved settings.conf'
+    assert (data_dir / 'settings.js').read_text() == custom_js, 'install keeps saved settings.js'
+    call(['action', 'mzd-tweaks', 'uninstall'])
+    assert target_list2.read_text() == stock_list2 and target_mainmenu.read_text() == stock_mainmenu
+
+    # A second target that is not the known OEM file: unavailable, and Install changes nothing.
+    foreign_mainmenu = stock_mainmenu + '// changed by another tool\n'
+    write(target_mainmenu, foreign_mainmenu)
+    r = status('unavailable')
+    assert r.stderr.strip(), 'unavailable status gives a reason'
+    refused(['action', 'mzd-tweaks', 'install'])
+    assert target_list2.read_text() == stock_list2, 'List2Ctrl.js is untouched when MainMenuCtrl.js is unknown'
+    assert target_mainmenu.read_text() == foreign_mainmenu
+    assert not org_list2.exists() and not org_mainmenu.exists(), 'no OEM backup is left behind'
+    assert not (store / 'mzd-tweaks').exists(), 'no receipt is published'
+    not_registered()
+    write(target_mainmenu, stock_mainmenu)
+
+    # Restore hook: check, prepare, then finish only once the OEM files are back.
+    call(['action', 'mzd-tweaks', 'install'])
+    saved = store / 'mzd-tweaks/package'
+    archive = base / 'reset-archive'
+    archive.mkdir()
+    system = base / 'reset-system'
+    system.mkdir()
+    write(system / 'mounts', '')
+    write(system / 'locks', '')
+    reset_script = base / 'reset-hook.sh'
+    write(reset_script, f'''ROOT={shlex.quote(bp(saved))}
+HERE={shlex.quote(bp(saved / 'tweaks/mzd-tweaks'))}
+MZD_SETTINGS_FILE={shlex.quote(bp(saved / 'settings.conf'))}
+ACTION=run
+MZD_RESET_DIR={shlex.quote(bp(archive))}
+MZD_SYSTEM={shlex.quote(bp(system))}
+. "$ROOT/lib/bundle.sh"
+mzd_bundle_reset_main "$1"
+''')
+
+    def run_reset(phase, expected=0):
+        global checks
+        r = subprocess.run([SHELL, bp(reset_script), phase], env=env, capture_output=True, text=True, timeout=20)
+        assert r.returncode == expected, (phase, r.returncode, r.stdout, r.stderr)
+        checks += 1
+        return r
+
+    run_reset('check')
+    run_reset('prepare')
+    run_reset('finish', 1)
+    shutil.copyfile(org_list2, target_list2)
+    shutil.copyfile(org_mainmenu, target_mainmenu)
+    run_reset('finish')
+    assert target_list2.read_text() == stock_list2 and target_mainmenu.read_text() == stock_mainmenu
+
 print('MZD_TWEAKS_CONTRACT_PASSED:', checks, 'checks passed.')
