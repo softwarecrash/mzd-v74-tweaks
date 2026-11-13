@@ -128,7 +128,8 @@ exec '''+copy_command+''' "$@"
   before=snapshot()
   for id_ in ['gui-hello-world','wallpaper-manager']:
    r=call(id_,'install',1)
-   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr and 'needs GUI API 2, found 1' in r.stdout+r.stderr,(r.stdout,r.stderr)
+   out=r.stdout+r.stderr
+   assert 'Uninstall: ' in out and 'GUI Extension Example' in out,(r.stdout,r.stderr)
    assert before==snapshot(),'Rejected install changed saved installation'
   p=usb/'tweaks/gui-example/manifest.conf';write(p,p.read_text().replace('version=0.1.0','version=0.1.1'))
   call('gui-example','update')
@@ -143,7 +144,7 @@ exec '''+copy_command+''' "$@"
   write(saved/'package/lib/gui-runtime/api.conf','api=1\n');reinventory(saved,'package.files')
   before=snapshot()
   r=call('gui-hello-world','install',1)
-  assert 'needs GUI API 2, found 1' in r.stdout+r.stderr,(r.stdout,r.stderr)
+  assert 'Uninstall: Wallpaper Manager.' in r.stdout+r.stderr,(r.stdout,r.stderr)
   assert before==snapshot(),'Rejected install changed saved installation'
   call('wallpaper-manager','uninstall');absent()
   # A provider without a valid level is refused before anything changes.
@@ -243,7 +244,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
   failed=call('gui-example','install',1)
   diagnostics=failed.stdout+failed.stderr+'\n'.join(p.read_text() for p in (usb/'reports/gui-example').glob('install-*/run.log'))
-  assert 'is too old' in diagnostics and 'needs GUI API 2, found 1' in diagnostics,diagnostics
+  assert 'older version' in diagnostics and 'Uninstall' in diagnostics,diagnostics
   assert startup.read_bytes()==original and not (modules/'gui-example').exists() and not (persist/'mzd-tweaks/installed/gui-example').exists()
   call('gui-hello-world','uninstall');absent()
   print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, owned data removal and old-provider refusal.')
@@ -306,7 +307,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
   api=runtime/'api.conf';write(api,'api=1\n')
   result=call('tetris','install',1)
-  assert 'needs GUI API 2, found 1' in result.stdout+result.stderr
+  assert 'older version' in result.stdout+result.stderr
   assert not (persist/'mzd-tweaks/installed/tetris').exists(),'failed capability check published a receipt'
   call('gui-example','uninstall');absent()
   print('GUI_I18N_COMPAT_PASSED:',checks,'real actions; provider and saved copies at an older GUI API level are refused before staging.')
@@ -387,7 +388,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
   api=runtime/'api.conf';write(api,'api=1\n')
   result=call('tetris','install',1)
-  assert 'needs GUI API 2, found 1' in result.stdout+result.stderr
+  assert 'older version' in result.stdout+result.stderr
   assert not (persist/'mzd-tweaks/installed/tetris').exists(),'failed capability check published a receipt'
   call('gui-example','uninstall');absent()
   print('GUI_I18N_COMPAT_PASSED:',checks,'real actions; provider and saved copies at an older GUI API level are refused before staging.')

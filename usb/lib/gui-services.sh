@@ -16,19 +16,27 @@ mzd_gui_capabilities() (
     want=$GUI_API
     [ -z "$GUI_RESIDENT" ] || [ -f "$HERE/$GUI_RESIDENT" ] && [ ! -L "$HERE/$GUI_RESIDENT" ] || exit 1
     [ -z "$GUI_SERVICE" ] || [ -f "$HERE/$GUI_SERVICE" ] && [ ! -L "$HERE/$GUI_SERVICE" ] || exit 1
+    problem=0
+    names=
+    nl='
+'
     for receipt in "$MZD_GUI_PROVIDER" "$MZD_PACKAGE_STORE"/*; do
         [ -d "$receipt" ] || continue
         if [ "$receipt" != "$MZD_GUI_PROVIDER" ]; then
             mzd_manifest_load "$receipt/package/tweaks/${receipt##*/}/manifest.conf" || exit 1
             [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || continue
+            # The shared helper is replaced only after the last GUI tweak is gone, so list them all.
+            names="${names:+$names, }$NAME"
         fi
-        have=$(mzd_gui_api_level "$receipt/package/lib/gui-runtime/api.conf") || {
-            mzd_gui_error 'The installed GUI helper or a saved consumer has no valid GUI API level. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
-        }
-        [ "$have" -ge "$want" ] || {
-            mzd_gui_error "The installed GUI helper or a saved consumer is too old (this tweak needs GUI API $want, found $have). Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed."; exit 1;
-        }
+        have=$(mzd_gui_api_level "$receipt/package/lib/gui-runtime/api.conf") && [ "$have" -ge "$want" ] || problem=1
     done
+    [ "$problem" = 0 ] && exit 0
+    if [ -n "$names" ]; then
+        list="Uninstall: ${names}."
+    else
+        list="Uninstall all GUI tweaks first."
+    fi
+    mzd_gui_error "This tweak can't be installed yet because tweaks installed on the car are from an older version.${nl}${list}${nl}Install those tweaks again from this USB.${nl}Nothing has been changed."
 )
 
 mzd_gui_startup_ok() {
