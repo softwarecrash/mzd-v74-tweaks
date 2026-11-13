@@ -38,6 +38,7 @@ line has five nonempty tab-separated fields. `-` means unused:
 | loader_env | `NAME=VALUE` | - | service name | - |
 | config | private persistent config | assets/name.map | - | - |
 | file | private persistent file | assets/name | - | - |
+| executable | private persistent executable | assets/name | - | - |
 | patch | absolute existing target | assets/change.patch | - | original fingerprint |
 | check | absolute native module | - | - | supported fingerprint |
 
@@ -121,3 +122,13 @@ The transaction covers one worker install/uninstall. The existing package
 controller replaces versions by uninstalling the saved version first; it does
 not promise automatic reinstallation of the old version if a later new-version
 install fails. Critical outcomes always require inspection before reboot.
+
+Executable components are published with mode 0755; other payloads use 0644.
+The worker restores these permissions after rollback from a FAT report archive.
+
+A bundle may define `mzd_bundle_before_uninstall` for scoped runtime shutdown.
+It runs under the package/target locks after planning and write prerequisites,
+before any references or payload files are removed. A nonzero result aborts
+removal and retains the package files. Workers must not stop unrelated services
+or reboot in this callback; stopped runtime activity is not restarted by file
+rollback and may require the normal recommended restart.

@@ -1,10 +1,13 @@
 {
   "repository": "https://github.com/PingusPepan/oem-aa-mod",
   "pull_request": 10,
-  "source_commit": "43d7ba1",
+  "source_commit": "43d7ba1fd2f0f4f88185e4e9f33b44ea4291316f",
   "artifact_commit": "f646816",
   "workflow_run": 42317350287,
   "artifact_id": 13551008894,
-  "payload_bundled": false,
-  "note": "Previously tested baseline, not a claim about the latest upstream release."
+  "payload_bundled": true,
+  "note": "Pinned previously tested payload, locally imported. Adapter install remains blocked until lifecycle integration is complete.",
+  "archive_sha256": "223d8cecd6cb2f5dcbc81ec16e8fab7681c4f5f98139deab3b1fa28792629892",
+  "upstream_license": "AGPL-3.0",
+  "source_url": "https://github.com/PingusPepan/oem-aa-mod/tree/43d7ba1fd2f0f4f88185e4e9f33b44ea4291316f"
 }

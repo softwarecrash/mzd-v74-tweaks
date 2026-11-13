@@ -34,6 +34,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-component-schema-') as temporary:
         assert (r.returncode==0)==expected,(r.stdout,r.stderr,text)
         checks+=1
     check(original,True)
+    check(original + 'executable\t/tmp/mnt/data_persist/mzd-tweaks/shims/bundle-example/helper\tassets/helper\t-\t-\n', True)
+    check(original + 'executable\t/tmp/mnt/data_persist/wl/helper\tassets/helper\t-\t-\n', False)
+    check(original + 'executable\t/tmp/mnt/data_persist/mzd-tweaks/shims/bundle-example/helper\tassets/helper\tjciMMUI\t-\n', False)
     for text in [original+original, original.replace('assets/alpha.so','assets/../alpha.so'),original.replace('/alpha.so','/nested/alpha.so'),original.replace('jciMMUI','bad service'),original.replace('shim\t','unknown\t',1),original.replace('74d9fc389b74fb01d0cfc2615a82c782','bad'),original.replace('/shims/bundle-example/','/shims/foreign/'),original.replace('loader\t/jci/sm/sm.conf','loader\t/jci//sm/sm.conf'),original.replace('assets/alpha.so\tjciMMUI\t-','assets/alpha.so\tjciMMUI\t-\textra'),original.replace('assets/alpha.so\tjciMMUI\t-','assets/alpha.so\tjciMMUI\tbad_option')]:
         check(text,False)
     for bad_char in ['"', '\\', '<', '>', '&']:

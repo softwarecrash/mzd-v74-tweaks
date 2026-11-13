@@ -29,8 +29,13 @@ jobs:
         run: python tests/contract/test_settings.py
       - name: Test read-only Touch prerequisites
         run: sh tests/tweaks/touch-while-driving/reader.sh usb/tweaks/touch-while-driving/touch.sh
-      - name: Test wireless AA adapter scaffold
-        run: python tests/contract/test_wireless_scaffold.py
+      - name: Test wireless AA adapter candidate
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.1
+          python tests/contract/test_wireless_scaffold.py
+          python tests/contract/test_wireless_transaction.py
+          python tests/contract/test_wireless_shutdown.py
       - name: Test mutable config defaults and ownership
         run: python tests/contract/test_config_data.py
       - name: Test package inventory batching and failure handling
@@ -98,6 +103,10 @@ jobs:
         run: |
           sudo apt-get install -y lua5.1
           for file in usb/lib/lua-bridge/*.lua usb/tweaks/*/assets/*.lua usb/tweaks/*/assets/*/*.lua tests/transport/*.lua; do luac5.1 -p "$file"; done
+      - name: Test wireless AA configuration domain
+        run: |
+          lua5.1 tests/tweaks/android-auto-wireless/config.lua
+          lua5.1 tests/tweaks/android-auto-wireless/lifecycle.lua
       - name: Test Hello entrypoint
         run: python tests/contract/test_hello.py
       - name: Test Terminal entrypoint

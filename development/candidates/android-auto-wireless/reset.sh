@@ -1,11 +1,7 @@
 #!/bin/sh
-# A scaffold never owns installed payloads. It cannot adopt/reset an old manual test.
 set -u
-[ "$#" = 1 ] || exit 1
-case "$1" in
-    check) exit 0 ;;
-    prepare|finish)
-        printf 'Wireless AA reset is not implemented; no files changed.\n' >&2
-        exit 1 ;;
-    *) exit 1 ;;
-esac
+SELF=$(readlink -f "$0") || exit 1
+HERE=$(dirname "$SELF")
+ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
+. "$HERE/transaction.sh" || exit 1
+mzd_bundle_reset_main "$@"

@@ -1,0 +1,17 @@
+# Component transaction for the controlled bench-test candidate.
+patch	/jci/sm/sm.conf	assets/runtime/sm.conf.patch	-	74d9fc389b74fb01d0cfc2615a82c782
+patch	/jci/sm/sm_WCP.conf	assets/runtime/sm_WCP.conf.patch	-	030e918f5d6edcd62d196ee37b86fe99
+patch	/jci/bds/BdsConfiguration.xml	assets/runtime/BdsConfiguration.xml.patch	-	71bfe3f3c22e5857ceb4226d01f8800d
+patch	/etc/aap_system_attributes.xml	assets/runtime/aap_system_attributes.patch	-	58e287b8fb677d41307178f3b425d09a
+patch	/etc/aap_system_attributes_UCP.xml	assets/runtime/aap_system_attributes_UCP.patch	-	357c4fe93baf5a948cf3a70157a4607e
+file	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/libpatch-blmjciaapa.so	assets/upstream/libpatch-blmjciaapa.so	-	-
+file	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/libpatch-aap_service.so	assets/upstream/libpatch-aap_service.so	-	-
+executable	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/aaw_listend	assets/upstream/aaw_listend	-	-
+executable	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/aaw_handler	assets/upstream/aaw_handler	-	-
+executable	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/start-aa-ap.sh	assets/runtime/start-aa-ap.sh	-	-
+executable	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/reset-aa-dongle.sh	assets/runtime/reset-aa-dongle.sh	-	-
+file	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/lifecycle.lua	assets/service/lifecycle.lua	-	-
+file	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/lifecycle-cli.lua	assets/service/lifecycle-cli.lua	-	-
+file	/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto-wireless/config.lua	assets/service/config.lua	-	-
+check	/usr/bin/aap_service	-	-	964e9af092d8ef2d0eddcd881b26c0e2
+check	/jci/aapa/blmjciaapa.so	-	-	486628ae7b5be7c80527968a0b85ae38

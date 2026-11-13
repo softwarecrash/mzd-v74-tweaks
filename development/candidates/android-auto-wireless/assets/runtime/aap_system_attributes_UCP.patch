@@ -1,0 +1,37 @@
+--- target.data
++++ target.data
+@@ -19,5 +19,10 @@
+             <height>480</height>
+-            <par>10670</par>
+         </display>
+         <input_devices>
++            <touch_screen>
++                <use_internally>false</use_internally>
++                <path>/dev/input/filtered-touchscreen0</path>
++                <type>AAP_TOUCH_SCREEN_TYPE_CAPACITIVE</type>
++                <as_secondary_input>false</as_secondary_input>
++            </touch_screen>
+             <key_codes>
+@@ -25,2 +30,3 @@
+                 <value>AAP_KEYCODE_MEDIA_PLAY</value>
++                <value>AAP_KEYCODE_MEDIA_PAUSE</value>
+                 <value>AAP_KEYCODE_MEDIA_PREVIOUS</value>
+@@ -46,2 +52,6 @@
+                 <density>141</density>
++                <real_density>141</real_density>
++                <par>10670</par>
++                <fps>60</fps>
++                <decoder_additional_depth>3</decoder_additional_depth>
+             </resolution>
+@@ -49,5 +59,3 @@
+                 <value>H.264_BP_L3.1</value>
+-                <decoder_additional_depth>3</decoder_additional_depth>
+             </codec_profile>
+-            <fps>60</fps>
+         </video>
+@@ -79,3 +87,4 @@
+             <navigation>
+-                <subscribe>FALSE</subscribe>
++                <subscribe>TRUE</subscribe>
++                <cluster_type>ENUM</cluster_type>
+             </navigation>

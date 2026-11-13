@@ -1,0 +1,6 @@
+--- target.data
++++ target.data
+@@ -34,2 +34,3 @@
+        <serialPort id="14" name="Android VDT" noOfInstances="1" critical="false" enabled="true" uuidServer="DC022184EA4D4fc38CC62F41C506D3BF" uuidClient="DC022184EA4D4fc38CC62F41C506D3BF" writeDelay="3"/>
++       <serialPort id="15" name="Android Auto Wireless" noOfInstances="1" critical="false" enabled="true" uuidServer="4de17a0052cb11e6bdf40800200c9a66" uuidClient="4de17a0052cb11e6bdf40800200c9a66" writeDelay="3"/>
+   </serviceConfiguration>

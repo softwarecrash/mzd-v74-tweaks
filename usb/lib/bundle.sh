@@ -1,4 +1,8 @@
 #!/bin/sh
+mzd_bundle_payload_mode() (
+    case "$1" in executable) mode=755;;file|config|shim) mode=644;;*) exit 0;;esac
+    chmod "$mode" "$2" && [ "$(stat -c %a "$2")" = "$mode" ]
+)
 # One transaction for payload files, generated configuration, shims and patches.
 # Workers may define mzd_bundle_prerequisites: data-only block/warning/info records.
 # Workers may define mzd_bundle_patch: dynamic patch configuration hook.
@@ -12,7 +16,7 @@ mzd_bundle_load() {
         . "$ROOT/lib/gui-extension.sh" || return 1
         . "$ROOT/lib/gui-services.sh" || return 1
     fi
-    mzd_require_tools awk cat cp cmp chmod md5sum cut mktemp readlink dirname rm patch dd od grep mkdir mv || return 1
+    mzd_require_tools awk cat cp cmp chmod stat md5sum cut mktemp readlink dirname rm patch dd od grep mkdir mv || return 1
 }
 mzd_bundle_validate_install() (
     scratch=$(mktemp -d /tmp/mzd-bundle-assets.XXXXXX) || exit 1
@@ -27,7 +31,7 @@ mzd_bundle_validate_install() (
             check) mzd_asset_readable "$target" && [ "$(mzd_hash "$target")" = "$original" ] || { printf 'Unsupported native module: %s (expected MD5 %s).\n' "$target" "$original" >&2; exit 1; } ;;
             shim) mzd_asset_readable "$asset_file" && mzd_shim_elf "$asset_file" || { printf 'Missing or unsupported ARM library: %s\n' "$source" >&2; exit 1; } ;;
             config) mzd_component_config "$asset_file" "$scratch/config" || exit 1 ;;
-            file) mzd_asset_readable "$asset_file" || exit 1 ;;
+            file|executable) mzd_asset_readable "$asset_file" || exit 1 ;;
             patch)
                 mzd_asset_readable "$asset_file" || exit 1
                 if command -v mzd_bundle_patch >/dev/null 2>&1; then
@@ -190,7 +194,7 @@ mzd_bundle_plan() (
         else : > "$folder/before.absent"; fi
         asset_file=$(mzd_tweak_asset "$source") || exit 1
         case "$kind" in
-            file|config|shim)
+            file|config|shim|executable)
                 case "$kind" in
                     config) mzd_component_config "$asset_file" "$folder/expected.data" || exit 1 ;;
                     *) mzd_asset_readable "$asset_file" && cp "$asset_file" "$folder/expected.data" || exit 1 ;;
@@ -199,7 +203,11 @@ mzd_bundle_plan() (
                     printf 'Unsupported ARM library: %s\n' "$source" >&2; exit 1;
                 }
                 if [ -f "$folder/before.absent" ]; then state=uninstalled
-                elif cmp -s "$target" "$folder/expected.data"; then state=installed
+                elif cmp -s "$target" "$folder/expected.data"; then
+                    [ "$kind" != executable ] || [ -x "$target" ] || {
+                        printf 'Owned executable is not executable: %s\n' "$target" >&2; exit 1;
+                    }
+                    state=installed
                 else printf 'Owned payload differs from its saved configuration: %s\n' "$target" >&2; exit 1; fi
                 cp "$folder/expected.data" "$folder/after.data" || exit 1
                 chmod 644 "$folder/after.data" || exit 1
@@ -271,7 +279,7 @@ mzd_bundle_plan() (
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
         case "$existing" in *.tmp) continue ;; esac
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$plan/components" || {
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$plan/components" || {
             . "$ROOT/lib/config-data.sh" || exit 1
             mzd_config_contains "$HERE" "$existing" || { printf 'Unknown file in the owned payload directory: %s\n' "$existing" >&2;exit 1; }
         }
@@ -290,6 +298,7 @@ mzd_bundle_cleanup() (
             # do not restore any further load references to missing payloads.
             [ "$result" = 0 ] || break
             folder="$MZD_REPORT/plan/$number"; target=$(cat "$folder/target.path") || { result=1; continue; }
+            kind=$(cat "$folder/kind") || { result=1; break; }
             if [ -f "$folder/before.absent" ]; then
                 if [ ! -e "$target" ] && [ ! -L "$target" ]; then continue; fi
                 if cmp -s "$target" "$folder/after.data"; then rm -f "$target" || result=1; else result=1; fi
@@ -298,6 +307,14 @@ mzd_bundle_cleanup() (
                 mzd_restore_write "$target" "$folder/before.data" "$folder/before.data" || result=1
                 if [ -f "$MZD_REPORT/temp.path" ]; then cat "$MZD_REPORT/temp.path" >> "$MZD_REPORT/temps" || result=1; fi
             else printf 'Concurrent change prevents rollback: %s. Do NOT reboot.\n' "$target" >&4; result=1; fi
+            # FAT report archives do not retain Unix modes. Restore payload modes
+            # before the reverse-order rollback republishes any boot reference.
+            if [ "$result" = 0 ] && [ ! -f "$folder/before.absent" ]; then
+                mzd_bundle_payload_mode "$kind" "$target" || {
+                    printf 'Cannot restore payload permissions: %s. Do NOT reboot.\n' "$target" >&4
+                    result=1
+                }
+            fi
         done < "$MZD_REPORT/reverse"
     fi
     if [ "${BUNDLE_COMMITTED:-0}" = 0 ] && [ -n "${GUI_API:-}" ] && [ -f "$MZD_REPORT/gui-transaction.path" ]; then
@@ -353,7 +370,7 @@ mzd_bundle_apply() {
         target=$(cat "$folder/target.path") || exit 1
         mount_point=$(mzd_shim_mount "$target") || mzd_fail 'Unsupported internal component filesystem.'
         kind=$(cat "$folder/kind") || exit 1
-        case "$kind" in file|config|shim)
+        case "$kind" in file|config|shim|executable)
             [ "$mount_point" = "$MZD_COMPONENT_STORAGE" ] || mzd_fail 'Payload storage must be the mounted persistent partition.' ;;
         esac
         mzd_system_remount_rw "$mount_point" || exit 1
@@ -367,6 +384,9 @@ mzd_bundle_apply() {
     [ "$available" -ge "$needed" ] || mzd_fail 'Insufficient persistent storage space.'
     mzd_system_watchdog_disable || exit 1
     mzd_report_start
+    if [ "$ACTION" = uninstall ] && command -v mzd_bundle_before_uninstall >/dev/null 2>&1; then
+        mzd_bundle_before_uninstall || mzd_fail 'Runtime shutdown failed; package files retained.'
+    fi
     if [ "$ACTION" = uninstall ] && [ -n "${GUI_API:-}" ]; then
         mzd_gui_mutate uninstall || mzd_fail 'GUI module removal failed.'
     fi
@@ -378,7 +398,7 @@ mzd_bundle_apply() {
             number=$((number+1)); folder="$MZD_REPORT/plan/$number"
             [ ! -f "$folder/noop" ] || continue
             kind=$(cat "$folder/kind"); target=$(cat "$folder/target.path")
-            case "$kind:$phase" in file:payload|config:payload|shim:payload|loader:target|patch:target) ;; *) continue ;; esac
+            case "$kind:$phase" in file:payload|config:payload|shim:payload|executable:payload|loader:target|patch:target) ;; *) continue ;; esac
             if [ -f "$folder/before.absent" ]; then
                 [ ! -e "$target" ] && [ ! -L "$target" ] || mzd_fail 'Component appeared during preparation.'
             else cmp -s "$target" "$folder/before.data" || mzd_fail 'Component changed during preparation.'; fi
@@ -399,11 +419,14 @@ mzd_bundle_apply() {
             esac
             printf '%s\n' "$number" >> "$MZD_REPORT/changed" || exit 1
             case "$kind:$ACTION" in
-                file:uninstall|config:uninstall|shim:uninstall)
+                file:uninstall|config:uninstall|shim:uninstall|executable:uninstall)
                     : > "$folder/deleting"
                     rm -f "$target" || mzd_fail 'Payload removal failed.' ;;
                 *)
-                    mzd_restore_write "$target" "$folder/after.data" "$folder/after.data" || mzd_fail 'Component write failed; rolling back.' ;;
+                    mzd_restore_write "$target" "$folder/after.data" "$folder/after.data" || mzd_fail 'Component write failed; rolling back.'
+                    # The staged copy may sit on the FAT USB report, whose modes
+                    # are fixed by the mount, so set the mode on the target itself.
+                    mzd_bundle_payload_mode "$kind" "$target" || mzd_fail 'Could not set payload permissions; rolling back.' ;;
             esac
         done
     done
@@ -512,7 +535,7 @@ mzd_bundle_reset_main() (
     for existing in "$payload_dir"/* "$payload_dir"/.[!.]* "$payload_dir"/..?*; do
         [ -e "$existing" ] || [ -L "$existing" ] || continue
         case "$existing" in *.tmp) continue ;; esac
-        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
+        awk -F "$(printf '\t')" -v p="$existing" '$2==p && $1~/^(file|config|shim|executable)$/{found=1} END{exit !found}' "$scratch/components" || { . "$ROOT/lib/config-data.sh" && mzd_config_contains "$HERE" "$existing" || { printf 'Unknown owned-directory file: %s\n' "$existing" >&2;exit 1; }; }
     done
     while IFS="$tab" read -r kind target source service original; do
         case "$kind" in check|loader_env) continue ;; esac
@@ -525,7 +548,7 @@ mzd_bundle_reset_main() (
                 elif [ "$(mzd_hash "$target")" != "$original" ]; then
                     mzd_asset_readable "$target.org" && [ "$(mzd_hash "$target.org")" = "$original" ] || { printf 'Reset requires the verified OEM backup: %s\n' "$target" >&2; exit 1; }
                 fi ;;
-            file|config|shim)
+            file|config|shim|executable)
                 number=$((number+1))
                 if [ -e "$target" ] || [ -L "$target" ]; then
                     mzd_asset_readable "$target" || exit 1
@@ -540,6 +563,9 @@ mzd_bundle_reset_main() (
                 fi ;;
         esac
     done < "$scratch/components"
+    if [ "$phase" = prepare ] && command -v mzd_bundle_before_uninstall >/dev/null 2>&1; then
+        mzd_bundle_before_uninstall || exit 1
+    fi
     [ "$phase" = finish ] || exit 0
     [ "${ACTION:-}" = run ] && [ -d "${MZD_RESET_DIR:-}" ] && [ -d "${MZD_SYSTEM:-}" ] || exit 1
     mount_point=$(mzd_shim_mount "$payload_dir") || exit 1
