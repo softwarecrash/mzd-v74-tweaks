@@ -131,7 +131,11 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
                            (original.replace('compress.default=true','compress.default=yes'), False),
                            (original.replace('stock medium large','stock stock'), False),
                            (original.replace('compress profile','compress compress'), False),
-                           (original+'setting.compress.options=true false\n', False)]:
+                           (original+'setting.compress.options=true false\n', False),
+                           (original+'setting.profile.labels=Stock|Medium size|Large\n', True),
+                           (original+'setting.profile.labels=Stock|Medium\n', False),
+                           (original+'setting.profile.labels=Stock||Large\n', False),
+                           (original+'setting.compress.labels=On|Off\n', False)]:
         write(manifest,text)
         r = subprocess.run([SHELL,bp(driver),bp(manifest)],env=env,capture_output=True,text=True,timeout=15)
         assert (r.returncode==0)==accepted, (text,r.stderr)

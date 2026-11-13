@@ -125,6 +125,17 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
     write(bins / 'sync', '#!/bin/sh\nexit 0\n')
     write(bins / 'df', '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfixture 1000000 1 900000 1%% internal\\n"\n')
     write(bins / 'mount', '#!/bin/sh\nexit 0\n')
+    real_mv = (shlex.quote(bp(shutil.which('busybox'))) + ' mv') if os.environ.get('CMU_TEST_BUSYBOX') else shlex.quote(bp(shutil.which('mv') or '/bin/mv'))
+    # Fails the publish of the UCP target while the flag file exists: once, or
+    # always (including rollback) when MZD_TEST_FAIL_MV_KEEP is set.
+    write(bins / 'mv', '''#!/bin/sh
+if [ -n "${MZD_TEST_FAIL_MV:-}" ] && [ -f "$MZD_TEST_FAIL_MV" ]; then
+    case "$*" in *aap_system_attributes_UCP.xml)
+        [ -n "${MZD_TEST_FAIL_MV_KEEP:-}" ] || rm -f "$MZD_TEST_FAIL_MV"; exit 1 ;;
+    esac
+fi
+exec ''' + real_mv + ''' "$@"
+''')
     for name in ['lua', 'setsid']:
         write(bins / name, '#!/bin/sh\nexit 0\n')
     with (usb / 'lib/gui-services.sh').open('a', encoding='utf-8') as f:
@@ -148,10 +159,10 @@ esac
 
     folder = usb / 'tweaks/android-auto'
     shutil.copytree(ROOT / 'usb/tweaks/android-auto', folder)
-    payload_dir = persist / 'oem-aa-mod'
+    payload_dir = persist / 'mzd-tweaks/shims/android-auto'
 
     m = (folder / 'manifest.conf').read_text().replace('/jci/sm/sm.conf', bp(config)).replace('74d9fc389b74fb01d0cfc2615a82c782', md5(stock.encode()))
-    m = m.replace('/tmp/mnt/data_persist/oem-aa-mod', bp(payload_dir))
+    m = m.replace('/tmp/mnt/data_persist', bp(persist))
     write(folder / 'manifest.conf', m)
 
     table = (folder / 'components.tsv').read_text()
@@ -335,6 +346,114 @@ esac
     assert 'android-auto\tinstalled\t\n' in r.stdout
     deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
 
+    # In-car Resolution DPI change: the saved apply-settings.sh, without the USB
+    entry = store / 'android-auto'
+    apply = saved / 'tweaks/android-auto/apply-settings.sh'
+    sm_lock = base / 'locks/sm-config.lock'
+
+    def apply_settings(*args, code=0, extra=None):
+        global checks
+        command = 'exec /bin/sh ' + ' '.join(shlex.quote(a) for a in [bp(apply), *args])
+        r = subprocess.run([SHELL, '-c', command], env=dict(env, **(extra or {})), capture_output=True, text=True, timeout=90)
+        assert r.returncode == code, (args, r.returncode, r.stdout, r.stderr)
+        assert not lock.exists() and not sm_lock.exists(), 'Locks released'
+        assert not list(internal.glob('*.mzd-restore-*')) and not list(saved.glob('*.mzd-restore-*')) and not list(entry.glob('*.mzd-restore-*')), 'No temporary files left'
+        checks += 1
+        return r
+
+    def snapshot():
+        return [p.read_bytes() for p in [saved / 'settings.conf', entry / 'package.files', entry / 'state.conf', xml_std, xml_ucp]]
+
+    usb_before = {p.relative_to(usb).as_posix(): md5(p.read_bytes()) for p in usb.rglob('*') if p.is_file()}
+    inventory_before = (entry / 'package.files').read_text()
+    r = apply_settings('resolution_dpi=113')
+    assert 'resolution_dpi is now 113. Restart the CMU' in r.stdout, r.stdout
+    assert (saved / 'settings.conf').read_text() == 'resolution_dpi=113\nresolution_par=15800\n'
+    for text in [xml_std.read_text(), xml_ucp.read_text()]:
+        assert '<density>113</density>' in text and '<real_density>113</real_density>' in text and '<par>15800</par>' in text
+    inventory_after = (entry / 'package.files').read_text()
+    changed = [(a, b) for a, b in zip(inventory_before.splitlines(), inventory_after.splitlines()) if a != b]
+    assert len(changed) == 1 and changed[0][1].endswith('\tpackage/settings.conf'), changed
+    assert len(inventory_before.splitlines()) == len(inventory_after.splitlines())
+    assert (entry / 'state.conf').read_text() == 'format=1\nstate=installed\n' and not (entry / 'failure.log').exists()
+    assert usb_before == {p.relative_to(usb).as_posix(): md5(p.read_bytes()) for p in usb.rglob('*') if p.is_file()}, 'In-car change wrote to USB'
+    assert 'android-auto\tinstalled\t\n' in call(['statuses', 'android-auto']).stdout
+    assert call(['uninstall-check', 'android-auto']).stdout.startswith('available\t')
+    assert 'value.resolution_dpi=113' in call(['settings-info', 'android-auto']).stdout
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+
+    # Same value: nothing to do
+    before = snapshot()
+    assert 'unchanged' in apply_settings('resolution_dpi=113').stdout
+    assert snapshot() == before
+
+    # Invalid requests are refused before any write
+    for args in [['resolution_dpi=99'], ['resolution_dpi=abc'], ['resolution_dpi=161'], [], ['resolution_par=10670'], ['resolution_dpi=120', 'extra']]:
+        apply_settings(*args, code=1)
+        assert snapshot() == before, args
+
+    # The USB copy cannot change the saved installation
+    r = subprocess.run([SHELL, '-c', 'exec /bin/sh ' + shlex.quote(bp(folder / 'apply-settings.sh')) + ' resolution_dpi=120'], env=env, capture_output=True, text=True, timeout=90)
+    assert r.returncode == 1 and 'saved package copy' in r.stderr, (r.returncode, r.stderr)
+    assert snapshot() == before
+
+    # Another package operation holds the lock: refused, foreign lock kept
+    lock.mkdir()
+    r = subprocess.run([SHELL, '-c', 'exec /bin/sh ' + shlex.quote(bp(apply)) + ' resolution_dpi=120'], env=env, capture_output=True, text=True, timeout=90)
+    assert r.returncode == 1 and 'Another package operation' in r.stderr, (r.returncode, r.stderr)
+    assert lock.is_dir() and snapshot() == before
+    lock.rmdir()
+
+    # An incomplete receipt is refused
+    (entry / 'state.conf').write_text('format=1\nstate=failed\n')
+    r = apply_settings('resolution_dpi=120', code=1)
+    assert 'incomplete' in r.stderr
+    (entry / 'state.conf').write_text('format=1\nstate=installed\n')
+    assert snapshot() == before
+
+    # A target that does not match the saved settings is refused unchanged
+    tampered = xml_std.read_text().replace('<real_density>113</real_density>', '<real_density>999</real_density>')
+    write(xml_std, tampered)
+    r = apply_settings('resolution_dpi=120', code=1)
+    assert 'does not match the saved settings' in r.stderr, r.stderr
+    assert xml_std.read_text() == tampered and (saved / 'settings.conf').read_text() == 'resolution_dpi=113\nresolution_par=15800\n'
+    write(xml_std, tampered.replace('<real_density>999</real_density>', '<real_density>113</real_density>'))
+    before = snapshot()
+
+    # Unrelated edits outside this tweak's hunks are preserved
+    write(xml_std, xml_std.read_text() + '<!-- local edit -->\n')
+    apply_settings('resolution_dpi=120')
+    assert xml_std.read_text().endswith('<!-- local edit -->\n') and '<density>120</density>' in xml_std.read_text()
+    apply_settings('resolution_dpi=113')
+    write(xml_std, xml_std.read_text().replace('<!-- local edit -->\n', ''))
+    assert snapshot() == before
+
+    # A failed target write rolls back the targets, settings.conf and package.files
+    flag = base / 'fail-mv'
+    flag.write_text('')
+    r = apply_settings('resolution_dpi=122', code=1, extra={'MZD_TEST_FAIL_MV': bp(flag)})
+    assert 'Previous settings restored' in r.stderr, r.stderr
+    assert snapshot() == before and not (entry / 'failure.log').exists()
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+
+    # A failed rollback is critical: broken receipt with a recorded reason
+    flag.write_text('')
+    r = apply_settings('resolution_dpi=122', code=2, extra={'MZD_TEST_FAIL_MV': bp(flag), 'MZD_TEST_FAIL_MV_KEEP': '1'})
+    assert 'Do NOT reboot' in r.stderr, r.stderr
+    assert (entry / 'state.conf').read_text() == 'format=1\nstate=failed\n'
+    status = call(['statuses', 'android-auto']).stdout
+    assert 'android-auto\tbroken\t' in status and 'in-car resolution_dpi change did not finish' in status, status
+    flag.unlink()
+    assert snapshot()[:2] == before[:2] and snapshot()[3:] == before[3:], 'Unwritten target and restored settings agree'
+    (entry / 'state.conf').write_text('format=1\nstate=installed\n')
+    (entry / 'failure.log').unlink()
+
+    # Leave an in-car value applied: later saved uninstalls must reverse it
+    apply_settings('resolution_dpi=122')
+    deep(saved / 'tweaks/android-auto/run.sh', saved / 'settings.conf', 'installed')
+    std_patched = xml_std.read_text()
+    ucp_patched = xml_ucp.read_text()
+
     # Tamper detection
     orig_bytes = (payload_dir / 'libpatch-blmjciaapa.so').read_bytes()
     (payload_dir / 'libpatch-blmjciaapa.so').write_bytes(b'tampered binary payload')
@@ -394,8 +513,9 @@ exec {real_mv} "$@"
         assert 'libpatch-blmjciaapa.so' in text
         assert 'libpatch-svcjcinavi.so' in text
         assert 'libpatch-aap_service.so' in text
+    # The in-car value applied earlier remains (saved settings.conf drives uninstall)
     for text in [xml_std.read_text(), xml_ucp.read_text()]:
-        assert '<density>153</density>' in text
+        assert '<density>122</density>' in text
         assert '<par>15800</par>' in text
 
     # GUI installation remains intact
@@ -566,7 +686,21 @@ mzd_bundle_reset_main "$1"
     # Verify Lua config serializer line matching, staging directory and error cleanup
     lua = shutil.which('lua5.1') or shutil.which('lua')
     if lua:
-        entry_path = bp(ROOT / "usb/tweaks/android-auto/assets/service/entry.lua")
+        pkg = base / 'test-pkg'
+        write(pkg / 'tweaks/android-auto/manifest.conf', (ROOT / 'usb/tweaks/android-auto/manifest.conf').read_text())
+        write(pkg / 'settings.conf', 'resolution_dpi=122\n')
+        apply_args = bp(pkg / 'tweaks/android-auto/args')
+        write(pkg / 'tweaks/android-auto/apply-settings.sh', f'''#!/bin/sh
+here=$(dirname "$0")
+printf '%s\\n' "$@" > "$here/args"
+if [ -f "$here/fail" ]; then printf 'Checking\\nERROR: Another package operation or Restore is active; nothing changed.\\n' >&2; exit 1; fi
+printf 'resolution_dpi=%s\\nresolution_par=10670\\n' "${{1#resolution_dpi=}}" > "$here/../../settings.conf"
+''')
+        source = (ROOT / 'usb/tweaks/android-auto/assets/service/entry.lua').read_text()
+        assert source.count('/tmp/mnt/data_persist/mzd-tweaks/installed/android-auto/package') == 1
+        write(base / 'entry_test.lua', source.replace('/tmp/mnt/data_persist/mzd-tweaks/installed/android-auto/package', bp(pkg)))
+        entry_path = bp(base / 'entry_test.lua')
+        pkg_path = bp(pkg)
         conf_path = bp(base / "test_libpatch.conf")
         gui_data = base / "test_gui_data"
         gui_data.mkdir(exist_ok=True)
@@ -576,6 +710,8 @@ package.preload["lfs"] = function() return {{ mkdir = function() end }} end
 local factory = assert(loadfile("{entry_path}"))()
 local conf = "{conf_path}"
 local staging = "{gui_data_dir}"
+local pkg = "{pkg_path}"
+local apply_args = "{apply_args}"
 local content = "touch = true\\nhud = true\\n"
 local written_paths = {{}}
 local removed_paths = {{}}
@@ -636,6 +772,7 @@ local reads = 0
 local plain_read, plain_exists = files.read, files.exists
 files.read = function(p) reads = reads + 1; return plain_read(p) end
 files.exists = function(p) reads = reads + 1; return plain_exists(p) end
+local plain_execute = os.execute
 local booted = factory({{ files = files, data = staging, config = {{ libpatch = conf }} }})
 assert(reads == 0, "The service reads nothing when it starts")
 local executed = {{}}
@@ -654,7 +791,58 @@ assert(booted.request("reboot", {{}}).success == true and executed[1] == "reboot
 os.execute = function() return 1 end
 local reboot_ok, reboot_err = pcall(booted.request, "reboot", {{}})
 assert(not reboot_ok and tostring(reboot_err):find("status 1", 1, true), "Reboot failure reports its status: " .. tostring(reboot_err))
+os.execute = plain_execute
 files.read, files.exists = plain_read, plain_exists
+
+-- 5. DPI service tests
+local dpi_service = factory({{ files = files, data = staging, config = {{ libpatch = conf }} }})
+local writes_before = #written_paths
+local res = dpi_service.request("get")
+assert(res.settings.resolution_dpi == 122, "Expected saved DPI 122, got: " .. tostring(res.settings.resolution_dpi))
+assert(res.limits.resolution_dpi.min == 100 and res.limits.resolution_dpi.max == 160 and res.limits.resolution_dpi.step == 1, "Expected manifest bounds")
+assert(res.restart_required == false and next(res.unavailable) == nil)
+assert(#written_paths == writes_before, "get must not write")
+
+-- A resolution_dpi line in libpatch.conf is not a libpatch setting
+files.write_new(conf .. ".new", "touch = true\\nresolution_dpi = 99\\n"); os.rename(conf .. ".new", conf)
+assert(dpi_service.request("get").settings.resolution_dpi == 122, "libpatch.conf must not override the saved DPI")
+
+-- Invalid values never run the apply script
+for _, bad in ipairs({{ 99, 161, 120.5, "130", true }}) do
+    local ok = pcall(dpi_service.request, "set", {{ key = "resolution_dpi", value = bad }})
+    assert(not ok, "Expected invalid DPI to fail: " .. tostring(bad))
+end
+assert(not io.open(apply_args, "r"), "Apply script must not run for invalid values")
+
+-- The saved value needs no change and no restart
+local same = dpi_service.request("set", {{ key = "resolution_dpi", value = 122 }})
+assert(same.restart_required == false and not io.open(apply_args, "r"))
+
+-- A change runs the saved apply script with one validated argument
+local changed = dpi_service.request("set", {{ key = "resolution_dpi", value = 130 }})
+assert(changed.restart_required == true and changed.settings.resolution_dpi == 130, "Expected applied DPI 130")
+assert(changed.settings.touch == nil, "DPI set does not read libpatch.conf")
+assert(files.read(apply_args) == "resolution_dpi=130\\n", "Unexpected apply arguments: " .. files.read(apply_args))
+local libpatch_set = dpi_service.request("set", {{ key = "touch", value = false }})
+assert(libpatch_set.restart_required == true and libpatch_set.settings.touch == false)
+assert(libpatch_set.settings.resolution_dpi == nil, "libpatch set does not read manifest or settings.conf")
+local saved_view = dpi_service.request("save", {{ settings = {{ resolution_dpi = 131, touch = false }} }})
+assert(saved_view.restart_required == true and saved_view.settings.resolution_dpi == 131 and saved_view.settings.touch == false)
+
+-- A refused change reports the script's reason and keeps the saved value
+local fail_flag = pkg .. "/tweaks/android-auto/fail"
+local flag = assert(io.open(fail_flag, "w")); flag:close()
+local ok_fail, reason = pcall(dpi_service.request, "set", {{ key = "resolution_dpi", value = 140 }})
+assert(not ok_fail and reason == "Another package operation or Restore is active; nothing changed.", "Unexpected failure reason: " .. tostring(reason))
+os.remove(fail_flag)
+assert(dpi_service.request("get").settings.resolution_dpi == 131)
+
+-- An unreadable saved package disables only DPI; a change is an error, never a success
+os.remove(pkg .. "/settings.conf")
+local missing = dpi_service.request("get")
+assert(missing.settings.resolution_dpi == nil and missing.settings.touch == false, "Other settings still load")
+assert(missing.unavailable.resolution_dpi ~= nil, "Expected an unavailable reason")
+assert(not pcall(dpi_service.request, "set", {{ key = "resolution_dpi", value = 125 }}), "Missing package must not report success")
 '''
         r = subprocess.run([lua, '-e', lua_code], capture_output=True, text=True)
         assert r.returncode == 0, (r.returncode, r.stdout, r.stderr)

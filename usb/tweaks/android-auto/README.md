@@ -34,6 +34,7 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 
 ![Android Auto Settings Main Menu](../../../docs/images/android-auto-settings.gif)
 
+- **Resolution DPI** (`resolution_dpi`: `100`–`160`, step `1`, default `141`) - controls the Android Auto render density using a native stepper (`styleStep`). Lower values (e.g. `122`) increase screen real estate and trigger Android Auto split-screen view, while higher values enlarge UI elements. If the saved package or configuration cannot be read or validated, the row is safely disabled and silently ignores user input to prevent inconsistent states. A rotating spinner is shown while saving. Changes require a CMU reboot to take effect.
 - **Touchscreen while driving** (`touch`) - enables touchscreen in Android Auto interface as long as touchscreen is unlocked in entire MZD Connect system with a separate tweak.
 - **Show navigation on HUD** (`hud`) - forwards turn-by-turn navigation arrows and distance from Android Auto to the head-up display (Active Driving Display). When turned off, navigation information stays on the center display only.
 - **Show speed limit with Nav SD** (`hud_transport`: `svcnavi` = ON, `vbs` = OFF) - routes HUD data through the car's built-in navigation service (`svcnavi`) so speed limit signs from the Mazda SD card remain visible alongside Android Auto directions. Turn off (`vbs`) only if your car does not have a factory navigation SD card and turns fail to display.
@@ -50,7 +51,7 @@ The interactive GUI allows managing runtime library settings directly on the CMU
 - **Prevent car media auto-play** (`block_headunit_media_play`) - stops the car from automatically starting music playback whenever Android Auto connects or when switching audio sources. You can still start music playback manually from the screen, steering wheel, or phone controls.
 - **Fix cut-off navigation voice** (`aa_audio_low_latency`) - fixes the issue where spoken navigation directions (such as from Google Maps or Waze) get clipped or cut off at the beginning or end of words. It keeps the car audio channel ready so voice guidance plays smoothly without delays.
 
-Settings are read from and atomically written to `/tmp/mnt/data_persist/oem-aa-mod/libpatch.conf` via the secure local GUI service.
+Settings are read from and atomically written to `/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto/libpatch.conf` via the secure local GUI service.
 The Android Auto libraries read this file when MZD boots, so changes apply after a reboot.
 
 - Each change shows a short **Saving settings...** notification, then **Settings saved**.
@@ -235,7 +236,7 @@ If you encounter a bug or an issue not covered above:
 
 ## Installed files
 
-- **Payload directory**: `/tmp/mnt/data_persist/oem-aa-mod/`
+- **Payload directory**: `/tmp/mnt/data_persist/mzd-tweaks/shims/android-auto/`
   - `libpatch-blmjciaapa.so` (preloaded into `jciAAPA`)
   - `libpatch-svcjcinavi.so` (preloaded into `jcinavi`)
   - `libpatch-aap_service.so` (preloaded into `aap_service`)

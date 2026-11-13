@@ -1,5 +1,5 @@
 #!/bin/sh
-# Original CMU tools against isolated paths. The real release .so is NOT loaded.
+# Original CMU tools against isolated paths. The real shim .so is NOT loaded.
 set -eu
 PATH=/fixture/bin:/experiment/bin:/bin:/usr/bin
 export PATH
@@ -21,7 +21,7 @@ echo CLUSTER_NATIVE_INSTALL_PASSED
 [ "$(sh "$worker" status)" = installed ]
 payload=/fixture/persist/mzd-tweaks/shims/cluster-language
 cmp -s "$payload/libpatch-svcjciblmsettings.so" "$ROOT/tweaks/cluster-language/assets/libpatch-svcjciblmsettings.so"
-grep -q '^hud_display_language = english$' "$payload/libpatch.conf"
+grep -q '^hud_display_language = off$' "$payload/libpatch.conf"
 for config in /fixture/internal/sm.conf /fixture/internal/sm_WCP.conf; do
     grep -q 'env_name="LD_PRELOAD"' "$config"
     cmp -s "$config.org" "/fixture/original-${config##*/}"
