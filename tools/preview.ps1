@@ -11,6 +11,10 @@ Get-ChildItem (Join-Path $repo 'usb/tweaks') -Directory | ForEach-Object {
         $manifests[$_.Name] = [System.IO.File]::ReadAllText($manifest)
     }
 }
+# Patch worker example, twice: the Restore demos need ordinary patch tweaks.
+$patchManifest = [System.IO.File]::ReadAllText((Join-Path $repo 'development/examples/patch/manifest.conf'))
+$manifests['patch-example'] = $patchManifest
+$manifests['patch-example-two'] = $patchManifest.Replace('id=patch-example', 'id=patch-example-two').Replace('name=Patch Example', 'name=Second Patch Example')
 $exampleManifest = Join-Path $repo 'development/examples/settings/manifest.conf'
 $manifests['settings-example'] = [System.IO.File]::ReadAllText($exampleManifest)
 if ($Contributors) {

@@ -24,13 +24,14 @@ for scenario in ['current','saved-old-status','saved-old-status-warning','mixed-
     base=Path(temporary);usb=base/'usb';internal=base/'internal';persist=internal/'persist';resources=internal/'resources';bins=base/'bin';locks=base/'locks'
     for folder in [internal,persist,resources,bins,locks]:folder.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'usb/lib',usb/'lib')
-    for id_ in ['ssh','list-beep','restore-originals']+(['tetris'] if scenario.startswith('mixed-gui') else []):shutil.copytree(ROOT/'usb/tweaks'/id_,usb/'tweaks'/id_)
+    for id_ in ['ssh','restore-originals']+(['tetris'] if scenario.startswith('mixed-gui') else []):shutil.copytree(ROOT/'usb/tweaks'/id_,usb/'tweaks'/id_)
+    shutil.copytree(ROOT/'development/examples/patch',usb/'tweaks/patch-example')
     if scenario=='mixed-gui-all':
         shutil.copytree(ROOT/'usb/tweaks/wallpaper-manager',usb/'tweaks/wallpaper-manager')
         shutil.copytree(ROOT/'development/examples/shim',usb/'tweaks/shim-example')
     write(usb/'installer.sh',(ROOT/'usb/installer.sh').read_text())
     startup=internal/'stage_wifi.sh';list_target=internal/'List2Ctrl.js';version=base/'version';mounts=base/'mounts';watchdog=base/'watchdog';running=internal/'ssh-runtime';events=base/'events'
-    originals={startup:'#!/bin/sh\n\n',list_target:patch_original((usb/'tweaks/list-beep/assets/change.patch').read_text())}
+    originals={startup:'#!/bin/sh\n\n',list_target:patch_original((usb/'tweaks/patch-example/assets/change.patch').read_text())}
     if scenario=='mixed-gui-all':
         stock='<services>\n    <service name="jciMMUI" path="/jci/mmui/example.so">\n        <dependency value="other"/>\n    </service>\n</services>\n'
         originals.update({internal/'sm.conf':stock,internal/'sm_WCP.conf':stock})
@@ -47,7 +48,7 @@ for scenario in ['current','saved-old-status','saved-old-status-warning','mixed-
         source=source.replace('mzd_system_remount_rw / ||','mzd_system_remount_rw '+str(internal)+' ||')
         source=source.replace('/tmp/mnt/sd[a-z][0-9]*|/mnt/sd[a-z][0-9]*',shlex.quote(str(usb)))
         write(path,source.replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(str(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1))
-    for id_,target in [('ssh',startup),('list-beep',list_target)]:
+    for id_,target in [('ssh',startup),('patch-example',list_target)]:
         path=usb/'tweaks'/id_/'manifest.conf';text=path.read_text()
         text=re.sub(r'^target=.*$','target='+str(target),text,flags=re.M)
         text=re.sub(r'^oem_backup_md5=.*$','oem_backup_md5='+hashlib.md5(originals[target].encode()).hexdigest(),text,flags=re.M)
@@ -81,7 +82,7 @@ esac
         result=subprocess.run(['/bin/sh',str(usb/'installer.sh'),*args],capture_output=True,text=True,timeout=60)
         assert result.returncode==code,(scenario,args,result.returncode,result.stdout,result.stderr,[p.read_text() for p in (usb/'reports').rglob('run.log')])
         checks+=1;return result
-    call('action','ssh','install');call('action','list-beep','install')
+    call('action','ssh','install');call('action','patch-example','install')
     if scenario.startswith('mixed-gui'):call('action','tetris','install')
     if scenario=='mixed-gui-all':
         call('action','wallpaper-manager','install');call('action','shim-example','install')
@@ -91,17 +92,17 @@ esac
     for path,content in originals.items():assert path.read_text()!=content and Path(str(path)+'.org').read_text()==content
     if scenario=='current':
         # Even a restoring state must reject a foreign, unrecorded lock.
-        group=re.search(r'^lock_group=(.+)$',(usb/'tweaks/list-beep/manifest.conf').read_text(),re.M).group(1)
+        group=re.search(r'^lock_group=(.+)$',(usb/'tweaks/patch-example/manifest.conf').read_text(),re.M).group(1)
         foreign_lock=locks/group;foreign_lock.mkdir()
         report=base/'foreign-report';write(report/'system/locks','')
         env=dict(os.environ,MZD_WORKER_DIRECT='1',MZD_PACKAGE_STATE='restoring',MZD_REPORT=str(report),MZD_SYSTEM=str(report/'system'))
-        refused=subprocess.run(['/bin/sh',str(usb/'tweaks/list-beep/run.sh'),'status'],env=env,capture_output=True,text=True)
+        refused=subprocess.run(['/bin/sh',str(usb/'tweaks/patch-example/run.sh'),'status'],env=env,capture_output=True,text=True)
         assert refused.returncode==1 and 'Target is busy' in refused.stderr
         assert foreign_lock.is_dir();foreign_lock.rmdir();checks+=1
     if scenario not in ['current','mixed-gui','mixed-gui-extra-edit','mixed-gui-all']:
         # A real saved status implementation with the historical unconditional
         # busy refusal: worker, patch inspection and reset hooks remain real.
-        for id_ in ['ssh','list-beep']:
+        for id_ in ['ssh','patch-example']:
             path=store/id_/'package/lib/status.sh'
             legacy=path.read_text()
             start=legacy.index('# Restore retains its own target locks')

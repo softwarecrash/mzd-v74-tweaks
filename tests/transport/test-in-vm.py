@@ -91,10 +91,12 @@ progress=true
  for folder in ['lib','tweaks']:
   for path in (REPO/'usb'/folder).rglob('*'):
    if path.is_file():add('experiment/package/'+path.relative_to(REPO/'usb').as_posix(),path.read_bytes(),0o755 if path.suffix=='.sh' else 0o644)
+ for path in (REPO/'development/examples/patch').rglob('*'):
+  if path.is_file() and path.name!='README.md':add('experiment/package/tweaks/patch-example/'+path.relative_to(REPO/'development/examples/patch').as_posix(),path.read_bytes(),0o755 if path.suffix=='.sh' else 0o644)
  import re
  # Synthetic full-context fixture, with the original shell and patch applet.
  lines=[];active=False
- for line in (REPO/'usb/tweaks/list-loop/assets/change.patch').read_text().splitlines():
+ for line in (REPO/'development/examples/patch/assets/change.patch').read_text().splitlines():
   if line.startswith('@@ '):
    at=int(re.match(r'@@ -(\d+)',line).group(1))
    while len(lines)<at-1:lines.append('// synthetic gap')

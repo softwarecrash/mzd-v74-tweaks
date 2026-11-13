@@ -18,7 +18,7 @@ check(settings.exitCode==0 and settings.stdout:find("ORIGINAL_SETTINGS_PASSED",1
 local originalShell=process.run("/usr/bin/qemu-arm",{"-L","/cmu","/cmu/lib/ld-linux.so.3","--library-path","/cmu/lib:/cmu/usr/lib","/cmu/bin/busybox","sh","/experiment/package/tweaks/backup-jci/run.sh","status"})
 print("ORIGINAL_SHELL_BACKUP_STATUS",protocol.result(originalShell))
 check(originalShell.exitCode==0 and originalShell.stdout=="unavailable\n","actual CMU shell must inspect without critical exit")
-for _,id in ipairs({"list-loop","list-beep","restore-originals"}) do
+for _,id in ipairs({"patch-example","restore-originals"}) do
  local original=process.run("/usr/bin/qemu-arm",{"-L","/cmu","/cmu/lib/ld-linux.so.3","--library-path","/cmu/lib:/cmu/usr/lib","/cmu/bin/busybox","sh","/experiment/package/tweaks/"..id.."/run.sh","status"})
  print("ORIGINAL_SHELL_STATUS",id,protocol.result(original))
  check(original.exitCode==0,"actual CMU shell worker failed: "..id)
@@ -28,7 +28,7 @@ if closedInput==0 then
  p.close(0)
  local input=process.run("/bin/sh",{"-c","test -r /proc/self/fd/0"})
  if input.exitCode~=0 then print("CHILD_STDIN_FAILED");io.stdout:flush();p._exit(98) end
- local r=process.run("/usr/bin/qemu-arm",{"-L","/cmu","/cmu/lib/ld-linux.so.3","--library-path","/cmu/lib:/cmu/usr/lib","/cmu/bin/busybox","sh","/experiment/package/tweaks/list-loop/run.sh","status"})
+ local r=process.run("/usr/bin/qemu-arm",{"-L","/cmu","/cmu/lib/ld-linux.so.3","--library-path","/cmu/lib:/cmu/usr/lib","/cmu/bin/busybox","sh","/experiment/package/tweaks/patch-example/run.sh","status"})
  print("CLOSED_STDIN_STATUS",protocol.result(r));io.stdout:flush();p._exit(r.exitCode or 99)
 end
 local _,closedReason,closedCode=p.wait(closedInput)
@@ -132,10 +132,10 @@ check(request("POST","/exec","",{token="wrong"})==403,"token protection")
 check(request("POST","/exec","",{origin="http://other"})==403,"origin protection")
 check(request("POST","/exec","program=%GG")==400,"invalid encoding")
 check(request("POST","/exec",string.rep("x",32769))==400,"body cap")
-r=exec({"./installer.sh","restore-check","list-beep"})
+r=exec({"./installer.sh","restore-check","patch-example"})
 check(r.exitCode==1 and r.stderr:find("A readable target and original .org backup are required.",1,true),"early recovery refusal reaches GUI")
 local refusalLog=read("/tmp/lua-server.log")
-check(refusalLog:find("Worker failed: installer restore-check list-beep",1,true) and
+check(refusalLog:find("Worker failed: installer restore-check patch-example",1,true) and
     refusalLog:find("A readable target and original .org backup are required.",1,true),"normal log includes early refusal reason before any worker report")
 -- Successful batch inspections must log per-tweak failures in normal mode.
 for _,path in ipairs({"/tmp/mnt","/tmp/mnt/data_persist","/tmp/mnt/data_persist/mzd-tweaks",
@@ -154,7 +154,7 @@ os.remove(failedState);p.rmdir("/tmp/mnt/data_persist/mzd-tweaks/installed/statu
 r=exec({"./installer.sh","list"});check(r.exitCode==0 and r.stdout:find("demo\n",1,true),"actual discovery")
 r=exec({"./installer.sh","manifest","demo"});check(r.exitCode==0 and r.stdout:find("id=demo",1,true),"actual manifest reader")
 r=exec({"./installer.sh","action","demo","status"});check(r.exitCode==0 and r.stdout=="uninstalled\n","worker status")
-r=exec({"./installer.sh","statuses","demo list-loop"});check(r.exitCode==0 and r.stdout=="demo\tuninstalled\t\nlist-loop\tuninstalled\t\n","bulk registered status")
+r=exec({"./installer.sh","statuses","demo patch-example"});check(r.exitCode==0 and r.stdout=="demo\tuninstalled\t\npatch-example\tuninstalled\t\n","bulk registered status")
 r=exec({"./installer.sh","action","demo","run"});check(r.exitCode==0 and r.stdout:find("Synthetic command"),"worker Run")
 r=exec({"./installer.sh","start-run","demo"});local job=r.stdout:match("^(job%.[A-Za-z0-9]+)")
 check(r.exitCode==0 and job,"actual background start")

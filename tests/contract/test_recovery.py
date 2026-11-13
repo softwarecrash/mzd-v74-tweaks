@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-recovery-') as directory:
         text=text.replace('MZD_RECOVERY_DATA=/tmp/mnt/data_persist','MZD_RECOVERY_DATA='+shlex.quote(bp(persist)))
         write(lib,text)
     write(usb/'installer.sh',(ROOT/'usb/installer.sh').read_text().replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1))
-    template=(ROOT/'usb/tweaks/list-beep/manifest.conf').read_text()
+    template=(ROOT/'development/examples/patch/manifest.conf').read_text()
     template=re.sub('^id=.*$','id=fixture',template,flags=re.M)
     template=re.sub('^target=.*$','target='+bp(target),template,flags=re.M)
     template=re.sub('^oem_backup_md5=.*$','oem_backup_md5='+md5(original),template,flags=re.M)

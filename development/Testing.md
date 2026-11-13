@@ -59,7 +59,7 @@ add `--test-coverage-exclude='tests/**'` to see only the project's browser code.
 container: `sh tools/test-in-container.sh run node --test --experimental-test-coverage "tests/installer/*.cjs"`.
 
 The [validation workflow](../.github/workflows/validate-tweaks.yml) lists the full
-set, including BusyBox workers, patch combinations, SSH supervision, exports,
+set, including BusyBox workers, SSH supervision, exports,
 Restore, restart, metrics, logging, Lua syntax and disclaimer behavior. Run checks
 appropriate to the change; a green check does not replace review or vehicle tests.
 

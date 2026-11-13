@@ -7,18 +7,18 @@ from another file or interpreted as shell code.
 
 ```ini
 contract_version=1
-id=list-beep
-name=No List Beep
-description=Mute the two long multicontroller list beeps.
-version=0.8.0
+id=example-patch
+name=Example Tweak
+description=A description of what this tweak does.
+version=1.0.0
 type=patch
 group=interface
 firmware=74.00.324
 entrypoint=run.sh
 actions=install uninstall status
-target=/jci/gui/common/controls/List2/js/List2Ctrl.js
-oem_backup_md5=e111883b9dcbeb6bb154521826fcacac
-lock_group=List2Ctrl
+target=/jci/path/to/target/file.js
+oem_backup_md5=0123456789abcdef0123456789abcdef
+lock_group=TargetLockGroup
 status_scope=target-patch
 reboot_required=true
 requires=

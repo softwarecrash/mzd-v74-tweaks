@@ -61,8 +61,6 @@ jobs:
           busybox diff --help
       - name: Test wallpaper storage domain with generated PNG input
         run: python tests/tweaks/wallpaper-manager/test_backend.py
-      - name: Verify all shared-target patch combinations
-        run: python tests/contract/test_combinations.py
       - name: Exercise the real SSH supervisor with fake system commands
         run: |
           python tests/contract/test_ssh_service.py

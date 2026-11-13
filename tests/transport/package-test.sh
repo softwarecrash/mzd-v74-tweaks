@@ -6,7 +6,7 @@ mkdir -p "$BASE/usb/tweaks/fixture" "$BASE/persist" "$BASE/bin"
 cp -R /experiment/package/lib "$BASE/usb/lib"
 sed -e 's|^id=.*|id=fixture|' -e 's|^version=.*|version=1.0.0|' \
     -e "s|^target=.*|target=$BASE/target|" \
-    /experiment/package/tweaks/list-beep/manifest.conf > "$BASE/usb/tweaks/fixture/manifest.conf"
+    /experiment/package/tweaks/patch-example/manifest.conf > "$BASE/usb/tweaks/fixture/manifest.conf"
 cat >> "$BASE/usb/tweaks/fixture/manifest.conf" <<'SETTINGS'
 settings=limit
 setting.limit.type=number

@@ -354,7 +354,7 @@ esac
             (base / 'fail-start').unlink(); mutate('uninstall')
             mutate('install'); write(base / 'fail-stop', 'yes'); mutate('uninstall', 2)
             (base / 'fail-stop').unlink(); mutate('uninstall')
-        if id_ in ['list-beep', 'ssh', 'hud-street-name']:
+        if id_ in ['fuel-consumption-values', 'ssh', 'hud-street-name']:
             # The real worker must also work from its persistent package with
             # its own helpers and reports still written to the originating USB.
             persist=base/'persist';persist.mkdir()
@@ -374,7 +374,7 @@ esac
                 if expected is not None:assert r.stdout==expected+'\n',(id_,r.stdout,r.stderr)
                 checks+=1
                 return r
-            if id_ == 'list-beep':
+            if id_ == 'fuel-consumption-values':
                 backup=Path(str(target)+'.org');backup.unlink(missing_ok=True)
                 write(target,original);target.chmod(0o640);os.utime(target,(1234567800,1234567890))
                 expected_meta=(target.stat().st_mode & 0o7777,target.stat().st_uid,target.stat().st_gid,target.stat().st_mtime_ns)

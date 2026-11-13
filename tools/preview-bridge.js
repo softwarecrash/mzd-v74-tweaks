@@ -2,10 +2,10 @@
 (function () {
     "use strict";
     var frame = document.getElementById("transport"), manifests = window.previewManifests;
-    var states = {"list-beep":"installed", "list-loop":"unavailable", "shorter-delay":"broken"};
+    var states = {"patch-example":"installed", "hud-street-name":"unavailable", "fuel-consumption-values":"broken"};
     if (window.previewBrokenUninstallDemo) states.ssh = "broken";
-    if (window.previewRecoveryDemo) states["main-menu-loop"] = "broken";
-    if (window.previewRecoveryDeniedDemo) states["list-beep"] = "unavailable";
+    if (window.previewRecoveryDemo) states["patch-example-two"] = "broken";
+    if (window.previewRecoveryDeniedDemo) states["patch-example"] = "unavailable";
     var jobs = {}, nextJob = 0, sample = 0;
     var oldModification = true, recoveryHash = "0123456789abcdef0123456789abcdef";
     function reply(data) {
@@ -43,17 +43,17 @@
         if(args[0]==="update-info")return ok("",1,"No update in the offline preview.");
         if (args[0] === "list") return ok(Object.keys(manifests).join("\n")+"\n");
         // Demonstrate an old unmanaged JS patch without touching vehicle files.
-        if (args[0] === "restore-check" && window.previewRecoveryDeniedDemo && id === "list-beep")
+        if (args[0] === "restore-check" && window.previewRecoveryDeniedDemo && id === "patch-example")
             return ok("",1,"Restore: The .org backup has an unexpected MD5.\nExpected MD5: e111883b9dcbeb6bb154521826fcacac\nActual MD5: bb290d22840f82b1be14400ddb41f1b0");
-        if (args[0] === "restore-check") return id === "main-menu-loop" && oldModification ?
+        if (args[0] === "restore-check") return id === "patch-example-two" && oldModification ?
             ok("available\t"+recoveryHash+"\t/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js\n") : ok("",1,"No verified original backup is available.");
         if (args[0] === "restore-original") {
-            if (id !== "main-menu-loop" || !oldModification || args[2] !== recoveryHash) return ok("",1,"The file changed; inspect it again.");
+            if (id !== "patch-example-two" || !oldModification || args[2] !== recoveryHash) return ok("",1,"The file changed; inspect it again.");
             oldModification = false; states[id] = "uninstalled";
             return ok("PREVIEW ONLY: Original file restored. You can now retry Install. No files were changed.");
         }
         if (args[0] === "package-info") return ok(states[id] === "installed" ? "0.7.0\tinstalled\n" : "");
-        if (args[0] === "uninstall-check") return (id === "shorter-delay" || (id === "ssh" && window.previewBrokenUninstallDemo)) && states[id] === "broken" ?
+        if (args[0] === "uninstall-check") return (id === "fuel-consumption-values" || (id === "ssh" && window.previewBrokenUninstallDemo)) && states[id] === "broken" ?
             ok("available\t"+(id === "ssh" ? "0.8.3" : "0.8.1")+"\tfailed\n") : ok("",1,"No verified saved uninstaller is available.");
         if (args[0] === "preflight-info") return ok("");
         if (args[0] === "settings-info") {
@@ -70,19 +70,19 @@
         if (args[0] === "manifest") return manifests[id] ? ok(manifests[id]) : ok("",1,"Missing preview manifest.");
         if (args[0] === "statuses") return ok(args[1].split(" ").map(function (entry) {
             var value = states[entry] || "uninstalled";
-            var reason = value === "broken" ? (entry === "main-menu-loop" ? "an old unmanaged modification was detected." : "incomplete installation detected.") : value === "unavailable" ? "target file does not match this patch." : "";
-            if (window.previewRecoveryDeniedDemo && entry === "list-beep") reason = "installation blocked because the .org backup has an unexpected MD5.";
+            var reason = value === "broken" ? (entry === "patch-example-two" ? "an old unmanaged modification was detected." : "incomplete installation detected.") : value === "unavailable" ? "target file does not match this patch." : "";
+            if (window.previewRecoveryDeniedDemo && entry === "patch-example") reason = "installation blocked because the .org backup has an unexpected MD5.";
             return entry + "\t" + value + "\t" + reason + "\n";
         }).join(""));
         if (args[0] === "action") {
             if (action === "status") {
                 state = states[id] || "uninstalled";
-                if (window.previewRecoveryDeniedDemo && id === "list-beep")
+                if (window.previewRecoveryDeniedDemo && id === "patch-example")
                     return ok("unavailable\n",0,"installation blocked because the .org backup has an unexpected MD5.");
                 return ok(state+"\n",0,state === "unavailable" ? "target file does not match this patch." :
                     state === "broken" ? "incomplete installation detected." : "");
             }
-            if (id === "main-menu-loop" && action === "install" && oldModification)
+            if (id === "patch-example-two" && action === "install" && oldModification)
                 return ok("MZD_RECOVERY_CANDIDATE\n",1,"the target contains an old unmanaged patch.");
             states[id] = action === "install" ? "installed" : "uninstalled";
             return ok("PREVIEW ONLY: " + action + " completed. No files were changed.");
@@ -102,7 +102,7 @@
         if (message.type !== "shell-exec") return;
         var args = message.args.slice(1);
         var delay = (args[0] === "action" && args[2] !== "status") || args[0] === "restore-original" ? 8000 : 120;
-        if (window.previewRecoveryDemo && args[0] === "action" && args[1] === "main-menu-loop" && args[2] === "install" && oldModification) delay = 120;
+        if (window.previewRecoveryDemo && args[0] === "action" && args[1] === "patch-example-two" && args[2] === "install" && oldModification) delay = 120;
         window.setTimeout(function () {
             reply({type:"shell-result", token:"preview", id:message.id, result:process(args)});
         },delay);

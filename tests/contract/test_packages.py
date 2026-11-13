@@ -54,7 +54,7 @@ exec /usr/bin/awk "$@"
     def make(id_,version='1.0.0',target=None,extra='',requires=''):
         target=target or base/(id_+'.target')
         folder=usb/'tweaks'/id_
-        manifest=(ROOT/'usb/tweaks/list-beep/manifest.conf').read_text()
+        manifest=(ROOT/'development/examples/patch/manifest.conf').read_text()
         import re
         for key,value in dict(id=id_,version=version,target=bp(target),requires=requires).items():
             manifest=re.sub('^'+key+'=.*$',key+'='+value,manifest,flags=re.M)

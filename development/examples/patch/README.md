@@ -1,10 +1,11 @@
 # Patch-worker template
 
-This is the complete List Beep implementation as a concrete reference. To add a
+This is a complete patch worker as a concrete reference (it comments out one
+line of a sample target). To add a
 new tweak, copy to usb/tweaks/<new-id>/, then change its manifest.conf and patch. ID, target, firmware, OEM backup
 fingerprint, lock group and dependencies are declared only in the manifest.
 Add relevant tests.
-Do not install this unchanged example under a second ID: it changes List Beep.
+Do not install this unchanged example: its patch targets a sample OEM file.
 The folder must live under usb/tweaks/ to resolve ../../lib/ at runtime. This example
 is not automatically discovered. See [Contributing](../../CONTRIBUTING.md) and [Worker contract](../../Worker-contract.md).
 

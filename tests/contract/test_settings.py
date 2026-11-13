@@ -148,7 +148,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     # A persistent worker writes only the private target; saved config must survive
     # new USB defaults/schema/helper changes and removal of the USB tweak folder.
     folder = usb/'tweaks/configured'; folder.mkdir()
-    data = (ROOT/'usb/tweaks/list-beep/manifest.conf').read_text()
+    data = (ROOT/'development/examples/patch/manifest.conf').read_text()
     data = re.sub('^id=.*$', 'id=configured', data, flags=re.M)
     data = re.sub('^target=.*$', 'target='+bp(target), data, flags=re.M)
     data += original[original.index('settings='):]

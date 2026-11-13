@@ -153,7 +153,7 @@ function viewPage(options) {
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
   assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main Menu Loop', 'List Menu Loop', 'List Menu Beep', 'Shorter List Menu Delay']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay']);
   assert(menu.rows.every(r => r.itemStyle === 'styleOnOff' && r.disabled === false && r.spinner === false), 'plain On/Off rows');
   assert.deepEqual(menu.rows.map(r => r.checked), [true, false, true, false], 'the end beep is on until it is switched off');
 
