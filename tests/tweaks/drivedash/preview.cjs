@@ -9,7 +9,7 @@ const source = name => fs.readFileSync(path.join(root, name), 'utf8');
 const acornKey = Object.keys(process.binding('natives')).find(k => k.endsWith('acorn/dist/acorn'));
 const parser = new Module('drivedash-es5');
 parser._compile(process.binding('natives')[acornKey], 'drivedash-es5.js');
-for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
+for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'skins/venom.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js', 'resident.js']) {
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
@@ -66,7 +66,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
     if (bitmap) window.Image = function () {stats.images.push(this);this.complete=bitmap!=='pending';this.width=800;this.height=416;Object.defineProperty(this,'src',{set(value){stats.imageLoads.push(value);}});};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
-    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
+    for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'skins/venom.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
     if (live && !deferred) {
         const load = messages.find(m=>m.operation==='preferences');
         assert.ok(load);
@@ -110,9 +110,9 @@ f.window.DriveDashSkins.register({id:'alternative',labelKey:'Alternative',draw()
 assert.throws(() => f.window.DriveDashSkins.register({id:'alternative',draw() {}}));
 f.nodes.settings.onclick(); assert.equal(f.intervals.size,0);
 f.nodes['menu-rows'].children[0].onclick();
-assert.equal(f.nodes['menu-rows'].children.length,6);
+assert.equal(f.nodes['menu-rows'].children.length,7);
 assert(!f.nodes['menu-rows'].children.some(row=>row.children[0].textContent==='Zur\u00fcck'));
-f.nodes['menu-rows'].children[5].onclick();
+f.nodes['menu-rows'].children[6].onclick();
 assert.equal(alternativeDraws,0); assert.equal(f.intervals.size,0);
 f.input('back','step'); // Design -> settings, still paused.
 assert.equal(f.intervals.size,0);
@@ -290,7 +290,7 @@ for(const design of ['sakura','midnight-rose']){
 }
 console.log('DRIVEDASH_ILLUSTRATED_PASSED: both themes, shared live values, translations, no-image fallback and ES5.');
 
-for(const design of ['oem-style','classic','motorsport','sakura','midnight-rose']){
+for(const design of ['oem-style','classic','motorsport','sakura','midnight-rose','venom']){
  const lazy=fixture(false,false,{design},false,true);
  assert.deepEqual(lazy.stats.imageLoads,design==='classic'||design==='motorsport'?[]:['skins/'+design+'-background.png'],'Only selected skin loads its bitmap.');
  lazy.nodes.gauge.onclick();assert.equal(lazy.nodes['menu-title'].textContent,'Einstellungen','Tapping gauge opens settings.');lazy.dispose();
@@ -341,3 +341,13 @@ const pending=fixture(false,false,{animated:false},false,'pending');
 const pendingArt=pending.stats.images[0];assert(!pending.stats.drawn.includes(pendingArt));
 pendingArt.complete=true;pendingArt.onload();assert(pending.stats.drawn.includes(pendingArt),'Loaded artwork replaces the cached fallback layer.');
 pending.dispose();
+const venom=fixture(false,false,{design:'venom'},false,true);
+assert.equal(venom.window.DriveDashSkins.get('venom').id,'venom');
+assert(venom.texts.includes('88'));assert(venom.stats.imageLoads.includes('skins/venom-background.png'));
+venom.dispose();
+console.log('DRIVEDASH_VENOM_PASSED: registered ES5 skin, live model, lazy image and lifecycle.');
+
+demoClock=0;const rpmDemo=new dw.DriveDashDemo();rpmDemo.start(value=>{demoState=value;},true);
+assert.equal(demoState.rpm,800);
+for(const [seconds,rpm] of [[2,3200],[4,1200],[6,6200],[8,2000],[10,7600],[12,900]]){demoClock=seconds*1000;demoTick();assert.equal(demoState.rpm,rpm);}
+rpmDemo.stop();rpmDemo.start(value=>{demoState=value;},false);assert.equal(demoState.rpm,2400);

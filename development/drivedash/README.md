@@ -245,3 +245,15 @@ Settings loading makes at most three attempts, with two and four seconds between
 attempts. After failure the settings menu stays read-only until the app is reopened;
 saved values are never replaced with defaults. Lazy artwork completion redraws
 only the active gauge, including static demos, without a background timer.
+
+### Venom concept
+
+Venom adds a comic background cleaned by the owner, with dynamic speed in the
+mouth, tooth-shaped RPM marks and alternating fuel segments. Artwork loads on
+first selection; values are cached separately from the shared animated needle.
+A small bottom-right credit reads `by SoftWareCrash`. Its layout passed the
+emulator and bench display check; real-car motion acceptance remains pending.
+
+The animated HTTP demo also uses large RPM target steps every two seconds
+(800, 3200, 1200, 6200, 2000, 7600, 900) to make needle behavior easier to compare
+between skins. These simulated targets do not change live collection or smoothing.

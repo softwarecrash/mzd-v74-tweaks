@@ -1,7 +1,7 @@
 # DriveDash
 
 A configurable instrument display for firmware 74.00.324. Install through the USB
-launcher, restart, then open Applications > DriveDash. Choose OEM Style, Classic, Motorsport, Sakura or Midnight Rose; no other AIO tweaks are bundled.
+launcher, restart, then open Applications > DriveDash. Choose OEM Style, Classic, Motorsport, Sakura, Midnight Rose or Venom; no other AIO tweaks are bundled.
 
 Tap the gauge or press the commander knob (Enter in the emulator) for settings. Tilt/rotate to
 select, press to apply. Selection stays in the submenu; Back returns to settings,
