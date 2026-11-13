@@ -17,6 +17,14 @@ def require(ok, message):
 
 from manifest import read as read_manifest
 
+# GUI API level of the shipped provider (api= in api.conf). A tweak declares the lowest level it
+# needs in gui_api. Level 1 is a provider from before the integer level (capabilities unknown), so
+# every shared feature that existed then needs level 2; add a row per later provider bump.
+GUI_API_LEVEL = int(next(line[4:] for line in (USB / 'lib/gui-runtime/api.conf').read_text().splitlines() if line.startswith('api=')))
+GUI_FEATURES = [
+    (2, re.compile(r'MzdSettings(Host|View)|createNativeMenu|onServiceRequest|MzdGuiModule\.request|\bsdk\.request\b|onSuspend|onResume')),
+]
+
 manifests = {}
 for folder in sorted((USB / 'tweaks').iterdir()):
     if not folder.is_dir():
@@ -35,6 +43,18 @@ for folder in sorted((USB / 'tweaks').iterdir()):
     for key in ['gui_resident', 'gui_service', 'gui_translations']:
         if m.get(key):
             require((folder / m[key]).is_file() and not (folder / m[key]).is_symlink(), 'GUI asset missing or linked: ' + folder.name + ' (' + key + ')')
+    if m.get('gui_api'):
+        level = int(m['gui_api'])
+        require(level <= GUI_API_LEVEL, 'gui_api ' + str(level) + ' is above the shipped GUI API ' + str(GUI_API_LEVEL) + ': ' + folder.name)
+        needed = 1
+        if any(m.get(k) for k in ['gui_resident', 'gui_service', 'gui_translations']) or any(k.startswith('config.') for k in m):
+            needed = 2
+        for script in (folder / 'assets').rglob('*.js'):
+            text = script.read_text(encoding='utf-8')
+            for feature_level, pattern in GUI_FEATURES:
+                if pattern.search(text):
+                    needed = max(needed, feature_level)
+        require(level >= needed, 'gui_api must be at least ' + str(needed) + ' for the shared GUI features this tweak uses: ' + folder.name)
     for key, val in m.items():
         if key.startswith('config.') and key.endswith('.source') and val != '-':
             require((folder / val).exists() and not (folder / val).is_symlink(), 'Config template source missing or linked: ' + folder.name + ' (' + val + ')')

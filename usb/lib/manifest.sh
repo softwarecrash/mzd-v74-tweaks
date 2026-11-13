@@ -175,9 +175,10 @@ mzd_manifest_load() {
     LOCK=
     if [ "$TYPE" = gui-extension ] || [ -n "$GUI_API" ]; then
         case "$ID" in games|exit) mzd_manifest_error 'Reserved GUI extension ID.'; return 1 ;; esac
-        [ "$GUI_API:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = 1:reset.sh:true:payload ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload and restart.'; return 1; }
+        case "$GUI_API" in ''|*[!0-9]*|0*) mzd_manifest_error 'GUI API level must be a positive integer.'; return 1 ;; esac
+        [ "$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = reset.sh:true:payload ] || { mzd_manifest_error 'GUI extensions require reset.sh, payload and restart.'; return 1; }
         if [ "$TYPE" = gui-extension ]; then
-            [ -z "$APP$ORIGINAL$LOCK_GROUP$COMPONENTS$SHIM_ASSET" ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload, restart and no patch metadata.'; return 1; }
+            [ -z "$APP$ORIGINAL$LOCK_GROUP$COMPONENTS$SHIM_ASSET" ] || { mzd_manifest_error 'GUI extensions require reset.sh, payload, restart and no patch metadata.'; return 1; }
         fi
         [ -n "$GUI_LABEL" ] && [ "${#GUI_LABEL}" -le 80 ] || { mzd_manifest_error 'GUI label must contain 1-80 characters.'; return 1; }
         case "$GUI_RESIDENT" in ''|*.js) ;; *) mzd_manifest_error 'GUI resident must be JavaScript.'; return 1 ;; esac
@@ -188,7 +189,7 @@ mzd_manifest_load() {
             LOCK=/tmp/mzd-gui-extension.lock
         fi
     elif [ -n "$GUI_API$GUI_MENU_PATH$GUI_LABEL$GUI_ENTRYPOINT$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
-        mzd_manifest_error 'GUI metadata requires gui-extension type or gui_api=1.'; return 1
+        mzd_manifest_error 'GUI metadata requires gui-extension type or gui_api.'; return 1
     fi
     if [ "$TYPE" != command ] && [ "$TYPE" != gui-extension ]; then
         case "$APP" in /*) ;; *) mzd_manifest_error 'An absolute target is required.'; return 1 ;; esac

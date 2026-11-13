@@ -46,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
  if '--services-only' in sys.argv or '--wallpaper-only' in sys.argv:
   for id_ in ['gui-example','second-example']:
    dest=usb/'tweaks'/id_
-   with (dest/'manifest.conf').open('a',encoding='utf-8') as f:f.write('\ngui_resident=assets/resident.js\ngui_service=assets/service.lua\n')
+   manifest=dest/'manifest.conf';write(manifest,manifest.read_text().replace('gui_api=1','gui_api=2')+'\ngui_resident=assets/resident.js\ngui_service=assets/service.lua\n')
    write(dest/'assets/resident.js','window.MzdGuiResidents.register("'+id_+'",function () {});\n')
    write(dest/'assets/service.lua','return function() return {request=function()return {}end}end\n')
   write(b/'startup','#!/bin/sh\n# unrelated SSH hook\necho original\n')
@@ -114,51 +114,49 @@ exec '''+copy_command+''' "$@"
  def absent():assert not hook.exists() and not runtime.exists() and not registry.exists() and not provider.exists() and not modules.exists()
  if '--helper-compat-only' in sys.argv:
   api=usb/'lib/gui-runtime/api.conf';current=api.read_text()
-  write(api,current.replace('view-lifecycle=1\n','').replace('version=0.5.0','version=0.4.0'))
-  call('gui-example','install')
-  write(api,current)
-  receipt=persist/'mzd-tweaks/installed/gui-example'
-  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  assert current=='api=2\n','api.conf carries only the GUI API level'
+  provider_api=provider/'package/lib/gui-runtime/api.conf'
+  def snapshot():return {str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
+  def reinventory(folder,inventory):
+   subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
+  # A provider from before the integer level reports api=1. Plain views (gui_api=1) keep reusing it;
+  # a tweak that needs level 2 is refused before anything is removed or published.
+  write(api,'api=1\n')
+  call('gui-example','install');write(api,current)
+  assert provider_api.read_text()=='api=1\n'
+  call('second-example','install');call('second-example','uninstall')
+  before=snapshot()
+  for id_ in ['gui-hello-world','wallpaper-manager']:
+   r=call(id_,'install',1)
+   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr and 'needs GUI API 2, found 1' in r.stdout+r.stderr,(r.stdout,r.stderr)
+   assert before==snapshot(),'Rejected install changed saved installation'
   p=usb/'tweaks/gui-example/manifest.conf';write(p,p.read_text().replace('version=0.1.0','version=0.1.1'))
-  for id_,action in [('gui-example','update'),('gui-example','install'),('second-example','install')]:
-   r=call(id_,action,1)
-   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
-   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected action changed saved installation'
+  call('gui-example','update')
   call('gui-example','uninstall');absent()
-  call('gui-example','install');call('second-example','install')
-  assert 'view-lifecycle=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
-  call('second-example','uninstall');call('gui-example','uninstall');absent()
-  # A phone-capable provider still needs replacement for parking support.
-  write(api,current.replace('parking-lifecycle=1\n',''))
-  call('gui-example','install');write(api,current)
-  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
-  r=call('second-example','install',1);assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr
-  assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
-  call('gui-example','uninstall');absent()
-  # A 0.5.3 helper still needs replacement for native-menu and service-request support.
-  helper_053=current.replace('native-menu=1\n','').replace('service-request=1\n','').replace('version=0.6.0','version=0.5.3')
-  write(api,helper_053)
-  call('gui-example','install');write(api,current)
-  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
-  r=call('wallpaper-manager','install',1)
-  assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
-  assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected install changed saved installation'
-  call('gui-example','uninstall');absent()
-  # Updating a consumer installed with 0.5.3 helper also refuses before removing the old version.
-  write(api,helper_053)
-  call('wallpaper-manager','install');write(api,current)
-  before={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
-  p=usb/'tweaks/wallpaper-manager/manifest.conf';p_orig=p.read_text();write(p,p_orig.replace('version=0.4.3','version=0.4.4'))
-  for id_,action in [('wallpaper-manager','update'),('second-example','install')]:
-   r=call(id_,action,1)
-   assert 'Uninstall ALL GUI tweaks' in r.stdout+r.stderr,(r.stdout,r.stderr)
-   assert before=={str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()},'Rejected action changed saved installation'
-  write(p,p_orig)
+  # The current provider (api=2) accepts level-2 consumers and is reused by them.
+  call('wallpaper-manager','install');call('gui-hello-world','install')
+  assert provider_api.read_text()=='api=2\n'
+  call('gui-hello-world','uninstall');call('wallpaper-manager','uninstall');absent()
+  # A saved consumer copy older than the tweak needs is refused as well, since it runs on uninstall.
+  call('wallpaper-manager','install')
+  saved=persist/'mzd-tweaks/installed/wallpaper-manager'
+  write(saved/'package/lib/gui-runtime/api.conf','api=1\n');reinventory(saved,'package.files')
+  before=snapshot()
+  r=call('gui-hello-world','install',1)
+  assert 'needs GUI API 2, found 1' in r.stdout+r.stderr,(r.stdout,r.stderr)
+  assert before==snapshot(),'Rejected install changed saved installation'
   call('wallpaper-manager','uninstall');absent()
-  call('wallpaper-manager','install');call('second-example','install')
-  assert 'native-menu=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
-  assert 'service-request=1' in (provider/'package/lib/gui-runtime/api.conf').read_text()
-  call('second-example','uninstall');call('wallpaper-manager','uninstall');absent()
+  # A provider without a valid level is refused before anything changes.
+  call('wallpaper-manager','install')
+  original_level=provider_api.read_text()
+  for bad in ['api=abc\n','api=0\n','version=0.7.0\n','']:
+   write(provider_api,bad)
+   before=snapshot()
+   r=call('gui-hello-world','install',1)
+   assert 'Incompatible GUI provider API' in r.stdout+r.stderr,(bad,r.stdout,r.stderr)
+   assert before==snapshot(),'Rejected install changed saved installation'
+  write(provider_api,original_level)
+  call('wallpaper-manager','uninstall');absent()
   print('GUI_HELPER_COMPAT_PASSED:',checks,'real actions; old helper blocks install/update before mutation, saved uninstall and current reuse work.')
   raise SystemExit(0)
  if '--ssh-coexist-only' in sys.argv:
@@ -240,12 +238,12 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
   # Old immutable providers and saved uninstallers must be removed explicitly.
   call('gui-hello-world','install')
   for q in [provider/'package/lib/gui-runtime/api.conf',runtime/'api.conf',persist/'mzd-tweaks/installed/gui-hello-world/package/lib/gui-runtime/api.conf']:
-   write(q,'api=1\nversion=0.1.0\n')
+   write(q,'api=1\n')
   for folder,inventory in [(provider,'provider.files'),(persist/'mzd-tweaks/installed/gui-hello-world','package.files')]:
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
   failed=call('gui-example','install',1)
   diagnostics=failed.stdout+failed.stderr+'\n'.join(p.read_text() for p in (usb/'reports/gui-example').glob('install-*/run.log'))
-  assert 'predates resident services' in diagnostics,diagnostics
+  assert 'is too old' in diagnostics and 'needs GUI API 2, found 1' in diagnostics,diagnostics
   assert startup.read_bytes()==original and not (modules/'gui-example').exists() and not (persist/'mzd-tweaks/installed/gui-example').exists()
   call('gui-hello-world','uninstall');absent()
   print('GUI_SERVICES_PACKAGES_PASSED:',checks,'real entrypoint checks; shared startup, both service consumers, last cleanup, owned data removal and old-provider refusal.')
@@ -303,15 +301,15 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
  if '--i18n-compat-only' in sys.argv:
   call('gui-example','install')
   for folder in [provider, persist/'mzd-tweaks/installed/gui-example']:
-   api=folder/'package/lib/gui-runtime/api.conf';write(api,api.read_text().replace('i18n=2\n',''))
+   api=folder/'package/lib/gui-runtime/api.conf';write(api,'api=1\n')
    inventory='provider.files' if folder==provider else 'package.files'
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
-  api=runtime/'api.conf';write(api,api.read_text().replace('i18n=2\n',''))
+  api=runtime/'api.conf';write(api,'api=1\n')
   result=call('tetris','install',1)
-  assert 'predates translations' in result.stdout+result.stderr
+  assert 'needs GUI API 2, found 1' in result.stdout+result.stderr
   assert not (persist/'mzd-tweaks/installed/tetris').exists(),'failed capability check published a receipt'
   call('gui-example','uninstall');absent()
-  print('GUI_I18N_COMPAT_PASSED:',checks,'real actions; old provider refused before staging.')
+  print('GUI_I18N_COMPAT_PASSED:',checks,'real actions; provider and saved copies at an older GUI API level are refused before staging.')
   raise SystemExit(0)
  if '--restore-only' in sys.argv:
   # An uninstalled service consumer must not invoke Lua, even with retained data.
@@ -384,15 +382,15 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
  if '--i18n-compat-only' in sys.argv:
   call('gui-example','install')
   for folder in [provider, persist/'mzd-tweaks/installed/gui-example']:
-   api=folder/'package/lib/gui-runtime/api.conf';write(api,api.read_text().replace('i18n=2\n',''))
+   api=folder/'package/lib/gui-runtime/api.conf';write(api,'api=1\n')
    inventory='provider.files' if folder==provider else 'package.files'
    subprocess.run([SHELL,'-c','. '+shlex.quote(bp(usb/'lib/packages.sh'))+'; mzd_package_inventory '+shlex.quote(bp(folder))+' > '+shlex.quote(bp(folder/inventory))],check=True)
-  api=runtime/'api.conf';write(api,api.read_text().replace('i18n=2\n',''))
+  api=runtime/'api.conf';write(api,'api=1\n')
   result=call('tetris','install',1)
-  assert 'predates translations' in result.stdout+result.stderr
+  assert 'needs GUI API 2, found 1' in result.stdout+result.stderr
   assert not (persist/'mzd-tweaks/installed/tetris').exists(),'failed capability check published a receipt'
   call('gui-example','uninstall');absent()
-  print('GUI_I18N_COMPAT_PASSED:',checks,'real actions; old provider refused before staging.')
+  print('GUI_I18N_COMPAT_PASSED:',checks,'real actions; provider and saved copies at an older GUI API level are refused before staging.')
   raise SystemExit(0)
  if '--restore-only' in sys.argv:
   # An uninstalled service consumer must not invoke Lua, even with retained data.

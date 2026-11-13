@@ -292,14 +292,22 @@ fi
 
 ASSETS_DIR="$TWEAK_DIR/assets"
 SDK_FILE="$REPO_DIR/usb/lib/gui-runtime/sdk.js"
+SETTINGS_VIEW_FILE="$REPO_DIR/usb/lib/gui-runtime/settings-view.js"
 INLINED_ENTRY_HTML=$(sed 's/>[ \t]*</>\
-</g' "$TWEAK_DIR/$GUI_ENTRYPOINT" | awk -v assets_dir="$ASSETS_DIR" -v sdk_file="$SDK_FILE" '
+</g' "$TWEAK_DIR/$GUI_ENTRYPOINT" | awk -v assets_dir="$ASSETS_DIR" -v sdk_file="$SDK_FILE" -v settings_view_file="$SETTINGS_VIEW_FILE" '
 BEGIN {
     while ((getline l < sdk_file) > 0) sdk = sdk (sdk ? "\n" : "") l
     close(sdk_file)
+    while ((getline l < settings_view_file) > 0) settings_view = settings_view (settings_view ? "\n" : "") l
+    close(settings_view_file)
 }
 /<script[ \t]+src="\/data\/integration\/mzd-gui-runtime\/sdk\.js"/ {
     print "<script>\n" sdk "\n</script>"
+    skip_script = 1
+    next
+}
+/<script[ \t]+src="\/data\/integration\/mzd-gui-runtime\/settings-view\.js"/ {
+    print "<script>\n" settings_view "\n</script>"
     skip_script = 1
     next
 }

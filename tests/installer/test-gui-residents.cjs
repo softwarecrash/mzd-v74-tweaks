@@ -793,6 +793,47 @@ test("createNativeMenu full features", async (t) => {
     assert.equal(container.parentNode, null, "Container removed on close");
   });
 
+  await t.test("the saving spinner replaces the leading image of every row style", () => {
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const spinner = "common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png";
+
+    menu.render(frame, "tok-spinner", {
+      title: "Spinner",
+      page: "main",
+      rows: [
+        { label: "Plain", spinner: true },
+        { label: "Detail", detail: "Value", caret: true, spinner: true },
+        { label: "Toggle", itemStyle: "styleOnOff", checked: true, spinner: true },
+        { label: "Choice", checkable: true, checked: true, spinner: true },
+        { label: "Saving flag", saving: true },
+        { label: "Step", itemStyle: "styleStep", value: 3, min: 1, max: 5, spinner: true },
+        { label: "Idle choice", checkable: true, checked: true },
+        { label: "Idle radio", checkable: true, radio: true, checked: true },
+        { label: "Icon", image1: "common/images/icons/own.png" },
+        { label: "Icon while saving", image1: "common/images/icons/own.png", spinner: true },
+        { label: "Idle toggle", itemStyle: "styleOnOff", checked: false },
+        { label: "Idle step", itemStyle: "styleStep", value: 3, min: 1, max: 5, image1: "common/images/icons/own.png" }
+      ]
+    });
+
+    const items = instantiatedControl.config.dataList.items;
+    assert.deepEqual(Array.from(items.slice(0, 6), item => item.image1), new Array(6).fill(spinner),
+      "every row style shows the spinner while saving, even a checkable one");
+    assert.deepEqual(Array.from(items.slice(6), item => item.image1),
+      ["tick", "radio", "common/images/icons/own.png", spinner, "", "common/images/icons/own.png"],
+      "an idle row keeps its own image");
+    assert.equal(items[2].itemStyle, "styleOnOff");
+    assert.equal(items[2].value, 1);
+    assert.equal(items[3].checked, true, "a saving choice keeps its checked state");
+
+    const css = instantiatedControl.container.children.filter(c => c.tag === "style").map(c => c.textContent).join("");
+    assert(css.includes('.ListItem .image1[style*="Refreshing"]{'), "the spinner turns on every row style");
+    assert(!css.includes("styleStep.saving"), "the animation is not limited to stepper rows");
+
+    menu.close();
+  });
+
   await t.test("dispatches rotary and directional input to control", () => {
     const { frame } = makeFrame();
     const menu = api.createNativeMenu({ prefix: "custom" });

@@ -2546,7 +2546,6 @@ test("GUI_MANIFEST_UI", async (t) => {
     "refuses a wrong API, an unsafe menu or view path and a missing reset",
     () => {
       for (const bad of [
-        guiConf.replace("gui_api=1", "gui_api=2"),
         guiConf.replace("gui_menu_path=", "gui_menu_path=Tools//Examples"),
         guiConf.replace("assets/view.html", "assets/../view.html"),
         guiConf.replace("reset_entrypoint=reset.sh\n", "")
@@ -2554,6 +2553,20 @@ test("GUI_MANIFEST_UI", async (t) => {
         assert.throws(() => parseConf("gui-example", bad));
     }
   );
+
+  await t.test("takes gui_api as the minimum GUI API level, a positive integer", () => {
+    for (const level of ["1", "2", "12"])
+      assert.equal(
+        parseConf("gui-example", guiConf.replace("gui_api=1", "gui_api=" + level)).gui_api,
+        level
+      );
+    for (const bad of ["0", "01", "-1", "1.0", "v1", ""])
+      assert.throws(
+        () => parseConf("gui-example", guiConf.replace("gui_api=1", "gui_api=" + bad)),
+        undefined,
+        "gui_api=" + bad
+      );
+  });
 
   await t.test("refuses a reserved ID", () => {
     assert.throws(() =>

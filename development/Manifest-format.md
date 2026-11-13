@@ -190,17 +190,18 @@ section. Duplicate fields and control characters remain invalid.
 
 `type=gui-extension` uses automatically managed GUI support and a saved consumer
 snapshot. Non-`gui-extension` tweaks (such as bundle packages with `type=files`)
-can also provide an in-car Applications menu GUI by declaring `gui_api=1`. See
-[Shared GUI extensions](Gui-extensions.md) for the API 1 metadata, first/last-consumer
+can also provide an in-car Applications menu GUI by declaring `gui_api`. See
+[Shared GUI extensions](Gui-extensions.md) for the GUI metadata, first/last-consumer
 lifecycle, ownership rules and development limits.
 
-Whenever `gui_api=1` is declared (or when `type=gui-extension`), the manifest must
-satisfy the GUI extension contract: `gui_api=1`, `reset_entrypoint=reset.sh`,
+Whenever `gui_api` is declared (or when `type=gui-extension`), the manifest must
+satisfy the GUI extension contract: `gui_api` (the lowest GUI API level the tweak needs, a
+positive integer; see [GUI API level](Gui-extensions.md#gui-api-level)), `reset_entrypoint=reset.sh`,
 `reboot_required=true`, `status_scope=payload`, a literal `gui_label` (1–80 characters),
 and a valid `gui_entrypoint` path under `assets/` ending in `.html`. Standalone
 `type=gui-extension` tweaks strictly prohibit patch and component metadata (`target`,
 `oem_backup_md5`, `lock_group`, `components`, `shim_asset`). In contrast, hybrid bundle
-workers declaring `gui_api=1` permit those metadata fields to manage their native
+workers declaring `gui_api` permit those metadata fields to manage their native
 components and patches alongside their GUI view.
 
 ### Choice control behavior
