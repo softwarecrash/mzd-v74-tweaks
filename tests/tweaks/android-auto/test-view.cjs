@@ -377,6 +377,7 @@ const hostContext = {
 };
 document.documentElement = { contains: () => attached };
 vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/residents.js'), 'utf8'), hostContext);
+vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/settings-host.js'), 'utf8'), hostContext);
 const residentsApi = host.MzdGuiResidents;
 resident.createNativeMenu = opts => residentsApi.createNativeMenu(opts);
 resident.notify = (text, isError) => residentsApi.notify('android-auto', text, isError);
@@ -399,6 +400,7 @@ viewAttached = true;
 
 // Run SDK
 vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/sdk.js'), 'utf8'), { window: view });
+vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/settings-view.js'), 'utf8'), { window: view, document: document });
 
 // Run view script
 vm.runInNewContext(viewSource, { window: view, document: document });
@@ -551,6 +553,8 @@ assert.equal(writes, 1);
 assert.equal(dpiRow().disabled, true, 'DPI row disabled while save in progress');
 assert.equal(dpiRow().image1, 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png', 'DPI row shows spinner during save');
 assert.equal(rebootRow().disabled, true, 'Reboot row stays disabled while DPI save is in progress');
+assert.equal(control.dataList.items[1].disabled, false, 'Other settings stay usable while DPI saves');
+assert.equal(control.dataList.items[1].image1, '', 'Only the saving DPI row shows the spinner');
 releaseSave();
 assert.equal(savedSettings.resolution_dpi, 122);
 assert.equal(dpiRow().disabled, false, 'DPI row re-enabled after save completes');
@@ -612,12 +616,40 @@ customServiceResult = null;
 residentMessage({ type: 'aa-request', action: 'get' });
 assert.equal(dpiRow().disabled, false, 'Available DPI restores row enablement');
 
+// The DPI range comes from the service limits, not from the view
+customServiceResult = {
+    success: true,
+    settings: Object.assign({}, savedSettings),
+    limits: { resolution_dpi: { min: 120, max: 150, step: 5 } },
+    unavailable: {},
+    rebootRequired: false
+};
+residentMessage({ type: 'aa-request', action: 'get' });
+assert.equal(dpiRow().min, 120, 'The stepper minimum follows the service');
+assert.equal(dpiRow().max, 150, 'The stepper maximum follows the service');
+assert.equal(dpiRow().increment, 5, 'The stepper increment follows the service');
+assert.equal(dpiRow().value, 141);
+stepDpi(155, true);
+assert.equal(writes, 4, 'A value above the service maximum is never saved');
+stepDpi(110, true);
+assert.equal(writes, 4, 'A value below the service minimum is never saved');
+customServiceResult = null;
+residentMessage({ type: 'aa-request', action: 'get' });
+assert.equal(dpiRow().min, 100, 'New limits replace the old ones');
+assert.equal(dpiRow().max, 160);
+assert.equal(dpiRow().increment, 1);
+
 // 2. A save in progress keeps reboot disabled; a successful save enables it
 holdSaves();
 click(1);
 assert.equal(control.dataList.items[1].checked, false);
 assert.equal(rebootRow().disabled, true, 'Reboot stays disabled while a save is in progress');
+assert.equal(dpiRow().disabled, true, 'The DPI row waits while any other setting saves');
+assert.equal(dpiRow().image1, '', 'The DPI row shows no spinner for another setting');
+assert.equal(control.dataList.items[1].image1, '', 'A saving toggle row shows no spinner');
+assert.equal(control.dataList.items[2].disabled, false, 'Other toggle rows stay usable while one saves');
 releaseSave();
+assert.equal(dpiRow().disabled, false, 'The DPI row is usable again after the save');
 assert.equal(savedSettings.touch, false);
 assert.equal(writes, 5);
 assert.equal(rebootRow().disabled, false, 'A successful save enables reboot');
@@ -750,7 +782,7 @@ assert.equal(writes, 14);
 for (const fn of viewEvents.message) {
     fn({
         source: view.parent,
-        data: { type: 'aa-response', token: 'fixture-token', error: 'Failed to save settings', saving: false }
+        data: { type: 'aa-response', token: 'fixture-token', error: 'Failed to save settings', saving: false, pending: [] }
     });
 }
 flush();
@@ -913,6 +945,7 @@ resident.service.request = origServiceRequest;
         },
         document: hostContext.document
     };
+    vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/settings-host.js'), 'utf8'), testHostContext);
     vm.runInNewContext(residentSource, testHostContext);
     freshHostEvents({
         source: testView,
@@ -979,6 +1012,7 @@ flush();
             }
         }
     });
+    vm.runInNewContext(fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/settings-host.js'), 'utf8'), { window: fastWindow, document: document });
     vm.runInNewContext(residentSource, { window: fastWindow, document: document });
     fastMessage({
         source: view,
