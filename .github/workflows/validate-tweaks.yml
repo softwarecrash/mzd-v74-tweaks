@@ -191,4 +191,5 @@ jobs:
       - run: node tests/tweaks/wallpaper-manager/cmu-host.cjs
       - run: node tests/tweaks/wallpaper-manager/localized-view.cjs
       - run: node tests/tweaks/android-auto/test-view.cjs
+      - run: node tests/tweaks/mzd-tweaks/settings.cjs
       - run: node tests/tweaks/remove-safety-warnings/behavior.cjs
