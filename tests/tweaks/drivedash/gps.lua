@@ -24,4 +24,10 @@ assert(calls==16 and sample.gpsAltitudeM==-12.5)
 fail=true
 for i=1,3 do now=30+i*2;sample=reader.sample();assert((sample.gpsAltitudeM~=nil)==(i<3))end
 now=50;sample=reader.sample();assert(sample.gpsAltitudeM==nil)
+-- After three misses GPS backs off to 4, 8, 16 and 32 s.
+local gpsCalls=0
+reader=collector.create({interval=0.2,slowInterval=1,now=function()return now end,
+    run=function()return {started=true,exitCode=0,stdout='0\n'}end,gps=function()gpsCalls=gpsCalls+1 end})
+for i=0,240 do now=300+i*0.25;sample=reader.sample()end
+assert(gpsCalls==6)
 print('DRIVEDASH_GPS_PASSED: bounded parsing, independent two-second cadence, failure retention and idle reset.')

@@ -69,8 +69,10 @@ function M.create(deps)
                 -- Retry known fields; unsupported fields cannot stall discovery.
                 if ok or values[field[1]]==nil then nextSlow=nextSlow%count+1 end
             end
-            -- GPS has its own cadence, independent of the slow-field rotation.
-            if deps.gps and (not lastGps or now-lastGps>=(deps.gpsInterval or 2))then
+            -- GPS has its own cadence, independent of the slow-field rotation; back off after three misses.
+            local gpsWait=deps.gpsInterval or 2
+            if gpsMisses>=3 then gpsWait=math.min(60,gpsWait*2^(gpsMisses-2))end
+            if deps.gps and (not lastGps or now-lastGps>=gpsWait)then
                 lastGps=now
                 local ok,result=pcall(deps.gps)
                 if ok and type(result)=='table' then

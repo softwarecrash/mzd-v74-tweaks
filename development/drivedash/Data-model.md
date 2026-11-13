@@ -56,7 +56,7 @@ are formatted as `m:ss` or `h:mm:ss`. No field changes language independently.
 
 Speed and RPM are read on every new sample; one secondary slot rotates through
 the other fields at most once per second. GPS is queried independently at most
-once every two seconds, with one LDS query supplying all five GPS fields. All commands use the existing process runner and a one-second
+once every two seconds (backing off to at most once a minute after three failed queries), with one LDS query supplying all five GPS fields. All commands use the existing process runner and a one-second
 deadline. Requests within 200 ms reuse the sample. Two failed reads retain the
 last good field; the third removes it. No new reads run when the view is closed
 or showing settings, and the collector invalidates its cache after ten idle
@@ -94,7 +94,7 @@ drive-average counter. Independently collected/cumulative averages may differ.
 clockwise from true north. `gpsDirection` is its nearest eight-point direction.
 It does not assume a reference for the raw OEM `gpsHeadingDeg`, which remains
 unchanged. The view session requires vehicle speed of at least 3 km/h, movement
-of at least 3 metres, and samples no more than 5 seconds apart. Stopping or implausible jumps stop bearing recalculation while retaining the last
+of at least 3 metres, and fresh fixes no more than 7 seconds apart. Stopping or implausible jumps stop bearing recalculation while retaining the last
 course. It expires after more than 30 seconds without fresh valid position data;
 pausing/resetting the session clears it immediately. Fresh stationary positions
 keep the last driving course available. This is driving course,

@@ -108,11 +108,12 @@
         ctx.restore();
     }
     var background = null;
+    function backgroundReady(){return !!(background && background.complete && background.width===800 && background.height===416);}
     function loadBackground(){if(!background && typeof window.Image==='function'){background=new window.Image();background.onload=function(){window.DriveDashSkins.invalidate('oem-style');};background.src='skins/oem-style-background.png';}}
     function drawInstrument(ctx,m,t) {
         var cx = 400, cy = 249, i, a, g;
         ctx.clearRect(0,0,800,416);
-        if (background && background.complete && background.width === 800 && background.height === 416) {
+        if (backgroundReady()) {
             ctx.drawImage(background,0,0);
         } else { drawBackground(ctx); }
         ctx.save(); ctx.translate(400,208); ctx.scale(1.02,1.02); ctx.translate(-400,-249);
@@ -155,7 +156,7 @@
     function draw(ctx,m,t) {
         var key;
         loadBackground();
-        key=[m.speed,m.speedUnit,m.outside,m.coolant,m.tempUnit,m.gear,m.trip,m.tripUnit,m.average,m.averageUnit,m.engineLoad,m.battery,m.fuel,t('outside'),t('trip'),t('coolant'),t('average'),t('fuel'),t('rpm'),background && background.complete ? 'ready':'loading'].join('|');
+        key=[m.speed,m.speedUnit,m.outside,m.coolant,m.tempUnit,m.gear,m.trip,m.tripUnit,m.average,m.averageUnit,m.engineLoad,m.battery,m.fuel,t('outside'),t('trip'),t('coolant'),t('average'),t('fuel'),t('rpm'),backgroundReady() ? 'ready':'loading'].join('|');
         if(!cached && typeof document!=='undefined' && document.createElement){
             cached=document.createElement('canvas');cached.width=800;cached.height=416;cachedContext=cached.getContext('2d');
         }

@@ -16,6 +16,6 @@ Sakura and Midnight Rose. Overall appearance and operation were accepted.
 
 Limits: the bench has no connected vehicle sensors. This does not verify live
 high-speed values, GPS-course accuracy/retention while driving, HUD or a physical
-memory/performance benchmark. High-speed layout at 288?360 km/h was checked in
+memory/performance benchmark. High-speed layout at 288-360 km/h was checked in
 the browser simulator separately. Phone/camera return and uninstall were not
 repeated in this run.

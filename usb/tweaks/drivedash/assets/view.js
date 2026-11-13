@@ -43,8 +43,9 @@
     }
     function finishStartup() {
         if (ended || suspended || initialized || loadingPreferences || systemPending) { return; }
-        applyLanguage(); initialized = true; start();
+        applyLanguage(); initialized = true;
         document.getElementById('stage').style.visibility = 'visible';
+        start();
     }
     function requestSystem() {
         var needs = config.language === 'auto' || config.speedUnit === 'auto' || config.tempUnit === 'auto';

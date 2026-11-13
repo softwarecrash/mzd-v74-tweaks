@@ -107,7 +107,7 @@ fixed fields using `/jci/smdb/smdb-read` and the existing argv-only process runn
 The shared host has already loaded the runner; the factory reuses
 `package.loaded.process`. The host and its scoped require facade are unchanged.
 There is no new executable, shell loop, websocketd or SMDB write. A bounded
-read-only LDS GPS query runs at most once every two seconds, independently of the secondary-field rotation.
+read-only LDS GPS query runs at most once every two seconds, independently of the secondary-field rotation, and backs off to at most once a minute after three failed queries.
 The factory performs no reads at startup and registers no tick callback.
 The manifest declares the resident, service, translations and owned config
 directory. Its config template includes the shared data ownership marker, so

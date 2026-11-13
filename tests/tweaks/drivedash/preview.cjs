@@ -15,12 +15,12 @@ for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skin
 
 function fixture(native, live, initial, deferred, bitmap=false) {
     const timeouts = new Map(); let timeoutId = 0;
-    const stats = {bitmapDraws:0,rotations:[],imageLoads:[],images:[],timerDelays:[]};
+    const stats = {bitmapDraws:0,drawn:[],rotations:[],imageLoads:[],images:[],timerDelays:[]};
     const events = {}, intervals = new Map(), texts = [], labels = [], messages = [], saved = {};
     if (initial) saved['mzd-drivedash-design-preview-v1']=JSON.stringify(initial);
     const drawing = new Proxy({}, {get(target, key) {
         if (key === 'rotate') return angle => {stats.rotations.push(angle);};
-        if (key === 'drawImage') return () => {stats.bitmapDraws++;};
+        if (key === 'drawImage') return image => {stats.bitmapDraws++;stats.drawn.push(image);};
         if (key === 'fillText') return (value,x,y) => {texts.push(value);labels.push({value,x,y});};
         if (key === 'createRadialGradient' || key === 'createLinearGradient') return () => ({addColorStop() {}});
         return target[key] || (() => {});
@@ -63,7 +63,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
             }
         }
     };
-    if (bitmap) window.Image = function () {stats.images.push(this);this.complete=true;this.width=800;this.height=416;Object.defineProperty(this,'src',{set(value){stats.imageLoads.push(value);}});};
+    if (bitmap) window.Image = function () {stats.images.push(this);this.complete=bitmap!=='pending';this.width=800;this.height=416;Object.defineProperty(this,'src',{set(value){stats.imageLoads.push(value);}});};
     const document = {documentElement: {}, getElementById: id => nodes[id], createElement: node};
     const context = vm.createContext({window, document, Date, console});
     for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skins/oem-style.js', 'skins/classic.js', 'skins/motorsport.js', 'skins/illustrated.js', 'demo.js', 'live.js', 'preferences.js', 'needle.js', 'view.js']) vm.runInContext(source(name), context);
@@ -309,7 +309,11 @@ function retryTimer(f,delay){assert.equal(f.stats.timerDelays.at(-1),delay);cons
 failLoad(retry);assert.equal(retry.nodes.stage.style.visibility,'hidden');retryTimer(retry,2000);
 failLoad(retry);retryTimer(retry,4000);failLoad(retry);
 retry.getUnitsCallback()({language:'de_DE'});
-retry.nodes.settings.onclick();retry.input('select','release');
+const nativeSelect=(f,index)=>f.events.message({source:f.window.parent,data:{type:'drivedash-native-select',token:'preview-token',index}});
+const lastMenu=f=>f.messages.filter(m=>m.type==='drivedash-native-render').at(-1).menu;
+retry.nodes.gauge.onclick();assert(lastMenu(retry).rows.every(row=>row.disabled),'Settings are read-only after a failed load.');
+for(let index=0;index<lastMenu(retry).rows.length;index++)nativeSelect(retry,index);
+assert.equal(lastMenu(retry).page,'settings');
 assert(!retry.messages.some(m=>m.values),'Failed load cannot overwrite settings');
 assert.equal(retry.messages.filter(m=>m.operation==='preferences').length,3);
 retry.dispose();assert.equal(retry.timeouts.size,0);
@@ -317,10 +321,23 @@ const recovery=fixture(true,true,null,true);failLoad(recovery);retryTimer(recove
 const load=recovery.messages.filter(m=>m.operation==='preferences').at(-1);
 recovery.serviceCallbacks[load.id](null,{design:'classic',language:'de_DE',speedUnit:'mph',tempUnit:'F'});
 assert.equal(recovery.nodes.stage.style.visibility,'visible');
-recovery.nodes.settings.onclick();assert.equal(recovery.messages.at(-1).menu.rows[0].detail,'Classic');recovery.dispose();
+recovery.nodes.settings.onclick();assert.equal(recovery.messages.at(-1).menu.rows[0].detail,'Classic');
+nativeSelect(recovery,0);nativeSelect(recovery,2);assert.equal(recovery.messages.filter(m=>m.values).at(-1).values.design,'motorsport','Saving works after a successful retry.');
+recovery.dispose();
 const cancelled=fixture(true,true,null,true);failLoad(cancelled);cancelled.dispose();assert.equal(cancelled.timeouts.size,0);
 const artwork=fixture(false,false,{animated:false},false,true);
 const image=artwork.stats.images[0];const draws=artwork.stats.bitmapDraws;image.onload();
 assert(artwork.stats.bitmapDraws>draws,'Static demo redraws when its image loads');
 artwork.suspend();const stopped=artwork.stats.bitmapDraws;image.onload();assert.equal(artwork.stats.bitmapDraws,stopped);
 artwork.dispose();image.onload();assert.equal(artwork.stats.bitmapDraws,stopped);
+
+const broken=fixture(true,true,null,true);
+broken.window.DriveDashSkins.register({id:'broken',labelKey:'Broken',draw(){throw new Error('canvas failure');}});
+assert.throws(()=>broken.serviceCallbacks[broken.messages.find(m=>m.operation==='preferences').id](null,{design:'broken',language:'de_DE',speedUnit:'kmh',tempUnit:'C'}),/canvas failure/);
+assert.equal(broken.nodes.stage.style.visibility,'visible','A failing first draw cannot hide the view.');
+assert.ok(broken.messages.some(m=>m.operation==='sample'),'Polling starts despite the failing draw.');
+broken.dispose();
+const pending=fixture(false,false,{animated:false},false,'pending');
+const pendingArt=pending.stats.images[0];assert(!pending.stats.drawn.includes(pendingArt));
+pendingArt.complete=true;pendingArt.onload();assert(pending.stats.drawn.includes(pendingArt),'Loaded artwork replaces the cached fallback layer.');
+pending.dispose();
