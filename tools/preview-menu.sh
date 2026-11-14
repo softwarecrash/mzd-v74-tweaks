@@ -130,7 +130,7 @@ mzd_manifest_load "$MANIFEST_CONF" || {
 }
 
 if [ "$TYPE" != "gui-extension" ] && [ -z "${GUI_API:-}" ]; then
-    echo "Error: Tweak $TWEAK_ID is not a GUI extension (requires type=gui-extension or gui_api=1)." >&2
+    echo "Error: Tweak $TWEAK_ID is not a GUI extension (requires type=gui-extension or gui_api)." >&2
     exit 1
 fi
 
@@ -139,27 +139,46 @@ if [ -z "${GUI_ENTRYPOINT:-}" ] || [ ! -f "$TWEAK_DIR/$GUI_ENTRYPOINT" ]; then
     exit 1
 fi
 
+CONF_FILE=""
+if [ -f "$TWEAK_DIR/assets/settings.conf" ]; then
+    CONF_FILE="$TWEAK_DIR/assets/settings.conf"
+elif [ -f "$TWEAK_DIR/assets/libpatch.conf" ]; then
+    CONF_FILE="$TWEAK_DIR/assets/libpatch.conf"
+else
+    cfg_src=$(awk -F= '$1=="config.settings.source"{print $2}' "$MANIFEST_CONF")
+    if [ -n "$cfg_src" ] && [ -f "$TWEAK_DIR/$cfg_src" ]; then
+        CONF_FILE="$TWEAK_DIR/$cfg_src"
+    fi
+fi
+
 SETTINGS_JSON="{}"
-if [ -f "$TWEAK_DIR/assets/libpatch.conf" ]; then
-    SETTINGS_JSON=$(awk '
-    BEGIN { count = 0; printf "{" }
-    /^[ \t]*#/ { next }
-    /^[ \t]*$/ { next }
-    /=/ {
-        split($0, parts, "=")
-        sub(/^[ \t]+/, "", parts[1]); sub(/[ \t]+$/, "", parts[1])
-        sub(/^[ \t]+/, "", parts[2]); sub(/[ \t]+$/, "", parts[2])
-        k = tolower(parts[1])
-        v = parts[2]
-        if (v ~ /^[0-9]+$/) val = v
-        else if (v == "true" || v == "yes" || v == "on") val = "true"
-        else if (v == "false" || v == "no" || v == "off") val = "false"
-        else val = "\"" v "\""
-        if (count++ > 0) printf ","
-        printf "\"%s\":%s", k, val
-    }
-    END { printf "}" }
-    ' "$TWEAK_DIR/assets/libpatch.conf")
+if [ -n "$CONF_FILE" ]; then
+    case "$CONF_FILE" in
+        *.js)
+            SETTINGS_JSON=$(sed -n '/{/,/}/p' "$CONF_FILE" | sed -e '1s/^[^{]*//' -e '$s/[^}]*$//')
+            ;;
+        *)
+            SETTINGS_JSON=$(awk '
+            BEGIN { count = 0; printf "{" }
+            /^[ \t]*#/ { next }
+            /^[ \t]*$/ { next }
+            /=/ {
+                split($0, parts, "=")
+                sub(/^[ \t]+/, "", parts[1]); sub(/[ \t]+$/, "", parts[1])
+                sub(/^[ \t]+/, "", parts[2]); sub(/[ \t]+$/, "", parts[2])
+                k = tolower(parts[1])
+                v = parts[2]
+                if (v ~ /^[0-9]+$/) val = v
+                else if (v == "true" || v == "yes" || v == "on") val = "true"
+                else if (v == "false" || v == "no" || v == "off") val = "false"
+                else val = "\"" v "\""
+                if (count++ > 0) printf ","
+                printf "\"%s\":%s", k, val
+            }
+            END { printf "}" }
+            ' "$CONF_FILE")
+            ;;
+    esac
 fi
 
 if [ -f "$TWEAK_DIR/manifest.conf" ] && grep -q '^setting\.resolution_dpi\.default=' "$TWEAK_DIR/manifest.conf"; then
@@ -209,6 +228,32 @@ if [ "$USE_EMU" -eq 1 ]; then
         "$ID" "$GUI_MENU_PATH" "$GUI_LABEL" "$ID" "$GUI_ENTRYPOINT" "$resident" "$service" "$translations" | \
         awk -f "$REPO_DIR/usb/lib/gui-registry.awk" > "$EMU_DIR/data/integration/mzd-gui-registry.js"
 
+    # If the tweak defines components, apply any GUI patches to mzd-emu's files.
+    if [ -n "${COMPONENTS:-}" ] && [ -f "$TWEAK_DIR/$COMPONENTS" ]; then
+        echo "Applying component patches to $EMU_DIR..."
+        while IFS="$(printf '\t')" read -r comp_type comp_target comp_source comp_rest || [ -n "$comp_type" ]; do
+            case "$comp_type" in ''|'#'*) continue ;; esac
+            [ "$comp_type" = "patch" ] || continue
+            case "$comp_target" in
+                /*) emu_target="$EMU_DIR$comp_target" ;;
+                *) emu_target="$EMU_DIR/$comp_target" ;;
+            esac
+            patch_file="$TWEAK_DIR/$comp_source"
+            if [ -f "$emu_target" ] && [ -f "$patch_file" ]; then
+                if ! grep -q 'mzdTweaks' "$emu_target"; then
+                    if [ ! -f "$emu_target.orig" ]; then
+                        cp "$emu_target" "$emu_target.orig"
+                        echo "Backed up $comp_target to $comp_target.orig"
+                    fi
+                    patch -p0 -t -N -i "$patch_file" "$emu_target" < /dev/null >/dev/null 2>&1 || true
+                    echo "Patched $comp_target in emulator"
+                else
+                    echo "$comp_target is already patched in emulator"
+                fi
+            fi
+        done < "$TWEAK_DIR/$COMPONENTS"
+    fi
+
     # The Lua GUI services do not run in mzd-emu. The hook emulates them, then
     # runs the real boot hook. A hand-written hook is kept once as .orig.
     HOOK="$EMU_DIR/data/integration/developer_mode_GuiConfig.js"
@@ -254,14 +299,22 @@ fi
 
 ASSETS_DIR="$TWEAK_DIR/assets"
 SDK_FILE="$REPO_DIR/usb/lib/gui-runtime/sdk.js"
+SETTINGS_VIEW_FILE="$REPO_DIR/usb/lib/gui-runtime/settings-view.js"
 INLINED_ENTRY_HTML=$(sed 's/>[ \t]*</>\
-</g' "$TWEAK_DIR/$GUI_ENTRYPOINT" | awk -v assets_dir="$ASSETS_DIR" -v sdk_file="$SDK_FILE" '
+</g' "$TWEAK_DIR/$GUI_ENTRYPOINT" | awk -v assets_dir="$ASSETS_DIR" -v sdk_file="$SDK_FILE" -v settings_view_file="$SETTINGS_VIEW_FILE" '
 BEGIN {
     while ((getline l < sdk_file) > 0) sdk = sdk (sdk ? "\n" : "") l
     close(sdk_file)
+    while ((getline l < settings_view_file) > 0) settings_view = settings_view (settings_view ? "\n" : "") l
+    close(settings_view_file)
 }
 /<script[ \t]+src="\/data\/integration\/mzd-gui-runtime\/sdk\.js"/ {
     print "<script>\n" sdk "\n</script>"
+    skip_script = 1
+    next
+}
+/<script[ \t]+src="\/data\/integration\/mzd-gui-runtime\/settings-view\.js"/ {
+    print "<script>\n" settings_view "\n</script>"
     skip_script = 1
     next
 }
@@ -631,7 +684,7 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
             el.style.background = isFocus ? '#e52100' : 'transparent';
             el.style.color = isFocus ? '#fff' : '#ddd';
         }
-        sendToFrame({ type: 'aa-native-focus', token: token, index: focusedIndex });
+        sendToFrame({ type: (tweakId === 'mzd-tweaks' ? 'mzd-tweaks-native-focus' : 'aa-native-focus'), token: token, index: focusedIndex });
         var activeEl = menuList.children[focusedIndex];
         if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
     }
@@ -682,11 +735,12 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                     texts: getTranslations()
                 }
             });
-        } else if (data.type === 'aa-request') {
+        } else if (data.type === 'aa-request' || data.type === 'mzd-tweaks-request') {
             var act = data.action;
-            if (act === 'get') {
+            var respType = (data.type === 'mzd-tweaks-request') ? 'mzd-tweaks-response' : 'aa-response';
+            if (act === 'get' || act === 'sync') {
                 sendToFrame({
-                    type: 'aa-response',
+                    type: respType,
                     token: data.token || token,
                     id: data.id,
                     state: settings,
@@ -727,9 +781,9 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                     window.setTimeout(function() { window.location.reload(); }, 1500);
                 }
             }
-        } else if (data.type === 'aa-native-render') {
+        } else if (data.type === 'aa-native-render' || data.type === 'mzd-tweaks-native-render') {
             renderNativeMenu(data.menu);
-        } else if (data.type === 'aa-native-release') {
+        } else if (data.type === 'aa-native-release' || data.type === 'mzd-tweaks-native-release') {
             nativeMenu.style.display = 'none';
             currentMenu = null;
         } else if (data.type === 'aa-sbn') {

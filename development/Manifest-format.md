@@ -7,18 +7,18 @@ from another file or interpreted as shell code.
 
 ```ini
 contract_version=1
-id=list-beep
-name=No List Beep
-description=Mute the two long multicontroller list beeps.
-version=0.8.0
+id=example-patch
+name=Example Tweak
+description=A description of what this tweak does.
+version=1.0.0
 type=patch
 group=interface
 firmware=74.00.324
 entrypoint=run.sh
 actions=install uninstall status
-target=/jci/gui/common/controls/List2/js/List2Ctrl.js
-oem_backup_md5=e111883b9dcbeb6bb154521826fcacac
-lock_group=List2Ctrl
+target=/jci/path/to/target/file.js
+oem_backup_md5=0123456789abcdef0123456789abcdef
+lock_group=TargetLockGroup
 status_scope=target-patch
 reboot_required=true
 requires=
@@ -173,7 +173,8 @@ See [the shim example](examples/shim/README.md).
 
 `components=components.tsv` declares a mixed files/configuration/shims/patches
 transaction. It requires `type=files`, `reset_entrypoint=reset.sh`,
-`reboot_required=true` and `lock_group=sm-config`. It cannot be combined with
+`reboot_required=true` and `lock_group=sm-config` (native configuration and shims) or
+`lock_group=jci-gui` (JCI GUI patches only, as in MZD Tweaks). It cannot be combined with
 single-shim manifest fields. Optional `payload_dir=/tmp/mnt/data_persist/custom-dir`
 allows configuring a custom persistent folder for payload files (`shim`, `file`,
 `config`), defaulting to `/tmp/mnt/data_persist/mzd-tweaks/shims/<id>`. Component/config-map
@@ -190,17 +191,18 @@ section. Duplicate fields and control characters remain invalid.
 
 `type=gui-extension` uses automatically managed GUI support and a saved consumer
 snapshot. Non-`gui-extension` tweaks (such as bundle packages with `type=files`)
-can also provide an in-car Applications menu GUI by declaring `gui_api=1`. See
-[Shared GUI extensions](Gui-extensions.md) for the API 1 metadata, first/last-consumer
+can also provide an in-car Applications menu GUI by declaring `gui_api`. See
+[Shared GUI extensions](Gui-extensions.md) for the GUI metadata, first/last-consumer
 lifecycle, ownership rules and development limits.
 
-Whenever `gui_api=1` is declared (or when `type=gui-extension`), the manifest must
-satisfy the GUI extension contract: `gui_api=1`, `reset_entrypoint=reset.sh`,
+Whenever `gui_api` is declared (or when `type=gui-extension`), the manifest must
+satisfy the GUI extension contract: `gui_api` (the lowest GUI API level the tweak needs, a
+positive integer; see [GUI API level](Gui-extensions.md#gui-api-level)), `reset_entrypoint=reset.sh`,
 `reboot_required=true`, `status_scope=payload`, a literal `gui_label` (1–80 characters),
 and a valid `gui_entrypoint` path under `assets/` ending in `.html`. Standalone
 `type=gui-extension` tweaks strictly prohibit patch and component metadata (`target`,
 `oem_backup_md5`, `lock_group`, `components`, `shim_asset`). In contrast, hybrid bundle
-workers declaring `gui_api=1` permit those metadata fields to manage their native
+workers declaring `gui_api` permit those metadata fields to manage their native
 components and patches alongside their GUI view.
 
 ### Choice control behavior
@@ -214,7 +216,7 @@ does not run a worker; the normal Install/Run action applies the draft later.
 Installed settings remain read-only. Boolean controls are unchanged. Choice
 labels continue to use the existing token display; tweaks own their terminology.
 
-Optional GUI `gui_resident` and `gui_service` paths declare shared resident/service capabilities; service requires resident. See [Shared GUI extensions](Gui-extensions.md#optional-resident-and-service-capabilities-provider-020-development) for authoring and old-provider refusal.
+Optional GUI `gui_resident` and `gui_service` paths declare shared resident/service capabilities; service requires resident. See [Shared GUI extensions](Gui-extensions.md#optional-resident-and-service-capabilities-gui-api-level-2) for authoring and old-provider refusal.
 
 Optional GUI field: `gui_translations=assets/i18n.js` declares a scoped JavaScript
 translation dictionary for `gui-extension` consumers. Omit it for unchanged

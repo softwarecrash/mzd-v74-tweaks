@@ -229,7 +229,7 @@ See the [bundle example](examples/bundle/README.md) for transaction and upgrade 
 ## Shared GUI extensions
 
 `type=gui-extension` uses automatically managed GUI support and a saved consumer
-snapshot. In addition, component bundle workers (`type=files`) can declare `gui_api=1`
+snapshot. In addition, component bundle workers (`type=files`) can declare `gui_api`
 to attach an in-car Applications menu view, resident script, Lua backend service,
 and translations to their package.
 
@@ -239,7 +239,7 @@ serializes with other GUI operations using `/tmp/mzd-gui-extension.lock`, calls
 `mzd_gui_mutate install`/`uninstall`, incorporates GUI status into the worker's status
 result, stops registered services, and delegates cleanup phases to `mzd_gui_reset`.
 
-See [Shared GUI extensions](Gui-extensions.md) for the API 1 metadata,
+See [Shared GUI extensions](Gui-extensions.md) for the GUI metadata, the GUI API level,
 first/last-consumer lifecycle, ownership rules and development limits.
 
 Tweaks with `preflight=true` also run their read-only preflight against the

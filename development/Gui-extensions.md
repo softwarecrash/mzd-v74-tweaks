@@ -1,4 +1,4 @@
-# Shared GUI extensions (API 1, development)
+# Shared GUI extensions (development)
 
 The shared helper supports lazy-loaded views for any tweak. A view can display
 information, provide a tool or present a tweak's settings interface. Games is
@@ -10,7 +10,7 @@ Do not use guessed native context IDs.
 
 Start with [Hello World](examples/gui-hello-world/) or the
 [minimal neutral fixture](examples/gui-extension/). Use `type=gui-extension`,
-`gui_api=1`, a literal `gui_label` (1-80 characters), and
+`gui_api` (the lowest [GUI API level](#gui-api-level) it needs), a literal `gui_label` (1-80 characters), and
 `gui_entrypoint=assets/view.html`. The menu location is manifest data:
 
 ```ini
@@ -44,11 +44,11 @@ There are two patterns for authoring GUI extensions:
   interactive applications, games or utilities. No fake OEM target, OEM hash, lock
   group, shim or component declaration is allowed. The worker delegates directly to
   `lib/gui-extension.sh`, and `reset.sh` delegates to the same helper.
-- **Hybrid extension workers (`type=files` + `gui_api=1`)**: Used when an in-car
+- **Hybrid extension workers (`type=files` + `gui_api`)**: Used when an in-car
   settings or monitoring interface accompanies native shims, loaders, and binary/XML
   patches (such as Android Auto Mod). The worker delegates to `lib/bundle.sh` and
   declares `components=components.tsv`, `target`, `oem_backup_md5`, and `lock_group`
-  alongside the GUI extension metadata (`gui_api=1`, `gui_label`, `gui_entrypoint`, etc.).
+  alongside the GUI extension metadata (`gui_api`, `gui_label`, `gui_entrypoint`, etc.).
   `bundle.sh` automatically integrates GUI asset validation, `/tmp/mzd-gui-extension.lock`
   synchronization, GUI mutations, status aggregation, and service cleanup.
   Runtime settings are often coupled to a declared mutable config (`config.<name>.path`)
@@ -71,32 +71,33 @@ Subsequent consumers reuse compatible, byte-verified support and update only the
 derived registry. Different compatible USB runtime versions do not replace an
 existing provider implicitly.
 
-Provider 0.5.0 declares `view-lifecycle=1` for status-bar layouts and phone
-suspend/resume. Current USB packages reject GUI installations and updates when
-the installed provider lacks this capability, before removing any installed
-consumer. Uninstall all GUI tweaks, optionally keeping their settings, then
-reinstall from the current USB package. Removing an older consumer remains
-available through its saved uninstaller.
+## GUI API level
 
-The registry contains data only. Applications entries exist at boot, while a
-consumer HTML view and its JavaScript load only when selected. Each intermediate menu exists only while a registered consumer uses its path.
-Removing the last consumer of one path retains other paths and shared support
-while another GUI consumer remains. Removing the last GUI
-consumer removes the verified hook/runtime/registry and provider receipt.
-A pre-existing modules container is retained. A consumer upgrade retains shared
-support during replacement. All GUI changes use one shared modification lock,
-in addition to package-controller serialization.
+`lib/gui-runtime/api.conf` holds one line, `api=N`: the GUI API level of the provider, a
+positive integer that only grows. A tweak declares in `gui_api` the lowest level it needs;
+`gui_api=1` works with any provider. Installing or updating a tweak is refused, before any
+installed consumer is removed, unless the installed provider **and the saved runtime copy of
+every installed GUI consumer** (it runs on uninstall) are at least that level. The message
+names every installed GUI tweak to uninstall (their uninstallers offer to keep settings) and
+asks to install them again from this USB; it falls back to "Uninstall all GUI tweaks first."
+when no names are found. Nothing is changed. The provider is never replaced by a consumer install or update; removing
+an older consumer remains available through its saved uninstaller. The SDK is therefore not
+required to be backward compatible across levels.
 
-Unknown developer hooks, links, unregistered module folders and changed owned
-files cause refusal. The helper does not chain, adopt or overwrite foreign hooks.
-An existing separately managed hook therefore needs an explicit migration; it
-cannot be silently adopted. Removal and Restore also tolerate a missing generated
-boot hook when the saved provider and remaining shared support verify; if other
-consumers remain, the hook is restored from that verified provider snapshot.
-Status remains read-only. Backups and write verification support rollback for
-caught failures. Reports retain transaction backups. A
-rollback failure returns critical severity and says not to reboot. Power loss
-cannot be handled by a running shell trap and is not yet proven recoverable.
+| Level | Meaning |
+| --- | --- |
+| 1 | Plain views, or any provider deployed before the integer level existed (its capabilities are unknown). |
+| 2 | Resident, service, translations, config data, view and parking lifecycle, original state, native menu, service request and the settings view (`settings-host.js`, `settings-view.js`). |
+
+Rules for maintainers: a level is additive only and never reused for different content. Bump
+`api` in `api.conf` whenever the runtime, registry format or shell library gains something a
+tweak can depend on, add a row above and a row to the feature table in `tools/validate.py`.
+Every provider deployed before this scheme reports `api=1`, so tweaks that need level 2 ask
+for a one-time reinstall of the GUI tweaks. `tools/validate.py` checks that a shipped tweak
+does not declare a level above the shipped `api.conf` and declares at least level 2 when its
+manifest or scripts use anything beyond plain views. The registry's own `api:1` is its format
+number and unrelated to this level.
+
 
 ## View API
 
@@ -166,9 +167,9 @@ See [Acceptance testing](Gui-extension-testing.md) for the neutral browser and
 physical CMU sequence, including the split between SSH checks and human input.
 
 
-## Optional resident and service capabilities (provider 0.2.0, development)
+## Optional resident and service capabilities (GUI API level 2)
 
-GUI API 1 views are unchanged. Two optional manifest paths opt into additional
+Plain views (`gui_api=1`) are unchanged. Two optional manifest paths opt into additional
 shared support; they are not specific to games or wallpaper:
 
 ```ini
@@ -255,12 +256,12 @@ diagnostics are bounded and kept in RAM at `/tmp/mzd-gui-service/service.log`.
 
 ### Existing installations
 
-Providers and saved uninstallers from 0.1.0 cannot safely interpret capability
-metadata. They are never overwritten implicitly. Before adding a resident/service
-consumer, remove the old GUI consumers with their saved uninstallers, then install
-them from the updated package. The worker refuses an older provider or older saved
-GUI consumer before changing files. Ordinary API 1 consumers can continue reusing
-their old compatible provider when no new capability is requested.
+Providers and saved uninstallers from before the [GUI API level](#gui-api-level) report
+`api=1` and cannot safely interpret newer metadata. They are never overwritten
+implicitly. Before adding a resident/service consumer, remove the old GUI consumers with
+their saved uninstallers, then install them from the updated package. The worker refuses
+an older provider or older saved GUI consumer before changing files. Level-1 consumers
+(plain views) can continue reusing their old compatible provider.
 
 ### Additional validation
 
@@ -304,7 +305,7 @@ Applications labels and each menu-path segment, preserving manifest path identit
 Shared menu translations use the first translated consumer in registry order.
 `gui.back` and `gui.backToApplications` translate shared navigation. Reopening a consumer reads the currently selected Mazda language.
 
-This requires shared provider `i18n=2`. Old immutable providers/saved consumers
+This requires GUI API level 2. Old immutable providers/saved consumers
 are refused before publishing a replacement receipt: uninstall their GUI
 consumers normally, then reinstall from the updated package. Existing consumers
 without translation metadata remain supported. Installer metadata is separate.
@@ -320,7 +321,7 @@ be outside immutable installed modules and package snapshots.
 Lua services receive normalized paths in `context.config.<name>`. Applications
 handle empty/missing files and perform checked, atomic writes themselves. See
 Tetris `assets/service/entry.lua` and the [config example](examples/config-data/README.md).
-Config-owning GUI modules require shared runtime `config=1`.
+Config-owning GUI modules require GUI API level 2.
 
 Views may use `MzdGuiModule.send(name,value)` and `onMessage(callback)` for
 module-specific resident messages. Types are prefixed `mzd-module-`; SDK adds
@@ -328,6 +329,147 @@ the view token. The resident must still validate the active view, token, type
 and payload, and use only its own scoped `context.service` API. This does not
 expose arbitrary filesystem or shell access to view messages.
 
-Provider 0.5.1 declares `parking-lifecycle=1`; GUI installation/update refuses a provider without that capability before removing a consumer. Remove all GUI consumers before provisioning the new helper.
+## Shared settings view
 
-Provider 0.6.0 declares `native-menu=1` and `service-request=1` for native menus and resident service requests (`createNativeMenu`, `onServiceRequest`, and `sdk.request`). GUI installation/update refuses a provider without these capabilities before removing a consumer. Remove all GUI consumers before provisioning the new helper.
+GUI API level 2 provides a shared settings list built on `createNativeMenu` and
+`context.service`. It comes in two files because a resident and its view run in different
+windows:
+
+- `settings-host.js` (`MzdSettingsHost`) is loaded by the shared hook after `residents.js`
+  and before `services.js` whenever a registered module has a resident. A tweak needs no
+  manifest key to use it.
+- `settings-view.js` (`MzdSettingsView`) is loaded by the view itself from `view.html`. A
+  view runs in its own iframe, a separate window from the page where the hook and the
+  residents run, so loading it in the hook would not make it available there.
+
+If a script cannot be loaded, the hook still continues with the remaining scripts and the
+runtime starts. Only the resident that needs the missing code fails; other modules are
+unaffected.
+
+A resident that uses `MzdSettingsHost` must check that it exists before using it, because
+`settings-host.js` may have failed to load while the resident did load. Throw a clear error,
+for example `throw new Error('Shared settings code is unavailable.')`: the runtime logs it and
+stops only that resident. If `settings-view.js` is missing, a view should say so (Android Auto
+and MZD Tweaks show their translated `menuError` text) and call `ready()` so the message stays
+visible until the driver goes back.
+
+A view adds the script after the SDK:
+
+```html
+<script src="/data/integration/mzd-gui-runtime/sdk.js"></script>
+<script src="/data/integration/mzd-gui-runtime/settings-view.js"></script>
+<script src="view.js"></script>
+```
+
+The resident creates the host. The host routes native menu messages, keeps the
+last settings, queues `set` requests (a newer value for a queued key replaces
+it) and shows the save-error and reboot notifications. It keeps two copies: the
+view state, which includes values still being saved, and the confirmed values,
+which the service last reported as saved. When a save fails, the view state goes
+back to the confirmed values. Until the first successful `get` there is no state,
+and the view shows its loading or service-unavailable status:
+
+```js
+window.MzdGuiResidents.register('example-id', function (context) {
+    window.MzdSettingsHost.create(context, {
+        prefix: 'example',   // message type prefix shared with the view
+        dialog: true,        // preload the OEM Dialog3 template
+        reboot: true,        // forward confirmed reboot requests to the service
+        texts: { saveError: 'Failed to save settings' }, // used until the view sends localized texts
+        syncOnStart: true,   // read the settings at start and when the service becomes ready
+        onState: function (settings, result) {},         // view state: after every service result or queued change
+        onConfirmed: function (settings, result) {}      // saved values only: after every successful get or set
+    });
+});
+```
+
+The service implements `get` and `set {key, value}`. Both return `{settings}`, with
+optional `limits` (per key `{min, max, step}`), `unavailable` (per key reason) and
+`rebootRequired`. `reboot` follows the rules in
+[Optional resident and service capabilities](#optional-resident-and-service-capabilities-gui-api-level-2).
+Use `onConfirmed`, not `onState`, for anything outside the view that must only see saved
+values, such as globals read by patched OEM code (MZD Tweaks does this). Other host options:
+`onRequest(action, payload, host)` for custom view requests, `split`, `preview`, `onOpen`,
+`onClose` and `onDispose`. The actions `get`, `set`, `texts` and `reboot` are reserved and
+never reach `onRequest`. `create` returns the `host` object that `onRequest` also receives:
+`nativeMenu`, `sync(callback)`, `settings()`, `save(key, value)`, `broadcast(error)`,
+`leave()` and `saving()`.
+Residents with their own menus can still use
+`MzdSettingsHost.handleNativeMessage(nativeMenu, context, prefix, event, options)`
+for the native menu routing alone.
+
+The view declares rows:
+
+```js
+window.MzdSettingsView.create(window.MzdGuiModule, {
+    prefix: 'example',
+    title: function (tr) { return tr('title', 'Example'); },
+    rowDefaults: { savingSpinner: true },
+    types: { /* custom row types, see below */ },
+    entries: function (state, tr, api) {
+        return [
+            { key: 'enabled', type: 'bool', label: tr('enabled', 'Enabled'), defaultValue: true },
+            { key: 'level', type: 'step', label: tr('level', 'Level'), min: 1, max: 5 },
+            { type: 'reboot', label: tr('reboot', 'Reboot to apply changes'),
+              question: tr('rebootQuestion', 'Do you want to reboot MZD to apply settings?') }
+        ];
+    }
+});
+```
+
+Other view options: `statusElement` (an element for the loading, service-unavailable and menu
+error texts), `texts` (extra localized texts sent to the resident) and
+`onState(state, data, api)` (after every state message). The view shows the
+`serviceUnavailable` text while it has no state; once the list is shown, the resident reports
+errors as notifications. Translate `loading`, `serviceUnavailable` and `menuError` in every settings view. The
+`rebootQuestion` and `rebootFallback` texts are needed only by tweaks that use a `reboot` row
+and `reboot: true`.
+
+Built-in row types cover only common patterns:
+
+| Type | Behavior |
+| --- | --- |
+| `bool` | OEM On/Off row. `defaultValue` applies while the setting is absent. |
+| `step` | OEM stepper. Limits come from the service `limits[key]`, otherwise `min`, `max` and `increment`. Each value is saved. |
+| `action` | Sends `<prefix>-request {action}`. `confirm: {text, buttons}` asks first; the default buttons are No (focused) and Yes. |
+| `reboot` | Enabled only when the service reports `rebootRequired` and no save is running. Always confirmed. `fallback` text appears if the dialog fails. |
+
+These row properties work for every type, including custom ones:
+
+| Property | Effect |
+| --- | --- |
+| `disabled` | Boolean or `function (state, api)`. A key listed in `unavailable` is always disabled. |
+| `savingSpinner` | Shows the OEM refresh spinner in front of the row while its own key is being saved. |
+| `savingDisabled` | Disables the row while its own key is being saved. |
+| `busyDisabled` | Disables the row while any save is running. |
+| `image1`, `detail`, `caret`, `checkable`, `checked`, `radio` | Passed to the OEM list item. |
+| `select` | `function (api, row, params)` that replaces the type's activation. |
+
+`rowDefaults` sets the three saving properties for all rows. A row's own value overrides it. The
+resident reports the keys still waiting in its queue, so each row only reflects
+its own save.
+
+### Custom row types
+
+Tweak-specific behavior stays in the tweak. `types` maps a type name to hooks;
+every hook is optional:
+
+| Hook | Called |
+| --- | --- |
+| `row(def, api)` | Returns OEM row fields (`itemStyle`, `checked`, `value`, `detail`, ...). The shared properties are applied afterwards. |
+| `activate(def, row, params, api)` | When the driver selects an enabled row. `params` carries a stepper value. |
+| `focus(def, info, api)` | When focus moves away from this row or leaves its stepper. `info` is `{index, previous, secondary}`. |
+| `flush(def, api)` | Before another row is activated, Back, a dialog or view disposal. Lets deferred rows save. |
+| `response(def, data, api)` | After every resident message once a state has been received, including later errors. |
+
+`api` offers `t`, `state()`, `limits()`, `unavailable()`, `saving()`,
+`pending(key)`, `rebootRequired()`, `save(key, value)`, `request(action, payload)`,
+`render()`, `openPage({id, title, entries, index})`, `back(silent)`,
+`confirm({text, buttons, fallback}, onYes)`, `flush()`, `stepValue(row, params)`
+and `isFinalAdjustment(params)`. `MzdSettingsView.types` exposes the built-in
+types for reuse, for example `row: MzdSettingsView.types.step.row`.
+
+Android Auto Settings (`usb/tweaks/android-auto/assets/view.js`) is the
+reference: its `dpi` type saves Resolution DPI only after the adjustment is
+finished, its `distance` type opens a radio sub-page and its `transport` type
+maps On/Off to `svcnavi`/`vbs`. MZD Tweaks uses only built-in rows.

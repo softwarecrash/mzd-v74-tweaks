@@ -7,6 +7,10 @@ MZD_GUI_RUNTIME="$MZD_GUI_DATA/mzd-gui-runtime"
 MZD_GUI_HOOK="$MZD_GUI_DATA/developer_mode_GuiConfig.js"
 MZD_GUI_REGISTRY="$MZD_GUI_DATA/mzd-gui-registry.js"
 mzd_gui_error() { printf 'GUI: %s\n' "$*" >&2; exit 1; }
+# GUI API level of a gui-runtime/api.conf: the positive integer after "api=", else failure.
+mzd_gui_api_level() (
+    awk -F= '$1=="api" && $2 ~ /^[1-9][0-9]*$/ && !found {print $2; found=1} END {exit !found}' "$1"
+)
 mzd_gui_assets() (
     folder=$1
     [ -d "$folder/assets" ] && [ ! -L "$folder/assets" ] && mzd_package_tree_ok "$folder/assets" || exit 1
@@ -82,7 +86,7 @@ mzd_gui_support() (
         case "${path##*/}" in package|provider.files|format|registry.js|services.tsv) ;; *) mzd_gui_error 'Unknown provider receipt file.'; exit 1 ;; esac
     done
     awk 'NR==1 {if($0!="MZD_GUI_PROVIDER_V1")bad=1;next} NR==2 {if($0!="modules-root-owned")bad=1;next} {bad=1} END {exit(bad || NR<1)}' "$MZD_GUI_PROVIDER/format" &&
-        mzd_line_is api=1 "$MZD_GUI_PROVIDER/package/lib/gui-runtime/api.conf" || mzd_gui_error 'Incompatible GUI provider API.'
+        mzd_gui_api_level "$MZD_GUI_PROVIDER/package/lib/gui-runtime/api.conf" >/dev/null || mzd_gui_error 'Incompatible GUI provider API.'
     scratch=$(mktemp /tmp/mzd-gui-inventory.XXXXXX) || exit 1
     trap 'rm -f "$scratch"' 0
     mzd_package_inventory "$MZD_GUI_PROVIDER" > "$scratch" && cmp -s "$scratch" "$MZD_GUI_PROVIDER/provider.files" || mzd_gui_error 'GUI provider snapshot is changed.'
@@ -293,7 +297,7 @@ mzd_gui_mutate() (
         mzd_gui_data_prepare || exit 1
         mzd_gui_put module "$GUI_TX/module" || exit 1
         if [ ! -e "$MZD_GUI_PROVIDER" ]; then
-            [ -f "$ROOT/lib/gui-runtime/api.conf" ] && mzd_line_is api=1 "$ROOT/lib/gui-runtime/api.conf" || exit 1
+            [ -f "$ROOT/lib/gui-runtime/api.conf" ] && mzd_gui_api_level "$ROOT/lib/gui-runtime/api.conf" >/dev/null || exit 1
             mkdir -p "$GUI_TX/provider/package/lib" || exit 1
             cp -R "$ROOT/lib/gui-runtime" "$GUI_TX/provider/package/lib/gui-runtime" || exit 1
             cp "$ROOT/lib/lua-bridge/process.lua" "$GUI_TX/provider/package/lib/gui-runtime/service/process.lua" || exit 1

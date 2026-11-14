@@ -1,0 +1,3 @@
+# kind	target	source	service	oem-md5
+patch	/jci/gui/common/controls/List2/js/List2Ctrl.js	assets/list2.patch	-	e111883b9dcbeb6bb154521826fcacac
+patch	/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js	assets/mainmenu.patch	-	40ccb293b8c6f80960f0b953dd2e173e

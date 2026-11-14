@@ -2,12 +2,12 @@
 # Private OEM fixture supplied by the host; never stored in the repository.
 set -eu
 BASE=/tmp/original-shell-recovery
-mkdir -p "$BASE/usb/tweaks/list-beep/assets" "$BASE/internal" "$BASE/persist"
+mkdir -p "$BASE/usb/tweaks/patch-example/assets" "$BASE/internal" "$BASE/persist"
 cp -R /experiment/package/lib "$BASE/usb/lib"
 cp /experiment/baseline-recovery.sh "$BASE/usb/lib/recovery.sh"
 cp /experiment/package/installer.sh "$BASE/usb/installer.sh"
-cp /experiment/package/tweaks/list-beep/assets/change.patch "$BASE/usb/tweaks/list-beep/assets/change.patch"
-sed -e "s|^target=.*|target=$BASE/internal/target.data|" /experiment/package/tweaks/list-beep/manifest.conf > "$BASE/usb/tweaks/list-beep/manifest.conf"
+cp /experiment/package/tweaks/patch-example/assets/change.patch "$BASE/usb/tweaks/patch-example/assets/change.patch"
+sed -e "s|^target=.*|target=$BASE/internal/target.data|" /experiment/package/tweaks/patch-example/manifest.conf > "$BASE/usb/tweaks/patch-example/manifest.conf"
 cp /experiment/original-list.js "$BASE/internal/target.data"
 cp /experiment/original-list.js "$BASE/internal/target.data.org"
 # Reproduce the exact old patch bytes and native patch tool, without live mounts.
@@ -25,7 +25,7 @@ md5sum "$BASE/internal/target.data" "$BASE/internal/target.data.org"
 # Deliberately keep stderr: an absent button otherwise hides the actual refusal.
 cmush() { /usr/bin/qemu-arm -L /cmu /cmu/lib/ld-linux.so.3 --library-path /cmu/lib:/cmu/usr/lib /cmu/bin/busybox sh "$@"; }
 set +e
-cmush "$BASE/usb/installer.sh" restore-check list-beep > "$BASE/baseline.log" 2>&1
+cmush "$BASE/usb/installer.sh" restore-check patch-example > "$BASE/baseline.log" 2>&1
 baseline=$?
 set -e
 echo "BASELINE_RECOVERY_EXIT=$baseline"
@@ -33,7 +33,7 @@ cat "$BASE/baseline.log"
 sed -e "s|/proc/mounts|$BASE/mounts|g" \
     -e "s|^MZD_RECOVERY_ROOT=/|MZD_RECOVERY_ROOT=$BASE/internal|" \
     /experiment/fixed-recovery.sh > "$BASE/usb/lib/recovery.sh"
-cmush "$BASE/usb/installer.sh" restore-check list-beep > "$BASE/fixed.log" 2>&1
+cmush "$BASE/usb/installer.sh" restore-check patch-example > "$BASE/fixed.log" 2>&1
 cat "$BASE/fixed.log"
 grep '^available' "$BASE/fixed.log" > /dev/null
 echo ORIGINAL_SHELL_RECOVERY_PASSED

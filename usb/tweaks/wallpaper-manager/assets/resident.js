@@ -199,6 +199,10 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
 (function (context) {
     'use strict';
     if (window.WallpaperManager) { return; }
+    if (!window.MzdSettingsHost) {
+        // settings-host.js did not load. The runtime logs this and stops only this resident.
+        throw new Error('Shared settings code is unavailable.');
+    }
     var original = 'common/images/background.png', desired = original, request = 0;
     var menuPreview = null, previewOwner = null, previewPath = null, previewRequest = 0;
     var catalog = [], savedSettings = null, stagedSettings = null, saving = false, retry = null, loadSequence = 0, mutation = 0;
@@ -269,22 +273,7 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
     }
     var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,dialog:true,preview:setMenuPreview});
     function receive(event) {
-        var data = event.data, token = frameToken(event.source), frames, frame, i;
-        if (data && data.type === 'wallpaper-native-release' && nativeMenu.owns(event.source,data.token)) { nativeMenu.close(); return; }
-        if (!token || !data || data.token !== token) { return; }
-        if (data.type === 'wallpaper-native-render' || data.type === 'wallpaper-native-input' || data.type === 'wallpaper-native-dialog') {
-            frames = document.getElementsByTagName('iframe');
-            for (i = 0; i < frames.length; i += 1) { if (frames[i].contentWindow === event.source) { frame = frames[i]; } }
-            if (!frame) { return; }
-            try {
-                if (data.type === 'wallpaper-native-render') { nativeMenu.render(frame,token,data.menu); }
-                else if (data.type === 'wallpaper-native-dialog') { nativeMenu.dialog(frame,token,data.dialog); }
-                else { nativeMenu.input(frame,token,data.action,data.phase); }
-            } catch (failure) {
-                nativeMenu.close();
-                event.source.postMessage({type:'wallpaper-native-error',token:token,scope:data.type === 'wallpaper-native-dialog' ? 'dialog' : 'menu',message:String(failure.message || failure)},'*');
-            }
-        }
+        window.MzdSettingsHost.handleNativeMessage(nativeMenu, context, 'wallpaper', event, {leaveOnError:true});
     }
     context.onServiceRequest(function (command, args, callback) {
         if (hostEnded) { return; }

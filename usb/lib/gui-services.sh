@@ -9,52 +9,34 @@ mzd_gui_data_owned() (
         [ -f "$1/owner" ] && [ ! -L "$1/owner" ] || exit 1
     printf 'MZD_GUI_DATA_V1\n%s\n' "$2" | cmp -s - "$1/owner"
 )
+# The GUI API level (api= in gui-runtime/api.conf) is one integer that only grows. A tweak declares
+# the lowest level it needs in gui_api. The installed provider and every saved GUI consumer (their
+# saved copies run on uninstall) must be at least that, otherwise nothing is changed.
 mzd_gui_capabilities() (
-    needs_i18n=0; needs_resident=0; needs_config=0; needs_originals=0
-    if mzd_line_is original-state=1 "$ROOT/lib/gui-runtime/api.conf"; then needs_originals=1; fi
-    if [ -n "${CONFIGS:-}" ];then needs_config=1;fi
-    [ -z "$GUI_TRANSLATIONS" ] || needs_i18n=1
-    [ -z "$GUI_RESIDENT$GUI_SERVICE" ] || needs_resident=1
+    want=$GUI_API
     [ -z "$GUI_RESIDENT" ] || [ -f "$HERE/$GUI_RESIDENT" ] && [ ! -L "$HERE/$GUI_RESIDENT" ] || exit 1
     [ -z "$GUI_SERVICE" ] || [ -f "$HERE/$GUI_SERVICE" ] && [ ! -L "$HERE/$GUI_SERVICE" ] || exit 1
+    problem=0
+    names=
+    nl='
+'
     for receipt in "$MZD_GUI_PROVIDER" "$MZD_PACKAGE_STORE"/*; do
         [ -d "$receipt" ] || continue
         if [ "$receipt" != "$MZD_GUI_PROVIDER" ]; then
             mzd_manifest_load "$receipt/package/tweaks/${receipt##*/}/manifest.conf" || exit 1
             [ "$TYPE" = gui-extension ] || [ -n "${GUI_API:-}" ] || continue
+            # The shared helper is replaced only after the last GUI tweak is gone, so list them all.
+            names="${names:+$names, }$NAME"
         fi
-        if [ "$needs_config" = 1 ];then
-            mzd_line_is config=1 "$receipt/package/lib/gui-runtime/api.conf" || {
-                mzd_gui_error 'GUI config support requires a fresh shared provider. Remove its GUI consumers, then install the updated package.';exit 1;
-            }
-        fi
-        if [ "$needs_i18n" = 1 ]; then
-            mzd_line_is i18n=2 "$receipt/package/lib/gui-runtime/api.conf" || {
-                mzd_gui_error 'This GUI provider or saved consumer predates translations. Remove its GUI consumers with their saved uninstallers, then reinstall using the updated package.'; exit 1;
-            }
-        fi
-        if [ "$needs_resident" = 1 ]; then
-            mzd_line_is features=resident-service-v1 "$receipt/package/lib/gui-runtime/api.conf" || {
-                mzd_gui_error 'This GUI provider or saved consumer predates resident services. Remove its GUI consumers with their saved uninstallers, then reinstall using the updated package.'; exit 1;
-            }
-        fi
-        if [ "$needs_originals" = 1 ]; then
-            mzd_line_is original-state=1 "$receipt/package/lib/gui-runtime/api.conf" || {
-                mzd_gui_error 'The installed GUI helper or a saved consumer is too old. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
-            }
-        fi
+        have=$(mzd_gui_api_level "$receipt/package/lib/gui-runtime/api.conf") && [ "$have" -ge "$want" ] || problem=1
     done
-    # The deployed provider is reused, never replaced by a consumer update.
-    # Reject before removing an old consumer if this USB expects newer view support.
-    if [ -d "$MZD_GUI_PROVIDER" ]; then
-        for capability in view-lifecycle=1 parking-lifecycle=1 native-menu=1 service-request=1; do
-            if mzd_line_is "$capability" "$ROOT/lib/gui-runtime/api.conf"; then
-                mzd_line_is "$capability" "$MZD_GUI_PROVIDER/package/lib/gui-runtime/api.conf" || {
-                    mzd_gui_error 'The installed GUI helper is too old. Uninstall ALL GUI tweaks, then reinstall them from this USB package. Settings can be kept when offered. Nothing has been changed.'; exit 1;
-                }
-            fi
-        done
+    [ "$problem" = 0 ] && exit 0
+    if [ -n "$names" ]; then
+        list="Uninstall: ${names}."
+    else
+        list="Uninstall all GUI tweaks first."
     fi
+    mzd_gui_error "This tweak can't be installed yet because tweaks installed on the car are from an older version.${nl}${list}${nl}Install those tweaks again from this USB.${nl}Nothing has been changed."
 )
 
 mzd_gui_startup_ok() {

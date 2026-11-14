@@ -1,4 +1,4 @@
-/* Shared API 1 Applications adapter. Consumer views load only on selection. */
+/* Shared Applications adapter. Consumer views load only on selection. */
 (function () {
     'use strict';
     if (window.MzdGuiRuntime) { return; }

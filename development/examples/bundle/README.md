@@ -22,7 +22,7 @@ renderer; do not embed shell substitutions or executable templates in metadata.
 For tweaks that require interactive runtime configuration updates directly on the
 CMU (such as Android Auto Mod), prefer declaring mutable configuration
 (`config.<name>.path` and `config.<name>.source`) coupled with an in-car GUI
-extension (`gui_api=1`) and a Lua service backend rather than a static component.
+extension (`gui_api=2`) and a Lua service backend rather than a static component.
 Existing foreign settings are not imported automatically. A future explicit
 import must validate each supported value against the manifest before use.
 

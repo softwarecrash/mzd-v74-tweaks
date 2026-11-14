@@ -379,7 +379,7 @@
             root.className = '';
             root.appendChild(container);
             var baseStyle = document.createElement('style');
-            baseStyle.textContent = '.mzd-custom-menu .List2Ctrl .ListItem.styleStep .label1{width:320px!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .line1{display:none!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .image1.spinner,.mzd-custom-menu .List2Ctrl .ListItem.styleStep.saving .image1,.mzd-custom-menu .List2Ctrl .ListItem.styleStep .image1[style*="Refreshing"]{-o-animation:infinite_rotation 2s linear infinite!important;-webkit-animation:infinite_rotation 2s linear infinite!important;animation:infinite_rotation 2s linear infinite!important;}';
+            baseStyle.textContent = '.mzd-custom-menu .List2Ctrl .ListItem.styleStep .label1{width:320px!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .line1{display:none!important;}.mzd-custom-menu .List2Ctrl .ListItem .image1[style*="Refreshing"]{-o-animation:infinite_rotation 2s linear infinite!important;-webkit-animation:infinite_rotation 2s linear infinite!important;animation:infinite_rotation 2s linear infinite!important;}';
             container.appendChild(baseStyle);
             session.baseStyle = baseStyle;
             if (options.split || options.splitClass) {
@@ -462,7 +462,7 @@
                     text1Id: null,
                     text1: isStep ? (row.text1 || '') : row.label,
                     itemStyle: row.itemStyle || (row.checkable ? 'style03' : row.detail ? 'style06' : 'style01'),
-                    image1: isStep ? (spinnerImg || row.image1 || '') : (row.checkable ? (row.radio ? 'radio' : 'tick') : (spinnerImg || row.image1 || '')),
+                    image1: spinnerImg || (row.checkable && !isStep ? (row.radio ? 'radio' : 'tick') : (row.image1 || '')),
                     checked: row.checked === true,
                     value: row.value != null ? row.value : (row.checked ? 1 : 2),
                     label1Id: null,

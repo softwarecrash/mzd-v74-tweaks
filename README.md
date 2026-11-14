@@ -14,13 +14,10 @@ Optional sponsor links can be placed directly after the contributor's name.
 | --- | --- |
 | [Installer, GUI and native Lua shell bridge](usb/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Persistent packages, version handling and saved uninstallers](development/Persistent-packages.md) | [@softwarecrash](https://github.com/softwarecrash) |
-| [No List Beep](usb/tweaks/list-beep/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
-| [Shorter List Delay](usb/tweaks/shorter-delay/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
-| [List Loop](usb/tweaks/list-loop/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
-| [Main Menu Loop](usb/tweaks/main-menu-loop/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); based on MZD-AIO |
 | [HUD Street Name](usb/tweaks/hud-street-name/) | v74 patch: [@piotrmocko](https://github.com/piotrmocko); launcher integration: [@softwarecrash](https://github.com/softwarecrash) |
 | [Fuel Consumption Ending Screen](usb/tweaks/fuel-consumption-ending/) | v74 implementation (JS patch + MMUI shim): [@patrikguth](https://github.com/patrikguth) |
 | [Fuel Consumption Values](usb/tweaks/fuel-consumption-values/) | v74 implementation: [@patrikguth](https://github.com/patrikguth) |
+| [MZD Tweaks](usb/tweaks/mzd-tweaks/) | v74 port: [@softwarecrash](https://github.com/softwarecrash); GUI settings: [@piotrmocko](https://github.com/piotrmocko); based on MZD-AIO |
 | [Wallpaper Manager](usb/tweaks/wallpaper-manager/) | [@softwarecrash](https://github.com/softwarecrash) |
 | [Remove Safety Warnings](usb/tweaks/remove-safety-warnings/) | v74 disclaimer: [@piotrmocko](https://github.com/piotrmocko); camera images and integration: [@softwarecrash](https://github.com/softwarecrash) |
 | [Tetris](usb/tweaks/tetris/) | CMU game/integration: [@softwarecrash](https://github.com/softwarecrash); based on Jake Gordon and contributors (MIT) |

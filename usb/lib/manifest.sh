@@ -175,9 +175,10 @@ mzd_manifest_load() {
     LOCK=
     if [ "$TYPE" = gui-extension ] || [ -n "$GUI_API" ]; then
         case "$ID" in games|exit) mzd_manifest_error 'Reserved GUI extension ID.'; return 1 ;; esac
-        [ "$GUI_API:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = 1:reset.sh:true:payload ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload and restart.'; return 1; }
+        case "$GUI_API" in ''|*[!0-9]*|0*) mzd_manifest_error 'GUI API level must be a positive integer.'; return 1 ;; esac
+        [ "$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$STATUS_SCOPE" = reset.sh:true:payload ] || { mzd_manifest_error 'GUI extensions require reset.sh, payload and restart.'; return 1; }
         if [ "$TYPE" = gui-extension ]; then
-            [ -z "$APP$ORIGINAL$LOCK_GROUP$COMPONENTS$SHIM_ASSET" ] || { mzd_manifest_error 'GUI extensions require API 1, reset.sh, payload, restart and no patch metadata.'; return 1; }
+            [ -z "$APP$ORIGINAL$LOCK_GROUP$COMPONENTS$SHIM_ASSET" ] || { mzd_manifest_error 'GUI extensions require reset.sh, payload, restart and no patch metadata.'; return 1; }
         fi
         [ -n "$GUI_LABEL" ] && [ "${#GUI_LABEL}" -le 80 ] || { mzd_manifest_error 'GUI label must contain 1-80 characters.'; return 1; }
         case "$GUI_RESIDENT" in ''|*.js) ;; *) mzd_manifest_error 'GUI resident must be JavaScript.'; return 1 ;; esac
@@ -188,7 +189,7 @@ mzd_manifest_load() {
             LOCK=/tmp/mzd-gui-extension.lock
         fi
     elif [ -n "$GUI_API$GUI_MENU_PATH$GUI_LABEL$GUI_ENTRYPOINT$GUI_RESIDENT$GUI_SERVICE$GUI_TRANSLATIONS" ]; then
-        mzd_manifest_error 'GUI metadata requires gui-extension type or gui_api=1.'; return 1
+        mzd_manifest_error 'GUI metadata requires gui-extension type or gui_api.'; return 1
     fi
     if [ "$TYPE" != command ] && [ "$TYPE" != gui-extension ]; then
         case "$APP" in /*) ;; *) mzd_manifest_error 'An absolute target is required.'; return 1 ;; esac
@@ -203,7 +204,10 @@ mzd_manifest_load() {
     fi
     [ -z "$CONFIGS" ] || [ "$TYPE" != command ] || { mzd_manifest_error 'Command tweaks cannot own persistent config.';return 1; }
     if [ -n "$COMPONENTS" ]; then
-        [ "$COMPONENTS:$TYPE:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$LOCK_GROUP" = components.tsv:files:reset.sh:true:sm-config ] || { mzd_manifest_error 'Components require components.tsv, files, reset.sh, restart and sm-config lock.'; return 1; }
+        case "$COMPONENTS:$TYPE:$RESET_ENTRYPOINT:$REBOOT_REQUIRED:$LOCK_GROUP" in
+            components.tsv:files:reset.sh:true:sm-config|components.tsv:files:reset.sh:true:jci-gui) ;;
+            *) mzd_manifest_error 'Components require components.tsv, files, reset.sh, restart and sm-config or jci-gui lock.'; return 1 ;;
+        esac
         [ -z "$SHIM_ASSET$SHIM_PATH$SHIM_SERVICE$SHIM_EXTRA_TARGETS$SHIM_CHECKS" ] || { mzd_manifest_error 'Use either components or single-shim metadata.'; return 1; }
         if [ -n "${PAYLOAD_DIR:-}" ]; then
             case "$PAYLOAD_DIR" in

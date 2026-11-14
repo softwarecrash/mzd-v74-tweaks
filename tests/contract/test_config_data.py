@@ -8,7 +8,7 @@ def bp(p):
 def write(p,s):p.parent.mkdir(parents=True,exist_ok=True);p.write_text(s,encoding='utf-8',newline='\n')
 with tempfile.TemporaryDirectory(prefix='cmu-config-data-') as temporary:
  b=Path(temporary);usb=b/'usb';persist=b/'persist';persist.mkdir();shutil.copytree(ROOT/'usb/lib',usb/'lib')
- folder=usb/'tweaks/demo';manifest=(ROOT/'usb/tweaks/list-beep/manifest.conf').read_text()
+ folder=usb/'tweaks/demo';manifest=(ROOT/'development/examples/patch/manifest.conf').read_text()
  manifest=re.sub('^id=.*$','id=demo',manifest,flags=re.M)
  write(folder/'manifest.conf',manifest)
  one=persist/'preferences.conf';directory=persist/'mzd-tweaks/data/demo'

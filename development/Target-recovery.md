@@ -74,27 +74,27 @@ user may select Install again. Restore requests a restart recommendation on Exit
 Back or Escape on the confirmation makes no changes. No restart is automatic.
 
 Run `python tests/contract/test_recovery.py` and `node tests/installer/test-ui.cjs`.
-The offline preview demonstrates the offer when installing Main Menu Loop;
-its restore and subsequent install are simulated. This proves no vehicle behavior.
+The offline preview demonstrates recovery scenarios with test fixtures;
+simulated restoration and subsequent install are verified. This proves no vehicle behavior.
 
 ## Diagnose a missing Restore button
 
 From the installer directory on the USB, run this read-only command on the CMU:
 
 ```sh
-sh installer.sh restore-check list-beep
+sh installer.sh restore-check <id>
 ```
 
 Success prints `available`, a confirmation fingerprint and the target path.
 A refusal returns nonzero and explains the condition on stderr. The detail
-dialog also displays that reason below ?Restore original unavailable?, so it
+dialog also displays that reason below "Restore original unavailable", so it
 can be read or photographed without SSH or shell access. Capture both
 streams when sharing results; do not run `restore-original` without confirmation.
-The expected backup for No List Beep is
-`/jci/gui/common/controls/List2/js/List2Ctrl.js.org`, next to the target.
-Its expected OEM MD5 for 74.00.324 is `e111883b9dcbeb6bb154521826fcacac`.
-A differently named, relocated or already modified backup is not equivalent.
-Other managed tweaks using List2Ctrl also prevent single-file restoration.
+
+A restored file requires a `.org` backup next to the target that matches
+the expected OEM MD5 fingerprint for 74.00.324. A differently named, relocated 
+or already modified backup is not equivalent. Other managed tweaks sharing the 
+same target also prevent single-file restoration.
 
 With the private CMU backup and existing emulator prerequisites available,
 `python tests/transport/test-in-vm.py --recovery` reproduces the pre-persistence

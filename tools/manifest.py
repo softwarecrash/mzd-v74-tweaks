@@ -87,7 +87,7 @@ def parse(text):
             raise ValueError('Invalid GUI menu path.')
         if values['id'] in ['games', 'exit']:
             raise ValueError('Reserved GUI extension ID.')
-        if (values.get('gui_api') != '1'
+        if (not re.fullmatch(r'[1-9][0-9]*', values.get('gui_api', ''))
                 or not 1 <= len(values.get('gui_label', '')) <= 80 or values.get('reset_entrypoint') != 'reset.sh'
                 or values['reboot_required'] != 'true' or values['status_scope'] != 'payload'
                 or not re.fullmatch(r'assets/[A-Za-z0-9_./-]+[.]html', values.get('gui_entrypoint', ''))
@@ -96,7 +96,7 @@ def parse(text):
         if values['type'] == 'gui-extension' and any(values.get(k) for k in ['target','oem_backup_md5','lock_group','components','shim_asset']):
             raise ValueError('Invalid GUI extension metadata.')
     elif any(k in values for k in ['gui_resident','gui_service','gui_translations']) or any(values.get(k) for k in ['gui_api','gui_menu_path','gui_label','gui_entrypoint','gui_resident','gui_service','gui_translations']):
-        raise ValueError('GUI metadata requires gui-extension type or gui_api=1.')
+        raise ValueError('GUI metadata requires gui-extension type or gui_api.')
     if values['type'] not in ['command', 'gui-extension']:
         if not values.get('target', '').startswith('/'):
             raise ValueError('An absolute target is required.')
@@ -138,7 +138,7 @@ def parse(text):
     if values.get('components'):
         if (values['components'] != 'components.tsv' or values['type'] != 'files'
                 or values.get('reset_entrypoint') != 'reset.sh' or values['reboot_required'] != 'true'
-                or values.get('lock_group') != 'sm-config'):
+                or values.get('lock_group') not in ('sm-config', 'jci-gui')):
             raise ValueError('Invalid component bundle metadata.')
         if any(values.get(k) for k in ('shim_service', 'shim_asset', 'shim_path', 'shim_extra_targets', 'shim_checks')):
             raise ValueError('Use either components or single-shim metadata.')

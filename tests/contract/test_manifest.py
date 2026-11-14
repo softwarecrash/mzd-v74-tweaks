@@ -16,16 +16,20 @@ def bp(path):
     s = Path(path).resolve().as_posix()
     return '/' + s[0].lower() + s[2:] if len(s) > 1 and s[1] == ':' else s
 
-original = (ROOT / 'usb/tweaks/list-beep/manifest.conf').read_text(encoding='utf-8')
+original = (ROOT / 'development/examples/patch/manifest.conf').read_text(encoding='utf-8')
 # Attribution cases below supply their own field, independent of real credits.
 original = ''.join(line for line in original.splitlines(keepends=True) if not line.startswith('contributors='))
 checks = 0
 with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
     base = Path(temporary); file = base / 'manifest.conf'; driver = base / 'read.sh'
-    file = base / 'fixture/tweaks/list-beep/manifest.conf'
+    file = base / 'fixture/tweaks/patch-example/manifest.conf'
     file.parent.mkdir(parents=True)
     (base / 'fixture/lib').mkdir()
     shutil.copyfile(ROOT / 'usb/lib/configs.awk', base / 'fixture/lib/configs.awk')
+    # Component bundle cases read the shared component reader and a component table.
+    for name in ['components.sh', 'components.awk', 'config-map.awk']:
+        shutil.copyfile(ROOT / 'usb/lib' / name, base / 'fixture/lib' / name)
+    shutil.copyfile(ROOT / 'development/examples/bundle/components.tsv', file.parent / 'components.tsv')
     marker = base / 'must-not-exist'
     driver.write_text('. ' + shlex.quote(bp(ROOT / 'usb/lib/manifest.sh')) + '\n'
                       'mzd_manifest_load "$1" || exit 1\nprintf \'%s\\n\' "$NAME" "$DESCRIPTION" "$APP" "$ORIGINAL" "$LOCK"\n',
@@ -42,14 +46,14 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
         ('CRLF', original.replace('\n', '\r\n'), True),
         ('no final newline', original.rstrip('\n'), True),
         ('comments and blank lines', '# comment\n\n   \n' + original, True),
-        ('literal values', original.replace('name=No List Beep', 'name=' + literal), True),
-        ('duplicate', original + 'id=list-beep\n', False),
+        ('literal values', original.replace('name=Patch Example', 'name=' + literal), True),
+        ('duplicate', original + 'id=patch-example\n', False),
         ('duplicate dependency', original.replace('requires=\n', 'requires=ssh ssh\n'), False),
         ('unknown', original + 'PATH=/bad\n', False),
-        ('missing', original.replace('id=list-beep\n', ''), False),
+        ('missing', original.replace('id=patch-example\n', ''), False),
         ('no equals', original + 'invalid line\n', False),
         ('bad contract', original.replace('contract_version=1', 'contract_version=2'), False),
-        ('bad ID', original.replace('id=list-beep', 'id=../escape'), False),
+        ('bad ID', original.replace('id=patch-example', 'id=../escape'), False),
         ('bad firmware', original.replace('firmware=74.00.324', 'firmware=unknown'), False),
         ('bad actions', original.replace('actions=install uninstall status', 'actions=reboot'), False),
         ('bad boolean', original.replace('reboot_required=true', 'reboot_required=yes'), False),
@@ -67,10 +71,23 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
               ('bad shim service',shim.replace('shim_service=jciMMUI','shim_service=jciMMUI;reboot'),False),
               ('bad extra hash',shim.replace(':030e918f5d6edcd62d196ee37b86fe99',':bad'),False),
               ('duplicate shim target',shim.replace('shim_extra_targets=', 'shim_extra_targets=/jci/sm/sm.conf:74d9fc389b74fb01d0cfc2615a82c782 '),False)]
+    bundle=''.join(line for line in (ROOT/'development/examples/bundle/manifest.conf').read_text().splitlines(keepends=True)
+                   if not line.startswith(('settings=','setting.')))
+    cases += [('components with sm-config lock',bundle,True),
+              ('components with jci-gui lock',bundle.replace('lock_group=sm-config','lock_group=jci-gui'),True),
+              ('components with another lock',bundle.replace('lock_group=sm-config','lock_group=List2Ctrl'),False),
+              ('components without lock',bundle.replace('lock_group=sm-config\n',''),False)]
     gui=(ROOT/'development/examples/gui-extension/manifest.conf').read_text()
     cases += [('GUI extension',gui,True),
               ('GUI game container',gui.replace('gui_menu_path=','gui_menu_path=Games'),True),
-              ('unsupported GUI API',gui.replace('gui_api=1','gui_api=2'),False),
+              ('GUI API level 2',gui.replace('gui_api=1','gui_api=2'),True),
+              ('GUI API level 12',gui.replace('gui_api=1','gui_api=12'),True),
+              ('GUI API zero',gui.replace('gui_api=1','gui_api=0'),False),
+              ('GUI API leading zero',gui.replace('gui_api=1','gui_api=01'),False),
+              ('GUI API negative',gui.replace('gui_api=1','gui_api=-1'),False),
+              ('GUI API decimal',gui.replace('gui_api=1','gui_api=1.0'),False),
+              ('GUI API prefixed',gui.replace('gui_api=1','gui_api=v1'),False),
+              ('GUI API empty',gui.replace('gui_api=1','gui_api='),False),
               ('nested menu path',gui.replace('gui_menu_path=','gui_menu_path=Tools/Examples'),True),
               ('empty path segment',gui.replace('gui_menu_path=','gui_menu_path=Tools//Examples'),False),
               ('path traversal',gui.replace('gui_menu_path=','gui_menu_path=Tools/../Examples'),False),
@@ -98,9 +115,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
     for config_path, valid in [
         ('/tmp/mnt/data_persist/log/', False),
         ('/tmp/mnt/data_persist/', False),
-        ('/tmp/mnt/data_persist/mzd-tweaks/data/list-beep/', True),
-        ('/tmp/mnt/data_persist/mzd-tweaks/gui-data/list-beep/nested/', True),
-        ('/tmp/mnt/data_persist/mzd-tweaks/data/list-beep-other/', False),
+        ('/tmp/mnt/data_persist/mzd-tweaks/data/patch-example/', True),
+        ('/tmp/mnt/data_persist/mzd-tweaks/gui-data/patch-example/nested/', True),
+        ('/tmp/mnt/data_persist/mzd-tweaks/data/patch-example-other/', False),
     ]:
         cases.append(('config directory scope '+config_path, original+'config.state.path='+config_path+'\n', valid))
     for label, data, valid in cases:
@@ -135,9 +152,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-manifest-') as temporary:
     for name in ['defines.sh', 'manifest.sh', 'version.sh']:
         shutil.copyfile(ROOT / 'usb/lib' / name, usb / 'lib' / name)
     shutil.copyfile(ROOT / 'usb/VERSION', usb / 'VERSION')
-    folder = usb / 'tweaks/list-beep'; folder.mkdir(parents=True)
+    folder = usb / 'tweaks/patch-example'; folder.mkdir(parents=True)
     (folder / 'manifest.conf').write_text(original, encoding='utf-8', newline='\n')
-    for args, expected in [(['list'], 'list-beep\n'), (['manifest', 'list-beep'], original)]:
+    for args, expected in [(['list'], 'patch-example\n'), (['manifest', 'patch-example'], original)]:
         r = subprocess.run([SHELL, bp(usb / 'installer.sh')] + args, capture_output=True, text=True, timeout=15)
         assert r.returncode == 0 and r.stdout == expected, (args, r.stdout, r.stderr)
         checks += 1

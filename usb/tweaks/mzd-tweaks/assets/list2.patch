@@ -1,5 +1,38 @@
 --- target.data
 +++ target.data
+@@ -125,10 +125,10 @@
+         listReorderScrollTimeout :              0, // @SW00155245, needs faster scroll during re-oreder
+ 
+         // multicontroller hold timeouts and intervals
+-        autoscrollTier1Timeout :                1500,
+-        autoscrollTier2Timeout :                5000,
+-        autoscrollTier1Interval :               500,
+-        autoscrollTier2Interval :               1000,
++        get autoscrollTier1Timeout() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 500 : 1500; },
++        get autoscrollTier2Timeout() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 1500 : 5000; },
++        get autoscrollTier1Interval() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 300 : 500; },
++        get autoscrollTier2Interval() { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 500 : 1000; },
+ 
+         hvThreshold :                           45 * (Math.PI/180),
+ 
+@@ -6380,7 +6380,7 @@
+                         this._tiltHoldTimeoutId = null;
+                         log.debug('Schedule autoscroll tier 1');
+                         this._tiltHoldTimeoutId = setTimeout(function() {                               // schedule first autoscroll tier
+-                            this._beep('Long', 'Multicontroller');                                      // produce beep
++                            if (!window.mzdTweaks || window.mzdTweaks.list_beep !== false) { this._beep('Long', 'Multicontroller'); } // produce beep
+                             log.debug('Start autoscroll tier 1');
+                             this._handleMCDown();                                                       // do the first scroll down
+                             clearInterval(this._tiltHoldIntervalId);                                    // clear any redundand intervals
+@@ -6447,7 +6447,7 @@
+                         this._tiltHoldTimeoutId = null;
+                         log.debug('Schedule autoscroll tier 1');
+                         this._tiltHoldTimeoutId = setTimeout(function() {                             // schedule first autoscroll tier
+-                            this._beep('Long', 'Multicontroller');                                    // produce beep
++                            if (!window.mzdTweaks || window.mzdTweaks.list_beep !== false) { this._beep('Long', 'Multicontroller'); } // produce beep
+                             log.debug('Start autoscroll tier 1');
+                             this._handleMCUp();                                                       // do the first scroll up
+                             clearInterval(this._tiltHoldIntervalId);                                  // clear any redundand intervals
 @@ -6812,6 +6812,8 @@
              // get relative focussed index before moving the focus
              var rfi = this._getRelativeFocussedIndex();
@@ -14,7 +47,7 @@
              // get relative focussed index after moving the focus
              rfi = this._getRelativeFocussedIndex();
 +
-+            if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++            if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
 +            {
 +                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
 +                {
@@ -51,7 +84,7 @@
              // get relative focussed index after moving the focus
              rfi = this._getRelativeFocussedIndex();
 +
-+            if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++            if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
 +            {
 +                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
 +                {
@@ -88,7 +121,7 @@
                  // get relative focussed index after moving the focus
                  rfi = this._getRelativeFocussedIndex();
 +
-+                if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++                if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
 +                {
 +                    if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
 +                    {
@@ -125,7 +158,7 @@
                  // get relative focussed index after moving the focus
                  rfi = this._getRelativeFocussedIndex();
 +
-+                if (this._getFocussedIndex() == currentFocussedIndex) //didn't move
++                if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() == currentFocussedIndex) //didn't move
 +                {
 +                    if (this.dataList && this.dataList.items && this.dataList.itemCount > 0)
 +                    {

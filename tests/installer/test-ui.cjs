@@ -16,6 +16,7 @@ const fs = require("node:fs"),
   vm = require("node:vm"),
   assert = require("node:assert/strict");
 const ROOT = path.join(__dirname, "../../usb");
+const ex = path.join(ROOT, "../development/examples/patch/manifest.conf");
 
 class Node {
   constructor(tag, doc) {
@@ -94,8 +95,8 @@ function boot(
       "backup-jci": "uninstalled",
       "logs-collector": "uninstalled",
       hello: "uninstalled",
-      "list-beep": "uninstalled",
-      "main-menu-loop": "installed",
+      "patch-example": "uninstalled",
+      "second-patch": "installed",
       ssh: "error"
     },
     outcomes = {},
@@ -431,7 +432,7 @@ function boot(
       return ok(
         (includeBundle ? "bundle-example\n" : "") +
           (includeSettings ? "settings-example\n" : "") +
-          "list-beep\nmain-menu-loop\nssh\nbroken\n" +
+          "patch-example\nsecond-patch\nssh\nbroken\n" +
           (includeCommand ? "hello\n" : "") +
           (includeExports
             ? "backup-jci\nlogs-collector\nrestore-originals\n"
@@ -458,10 +459,14 @@ function boot(
       let m = fs.readFileSync(
         a[1] === "hello"
           ? path.join(ROOT, "../development/examples/hello/manifest.conf")
-          : path.join(ROOT, "tweaks", a[1], "manifest.conf"),
+          : a[1] === "patch-example" || a[1] === "second-patch"
+            ? ex
+            : path.join(ROOT, "tweaks", a[1], "manifest.conf"),
         "utf8"
       );
-      if (a[1] === "list-beep")
+      if (a[1] === "second-patch")
+        m = m.replace(/^id=.*$/m, "id=second-patch").replace(/^name=.*$/m, "name=Second Patch Example");
+      if (a[1] === "patch-example")
         m =
           m.replace(/^contributors=.*\r?\n?/gm, "") +
           "contributors=Original author; port by Example <developer>\n";
@@ -613,7 +618,7 @@ const parseConf = vm.runInNewContext(
 );
 // Parser cases control attribution explicitly, regardless of current tweak credits.
 const rawConf = fs
-  .readFileSync(path.join(ROOT, "tweaks/list-beep/manifest.conf"), "utf8")
+  .readFileSync(path.join(ROOT, "../development/examples/patch/manifest.conf"), "utf8")
   .replace(/^contributors=.*\r?\n?/gm, "");
 const literal = 'Text = # "quotes" $(not_a_command) `not_a_command`';
 
@@ -634,7 +639,7 @@ function finishPatch(action = "install", code = 0) {
   y.nodes.tabs.children
     .find((n) => n.textContent.indexOf("Interface") === 0)
     .onclick();
-  const id = action === "uninstall" ? "main-menu-loop" : "list-beep";
+  const id = action === "uninstall" ? "second-patch" : "patch-example";
   y.outcomes[id] = code;
   y.click("tweak-" + id);
   y.click("action");
@@ -666,35 +671,35 @@ function recoveryOffer(
   raw = "available\t" + "a".repeat(32) + "\t/jci/test.js\n"
 ) {
   const r = boot();
-  r.recovery["list-beep"] = raw;
-  r.states["list-beep"] = "broken";
-  r.reasons["list-beep"] = "An existing modification was detected.";
+  r.recovery["patch-example"] = raw;
+  r.states["patch-example"] = "broken";
+  r.reasons["patch-example"] = "An existing modification was detected.";
   r.click("refresh");
   r.pump();
   r.nodes.tabs.children
     .find((n) => n.textContent.indexOf("Interface") === 0)
     .onclick();
-  r.click("tweak-list-beep");
+  r.click("tweak-patch-example");
   r.pump();
   return r;
 }
 
 function updateOffer(usbVersion, installedVersion) {
   const r = boot();
-  r.usb.manifests["list-beep"] = fs
-    .readFileSync(path.join(ROOT, "tweaks/list-beep/manifest.conf"), "utf8")
+  r.usb.manifests["patch-example"] = fs
+    .readFileSync(path.join(ROOT, "../development/examples/patch/manifest.conf"), "utf8")
     .replace(/^version=.*$/m, "version=" + usbVersion);
-  r.usb.installedVersions["list-beep"] = installedVersion;
-  r.usb.updateOffers["list-beep"] = r.ok(
+  r.usb.installedVersions["patch-example"] = installedVersion;
+  r.usb.updateOffers["patch-example"] = r.ok(
     "available\t" + installedVersion + "\t" + usbVersion + "\n"
   );
-  r.states["list-beep"] = "installed";
+  r.states["patch-example"] = "installed";
   r.click("refresh");
   r.pump();
   r.nodes.tabs.children
     .find((n) => n.textContent.indexOf("Interface") === 0)
     .onclick();
-  r.click("tweak-list-beep");
+  r.click("tweak-patch-example");
   r.pump();
   return r;
 }
@@ -702,13 +707,13 @@ function updateOffer(usbVersion, installedVersion) {
 function installedWithConfig() {
   const r = boot();
   r.usb.configPresent = true;
-  r.states["list-beep"] = "installed";
+  r.states["patch-example"] = "installed";
   r.click("refresh");
   r.pump();
   r.nodes.tabs.children
     .find((n) => n.textContent.indexOf("Interface") === 0)
     .onclick();
-  r.click("tweak-list-beep");
+  r.click("tweak-patch-example");
   r.pump();
   r.click("action");
   r.pump();
@@ -746,19 +751,19 @@ test("INSTALLER_UI_TESTS", async (t) => {
       .find((n) => n.textContent.indexOf("Interface") === 0)
       .onclick();
     assert.equal(
-      x.doc.getElementById("tweak-main-menu-loop").children[0].className,
+      x.doc.getElementById("tweak-second-patch").children[0].className,
       "dot installed"
     );
     assert.equal(
-      x.doc.getElementById("tweak-list-beep").children[0].className,
+      x.doc.getElementById("tweak-patch-example").children[0].className,
       "dot uninstalled"
     );
   });
 
   await t.test("shows the details of a tweak", () => {
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     assert.equal(x.nodes.action.textContent, "Install");
-    assert.match(x.nodes["dialog-description"].textContent, /beeps/);
+    assert.match(x.nodes["dialog-description"].textContent, /Example patch worker/);
     assert.match(x.nodes["dialog-meta"].textContent, /Restart required:Yes/);
   });
 
@@ -800,13 +805,13 @@ test("INSTALLER_UI_TESTS", async (t) => {
     x.click("result-ok");
     x.pump();
     assert.equal(
-      x.doc.getElementById("tweak-list-beep").children[0].className,
+      x.doc.getElementById("tweak-patch-example").children[0].className,
       "dot installed"
     );
   });
 
   await t.test("uninstalls", () => {
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     assert.equal(x.nodes.action.textContent, "Uninstall");
     x.click("action");
     assert.equal(x.nodes["dialog-state"].textContent, "Checking configuration");
@@ -814,12 +819,12 @@ test("INSTALLER_UI_TESTS", async (t) => {
     assert.equal(x.nodes["dialog-state"].textContent, "Uninstall completed");
     x.click("result-ok");
     x.pump();
-    assert.equal(x.states["list-beep"], "uninstalled");
+    assert.equal(x.states["patch-example"], "uninstalled");
   });
 
   await t.test("reports a failed install", () => {
-    x.outcomes["list-beep"] = 1;
-    x.click("tweak-list-beep");
+    x.outcomes["patch-example"] = 1;
+    x.click("tweak-patch-example");
     x.click("action");
     x.pump();
     assert.match(
@@ -848,8 +853,8 @@ test("INSTALLER_UI_TESTS", async (t) => {
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.outcomes["list-beep"] = 2;
-      x.click("tweak-list-beep");
+      x.outcomes["patch-example"] = 2;
+      x.click("tweak-patch-example");
       x.click("action");
       x.pump();
       assert.match(
@@ -859,7 +864,7 @@ test("INSTALLER_UI_TESTS", async (t) => {
       assert.match(x.nodes["dialog-description"].textContent, /Do NOT reboot/);
       x.click("result-ok");
       assert.equal(x.nodes.refresh.disabled, true);
-      x.click("tweak-main-menu-loop");
+      x.click("tweak-second-patch");
       assert.equal(x.nodes.action.disabled, true);
       x.click("back");
     }
@@ -883,7 +888,7 @@ test("INSTALLER_UI_TESTS", async (t) => {
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.click("action");
       let request = x.jobs.pop();
       assert.equal(request.args[1], "action");
@@ -961,7 +966,7 @@ test("CONTRACT_V1_UI", async (t) => {
     () => {
       x = boot(99);
       assert.equal(x.nodes.tabs.children.length, 1);
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       assert.equal(x.nodes.action.disabled, true);
     }
   );
@@ -1043,7 +1048,7 @@ test("MULTICONTROLLER", async (t) => {
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.pump();
       controller("onkeydown", 77);
       assert.equal(x.doc.activeElement, x.nodes.action);
@@ -1087,7 +1092,7 @@ test("MULTICONTROLLER", async (t) => {
 
   await t.test("Back cannot dismiss an operation or skip its result", () => {
     // Back cannot dismiss an in-flight operation or skip result acknowledgement.
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     x.click("action");
     controller("onkeydown", 8);
     controller("onkeyup", 8);
@@ -1119,7 +1124,7 @@ test("MULTICONTROLLER", async (t) => {
 test("MANIFEST_UI", async (t) => {
   await t.test("reads literal values, lists and booleans", () => {
     const parsedConf = parseConf(
-      "list-beep",
+      "patch-example",
       rawConf.replace(/^name=.*$/m, "name=" + literal)
     );
     assert.equal(parsedConf.name, literal);
@@ -1132,12 +1137,12 @@ test("MANIFEST_UI", async (t) => {
     "refuses a duplicate, an unknown or a missing key and a control character",
     () => {
       for (const raw of [
-        rawConf + "id=list-beep\n",
+        rawConf + "id=patch-example\n",
         rawConf + "unknown=value\n",
         rawConf.replace(/^id=.*\n/m, ""),
         rawConf + "# tab\t\n"
       ]) {
-        assert.throws(() => parseConf("list-beep", raw));
+        assert.throws(() => parseConf("patch-example", raw));
       }
     }
   );
@@ -1268,7 +1273,7 @@ test("SYSTEM_METRICS_UI", async (t) => {
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.click("action");
       let metricCount = x.calls.filter((a) => a[0] === "metrics").length;
       x.intervals[0]();
@@ -1343,14 +1348,14 @@ test("RESTORE_UI", async (t) => {
       for (const blockedState of ["broken", "unavailable"]) {
         await t.test(blockedState, () => {
           x = boot();
-          x.states["list-beep"] = blockedState;
-          x.reasons["list-beep"] = "Target mismatch";
+          x.states["patch-example"] = blockedState;
+          x.reasons["patch-example"] = "Target mismatch";
           x.click("refresh");
           x.pump();
           x.nodes.tabs.children
             .find((n) => n.textContent.indexOf("Interface") === 0)
             .onclick();
-          x.click("tweak-list-beep");
+          x.click("tweak-patch-example");
           assert.match(
             x.nodes["dialog-description"].textContent,
             /System > Restore originals/
@@ -1523,7 +1528,7 @@ test("SAVED_VERSION_UI", async (t) => {
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.click("tweak-main-menu-loop");
+      x.click("tweak-second-patch");
       x.pump();
       assert.match(
         x.nodes["dialog-meta"].textContent,
@@ -1671,11 +1676,11 @@ test("TARGET_RECOVERY_UI", async (t) => {
           raw === "original\n" ? "stock target" : "recovery offer",
           () => {
             x = boot();
-            x.recovery["list-beep"] = raw;
+            x.recovery["patch-example"] = raw;
             x.nodes.tabs.children
               .find((n) => n.textContent.indexOf("Interface") === 0)
               .onclick();
-            x.click("tweak-list-beep");
+            x.click("tweak-patch-example");
             x.pump();
             assert.equal(x.nodes.action.textContent, "Install");
             assert.equal(x.nodes.action.disabled, raw !== "original\n");
@@ -1722,7 +1727,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
       x = recoveryOffer();
       assert.equal(
         x.nodes["dialog-title"].textContent,
-        "No List Beep - Broken installation"
+        "Patch Example - Broken installation"
       );
       assert(!x.nodes["restore-action"].className.includes("hidden"));
       assert.equal(x.nodes.action.textContent, "Retry status");
@@ -1755,7 +1760,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
     x.pump();
     assert.equal(
       x.nodes["dialog-title"].textContent,
-      "No List Beep - Broken installation"
+      "Patch Example - Broken installation"
     );
     assert(!x.calls.some((a) => a[0] === "restore-original"));
   });
@@ -1775,7 +1780,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
       x.pump();
       assert.equal(
         x.nodes["dialog-title"].textContent,
-        "No List Beep - Broken installation"
+        "Patch Example - Broken installation"
       );
     }
   );
@@ -1789,7 +1794,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
       x.pump();
       assert.deepEqual(
         Array.from(x.calls.find((a) => a[0] === "restore-original")),
-        ["restore-original", "list-beep", "a".repeat(32)]
+        ["restore-original", "patch-example", "a".repeat(32)]
       );
       assert.equal(x.nodes["dialog-state"].textContent, "Restore completed");
       assert.equal(
@@ -1799,8 +1804,8 @@ test("TARGET_RECOVERY_UI", async (t) => {
       );
       x.click("result-ok");
       x.pump();
-      x.outcomes["list-beep"] = 0;
-      x.click("tweak-list-beep");
+      x.outcomes["patch-example"] = 0;
+      x.click("tweak-patch-example");
       assert.equal(x.nodes.action.textContent, "Install");
       x.pump();
       assert(x.nodes["restore-action"].className.includes("hidden"));
@@ -1814,7 +1819,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
 
   await t.test("a critical Restore failure locks the installer", () => {
     x = recoveryOffer();
-    x.restoreOutcomes["list-beep"] = 2;
+    x.restoreOutcomes["patch-example"] = 2;
     x.click("restore-action");
     x.click("action");
     x.pump();
@@ -1839,7 +1844,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
       );
       assert.equal(
         x.nodes["dialog-title"].textContent,
-        "No List Beep - Broken installation"
+        "Patch Example - Broken installation"
       );
       assert(x.nodes["restore-action"].className.includes("hidden"));
       assert(!x.calls.some((a) => a[0] === "restore-original"));
@@ -1852,10 +1857,10 @@ test("TARGET_RECOVERY_UI", async (t) => {
       // Eligibility is not required to arrive before the user navigates elsewhere.
       x = recoveryOffer();
       x.click("back");
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       let oldRecovery = x.jobs.shift();
       x.click("back");
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.event({
         type: "shell-result",
         token: "secret",
@@ -1866,7 +1871,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
         x.nodes["restore-action"].className.includes("hidden"),
         "An older detail-view response must not reveal Restore"
       );
-      delete x.recovery["list-beep"];
+      delete x.recovery["patch-example"];
       x.pump();
       assert(x.nodes["restore-action"].className.includes("hidden"));
       assert.match(
@@ -1886,13 +1891,13 @@ test("TARGET_RECOVERY_UI", async (t) => {
     () => {
       // A blocked install returns to details after OK, without opening confirmation.
       x = boot();
-      x.outcomes["list-beep"] = 1;
+      x.outcomes["patch-example"] = 1;
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.pump();
-      x.recovery["list-beep"] =
+      x.recovery["patch-example"] =
         "available\t" + "a".repeat(32) + "\t/jci/test.js\n";
       x.click("action");
       x.pump();
@@ -1904,7 +1909,7 @@ test("TARGET_RECOVERY_UI", async (t) => {
       x.pump();
       assert.equal(
         x.nodes["dialog-title"].textContent,
-        "No List Beep - Not installed"
+        "Patch Example - Not installed"
       );
       assert(!x.nodes["restore-action"].className.includes("hidden"));
       assert(!x.calls.some((a) => a[0] === "restore-original"));
@@ -1914,20 +1919,20 @@ test("TARGET_RECOVERY_UI", async (t) => {
   await t.test("a later settings answer cannot re-enable Install", () => {
     // A later settings reply must not re-enable Install after Restore was offered.
     x = boot();
-    x.usb.manifests["list-beep"] =
+    x.usb.manifests["patch-example"] =
       fs.readFileSync(
-        path.join(ROOT, "tweaks/list-beep/manifest.conf"),
+        path.join(ROOT, "../development/examples/patch/manifest.conf"),
         "utf8"
       ) +
       "\nsettings=flag\nsetting.flag.type=boolean\nsetting.flag.label=Flag\nsetting.flag.default=false\n";
     x.click("refresh");
     x.pump();
-    x.recovery["list-beep"] =
+    x.recovery["patch-example"] =
       "available\t" + "a".repeat(32) + "\t/jci/test.js\n";
     x.nodes.tabs.children
       .find((n) => n.textContent.indexOf("Interface") === 0)
       .onclick();
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     assert.equal(x.jobs.filter((j) => j.args[1] === "details").length, 1);
     x.pump();
     assert(x.nodes.action.disabled);
@@ -2484,7 +2489,7 @@ test("CONTRIBUTORS", async (t) => {
     x.nodes.tabs.children
       .find((n) => n.textContent.indexOf("Interface") === 0)
       .onclick();
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     assert.match(
       x.nodes["dialog-meta"].textContent,
       /Original author; port by Example <developer>/
@@ -2506,13 +2511,13 @@ test("CONTRIBUTORS", async (t) => {
     () => {
       assert.equal(
         parseConf(
-          "list-beep",
+          "patch-example",
           rawConf + "contributors=Name $(literal) <text>\n"
         ).contributors,
         "Name $(literal) <text>"
       );
       assert.throws(() =>
-        parseConf("list-beep", rawConf + "contributors=A\ncontributors=B\n")
+        parseConf("patch-example", rawConf + "contributors=A\ncontributors=B\n")
       );
     }
   );
@@ -2546,7 +2551,6 @@ test("GUI_MANIFEST_UI", async (t) => {
     "refuses a wrong API, an unsafe menu or view path and a missing reset",
     () => {
       for (const bad of [
-        guiConf.replace("gui_api=1", "gui_api=2"),
         guiConf.replace("gui_menu_path=", "gui_menu_path=Tools//Examples"),
         guiConf.replace("assets/view.html", "assets/../view.html"),
         guiConf.replace("reset_entrypoint=reset.sh\n", "")
@@ -2554,6 +2558,20 @@ test("GUI_MANIFEST_UI", async (t) => {
         assert.throws(() => parseConf("gui-example", bad));
     }
   );
+
+  await t.test("takes gui_api as the minimum GUI API level, a positive integer", () => {
+    for (const level of ["1", "2", "12"])
+      assert.equal(
+        parseConf("gui-example", guiConf.replace("gui_api=1", "gui_api=" + level)).gui_api,
+        level
+      );
+    for (const bad of ["0", "01", "-1", "1.0", "v1", ""])
+      assert.throws(
+        () => parseConf("gui-example", guiConf.replace("gui_api=1", "gui_api=" + bad)),
+        undefined,
+        "gui_api=" + bad
+      );
+  });
 
   await t.test("refuses a reserved ID", () => {
     assert.throws(() =>
@@ -2699,12 +2717,12 @@ test("FULL_REFRESH", async (t) => {
       x.nodes.tabs.children
         .find((n) => n.textContent.indexOf("Interface") === 0)
         .onclick();
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.click("back");
-      x.usb.ids = ["list-beep", "hello"];
+      x.usb.ids = ["patch-example", "hello"];
       x.states.hello = "uninstalled";
-      x.usb.manifests["list-beep"] = fs
-        .readFileSync(path.join(ROOT, "tweaks/list-beep/manifest.conf"), "utf8")
+      x.usb.manifests["patch-example"] = fs
+        .readFileSync(path.join(ROOT, "../development/examples/patch/manifest.conf"), "utf8")
         .replace(/^name=.*$/m, "name=Updated tweak")
         .replace(/^description=.*$/m, "description=Updated USB description")
         .replace(/^version=.*$/m, "version=9.8.7")
@@ -2733,7 +2751,7 @@ test("FULL_REFRESH", async (t) => {
   });
 
   await t.test("the details show the new description and version", () => {
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     assert.match(
       x.nodes["dialog-description"].textContent,
       /Updated USB description/
@@ -2799,7 +2817,7 @@ test("INSTALLER_UPDATES", async (t) => {
       assert(!x.nodes["update-action"].disabled);
       assert.equal(x.nodes.action.textContent, "Uninstall");
       x.click("update-action");
-      assert.equal(x.nodes["dialog-title"].textContent, "Update: No List Beep");
+      assert.equal(x.nodes["dialog-title"].textContent, "Update: Patch Example");
       x.click("back");
       x.pump();
       assert.equal(x.nodes.action.textContent, "Uninstall");
@@ -2816,22 +2834,22 @@ test("INSTALLER_UPDATES", async (t) => {
       x.calls.some(
         (a) =>
           JSON.stringify(a) ===
-          JSON.stringify(["action", "list-beep", "update", "1.10.0"])
+          JSON.stringify(["action", "patch-example", "update", "1.10.0"])
       )
     );
-    assert.equal(x.states["list-beep"], "installed");
+    assert.equal(x.states["patch-example"], "installed");
     assert.equal(x.nodes["dialog-state"].textContent, "Update completed");
   });
 
   await t.test("a refused update offer disables Update", () => {
     x = updateOffer("2.0.0", "1.0.0");
-    x.usb.updateOffers["list-beep"] = x.ok(
+    x.usb.updateOffers["patch-example"] = x.ok(
       "",
       1,
       "Dependent package blocks replacement."
     );
     x.click("back");
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     x.pump();
     assert(x.nodes["update-action"].disabled);
     assert.match(
@@ -2883,7 +2901,7 @@ test("REPLUG_FOCUS_UI", async (t) => {
     x.nodes.tabs.children
       .find((n) => n.textContent.indexOf("Interface") === 0)
       .onclick();
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     x.pump();
     x.click("action");
     x.usb.refocusRequested = true;
@@ -2910,7 +2928,7 @@ test("MUTABLE_CONFIG_UI", async (t) => {
     assert.equal(x.nodes["dialog-title"].textContent, "Keep configuration?");
     assert(!x.calls.some((a) => a[0] === "action" && a[2] === "uninstall"));
     x.click("action");
-    assert.equal(x.nodes["dialog-title"].textContent, "No List Beep");
+    assert.equal(x.nodes["dialog-title"].textContent, "Patch Example");
     assert.equal(x.nodes["dialog-state"].textContent, "Uninstalling");
     x.pump();
     assert(
@@ -2926,7 +2944,7 @@ test("MUTABLE_CONFIG_UI", async (t) => {
   await t.test("Back runs a plain uninstall", () => {
     x = installedWithConfig();
     x.click("back");
-    assert.equal(x.nodes["dialog-title"].textContent, "No List Beep");
+    assert.equal(x.nodes["dialog-title"].textContent, "Patch Example");
     assert.equal(x.nodes["dialog-state"].textContent, "Uninstalling");
     x.pump();
     assert(
@@ -2944,7 +2962,7 @@ test("DETAIL_LOADING", async (t) => {
     // Delayed detail queries must be a single blocking phase, including nested Update.
     x = updateOffer("2.0.0", "1.0.0");
     x.click("back");
-    x.doc.getElementById("tweak-list-beep").onclick();
+    x.doc.getElementById("tweak-patch-example").onclick();
     assert(!x.nodes["detail-loading"].className.includes("hidden"));
     assert.equal(x.nodes.dialog.attributes["aria-busy"], "true");
   });
@@ -3015,12 +3033,12 @@ test("DETAIL_LOADING", async (t) => {
 
   await t.test("a refused update offer is shown without the barrier", () => {
     x.click("back");
-    x.usb.updateOffers["list-beep"] = x.ok(
+    x.usb.updateOffers["patch-example"] = x.ok(
       "",
       1,
       "Update unavailable for this package."
     );
-    x.doc.getElementById("tweak-list-beep").onclick();
+    x.doc.getElementById("tweak-patch-example").onclick();
     x.pump();
     assert(x.nodes["detail-loading"].className.includes("hidden"));
     assert.match(
@@ -3103,7 +3121,7 @@ test("UI_POLISH", async (t) => {
     x.pump();
     assert.equal(
       x.nodes["dialog-title"].textContent,
-      "No List Beep - Operation completed"
+      "Patch Example - Operation completed"
     );
     assert(x.nodes.back.className.includes("hidden"));
     assert(!x.nodes["result-ok"].disabled);
@@ -3131,7 +3149,7 @@ test("AGGREGATE_RECOVERY", async (t) => {
             x.nodes.tabs.children
               .find((n) => n.textContent.indexOf("Interface") === 0)
               .onclick();
-            x.click("tweak-main-menu-loop");
+            x.click("tweak-second-patch");
             x.pump();
             assert(x.nodes["detail-loading"].className.includes("hidden"));
             assert(!x.nodes.back.disabled);
@@ -3146,7 +3164,7 @@ test("AGGREGATE_RECOVERY", async (t) => {
     x = updateOffer("2.0.0", "1.0.0");
     x.click("back");
     x.usb.detailBatchFailure = x.ok("", 1, "Timed out");
-    x.click("tweak-list-beep");
+    x.click("tweak-patch-example");
     x.pump();
     assert(!x.nodes["update-action"].disabled);
     x.click("back");
@@ -3196,7 +3214,7 @@ test("AGGREGATE_RECOVERY", async (t) => {
         if (++metaCount === 2) throw new Error("fixture build failure");
         return appendMeta(node);
       };
-      x.click("tweak-main-menu-loop");
+      x.click("tweak-second-patch");
       assert(x.nodes["detail-loading"].className.includes("hidden"));
       assert.match(
         x.nodes["dialog-description"].textContent,
@@ -3215,7 +3233,7 @@ test("AGGREGATE_RECOVERY", async (t) => {
       // One callback failure must not strand the remaining callbacks/loading barrier.
       x = updateOffer("2.0.0", "1.0.0");
       x.click("back");
-      x.usb.updateOffers["list-beep"] = x.ok("", 1, "fixture update refusal");
+      x.usb.updateOffers["patch-example"] = x.ok("", 1, "fixture update refusal");
       let thrown = false;
       const appendDescription = x.nodes["dialog-description"].appendChild.bind(
         x.nodes["dialog-description"]
@@ -3227,7 +3245,7 @@ test("AGGREGATE_RECOVERY", async (t) => {
         }
         return appendDescription(node);
       };
-      x.click("tweak-list-beep");
+      x.click("tweak-patch-example");
       x.pump();
       assert(thrown);
       assert(x.nodes["detail-loading"].className.includes("hidden"));

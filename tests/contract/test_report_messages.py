@@ -40,6 +40,4 @@ exit CODE
             label=action.capitalize()
             assert result.stdout==(label+' completed.\n' if code==0 else ''),result.stdout
             assert label+' in progress.' in (report/'run.log').read_text()
-    for name in ['run.sh','manifest.conf','assets/change.patch']:
-        assert (ROOT/'development/examples/patch'/name).read_bytes()==(ROOT/'usb/tweaks/list-beep'/name).read_bytes(),name
-print('REPORT_MESSAGES_PASSED: progress stays in logs, final output is capitalized, failure never announces success, patch example matches current worker.')
+print('REPORT_MESSAGES_PASSED: progress stays in logs, final output is capitalized, failure never announces success.')

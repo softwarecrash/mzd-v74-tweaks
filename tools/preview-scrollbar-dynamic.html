@@ -5,7 +5,7 @@ html,body{height:auto;min-height:480px;overflow:auto;width:840px}#screen{positio
 <div class="choices"><button class="selected" id="variant-bar">1. Slim red bar</button><button id="variant-arrows">2. Arrows and position</button><button id="variant-segments">3. Dynamic segments</button><p id="explanation">A subtle track with a red thumb shows your position and how much of the list is visible</p><p class="note">LOCAL DESIGN DRAFT - Use Up/Down, M/N or the mouse wheel over the list. Click a row to select it. No tweaks are executed</p></div>
 <script>
 (function(){
- var names=['No List Beep','Main Menu Loop','Shorter List Delay','Remove Safety Warnings','Instrument Cluster / HUD Language','Fuel Consumption Screen','Navigation Street Names','Display Options','Audio Settings','Menu Animation','Clock Display','Example Tweak'];
+ var names=['Remove Safety Warnings','Instrument Cluster / HUD Language','Fuel Consumption Screen','Navigation Street Names','Display Options','Audio Settings','Menu Animation','Clock Display','Example Tweak'];
  var selected=0,first=0,visible=5,variant='bar',cards=document.getElementById('cards'),rows=[];
  var explanations={bar:'A subtle track with a red thumb shows your position and how much of the list is visible',arrows:'Only direction arrows and the selected position are shown. Unavailable directions are dimmed',segments:'The selected tweak takes up a quarter of the indicator. Grey segments above and below share the remaining space'};
  function draw(){

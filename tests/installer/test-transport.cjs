@@ -75,7 +75,7 @@ function transport() {
         token,
         id,
         program: "/bin/sh",
-        args: ["./installer.sh", "manifest", "list-beep"]
+        args: ["./installer.sh", "manifest", "ssh"]
       }
     });
   }

@@ -34,10 +34,10 @@ for scenario in ['success','invalid-path','hook-stop-failure','bad-oem','unknown
     for path,(original,changed) in values.items():write(path,changed);write(Path(str(path)+'.org'),original)
     write(nav/'nav.js.org','do not touch navigation\n');write(nav/'nav.js','navigation stays modified\n')
     # Register known OEM targets; the third backup is deliberately uncatalogued.
-    fixture_manifest=(ROOT/'usb/tweaks/list-beep/manifest.conf').read_text()
+    fixture_manifest=(ROOT/'development/examples/patch/manifest.conf').read_text()
     for id_,target in [('fixture',first),('ssh',second)]:
       manifest=usb/'tweaks'/id_/'manifest.conf'
-      text=fixture_manifest.replace('id=list-beep','id='+id_).replace('target=/jci/gui/common/controls/List2/js/List2Ctrl.js','target='+bp(target))
+      text=fixture_manifest.replace('id=patch-example','id='+id_).replace('target=/jci/gui/common/controls/List2/js/List2Ctrl.js','target='+bp(target))
       import re
       text=re.sub(r'^oem_backup_md5=.*$', 'oem_backup_md5='+md5(values[target][0]),text,flags=re.M)
       text=re.sub(r'^lock_group=.*$', 'lock_group='+id_,text,flags=re.M)

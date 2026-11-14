@@ -5,12 +5,12 @@
      if (index < 0)
      {
 -        index = 0;
-+        index = 4;
++        index = (window.mzdTweaks && window.mzdTweaks.main_menu_loop) ? 4 : 0;
      }
      if (index > 4)
      {
 -        index = 4;
-+        index = 0;
++        index = (window.mzdTweaks && window.mzdTweaks.main_menu_loop) ? 0 : 4;
      }
  
      if (index !== this._getFocus())

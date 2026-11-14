@@ -44,6 +44,7 @@ const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:vie
   else throw Error('Unexpected request '+op);
  });}}};
 vm.runInNewContext(fs.readFileSync(path.join(repo,'usb/lib/gui-runtime/residents.js'),'utf8'),context);
+vm.runInNewContext(fs.readFileSync(path.join(repo,'usb/lib/gui-runtime/settings-host.js'),'utf8'),context);
 resident.createNativeMenu=opts=>host.MzdGuiResidents.createNativeMenu(opts);
 context.context=resident;
 for(const name of ['preview/core.js','preview/native-menu.js','cmu/import-client.js','cmu/host.js'])vm.runInNewContext(fs.readFileSync(fixturePath(name),'utf8'),context);

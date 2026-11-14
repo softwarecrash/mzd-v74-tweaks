@@ -193,7 +193,177 @@
         };
     }
 
-    var modules = { 'android-auto': androidAuto() };
+    function mzdTweaks() {
+        var key = 'mzd-preview-mzd-tweaks';
+        var schemaDefaults = {
+            main_menu_loop: false,
+            list_loop: false,
+            list_beep: true,
+            short_delay: false
+        };
+        var initial = defaults['mzd-tweaks'] || schemaDefaults;
+        var settings = stored(key, initial);
+        var name;
+
+        for (name in schemaDefaults) {
+            if (Object.prototype.hasOwnProperty.call(schemaDefaults, name)) {
+                if (typeof settings[name] !== 'boolean') {
+                    settings[name] = (initial && typeof initial[name] === 'boolean') ? initial[name] : schemaDefaults[name];
+                }
+            }
+        }
+
+        function applyGlobals() {
+            if (!window.mzdTweaks) { window.mzdTweaks = {}; }
+            for (var k in settings) {
+                if (Object.prototype.hasOwnProperty.call(settings, k)) {
+                    window.mzdTweaks[k] = settings[k];
+                }
+            }
+        }
+
+        function save() {
+            try { window.localStorage.setItem(key, JSON.stringify(settings)); } catch (ignore) {}
+        }
+
+        applyGlobals();
+
+        return function (operation, args) {
+            args = args || {};
+            if (operation === 'get') {
+                applyGlobals();
+                return { settings: copy(settings) };
+            }
+            if (operation === 'set') {
+                if (typeof args.key !== 'string' || !Object.prototype.hasOwnProperty.call(schemaDefaults, args.key) || typeof args.value !== 'boolean') {
+                    throw new Error('Invalid setting: ' + String(args.key));
+                }
+                settings[args.key] = args.value;
+                save();
+                applyGlobals();
+                return { settings: copy(settings) };
+            }
+            throw new Error('Unknown operation: ' + operation);
+        };
+    }
+
+    function hookControls() {
+        if (window.MainMenuCtrl && window.MainMenuCtrl.prototype && !window.MainMenuCtrl.prototype._mzdTweaksHooked) {
+            window.MainMenuCtrl.prototype._mzdTweaksHooked = true;
+            try {
+                var origOffsetFocus = window.MainMenuCtrl.prototype._offsetFocus;
+                if (origOffsetFocus && origOffsetFocus.toString().indexOf('mzdTweaks') === -1) {
+                    window.MainMenuCtrl.prototype._offsetFocus = function (direction) {
+                        if (!window.mzdTweaks || !window.mzdTweaks.main_menu_loop) {
+                            return origOffsetFocus.apply(this, arguments);
+                        }
+                        var index = this._getFocus();
+                        if (direction === 'left') { index -= 1; }
+                        else if (direction === 'right') { index += 1; }
+                        if (index < 0) { index = 4; }
+                        if (index > 4) { index = 0; }
+                        if (index !== this._getFocus()) {
+                            this._setFocus(index);
+                        }
+                    };
+                }
+            } catch (ignore) {}
+        }
+
+        if (window.List2Ctrl && window.List2Ctrl.prototype && !window.List2Ctrl.prototype._mzdTweaksHooked) {
+            window.List2Ctrl.prototype._mzdTweaksHooked = true;
+            try {
+                var origMCDown = window.List2Ctrl.prototype._handleMCDown;
+                if (origMCDown && origMCDown.toString().indexOf('mzdTweaks') === -1) {
+                    try {
+                        Object.defineProperty(window.List2Ctrl.prototype, 'autoscrollTier1Timeout', {
+                            get: function () { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 500 : 1500; },
+                            configurable: true
+                        });
+                        Object.defineProperty(window.List2Ctrl.prototype, 'autoscrollTier2Timeout', {
+                            get: function () { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 1500 : 5000; },
+                            configurable: true
+                        });
+                        Object.defineProperty(window.List2Ctrl.prototype, 'autoscrollTier1Interval', {
+                            get: function () { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 300 : 500; },
+                            configurable: true
+                        });
+                        Object.defineProperty(window.List2Ctrl.prototype, 'autoscrollTier2Interval', {
+                            get: function () { return (window.mzdTweaks && window.mzdTweaks.short_delay) ? 500 : 1000; },
+                            configurable: true
+                        });
+                    } catch (e1) {}
+
+                    var origBeep = window.List2Ctrl.prototype._beep;
+                    if (origBeep) {
+                        window.List2Ctrl.prototype._beep = function (pressType, eventCause) {
+                            if (pressType === 'Long' && eventCause === 'Multicontroller' && window.mzdTweaks && window.mzdTweaks.list_beep === false) {
+                                return;
+                            }
+                            return origBeep.apply(this, arguments);
+                        };
+                    }
+
+                    window.List2Ctrl.prototype._handleMCDown = function () {
+                        var beforeIndex = this._getFocussedIndex();
+                        var res = origMCDown.apply(this, arguments);
+                        if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() === beforeIndex) {
+                            if (this.dataList && this.dataList.items && this.dataList.itemCount > 0) {
+                                var nextIndex = beforeIndex + 1;
+                                while (nextIndex < this.dataList.itemCount && this.dataList.items[nextIndex] && this.dataList.items[nextIndex].disabled) { nextIndex++; }
+                                if (nextIndex >= this.dataList.itemCount) {
+                                    var idx = 0;
+                                    while (idx < this.dataList.itemCount && this.dataList.items[idx] && this.dataList.items[idx].disabled) { idx++; }
+                                    if (idx < this.dataList.itemCount && this.dataList.items[idx] && !this.dataList.items[idx].disabled) {
+                                        this._manageFocus(idx);
+                                        return 'consumed';
+                                    }
+                                }
+                            }
+                        }
+                        return res;
+                    };
+
+                    var origMCUp = window.List2Ctrl.prototype._handleMCUp;
+                    if (origMCUp) {
+                        window.List2Ctrl.prototype._handleMCUp = function () {
+                            var beforeIndex = this._getFocussedIndex();
+                            var res = origMCUp.apply(this, arguments);
+                            if (window.mzdTweaks && window.mzdTweaks.list_loop && this._getFocussedIndex() === beforeIndex) {
+                                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0) {
+                                    var prevIndex = beforeIndex - 1;
+                                    while (prevIndex >= 0 && this.dataList.items[prevIndex] && this.dataList.items[prevIndex].disabled) { prevIndex--; }
+                                    if (prevIndex < 0) {
+                                        var idx = this.dataList.itemCount - 1;
+                                        while (idx >= 0 && this.dataList.items[idx] && this.dataList.items[idx].disabled) { idx--; }
+                                        if (idx >= 0 && this.dataList.items[idx] && !this.dataList.items[idx].disabled) {
+                                            this._manageFocus(idx);
+                                            return 'consumed';
+                                        }
+                                    }
+                                }
+                            }
+                            return res;
+                        };
+                    }
+                }
+            } catch (ignore) {}
+        }
+    }
+
+    if (window.setInterval) {
+        var hookPoll = window.setInterval(function () {
+            hookControls();
+            if (window.MainMenuCtrl && window.List2Ctrl) {
+                window.clearInterval(hookPoll);
+            }
+        }, 100);
+    }
+
+    var modules = {
+        'android-auto': androidAuto(),
+        'mzd-tweaks': mzdTweaks()
+    };
     window.MzdGuiServices = {
         request: function (module, operation, args, callback) {
             var delay = 150;
