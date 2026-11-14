@@ -145,19 +145,16 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
         checks += 1
         return r
 
-    def deep(worker, settings, state):
+    def deep(worker, state):
         global checks
-        cfg = dict(env, MZD_WORKER_DIRECT='1', MZD_SETTINGS_FILE=bp(settings))
+        cfg = dict(env, MZD_WORKER_DIRECT='1')
         r = subprocess.run([SHELL, '-c', 'exec /bin/sh ' + shlex.quote(bp(worker)) + ' status'], env=cfg, capture_output=True, text=True, timeout=90)
         assert r.returncode == 0 and r.stdout == state + '\n', (r.returncode, r.stdout, r.stderr)
         checks += 1
         return r
 
-    settings_conf = base / 'temp_settings.conf'
-    write(settings_conf, '')
-
     # Initial status check: uninstalled
-    deep(folder / 'run.sh', settings_conf, 'uninstalled')
+    deep(folder / 'run.sh', 'uninstalled')
     call(['manifest', 'mzd-tweaks'])
 
     # Install action
@@ -174,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     assert (data / 'integration/mzd-gui-services.tsv').read_text().strip() == 'mzd-tweaks\tassets/service/entry.lua'
 
     # Installed status
-    deep(folder / 'run.sh', settings_conf, 'installed')
+    deep(folder / 'run.sh', 'installed')
 
     # Preserved config uninstall
     call(['action', 'mzd-tweaks', 'uninstall', '--preserve-config'])
@@ -184,7 +181,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     assert (data_dir / 'settings.js').is_file(), 'Preserved config was deleted'
 
     # Status after uninstall: uninstalled
-    deep(folder / 'run.sh', settings_conf, 'uninstalled')
+    deep(folder / 'run.sh', 'uninstalled')
 
     # Reinstall and test full uninstall (cleans config)
     call(['action', 'mzd-tweaks', 'install'])
@@ -204,7 +201,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
 
     def status(state):
         global checks
-        cfg = dict(env, MZD_WORKER_DIRECT='1', MZD_SETTINGS_FILE=bp(settings_conf))
+        cfg = dict(env, MZD_WORKER_DIRECT='1')
         r = subprocess.run([SHELL, '-c', 'exec /bin/sh ' + shlex.quote(bp(folder / 'run.sh')) + ' status'], env=cfg, capture_output=True, text=True, timeout=90)
         assert r.returncode == 0 and r.stdout == state + '\n', (r.returncode, r.stdout, r.stderr)
         checks += 1
@@ -230,15 +227,15 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     assert org_list2.read_text() == stock_list2, 'List2Ctrl.js.org is the stock file'
     assert org_mainmenu.read_text() == stock_mainmenu, 'MainMenuCtrl.js.org is the stock file'
 
-    # One target reverted: the shared bundle status reports it with a reason. It maps a
-    # partial component state to unavailable (shared bundle.sh behaviour, not MZD Tweaks).
+    # One target reverted: the shared bundle status reports it with a reason.
+    # A partial component state reports broken.
     patched_mainmenu = target_mainmenu.read_text()
     write(target_mainmenu, stock_mainmenu)
     saved = store / 'mzd-tweaks/package'
-    r = deep(saved / 'tweaks/mzd-tweaks/run.sh', saved / 'settings.conf', 'unavailable')
+    r = deep(saved / 'tweaks/mzd-tweaks/run.sh', 'broken')
     assert 'Partial component installation' in r.stderr, r.stderr
     write(target_mainmenu, patched_mainmenu)
-    deep(saved / 'tweaks/mzd-tweaks/run.sh', saved / 'settings.conf', 'installed')
+    deep(saved / 'tweaks/mzd-tweaks/run.sh', 'installed')
 
     # Changed settings survive an uninstall that keeps the configuration.
     custom_js = 'window.mzdTweaks = {\n    "main_menu_loop": true,\n    "list_loop": true,\n    "list_beep": false,\n    "short_delay": true\n};\n'

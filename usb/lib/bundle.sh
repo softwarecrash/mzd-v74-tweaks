@@ -483,7 +483,11 @@ mzd_bundle_main() (
             printf '%s\n' "$state"
         else
             payload_dir="${PAYLOAD_DIR:-$MZD_COMPONENT_STORAGE/mzd-tweaks/shims/$ID}"
-            if [ -d "$payload_dir" ]; then printf 'broken\n'; else printf 'unavailable\n'; fi
+            if grep -q '^Partial component installation\.' "$scratch/reason" || [ -d "$payload_dir" ]; then
+                printf 'broken\n'
+            else
+                printf 'unavailable\n'
+            fi
             cat "$scratch/reason" >&2
         fi
         exit 0
