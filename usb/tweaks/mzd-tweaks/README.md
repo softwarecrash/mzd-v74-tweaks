@@ -15,9 +15,9 @@ MZD Tweaks adds an **MZD Tweaks** menu in **Applications**:
   applied to the running interface; no reboot is needed after the first one.
 - The menu is the only way to change these settings. There is no USB
   pre-configuration file.
-- Settings are saved to `/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.conf`
-  and `settings.js`. Both files are written completely before either one replaces
-  the saved copy, so a failed save keeps the previous settings.
+- Settings are saved to `/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js`.
+  The file is written completely to temporary storage before replacing the saved copy,
+  so a failed save keeps the previous settings.
 - At boot, `settings.js` sets the saved values before the module service starts.
   The tweak then reads the settings once from the service.
 

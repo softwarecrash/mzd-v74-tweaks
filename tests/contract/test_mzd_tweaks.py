@@ -48,8 +48,8 @@ assert m['id'] == 'mzd-tweaks'
 assert m['lock_group'] == 'jci-gui'
 assert m['type'] == 'files'
 assert m['components'] == 'components.tsv'
-assert m['config.settings.path'] == '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.conf'
-assert m['config.script.path'] == '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js'
+assert m['config.settings.path'] == '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js'
+assert 'config.script.path' not in m
 checks += 1
 
 with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
@@ -163,7 +163,6 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     # Install action
     call(['action', 'mzd-tweaks', 'install'])
     assert (store / 'mzd-tweaks').is_dir()
-    assert (data_dir / 'settings.conf').is_file()
     assert (data_dir / 'settings.js').is_file()
     assert (target_list2.with_name('List2Ctrl.js.org')).is_file()
     assert (target_mainmenu.with_name('MainMenuCtrl.js.org')).is_file()
@@ -182,7 +181,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     assert not (store / 'mzd-tweaks').exists()
     assert target_list2.read_text() == stock_list2
     assert target_mainmenu.read_text() == stock_mainmenu
-    assert (data_dir / 'settings.conf').is_file(), 'Preserved config was deleted'
+    assert (data_dir / 'settings.js').is_file(), 'Preserved config was deleted'
 
     # Status after uninstall: uninstalled
     deep(folder / 'run.sh', settings_conf, 'uninstalled')
@@ -221,7 +220,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
         assert not services.exists() or 'mzd-tweaks' not in services.read_text()
 
     # Full uninstall removed the saved settings and the GUI registration.
-    assert not (data_dir / 'settings.conf').exists() and not (data_dir / 'settings.js').exists(), 'full uninstall removes the settings'
+    assert not (data_dir / 'settings.js').exists(), 'full uninstall removes the settings'
     not_registered()
     assert not (data / 'integration/developer_mode_GuiConfig.js').exists(), 'the last GUI consumer removes the boot hook'
     assert startup.read_text() == '#!/bin/sh\necho original\n'
@@ -242,13 +241,10 @@ with tempfile.TemporaryDirectory(prefix='cmu-mzd-tweaks-') as temporary:
     deep(saved / 'tweaks/mzd-tweaks/run.sh', saved / 'settings.conf', 'installed')
 
     # Changed settings survive an uninstall that keeps the configuration.
-    custom_conf = 'main_menu_loop=true\nlist_loop=true\nlist_beep=false\nshort_delay=true\n'
     custom_js = 'window.mzdTweaks = {\n    "main_menu_loop": true,\n    "list_loop": true,\n    "list_beep": false,\n    "short_delay": true\n};\n'
-    (data_dir / 'settings.conf').write_text(custom_conf)
     (data_dir / 'settings.js').write_text(custom_js)
     call(['action', 'mzd-tweaks', 'uninstall', '--preserve-config'])
     call(['action', 'mzd-tweaks', 'install'])
-    assert (data_dir / 'settings.conf').read_text() == custom_conf, 'install keeps saved settings.conf'
     assert (data_dir / 'settings.js').read_text() == custom_js, 'install keeps saved settings.js'
     call(['action', 'mzd-tweaks', 'uninstall'])
     assert target_list2.read_text() == stock_list2 and target_mainmenu.read_text() == stock_mainmenu

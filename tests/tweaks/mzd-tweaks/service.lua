@@ -4,49 +4,37 @@
 local entry = assert(arg[1], 'usage: service.lua <entry.lua>')
 local factory = assert(loadfile(entry))()
 
-local CONF = '/data/mzd-tweaks/settings.conf'
-local JS = '/data/mzd-tweaks/settings.js'
-
-local function fake_files()
-    local fs = { data = {}, fail = {}, serial = 0, syncs = 0 }
-    local function check(name, path)
-        local rule = fs.fail[name]
-        if rule and path:match(rule) then error('Injected ' .. name .. ' failure: ' .. path, 0) end
+local function fake_files(initial)
+    local fs = { content = initial, temp = nil, fail = nil, serial = 0, syncs = 0 }
+    fs.exists = function(path)
+        return path:match('%.tmp$') and fs.temp ~= nil or fs.content ~= nil
     end
-    fs.exists = function(path) return fs.data[path] ~= nil end
     fs.read = function(path, limit)
-        local value = fs.data[path]
-        assert(value, 'Cannot read file.')
-        assert(#value <= limit, 'File is too large.')
-        return value
+        assert(fs.content, 'Cannot read file.')
+        assert(#fs.content <= limit, 'File is too large.')
+        return fs.content
     end
     fs.write_new = function(path, value)
-        assert(fs.data[path] == nil, 'File already exists.')
-        check('write_new', path)
-        fs.data[path] = value
+        if fs.fail == 'write_new' then error('Injected write_new failure', 0) end
+        assert(fs.temp == nil, 'Temp file already exists.')
+        fs.temp = value
     end
     fs.rename = function(source, target)
-        assert(fs.data[source], 'Cannot publish file.')
-        check('rename', target)
-        fs.data[target] = fs.data[source]
-        fs.data[source] = nil
+        if fs.fail == 'rename' then error('Injected rename failure', 0) end
+        assert(fs.temp, 'Cannot publish file.')
+        fs.content = fs.temp
+        fs.temp = nil
     end
-    fs.remove_if_exists = function(path) fs.data[path] = nil end
+    fs.remove_if_exists = function(path)
+        if path:match('%.tmp$') then fs.temp = nil else fs.content = nil end
+    end
     fs.sync_directory = function() fs.syncs = fs.syncs + 1 end
     fs.random = function() fs.serial = fs.serial + 1; return 'r' .. fs.serial end
     return fs
 end
 
 local function service(fs)
-    return factory({ files = fs, config = { settings = CONF, script = JS } })
-end
-
-local function temps(fs)
-    local found = {}
-    for path in pairs(fs.data) do
-        if path:match('%.tmp$') then found[#found + 1] = path end
-    end
-    return found
+    return factory({ files = fs, config = '/data/mzd-tweaks/settings.js' })
 end
 
 local function same(actual, expected, message)
@@ -59,7 +47,6 @@ local function same(actual, expected, message)
 end
 
 local DEFAULTS = { main_menu_loop = false, list_loop = false, list_beep = true, short_delay = false }
-local DEFAULT_CONF = 'main_menu_loop=false\nlist_loop=false\nlist_beep=true\nshort_delay=false\n'
 local function js(a, b, c, d)
     return 'window.mzdTweaks = {\n    "main_menu_loop": ' .. a .. ',\n    "list_loop": ' .. b ..
         ',\n    "list_beep": ' .. c .. ',\n    "short_delay": ' .. d .. '\n};\n'
@@ -69,39 +56,34 @@ end
 do
     local fs = fake_files()
     same(service(fs).request('get').settings, DEFAULTS, 'defaults')
-    assert(fs.data[JS] == js('false', 'false', 'true', 'false'), 'get creates settings.js')
-    assert(fs.data[CONF] == nil, 'get does not create settings.conf')
-    assert(#temps(fs) == 0)
+    assert(fs.content == js('false', 'false', 'true', 'false'), 'get creates settings.js')
+    assert(fs.temp == nil)
 end
 
--- Parsing: CRLF, comments, case, spacing, yes/on/0 and unknown values.
+-- Parsing boolean values from JS object.
 do
-    local fs = fake_files()
-    fs.data[CONF] = '# saved\r\nMAIN_MENU_LOOP = yes\r\nlist_loop=on # note\r\nlist_beep=0\r\nshort_delay=maybe\r\nother=true\r\n'
+    local fs = fake_files('// saved\r\nwindow.mzdTweaks = {\r\n    "main_menu_loop": true,\r\n    "list_loop": false,\r\n    "list_beep": false,\r\n    "short_delay": true\r\n};\r\n')
     same(service(fs).request('get').settings,
-        { main_menu_loop = true, list_loop = true, list_beep = false, short_delay = false }, 'parsed')
+        { main_menu_loop = true, list_loop = false, list_beep = false, short_delay = true }, 'parsed')
 end
 
--- set writes both files in the formats resident.js and settings.js expect.
+-- set writes settings.js in the format resident.js expects.
 do
-    local fs = fake_files()
-    fs.data[CONF] = DEFAULT_CONF
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
     local svc = service(fs)
     same(svc.request('set', { key = 'list_loop', value = true }).settings,
         { main_menu_loop = false, list_loop = true, list_beep = true, short_delay = false }, 'set result')
-    assert(fs.data[CONF] == 'main_menu_loop=false\nlist_loop=true\nlist_beep=true\nshort_delay=false\n', 'conf written')
-    assert(fs.data[JS] == js('false', 'true', 'true', 'false'), 'js written')
+    assert(fs.content == js('false', 'true', 'true', 'false'), 'js written')
     assert(fs.syncs > 0, 'the directory is synced')
-    assert(#temps(fs) == 0, 'no temp files remain')
+    assert(fs.temp == nil, 'no temp file remains')
     same(service(fs).request('get').settings,
         { main_menu_loop = false, list_loop = true, list_beep = true, short_delay = false }, 'a fresh service reads it back')
 end
 
 -- Unknown keys, bad values and unknown operations are refused; nothing changes.
 do
-    local fs = fake_files()
-    fs.data[CONF] = DEFAULT_CONF
-    fs.data[JS] = js('false', 'false', 'true', 'false')
+    local initial = js('false', 'false', 'true', 'false')
+    local fs = fake_files(initial)
     local svc = service(fs)
     local ok, err = pcall(svc.request, 'set', { key = 'list_lop', value = true })
     assert(not ok and tostring(err):match('Unknown setting: list_lop'), 'unknown key refused: ' .. tostring(err))
@@ -113,48 +95,29 @@ do
     assert(not ok, 'non-table arguments refused')
     ok, err = pcall(svc.request, 'drop', {})
     assert(not ok and tostring(err):match('Unknown operation: drop'), 'unknown operation refused')
-    assert(fs.data[CONF] == DEFAULT_CONF and fs.data[JS] == js('false', 'false', 'true', 'false'), 'both files unchanged')
+    assert(fs.content == initial, 'file unchanged')
 end
 
--- A failed write of the second temp file leaves both saved files untouched.
+-- A failed write of the temp file leaves the saved file untouched.
 do
-    local fs = fake_files()
-    fs.data[CONF] = DEFAULT_CONF
-    fs.data[JS] = js('false', 'false', 'true', 'false')
-    fs.fail.write_new = '^/data/mzd%-tweaks/settings%.js%.'
+    local initial = js('false', 'false', 'true', 'false')
+    local fs = fake_files(initial)
+    fs.fail = 'write_new'
     local ok = pcall(service(fs).request, 'set', { key = 'short_delay', value = true })
     assert(not ok, 'the save fails')
-    assert(fs.data[CONF] == DEFAULT_CONF, 'conf untouched when the js temp cannot be written')
-    assert(fs.data[JS] == js('false', 'false', 'true', 'false'), 'js untouched')
-    assert(#temps(fs) == 0, 'the first temp file is removed')
+    assert(fs.content == initial, 'js untouched')
+    assert(fs.temp == nil, 'the temp file is removed')
 end
 
--- A failed publish of settings.js puts the previous settings.conf back.
+-- A failed publish of settings.js leaves the saved file untouched.
 do
-    local fs = fake_files()
-    fs.data[CONF] = DEFAULT_CONF
-    fs.data[JS] = js('false', 'false', 'true', 'false')
-    fs.fail.rename = '^/data/mzd%-tweaks/settings%.js$'
+    local initial = js('false', 'false', 'true', 'false')
+    local fs = fake_files(initial)
+    fs.fail = 'rename'
     local ok, err = pcall(service(fs).request, 'set', { key = 'main_menu_loop', value = true })
     assert(not ok and tostring(err):match('Injected rename failure'), 'the original error is raised: ' .. tostring(err))
-    assert(fs.data[CONF] == DEFAULT_CONF, 'the previous conf is restored')
-    assert(fs.data[JS] == js('false', 'false', 'true', 'false'), 'js untouched')
-    assert(#temps(fs) == 0, 'no temp files remain')
+    assert(fs.content == initial, 'js untouched')
+    assert(fs.temp == nil, 'the temp file is removed')
 end
 
--- get repairs a settings.js that differs from settings.conf, and reports a failed repair.
-do
-    local fs = fake_files()
-    fs.data[CONF] = 'main_menu_loop=true\nlist_loop=false\nlist_beep=true\nshort_delay=false\n'
-    fs.data[JS] = js('false', 'false', 'true', 'false')
-    service(fs).request('get')
-    assert(fs.data[JS] == js('true', 'false', 'true', 'false'), 'stale settings.js is rewritten')
-
-    fs.data[JS] = js('false', 'false', 'true', 'false')
-    fs.fail.rename = '^/data/mzd%-tweaks/settings%.js$'
-    local ok = pcall(service(fs).request, 'get')
-    assert(not ok, 'a failed repair is reported, not ignored')
-    assert(#temps(fs) == 0)
-end
-
-print('MZD_TWEAKS_SERVICE_PASSED: defaults, parsing, both files written, refusals change nothing, failed temp write and failed publish keep the saved settings, stale settings.js repaired.')
+print('MZD_TWEAKS_SERVICE_PASSED: defaults, parsing, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')

@@ -153,25 +153,32 @@ fi
 
 SETTINGS_JSON="{}"
 if [ -n "$CONF_FILE" ]; then
-    SETTINGS_JSON=$(awk '
-    BEGIN { count = 0; printf "{" }
-    /^[ \t]*#/ { next }
-    /^[ \t]*$/ { next }
-    /=/ {
-        split($0, parts, "=")
-        sub(/^[ \t]+/, "", parts[1]); sub(/[ \t]+$/, "", parts[1])
-        sub(/^[ \t]+/, "", parts[2]); sub(/[ \t]+$/, "", parts[2])
-        k = tolower(parts[1])
-        v = parts[2]
-        if (v ~ /^[0-9]+$/) val = v
-        else if (v == "true" || v == "yes" || v == "on") val = "true"
-        else if (v == "false" || v == "no" || v == "off") val = "false"
-        else val = "\"" v "\""
-        if (count++ > 0) printf ","
-        printf "\"%s\":%s", k, val
-    }
-    END { printf "}" }
-    ' "$CONF_FILE")
+    case "$CONF_FILE" in
+        *.js)
+            SETTINGS_JSON=$(sed -n '/{/,/}/p' "$CONF_FILE" | sed -e '1s/^[^{]*//' -e '$s/[^}]*$//')
+            ;;
+        *)
+            SETTINGS_JSON=$(awk '
+            BEGIN { count = 0; printf "{" }
+            /^[ \t]*#/ { next }
+            /^[ \t]*$/ { next }
+            /=/ {
+                split($0, parts, "=")
+                sub(/^[ \t]+/, "", parts[1]); sub(/[ \t]+$/, "", parts[1])
+                sub(/^[ \t]+/, "", parts[2]); sub(/[ \t]+$/, "", parts[2])
+                k = tolower(parts[1])
+                v = parts[2]
+                if (v ~ /^[0-9]+$/) val = v
+                else if (v == "true" || v == "yes" || v == "on") val = "true"
+                else if (v == "false" || v == "no" || v == "off") val = "false"
+                else val = "\"" v "\""
+                if (count++ > 0) printf ","
+                printf "\"%s\":%s", k, val
+            }
+            END { printf "}" }
+            ' "$CONF_FILE")
+            ;;
+    esac
 fi
 
 if [ -f "$TWEAK_DIR/manifest.conf" ] && grep -q '^setting\.resolution_dpi\.default=' "$TWEAK_DIR/manifest.conf"; then
