@@ -1,6 +1,6 @@
 /*
  * MZD Tweaks resident and view on the shared settings code (usb/lib/gui-runtime/settings-host.js and settings-view.js).
- * The resident keeps window.mzdTweaks, read by the patched OEM code, in step with the saved
+ * The resident keeps window.mzdTweaks, read by runtime hooks, in step with the saved
  * settings: it changes only after the service confirmed a read or a save. The view only
  * declares four On/Off rows. Fake contexts, no CMU.
  * Run: node tests/tweaks/mzd-tweaks/settings.cjs
@@ -65,7 +65,7 @@ function lastResponse(source) {
 {
   const page = residentPage();
   assert.deepEqual(page.registered, ['mzd-tweaks']);
-  assert.deepEqual(plain(page.win.mzdTweaks), DEFAULTS, 'the patched OEM code finds its defaults before anything is read');
+  assert.deepEqual(plain(page.win.mzdTweaks), DEFAULTS, 'runtime hooks find defaults before anything is read');
   assert.equal(page.scripts.length, 1);
   assert.equal(page.scripts[0].src, '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js', 'the boot script is still requested');
   const prevented = [];
@@ -144,6 +144,362 @@ function lastResponse(source) {
   assert.equal(lastResponse(page.source).state.main_menu_loop, false);
   assert.deepEqual(page.ctx.notes, [['Failed to save settings', true]]);
   assert.deepEqual(page.ctx.logs, ['Settings save failed: Disk full']);
+}
+
+// --- Runtime Hooks for OEM Controls ---
+{
+  function makeFakeControls() {
+    function MainMenuCtrl() {
+      this._focus = 0;
+      this._highlight = 0;
+    }
+    MainMenuCtrl.prototype._getFocus = function () { return this._focus; };
+    MainMenuCtrl.prototype._setFocus = function (idx) { this._focus = idx; };
+    MainMenuCtrl.prototype._setHighlight = function (idx) { this._highlight = idx; };
+    MainMenuCtrl.prototype._offsetFocus = function (direction) {
+      var dir = (direction === -1 || direction === 'left') ? -1 : (direction === 1 || direction === 'right') ? 1 : 0;
+      if (dir === 0) return;
+      var current = this._getFocus();
+      var next = current + dir;
+      if (next < 0) next = 0;
+      if (next > 4) next = 4;
+      this._setFocus(next);
+      this._setHighlight(next);
+    };
+
+    function List2Ctrl() {
+      this.focussedIndex = 0;
+      this.dataList = { itemCount: 5, items: [{ disabled: false }, { disabled: false }, { disabled: false }, { disabled: false }, { disabled: false }] };
+      this.beeps = [];
+      this.init();
+    }
+    List2Ctrl.prototype.defaultProperties = {
+      autoscrollTier1Timeout: 1500,
+      autoscrollTier2Timeout: 5000,
+      autoscrollTier1Interval: 500,
+      autoscrollTier2Interval: 1000
+    };
+    List2Ctrl.prototype.init = function () {
+      this.properties = Object.assign({}, List2Ctrl.prototype.defaultProperties);
+    };
+    List2Ctrl.prototype._getFocussedIndex = function () { return this.focussedIndex; };
+    List2Ctrl.prototype._manageFocus = function (idx) { this.focussedIndex = idx; };
+    List2Ctrl.prototype._beep = function (pressType, eventCause) { this.beeps.push([pressType, eventCause]); };
+    List2Ctrl.prototype._handleMCCW = function () {
+      if (this.focussedIndex >= 0 && this.focussedIndex < this.dataList.itemCount - 1) { this.focussedIndex += 1; }
+      return 'consumed';
+    };
+    List2Ctrl.prototype._handleMCCCW = function () {
+      if (this.focussedIndex > 0) { this.focussedIndex -= 1; }
+      return 'consumed';
+    };
+    List2Ctrl.prototype._handleMCDown = function () {
+      if (this.focussedIndex >= 0 && this.focussedIndex < this.dataList.itemCount - 1) { this.focussedIndex += 1; }
+      return 'consumed';
+    };
+    List2Ctrl.prototype._handleMCUp = function () {
+      if (this.focussedIndex > 0) { this.focussedIndex -= 1; }
+      return 'consumed';
+    };
+    List2Ctrl.prototype._getListPosition = function () {
+      if (this.dataList.itemCount <= (this.properties.visibleItems || 5)) return 'onepage';
+      if (this.focussedIndex === 0) return 'top';
+      if (this.focussedIndex === this.dataList.itemCount - 1) return 'bottom';
+      return 'middle';
+    };
+    List2Ctrl.prototype._scrollTo = function (pos) { this._scrollPos = pos; };
+    List2Ctrl.prototype._scrollDownPage = function () {
+      var pos = this._getListPosition();
+      if (pos === 'onepage' || pos === 'bottom') return 'atLimit';
+      this.focussedIndex = Math.min(this.focussedIndex + 4, this.dataList.itemCount - 1);
+      return 'paged';
+    };
+    List2Ctrl.prototype._scrollUpPage = function () {
+      var pos = this._getListPosition();
+      if (pos === 'onepage' || pos === 'top') return 'atLimit';
+      this.focussedIndex = Math.max(this.focussedIndex - 4, 0);
+      return 'paged';
+    };
+    List2Ctrl.prototype.handleControllerEvent = function (eventID) {
+      if (eventID === 'downStart') {
+        return this._handleMCDown();
+      } else if (eventID === 'upStart') {
+        return this._handleMCUp();
+      } else if (eventID === 'cw') {
+        return this._handleMCCW();
+      } else if (eventID === 'ccw') {
+        return this._handleMCCCW();
+      }
+      return 'consumed';
+    };
+
+    return { MainMenuCtrl, List2Ctrl };
+  }
+
+  // 1. With hooks installed and settings disabled: stock behavior preserved
+  const controls1 = makeFakeControls();
+  const win1 = {
+    MainMenuCtrl: controls1.MainMenuCtrl,
+    List2Ctrl: controls1.List2Ctrl,
+    setTimeout: (fn) => 1,
+    clearTimeout: () => {},
+    setInterval: () => 1,
+    clearInterval: () => {}
+  };
+  vm.runInNewContext(settingsHostSource, { window: win1 });
+  win1.MzdGuiResidents = { register: () => {}, log: () => {} };
+  const doc1 = { head: { appendChild: () => {} }, documentElement: {} };
+  vm.runInNewContext(residentSource, { window: win1, document: doc1 });
+
+  // MainMenuCtrl when main_menu_loop is false
+  const menuCtrl1 = new controls1.MainMenuCtrl();
+  menuCtrl1._setFocus(4);
+  menuCtrl1._offsetFocus(1);
+  assert.equal(menuCtrl1._getFocus(), 4, 'without loop, focus stays at 4 when moving right');
+  menuCtrl1._setFocus(0);
+  menuCtrl1._offsetFocus(-1);
+  assert.equal(menuCtrl1._getFocus(), 0, 'without loop, focus stays at 0 when moving left');
+
+  // List2Ctrl when list_loop is false, list_beep is true, short_delay is false
+  const listCtrl1 = new controls1.List2Ctrl();
+  listCtrl1.focussedIndex = 4;
+  listCtrl1._handleMCCW();
+  assert.equal(listCtrl1.focussedIndex, 4, 'without list loop, focus stays at end when moving forward');
+  listCtrl1.focussedIndex = 0;
+  listCtrl1._handleMCCCW();
+  assert.equal(listCtrl1.focussedIndex, 0, 'without list loop, focus stays at start when moving backward');
+
+  listCtrl1._beep('Long', 'Multicontroller');
+  assert.deepEqual(listCtrl1.beeps, [['Long', 'Multicontroller']], 'beep sounds when list_beep is default true');
+  listCtrl1.focussedIndex = 4;
+  assert.equal(listCtrl1._scrollDownPage(), 'atLimit', 'without list loop, page down stops at limit');
+  assert.equal(listCtrl1.focussedIndex, 4);
+  listCtrl1.focussedIndex = 0;
+  assert.equal(listCtrl1._scrollUpPage(), 'atLimit', 'without list loop, page up stops at limit');
+  assert.equal(listCtrl1.focussedIndex, 0);
+
+  assert.equal(listCtrl1.properties.autoscrollTier1Timeout, 1500, 'stock autoscrollTier1Timeout is 1500');
+  assert.equal(listCtrl1.properties.autoscrollTier2Timeout, 5000, 'stock autoscrollTier2Timeout is 5000');
+  assert.equal(listCtrl1.properties.autoscrollTier1Interval, 500, 'stock autoscrollTier1Interval is 500');
+  assert.equal(listCtrl1.properties.autoscrollTier2Interval, 1000, 'stock autoscrollTier2Interval is 1000');
+
+  // 2. Enable features dynamically
+  win1.mzdTweaks.main_menu_loop = true;
+  win1.mzdTweaks.list_loop = true;
+  win1.mzdTweaks.list_beep = false;
+  win1.mzdTweaks.short_delay = true;
+
+  // Main menu loop active
+  menuCtrl1._setFocus(4);
+  menuCtrl1._offsetFocus(1);
+  assert.equal(menuCtrl1._getFocus(), 0, 'with main_menu_loop, focus wraps from 4 to 0');
+  menuCtrl1._offsetFocus(-1);
+  assert.equal(menuCtrl1._getFocus(), 4, 'with main_menu_loop, focus wraps from 0 to 4');
+  menuCtrl1._offsetFocus('right');
+  assert.equal(menuCtrl1._getFocus(), 0, 'with main_menu_loop, string "right" wraps from 4 to 0');
+  menuCtrl1._offsetFocus('left');
+  assert.equal(menuCtrl1._getFocus(), 4, 'with main_menu_loop, string "left" wraps from 0 to 4');
+  menuCtrl1._setFocus(2);
+  menuCtrl1._offsetFocus(0);
+  assert.equal(menuCtrl1._getFocus(), 2, 'unexpected direction 0 delegates to original without moving focus');
+  menuCtrl1._offsetFocus(undefined);
+  assert.equal(menuCtrl1._getFocus(), 2, 'unexpected undefined direction delegates to original without moving focus');
+  menuCtrl1._setFocus(-1);
+  menuCtrl1._offsetFocus(-1);
+  assert.equal(menuCtrl1._getFocus(), 0, 'unfocused -1 delegates to original without wrapping to 4');
+  menuCtrl1._setFocus(0);
+
+  // List loop active
+  listCtrl1.focussedIndex = 4;
+  listCtrl1._handleMCCW();
+  assert.equal(listCtrl1.focussedIndex, 0, 'with list_loop, rotary CW wraps from bottom to top');
+  listCtrl1.focussedIndex = 0;
+  listCtrl1._handleMCCCW();
+  assert.equal(listCtrl1.focussedIndex, 4, 'with list_loop, rotary CCW wraps from top to bottom');
+  listCtrl1.focussedIndex = 4;
+  listCtrl1._handleMCDown();
+  assert.equal(listCtrl1.focussedIndex, 0, 'with list_loop, tilt down wraps from bottom to top');
+  listCtrl1.focussedIndex = 0;
+  listCtrl1._handleMCUp();
+  assert.equal(listCtrl1.focussedIndex, 4, 'with list_loop, tilt up wraps from top to bottom');
+
+  // List loop does not wrap backwards or forwards when unfocused
+  listCtrl1.focussedIndex = -1;
+  listCtrl1._handleMCCCW();
+  assert.equal(listCtrl1.focussedIndex, -1, 'backward rotation when no item is focused does not wrap to the end');
+  listCtrl1._handleMCUp();
+  assert.equal(listCtrl1.focussedIndex, -1, 'tilt up when no item is focused does not wrap to the end');
+  listCtrl1._handleMCCW();
+  assert.equal(listCtrl1.focussedIndex, -1, 'forward rotation when no item is focused does not wrap');
+  listCtrl1._handleMCDown();
+  assert.equal(listCtrl1.focussedIndex, -1, 'tilt down when no item is focused does not wrap');
+
+  // Tilt-and-hold autoscroll (like MainMenuCtrl) loops continuously without stopping
+  listCtrl1.focussedIndex = 4;
+  listCtrl1.handleControllerEvent('downStart');
+  assert.equal(listCtrl1.focussedIndex, 0, 'downStart on last item loops to 0');
+  assert.equal(listCtrl1._scrollPos, 0, 'short list keeps scroll at 0');
+  assert.equal(listCtrl1._topItem, 0, 'short list keeps _topItem at 0');
+  listCtrl1._handleMCDown();
+  assert.equal(listCtrl1.focussedIndex, 1, 'autoscroll step continues to 1 without stopping');
+  listCtrl1.handleControllerEvent('down');
+  assert.equal(listCtrl1._tiltHoldTimeoutId, null, 'releasing down clears timeout');
+  assert.equal(listCtrl1._tiltHoldIntervalId, null, 'releasing down clears interval');
+
+  listCtrl1.focussedIndex = 0;
+  listCtrl1.handleControllerEvent('upStart');
+  assert.equal(listCtrl1.focussedIndex, 4, 'upStart on first item loops to 4');
+  assert.equal(listCtrl1._scrollPos, 0, 'short list keeps scroll at 0 when looping up');
+  assert.equal(listCtrl1._topItem, 0, 'short list keeps _topItem at 0 when looping up');
+  listCtrl1._handleMCUp();
+  assert.equal(listCtrl1.focussedIndex, 3, 'autoscroll step continues to 3 without stopping');
+  listCtrl1.handleControllerEvent('up');
+  assert.equal(listCtrl1._tiltHoldTimeoutId, null, 'releasing up clears timeout');
+  assert.equal(listCtrl1._tiltHoldIntervalId, null, 'releasing up clears interval');
+
+  // Test continuous autoscroll timer and interval execution across multiple full loops
+  let timeoutFn = null;
+  let intervalFn = null;
+  win1.setTimeout = (fn) => { timeoutFn = fn; return 101; };
+  win1.setInterval = (fn) => { intervalFn = fn; return 202; };
+  listCtrl1.focussedIndex = 3;
+  listCtrl1.handleControllerEvent('downStart');
+  assert.equal(listCtrl1.focussedIndex, 4, 'downStart moves from 3 to 4');
+  assert.equal(listCtrl1._tiltHoldTimeoutId, 101, 'timeout is scheduled');
+  assert.equal(typeof timeoutFn, 'function');
+  timeoutFn(); // timeout triggers autoscroll step
+  assert.equal(listCtrl1.focussedIndex, 0, 'timeout step wraps from 4 to 0');
+  assert.equal(listCtrl1._tiltHoldIntervalId, 202, 'interval is scheduled');
+  assert.equal(typeof intervalFn, 'function');
+  intervalFn(); // tick 1
+  assert.equal(listCtrl1.focussedIndex, 1, 'interval step continues to 1');
+  intervalFn(); // tick 2
+  assert.equal(listCtrl1.focussedIndex, 2, 'interval step continues to 2');
+  intervalFn(); // tick 3
+  assert.equal(listCtrl1.focussedIndex, 3, 'interval step continues to 3');
+  intervalFn(); // tick 4
+  assert.equal(listCtrl1.focussedIndex, 4, 'interval step continues to 4');
+  intervalFn(); // tick 5: loops again without stopping!
+  assert.equal(listCtrl1.focussedIndex, 0, 'interval step loops again to 0');
+  assert.equal(listCtrl1._scrollPos, 0, 'short list keeps scroll at 0 across multiple loops');
+  assert.equal(listCtrl1._topItem, 0, 'short list keeps _topItem at 0 across multiple loops');
+  listCtrl1.handleControllerEvent('down'); // user releases down
+  assert.equal(listCtrl1._tiltHoldTimeoutId, null, 'releasing down clears timeout');
+  assert.equal(listCtrl1._tiltHoldIntervalId, null, 'releasing down clears interval');
+
+  // Multi-page list wraps page scrolling
+  const multiPageList = new controls1.List2Ctrl();
+  multiPageList.dataList = {
+    itemCount: 10,
+    items: Array.from({ length: 10 }, () => ({ disabled: false }))
+  };
+  multiPageList.properties.visibleItems = 5;
+  multiPageList.focussedIndex = 9;
+  assert.equal(multiPageList._scrollDownPage(), 'paged', 'multi-page scroll down wraps to top page');
+  assert.equal(multiPageList.focussedIndex, 0, 'focus placed on first item after wrap');
+  assert.equal(multiPageList._scrollPos, 0, 'scrolled to top');
+
+  multiPageList.focussedIndex = 0;
+  assert.equal(multiPageList._scrollUpPage(), 'paged', 'multi-page scroll up wraps to bottom page');
+  assert.equal(multiPageList.focussedIndex, 9, 'focus placed on last item after wrap');
+  assert.equal(multiPageList._scrollPos, 5, 'scrolled to bottom');
+
+  // List beep muted
+  listCtrl1.beeps = [];
+  listCtrl1._beep('Long', 'Multicontroller');
+  assert.deepEqual(listCtrl1.beeps, [], 'beep is muted when list_beep is false');
+  listCtrl1._beep('Short', 'Multicontroller');
+  assert.deepEqual(listCtrl1.beeps, [['Short', 'Multicontroller']], 'only long multicontroller beep is muted');
+
+  // Shorter delay active
+  assert.equal(listCtrl1.properties.autoscrollTier1Timeout, 500, 'short_delay sets autoscrollTier1Timeout to 500');
+  assert.equal(listCtrl1.properties.autoscrollTier2Timeout, 1500, 'short_delay sets autoscrollTier2Timeout to 1500');
+  assert.equal(listCtrl1.properties.autoscrollTier1Interval, 300, 'short_delay sets autoscrollTier1Interval to 300');
+  assert.equal(listCtrl1.properties.autoscrollTier2Interval, 500, 'short_delay sets autoscrollTier2Interval to 500');
+  assert.equal(controls1.List2Ctrl.prototype.defaultProperties.autoscrollTier1Timeout, 500, 'short_delay sets autoscrollTier1Timeout on defaultProperties');
+}
+
+{
+  // Bounded polling timer clears even when controls are never instantiated
+  let pollCallback;
+  let cleared = false;
+  let clearedId = null;
+  const timerWin = {
+    setInterval: (cb) => { pollCallback = cb; return 42; },
+    clearInterval: (id) => { cleared = true; clearedId = id; }
+  };
+  vm.runInNewContext(settingsHostSource, { window: timerWin });
+  timerWin.MzdGuiResidents = { register: () => {}, log: () => {} };
+  const timerDoc = { head: { appendChild: () => {} }, documentElement: {} };
+  vm.runInNewContext(residentSource, { window: timerWin, document: timerDoc });
+
+  assert.equal(typeof pollCallback, 'function', 'polling timer starts when controls are absent');
+  for (let i = 0; i < 299; i++) {
+    pollCallback();
+    assert.equal(cleared, false, 'timer continues before 300 attempts');
+  }
+  pollCallback(); // 300th attempt
+  assert.equal(cleared, true, 'timer clears after reaching bounded limit of 300 attempts');
+  assert.equal(clearedId, 42);
+}
+
+{
+  // framework.instantiateControl hook
+  let origInstantiateCalled = false;
+  const fwControls = makeFakeControls();
+  const fwWin = {
+    framework: {
+      instantiateControl: () => {
+        origInstantiateCalled = true;
+        return {};
+      }
+    },
+    setInterval: () => 1,
+    clearInterval: () => {}
+  };
+  vm.runInNewContext(settingsHostSource, { window: fwWin });
+  fwWin.MzdGuiResidents = { register: () => {}, log: () => {} };
+  const fwDoc = { head: { appendChild: () => {} }, documentElement: {} };
+  vm.runInNewContext(residentSource, { window: fwWin, document: fwDoc });
+
+  fwWin.MainMenuCtrl = fwControls.MainMenuCtrl;
+  fwWin.List2Ctrl = fwControls.List2Ctrl;
+  assert.equal(fwControls.MainMenuCtrl.prototype._mzdTweaksHooked, undefined);
+  assert.equal(fwControls.List2Ctrl.prototype._mzdTweaksHooked, undefined);
+
+  fwWin.framework.instantiateControl(null, null, 'MainMenuCtrl', {});
+  assert.equal(origInstantiateCalled, true);
+  assert.equal(fwControls.MainMenuCtrl.prototype._mzdTweaksHooked, true, 'MainMenuCtrl hooked on instantiateControl');
+
+  fwWin.framework.instantiateControl(null, null, 'List2Ctrl', {});
+  assert.equal(fwControls.List2Ctrl.prototype._mzdTweaksHooked, true, 'List2Ctrl hooked on instantiateControl');
+}
+
+{
+  // proto.defaultProperties defined after hookList2 is bound dynamically by init()
+  const controlsLate = makeFakeControls();
+  delete controlsLate.List2Ctrl.prototype.defaultProperties;
+  const lateWin = {
+    List2Ctrl: controlsLate.List2Ctrl,
+    setInterval: () => 1,
+    clearInterval: () => {}
+  };
+  vm.runInNewContext(settingsHostSource, { window: lateWin });
+  lateWin.MzdGuiResidents = { register: () => {}, log: () => {} };
+  const lateDoc = { head: { appendChild: () => {} }, documentElement: {} };
+  vm.runInNewContext(residentSource, { window: lateWin, document: lateDoc });
+
+  // defaultProperties added after initial hook
+  controlsLate.List2Ctrl.prototype.defaultProperties = {
+    autoscrollTier1Timeout: 1500,
+    autoscrollTier2Timeout: 5000,
+    autoscrollTier1Interval: 500,
+    autoscrollTier2Interval: 1000
+  };
+  lateWin.mzdTweaks.short_delay = true;
+  const lateList = new controlsLate.List2Ctrl();
+  assert.equal(lateList.properties.autoscrollTier1Timeout, 500, 'instance properties bound by init()');
+  assert.equal(controlsLate.List2Ctrl.prototype.defaultProperties.autoscrollTier1Timeout, 500, 'proto.defaultProperties bound by init() when added late');
 }
 
 // --- View -------------------------------------------------------------------

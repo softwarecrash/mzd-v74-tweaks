@@ -25,7 +25,7 @@ MZD Tweaks adds an **MZD Tweaks** menu in **Applications**:
 
 Supported firmware: **74.00.324**.
 - **Install**: Select MZD Tweaks in the USB installer and choose **Install**. One
-  reboot is required after installation to load the patched OEM controls
-  (`List2Ctrl.js`, `MainMenuCtrl.js`).
+  reboot is required after installation to initialize the shared GUI runtime.
+  OEM system files are not modified; all enhancements are applied at runtime in memory.
 - **Uninstall**: Select **Uninstall** in the installer. Choose whether to keep or
-  remove the saved settings when prompted. Factory OEM files are verified and restored.
+  remove the saved settings when prompted. Removes the extension cleanly.

@@ -1,6 +1,6 @@
 -- Runtime settings manager for MZD Tweaks.
 -- settings.js is the saved source of truth. resident.js loads it at boot so
--- the patched OEM controls have the saved values before this service is running.
+-- runtime hooks have the saved values before this service is running.
 local DEFAULTS = {
     main_menu_loop = false,
     list_loop = false,

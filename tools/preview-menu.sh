@@ -228,6 +228,28 @@ if [ "$USE_EMU" -eq 1 ]; then
         "$ID" "$GUI_MENU_PATH" "$GUI_LABEL" "$ID" "$GUI_ENTRYPOINT" "$resident" "$service" "$translations" | \
         awk -f "$REPO_DIR/usb/lib/gui-registry.awk" > "$EMU_DIR/data/integration/mzd-gui-registry.js"
 
+    # Ensure persistent settings directory and default settings file exist in the emulator if not present
+    EMU_SETTINGS_DIR="$EMU_DIR/tmp/mnt/data_persist/$ID/data/$ID"
+    mkdir -p "$EMU_SETTINGS_DIR"
+    if [ ! -f "$EMU_SETTINGS_DIR/settings.js" ]; then
+        if [ -f "$TWEAK_DIR/assets/settings.js" ]; then
+            cp "$TWEAK_DIR/assets/settings.js" "$EMU_SETTINGS_DIR/settings.js"
+            echo "Copied default settings.js to emulator persistent storage ($EMU_SETTINGS_DIR/settings.js)"
+        elif [ -n "$CONF_FILE" ] && [ -f "$CONF_FILE" ]; then
+            cp "$CONF_FILE" "$EMU_SETTINGS_DIR/settings.js"
+            echo "Copied $CONF_FILE to emulator persistent storage ($EMU_SETTINGS_DIR/settings.js)"
+        fi
+    fi
+
+    # Restore any previously patched OEM files if .orig backups exist in the emulator.
+    for target_rel in /jci/gui/common/controls/List2/js/List2Ctrl.js /jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js; do
+        if [ -f "$EMU_DIR$target_rel.orig" ]; then
+            cp "$EMU_DIR$target_rel.orig" "$EMU_DIR$target_rel"
+            rm -f "$EMU_DIR$target_rel.orig"
+            echo "Restored original $target_rel in emulator"
+        fi
+    done
+
     # If the tweak defines components, apply any GUI patches to mzd-emu's files.
     if [ -n "${COMPONENTS:-}" ] && [ -f "$TWEAK_DIR/$COMPONENTS" ]; then
         echo "Applying component patches to $EMU_DIR..."
