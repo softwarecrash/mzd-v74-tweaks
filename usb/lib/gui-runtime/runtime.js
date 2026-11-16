@@ -72,6 +72,7 @@
         if (!old) { return; } active = null;
         releaseReturnHooks(old);
         window.clearTimeout(old.timeout); window.clearTimeout(old.selectionTimer); window.clearInterval(old.monitor);
+        try { if (old.frame && old.frame.contentWindow.MzdGuiModule) { old.frame.contentWindow.MzdGuiModule._dispose(); } } catch (ignore) {}
         if (old.module && window.MzdGuiResidents && typeof window.MzdGuiResidents.view === 'function') { window.MzdGuiResidents.view(old.module.id,null); }
         if (old.languageCleanup) { old.languageCleanup(); }
         disposeMenu(old);
@@ -86,7 +87,6 @@
                 if (old.sbChanged && fw.common && typeof fw.common.setSbNameId === 'function') { fw.common.setSbNameId('system','Applications'); }
             }
         } catch (ignore3) {}
-        try { if (old.frame && old.frame.contentWindow.MzdGuiModule) { old.frame.contentWindow.MzdGuiModule._dispose(); } } catch (ignore) {}
         if (old.root.parentNode) { old.root.parentNode.removeChild(old.root); }
         if (restore) { try { if (old.focus && old.focus.focus) { old.focus.focus(); } } catch (ignore2) {} }
     }
@@ -355,6 +355,7 @@
         else if (data.type === 'mzd-gui-layout') { layout(data.message); }
         else if (data.type === 'mzd-gui-ready') { active.ready = true; window.clearTimeout(active.timeout); try { active.frame.contentWindow.focus(); } catch (ignore) {} }
         else if (data.type === 'mzd-gui-close') { if (active.parent) { submenu(''); } else { close(true); } }
+        else if (data.type === 'mzd-gui-home') { close(false); var homeFw = fw || window.framework; if (homeFw && typeof homeFw.sendEventToMmui === 'function') { homeFw.sendEventToMmui('common', 'Global.IntentHome'); } }
         else if (data.type === 'mzd-gui-error') { failed(String(data.message || 'Module error').substring(0,512)); }
         else if (data.type === 'mzd-gui-log') { log(String(data.message || '').substring(0,512)); }
     }

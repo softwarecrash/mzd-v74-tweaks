@@ -2,5 +2,27 @@ window.mzdTweaks = {
     "main_menu_loop": false,
     "list_loop": false,
     "list_beep": true,
-    "short_delay": false
+    "short_delay": false,
+    "audio_order_custom": false,
+    "audio_order": {
+        "audio_traffic_info": 0,
+        "audio_fm_radio": 1,
+        "audio_am_radio": 2,
+        "audio_dab": 3,
+        "audio_sat_radio": 4,
+        "audio_xm_audio": 5,
+        "audio_aha_radio": 6,
+        "audio_pandora": 7,
+        "audio_stitcher": 8,
+        "audio_bt_audio": 9,
+        "audio_car_play_wifi": 10,
+        "audio_car_play": 11,
+        "audio_android_auto": 12,
+        "audio_usb_a": 13,
+        "audio_usb_b": 14,
+        "audio_cd": 15,
+        "audio_aux_in": 16,
+        "audio_dvd": 17,
+        "audio_tv": 18
+    }
 };

@@ -63,6 +63,24 @@
             }
             return true;
         }
+        if (data.type === prefix + '-native-home') {
+            owns = nativeMenu.owns(event.source, data.token);
+            if (!(token && data.token === token) && !owns) { return false; }
+            if (typeof options.onHome === 'function') {
+                options.onHome();
+            } else {
+                var s = nativeMenu.getSession ? nativeMenu.getSession() : null;
+                var fw = global.framework;
+                var orig = s ? s.originalSend : (fw && typeof fw.sendEventToMmui === 'function' ? fw.sendEventToMmui : null);
+                nativeMenu.close(false);
+                if (orig) {
+                    orig.call(fw, 'common', 'Global.IntentHome');
+                } else if (fw && typeof fw.sendEventToMmui === 'function') {
+                    fw.sendEventToMmui('common', 'Global.IntentHome');
+                }
+            }
+            return true;
+        }
         if (!token || data.token !== token) { return false; }
         if (data.type !== prefix + '-native-render' &&
                 data.type !== prefix + '-native-input' &&
@@ -167,6 +185,23 @@
             if (viewOpen) {
                 viewOpen = false;
                 notifyReboot();
+            }
+        }
+
+        function leaveHome() {
+            var s = nativeMenu.getSession ? nativeMenu.getSession() : null;
+            var fw = global.framework;
+            var orig = s ? s.originalSend : (fw && typeof fw.sendEventToMmui === 'function' ? fw.sendEventToMmui : null);
+            nativeMenu.close(false);
+            stopPolling();
+            if (viewOpen) {
+                viewOpen = false;
+                notifyReboot();
+            }
+            if (orig) {
+                orig.call(fw, 'common', 'Global.IntentHome');
+            } else if (fw && typeof fw.sendEventToMmui === 'function') {
+                fw.sendEventToMmui('common', 'Global.IntentHome');
             }
         }
 
@@ -313,7 +348,7 @@
 
         function receive(event) {
             var data = event.data;
-            if (handleNativeMessage(nativeMenu, context, prefix, event, { onRelease: leave })) { return; }
+            if (handleNativeMessage(nativeMenu, context, prefix, event, { onRelease: leave, onHome: leaveHome })) { return; }
             if (!data || data.type !== prefix + '-request' || !data.token ||
                     data.token !== frameToken(context, event.source)) {
                 return;

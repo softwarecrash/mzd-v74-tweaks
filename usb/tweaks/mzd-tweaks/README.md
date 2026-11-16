@@ -1,18 +1,30 @@
 # MZD Tweaks
 
-Adds four interface enhancements, each with an on/off setting in the Mazda Applications menu.
+Adds interface enhancements, each with configurable settings in the Mazda Applications menu.
 
 Features included:
 - **Main Menu Loop**: Wrap between the first and last main-menu icons.
 - **List Loop**: Wrap between the first and last selectable items in scrollable lists.
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **Shorter Delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
+- **Entertainment menu order**: Customize the display order of audio sources in the factory Entertainment menu.
 
 ## Configuration
 
 MZD Tweaks adds an **MZD Tweaks** menu in **Applications**:
-- Each feature can be turned on or off there. The change is saved and then
-  applied to the running interface; no reboot is needed after the first one.
+- Each feature can be configured there. Changes are saved and applied to the
+  running interface immediately; no reboot is needed after the first one.
+- **Entertainment menu order**:
+  - Displays **Default** or **Custom** depending on whether custom order is active.
+  - Subpage provides an **Enable custom order** toggle. When disabled, the factory
+    stock audio order is restored.
+  - Only available audio sources (detected from hardware and vehicle configuration) appear in the subpage list.
+  - Select an audio source item to mark it with a checkmark, then rotate or tilt
+    (up/down) the commander knob to move the item up or down in the list.
+  - Reordered items are automatically saved upon leaving the subpage (via Back button
+    or Home button) accompanied by a "Settings saved" notification once confirmed by the service.
+    Global variables and the OEM Entertainment menu are updated immediately once saved
+    (via `mzdTweaksResortEntertainment()`, which re-sorts and updates the list in the system app).
 - The menu is the only way to change these settings. There is no USB
   pre-configuration file.
 - Settings are saved to `/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js`.

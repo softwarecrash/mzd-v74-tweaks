@@ -9,9 +9,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'List menu beep',
             'short_delay': 'Shorter list menu delay',
             'saveError': 'Failed to save settings',
-            'loading': 'Loading settings...',
-            'serviceUnavailable': 'Service unavailable. Please retry.',
-            'menuError': 'The Mazda menu could not be opened. Please reopen the app.'
+            'menuError': 'The Mazda menu could not be opened. Please reopen the app.',
+            'audio_order_title': 'Entertainment menu order',
+            'audio_order_custom': 'Enable custom order',
+            'custom': 'Custom',
+            'default': 'Default',
+            'audio_order_hint': 'Press knob and rotate to change order',
+            'settings_saved': 'Settings saved'
         },
         'de_DE': {
             'gui.label': 'MZD Tweaks',
@@ -21,9 +25,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Listenmenü-beep',
             'short_delay': 'Kürzere listenmenü-verzögerung',
             'saveError': 'Fehler beim Speichern der Einstellungen',
-            'loading': 'Einstellungen werden geladen...',
-            'serviceUnavailable': 'Dienst nicht verfügbar. Erneut versuchen.',
-            'menuError': 'Das Mazda-Menü konnte nicht geöffnet werden. Bitte App erneut öffnen.'
+            'menuError': 'Das Mazda-Menü konnte nicht geöffnet werden. Bitte App erneut öffnen.',
+            'audio_order_title': 'Unterhaltungsmenü-Reihenfolge',
+            'audio_order_custom': 'Benutzerdefinierte Reihenfolge aktivieren',
+            'custom': 'Benutzerdefiniert',
+            'default': 'Standard',
+            'audio_order_hint': 'Knopf drücken und drehen, um Reihenfolge zu ändern',
+            'settings_saved': 'Einstellungen gespeichert'
         },
         'es_ES': {
             'gui.label': 'MZD Tweaks',
@@ -33,9 +41,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Pitido del menú de lista',
             'short_delay': 'Retraso del menú de lista más corto',
             'saveError': 'Error al guardar los ajustes',
-            'loading': 'Cargando ajustes...',
-            'serviceUnavailable': 'Servicio no disponible. Inténtalo de nuevo.',
-            'menuError': 'No se pudo abrir el menú de Mazda. Abre de nuevo la aplicación.'
+            'menuError': 'No se pudo abrir el menú de Mazda. Abre de nuevo la aplicación.',
+            'audio_order_title': 'Orden del menú entretenimiento',
+            'audio_order_custom': 'Activar orden personalizado',
+            'custom': 'Personalizado',
+            'default': 'Predeterminado',
+            'audio_order_hint': 'Presione el mando y gire para cambiar el orden',
+            'settings_saved': 'Ajustes guardados'
         },
         'fr_FR': {
             'gui.label': 'MZD Tweaks',
@@ -45,9 +57,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Bip du menu liste',
             'short_delay': 'Délai du menu liste réduit',
             'saveError': 'Échec de l\'enregistrement des réglages',
-            'loading': 'Chargement des réglages...',
-            'serviceUnavailable': 'Service indisponible. Réessayez.',
-            'menuError': 'Impossible d’ouvrir le menu Mazda. Rouvrez l’application.'
+            'menuError': 'Impossible d’ouvrir le menu Mazda. Rouvrez l’application.',
+            'audio_order_title': 'Ordre du menu divertissement',
+            'audio_order_custom': 'Activer l’ordre personnalisé',
+            'custom': 'Personnalisé',
+            'default': 'Par défaut',
+            'audio_order_hint': 'Appuyez sur la molette et tournez pour changer l’ordre',
+            'settings_saved': 'Réglages enregistrés'
         },
         'it_IT': {
             'gui.label': 'MZD Tweaks',
@@ -57,9 +73,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Beep menu elenco',
             'short_delay': 'Ritardo menu elenco più breve',
             'saveError': 'Impossibile salvare le impostazioni',
-            'loading': 'Caricamento impostazioni...',
-            'serviceUnavailable': 'Servizio non disponibile. Riprova.',
-            'menuError': 'Impossibile aprire il menu Mazda. Riapri l’app.'
+            'menuError': 'Impossibile aprire il menu Mazda. Riapri l’app.',
+            'audio_order_title': 'Ordine menu intrattenimento',
+            'audio_order_custom': 'Attiva ordine personalizzato',
+            'custom': 'Personalizzato',
+            'default': 'Predefinito',
+            'audio_order_hint': 'Premi la manopola e ruota per modificare l’ordine',
+            'settings_saved': 'Impostazioni salvate'
         },
         'nl_NL': {
             'gui.label': 'MZD Tweaks',
@@ -69,9 +89,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Lijstmenu pieptoon',
             'short_delay': 'Kortere lijstmenu vertraging',
             'saveError': 'Opslaan van instellingen mislukt',
-            'loading': 'Instellingen laden...',
-            'serviceUnavailable': 'Dienst niet beschikbaar. Probeer opnieuw.',
-            'menuError': 'Het Mazda-menu kon niet worden geopend. Open de app opnieuw.'
+            'menuError': 'Het Mazda-menu kon niet worden geopend. Open de app opnieuw.',
+            'audio_order_title': 'Volgorde entertainmentmenu',
+            'audio_order_custom': 'Aangepaste volgorde inschakelen',
+            'custom': 'Aangepast',
+            'default': 'Standaard',
+            'audio_order_hint': 'Druk op de knop en draai om volgorde te wijzigen',
+            'settings_saved': 'Instellingen opgeslagen'
         },
         'pt_PT': {
             'gui.label': 'MZD Tweaks',
@@ -81,9 +105,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Bip do menu de lista',
             'short_delay': 'Atraso do menu de lista mais curto',
             'saveError': 'Falha ao guardar as definições',
-            'loading': 'A carregar definições...',
-            'serviceUnavailable': 'Serviço indisponível. Tente novamente.',
-            'menuError': 'Não foi possível abrir o menu Mazda. Reabra a aplicação.'
+            'menuError': 'Não foi possível abrir o menu Mazda. Reabra a aplicação.',
+            'audio_order_title': 'Ordem do menu entretenimento',
+            'audio_order_custom': 'Ativar ordem personalizada',
+            'custom': 'Personalizado',
+            'default': 'Predefinição',
+            'audio_order_hint': 'Prima o comando e rode para alterar a ordem',
+            'settings_saved': 'Definições guardadas'
         },
         'pt_BR': {
             'gui.label': 'MZD Tweaks',
@@ -93,9 +121,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Bip do menu de lista',
             'short_delay': 'Atraso do menu de lista mais curto',
             'saveError': 'Falha ao salvar as configurações',
-            'loading': 'Carregando configurações...',
-            'serviceUnavailable': 'Serviço indisponível. Tente novamente.',
-            'menuError': 'Não foi possível abrir o menu Mazda. Reabra o aplicativo.'
+            'menuError': 'Não foi possível abrir o menu Mazda. Reabra o aplicativo.',
+            'audio_order_title': 'Ordem do menu entretenimento',
+            'audio_order_custom': 'Ativar ordem personalizada',
+            'custom': 'Personalizado',
+            'default': 'Padrão',
+            'audio_order_hint': 'Pressione o botão e gire para alterar a ordem',
+            'settings_saved': 'Configurações salvas'
         },
         'ru_RU': {
             'gui.label': 'MZD Tweaks',
@@ -105,9 +137,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Звуковой сигнал меню списка',
             'short_delay': 'Сокращенная задержка меню списка',
             'saveError': 'Не удалось сохранить настройки',
-            'loading': 'Загрузка настроек...',
-            'serviceUnavailable': 'Сервис недоступен. Повторите попытку.',
-            'menuError': 'Не удалось открыть меню Mazda. Откройте приложение заново.'
+            'menuError': 'Не удалось открыть меню Mazda. Откройте приложение заново.',
+            'audio_order_title': 'Порядок меню развлечений',
+            'audio_order_custom': 'Включить свой порядок',
+            'custom': 'Пользовательский',
+            'default': 'По умолчанию',
+            'audio_order_hint': 'Нажмите и вращайте джойстик для изменения порядка',
+            'settings_saved': 'Настройки сохранены'
         },
         'fi_FI': {
             'gui.label': 'MZD Tweaks',
@@ -117,9 +153,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Luettelovalikko äänimerkki',
             'short_delay': 'Lyhyempi luettelovalikko viive',
             'saveError': 'Asetusten tallennus epäonnistui',
-            'loading': 'Ladataan asetuksia...',
-            'serviceUnavailable': 'Palvelu ei ole käytettävissä. Yritä uudelleen.',
-            'menuError': 'Mazda-valikkoa ei voitu avata. Avaa sovellus uudelleen.'
+            'menuError': 'Mazda-valikkoa ei voitu avata. Avaa sovellus uudelleen.',
+            'audio_order_title': 'Viihdevalikon järjestys',
+            'audio_order_custom': 'Oma järjestys käyttöön',
+            'custom': 'Mukautettu',
+            'default': 'Oletus',
+            'audio_order_hint': 'Paina nuppia ja kierrä muuttaaksesi järjestystä',
+            'settings_saved': 'Asetukset tallennettu'
         },
         'sv_SE': {
             'gui.label': 'MZD Tweaks',
@@ -129,9 +169,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Listmeny pip',
             'short_delay': 'Kortare listmeny fördröjning',
             'saveError': 'Kunde inte spara inställningar',
-            'loading': 'Läser in inställningar...',
-            'serviceUnavailable': 'Tjänsten är inte tillgänglig. Försök igen.',
-            'menuError': 'Mazda-menyn kunde inte öppnas. Öppna appen igen.'
+            'menuError': 'Mazda-menyn kunde inte öppnas. Öppna appen igen.',
+            'audio_order_title': 'Ordning i underhållningsmeny',
+            'audio_order_custom': 'Aktivera anpassad ordning',
+            'custom': 'Anpassad',
+            'default': 'Standard',
+            'audio_order_hint': 'Tryck på ratten och vrid för att ändra ordning',
+            'settings_saved': 'Inställningar sparade'
         },
         'da_DK': {
             'gui.label': 'MZD Tweaks',
@@ -141,9 +185,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Listemenu bip',
             'short_delay': 'Kortere listemenu forsinkelse',
             'saveError': 'Kunne ikke gemme indstillinger',
-            'loading': 'Indlæser indstillinger...',
-            'serviceUnavailable': 'Tjenesten er ikke tilgængelig. Prøv igen.',
-            'menuError': 'Mazda-menuen kunne ikke åbnes. Åbn appen igen.'
+            'menuError': 'Mazda-menuen kunne ikke åbnes. Åbn appen igen.',
+            'audio_order_title': 'Underholdningsmenu rækkefølge',
+            'audio_order_custom': 'Aktivér tilpasset rækkefølge',
+            'custom': 'Tilpasset',
+            'default': 'Standard',
+            'audio_order_hint': 'Tryk på knappen og drej for at ændre rækkefølge',
+            'settings_saved': 'Indstillinger gemt'
         },
         'no_NO': {
             'gui.label': 'MZD Tweaks',
@@ -153,9 +201,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Listmeny pip',
             'short_delay': 'Kortere listmeny forsinkelse',
             'saveError': 'Kunne ikke lagre innstillinger',
-            'loading': 'Laster innstillinger...',
-            'serviceUnavailable': 'Tjenesten er utilgjengelig. Prøv igjen.',
-            'menuError': 'Mazda-menyen kunne ikke åpnes. Åpne appen igjen.'
+            'menuError': 'Mazda-menyen kunne ikke åpnes. Åpne appen igjen.',
+            'audio_order_title': 'Underholdningsmeny rekkefølge',
+            'audio_order_custom': 'Aktiver egendefinert rekkefølge',
+            'custom': 'Egendefinert',
+            'default': 'Standard',
+            'audio_order_hint': 'Trykk på knappen og vri for å endre rekkefølge',
+            'settings_saved': 'Innstillinger lagret'
         },
         'cs_CS': {
             'gui.label': 'MZD Tweaks',
@@ -165,9 +217,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Pípnutí nabídky seznamu',
             'short_delay': 'Kratší zpoždění nabídky seznamu',
             'saveError': 'Uložení nastavení se nezdařilo',
-            'loading': 'Načítání nastavení...',
-            'serviceUnavailable': 'Služba není dostupná. Zkuste to znovu.',
-            'menuError': 'Menu Mazda nebylo možné otevřít. Otevřete aplikaci znovu.'
+            'menuError': 'Menu Mazda nebylo možné otevřít. Otevřete aplikaci znovu.',
+            'audio_order_title': 'Pořadí nabídky zábavy',
+            'audio_order_custom': 'Povolit vlastní pořadí',
+            'custom': 'Vlastní',
+            'default': 'Výchozí',
+            'audio_order_hint': 'Stiskněte ovladač a otočte pro změnu pořadí',
+            'settings_saved': 'Nastavení uloženo'
         },
         'hu_HU': {
             'gui.label': 'MZD Tweaks',
@@ -177,9 +233,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Listamenü csipogás',
             'short_delay': 'Rövidebb listamenü késleltetés',
             'saveError': 'Beállítások mentése sikertelen',
-            'loading': 'Beállítások betöltése...',
-            'serviceUnavailable': 'A szolgáltatás nem érhető el. Próbáld újra.',
-            'menuError': 'A Mazda menü nem nyitható meg. Nyisd meg újra az alkalmazást.'
+            'menuError': 'A Mazda menü nem nyitható meg. Nyisd meg újra az alkalmazást.',
+            'audio_order_title': 'Szórakozás menü sorrendje',
+            'audio_order_custom': 'Egyéni sorrend engedélyezése',
+            'custom': 'Egyéni',
+            'default': 'Alapértelmezett',
+            'audio_order_hint': 'Nyomja le és forgassa a gombot a sorrendhez',
+            'settings_saved': 'Beállítások elmentve'
         },
         'pl_PL': {
             'gui.label': 'MZD Tweaks',
@@ -189,9 +249,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Sygnał menu listy',
             'short_delay': 'Krótsze opóźnienie menu listy',
             'saveError': 'Nie udało się zapisać ustawień',
-            'loading': 'Wczytywanie ustawień...',
-            'serviceUnavailable': 'Usługa niedostępna. Spróbuj ponownie.',
-            'menuError': 'Nie udało się otworzyć menu Mazda. Otwórz aplikację ponownie.'
+            'menuError': 'Nie udało się otworzyć menu Mazda. Otwórz aplikację ponownie.',
+            'audio_order_title': 'Kolejność menu rozrywki',
+            'audio_order_custom': 'Włącz własną kolejność',
+            'custom': 'Własne',
+            'default': 'Domyślne',
+            'audio_order_hint': 'Naciśnij pokrętło i obróć, aby zmienić kolejność',
+            'settings_saved': 'Ustawienia zapisane'
         },
         'sk_SK': {
             'gui.label': 'MZD Tweaks',
@@ -201,9 +265,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Pípnutie ponuky zoznamu',
             'short_delay': 'Kratšie meškanie ponuky zoznamu',
             'saveError': 'Uloženie nastavení zlyhalo',
-            'loading': 'Načítavanie nastavení...',
-            'serviceUnavailable': 'Služba nie je dostupná. Skúste znova.',
-            'menuError': 'Menu Mazda sa nepodarilo otvoriť. Otvorte aplikáciu znova.'
+            'menuError': 'Menu Mazda sa nepodarilo otvoriť. Otvorte aplikáciu znova.',
+            'audio_order_title': 'Poradie ponuky zábavy',
+            'audio_order_custom': 'Povoliť vlastné poradie',
+            'custom': 'Vlastné',
+            'default': 'Predvolené',
+            'audio_order_hint': 'Stlačte ovládač a otočte pre zmenu poradia',
+            'settings_saved': 'Nastavenia uložené'
         },
         'tr_TR': {
             'gui.label': 'MZD Tweaks',
@@ -213,9 +281,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Liste menü sesi',
             'short_delay': 'Daha kısa liste menü gecikmesi',
             'saveError': 'Ayarlar kaydedilemedi',
-            'loading': 'Ayarlar yükleniyor...',
-            'serviceUnavailable': 'Hizmet kullanılamıyor. Tekrar deneyin.',
-            'menuError': 'Mazda menüsü açılamadı. Uygulamayı yeniden açın.'
+            'menuError': 'Mazda menüsü açılamadı. Uygulamayı yeniden açın.',
+            'audio_order_title': 'Eğlence menüsü sıralaması',
+            'audio_order_custom': 'Özel sıralamayı etkinleştir',
+            'custom': 'Özel',
+            'default': 'Varsayılan',
+            'audio_order_hint': 'Sıralamayı değiştirmek için düğmeye basıp çevirin',
+            'settings_saved': 'Ayarlar kaydedildi'
         },
         'et_EE': {
             'gui.label': 'MZD Tweaks',
@@ -225,9 +297,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Loendimenüü helisignal',
             'short_delay': 'Lühem loendimenüü viivitus',
             'saveError': 'Seadete salvestamine ebaõnnestus',
-            'loading': 'Seadete laadimine...',
-            'serviceUnavailable': 'Teenus pole saadaval. Proovi uuesti.',
-            'menuError': 'Mazda menüüd ei saanud avada. Ava rakendus uuesti.'
+            'menuError': 'Mazda menüüd ei saanud avada. Ava rakendus uuesti.',
+            'audio_order_title': 'Meelelahutusmenüü järjekord',
+            'audio_order_custom': 'Luba kohandatud järjekord',
+            'custom': 'Kohandatud',
+            'default': 'Vaikimisi',
+            'audio_order_hint': 'Järjekorra muutmiseks vajutage ja keerake nuppu',
+            'settings_saved': 'Seaded salvestatud'
         },
         'lv_LV': {
             'gui.label': 'MZD Tweaks',
@@ -237,9 +313,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Saraksta izvēlne signāls',
             'short_delay': 'Īsāks saraksta izvēlne aizkave',
             'saveError': 'Neizdevās saglabāt iestatījumus',
-            'loading': 'Iestatījumu ielāde...',
-            'serviceUnavailable': 'Pakalpojums nav pieejams. Mēģiniet vēlreiz.',
-            'menuError': 'Mazda izvēlni nevarēja atvērt. Atveriet lietotni vēlreiz.'
+            'menuError': 'Mazda izvēlni nevarēja atvērt. Atveriet lietotni vēlreiz.',
+            'audio_order_title': 'Izklaides izvēlnes secība',
+            'audio_order_custom': 'Iespējot pielāgotu secību',
+            'custom': 'Pielāgots',
+            'default': 'Noklusējums',
+            'audio_order_hint': 'Nospiediet un pagrieziet pogu, lai mainītu secību',
+            'settings_saved': 'Iestatījumi saglabāti'
         },
         'lt_LT': {
             'gui.label': 'MZD Tweaks',
@@ -249,9 +329,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Sąrašo meniu garsas',
             'short_delay': 'Trumpesnis sąrašo meniu vilon',
             'saveError': 'Nepavyko išsaugoti nustatymų',
-            'loading': 'Įkeliami nustatymai...',
-            'serviceUnavailable': 'Paslauga nepasiekiama. Bandykite dar kartą.',
-            'menuError': 'Nepavyko atverti „Mazda“ meniu. Atverkite programą iš naujo.'
+            'menuError': 'Nepavyko atverti „Mazda“ meniu. Atverkite programą iš naujo.',
+            'audio_order_title': 'Pramogų meniu tvarka',
+            'audio_order_custom': 'Įjungti pasirinktinę tvarką',
+            'custom': 'Pasirinktinis',
+            'default': 'Numatytasis',
+            'audio_order_hint': 'Paspauskite ir pasukite rankenėlę tvarkai keisti',
+            'settings_saved': 'Nustatymai išsaugoti'
         },
         'el_GR': {
             'gui.label': 'MZD Tweaks',
@@ -261,9 +345,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Ήχος μενού λίστας',
             'short_delay': 'Συντομότερη καθυστέρηση μενού λίστας',
             'saveError': 'Αποτυχία αποθήκευσης ρυθμίσεων',
-            'loading': 'Φόρτωση ρυθμίσεων...',
-            'serviceUnavailable': 'Η υπηρεσία δεν είναι διαθέσιμη. Δοκιμάστε ξανά.',
-            'menuError': 'Δεν ήταν δυνατό το άνοιγμα του μενού Mazda. Ανοίξτε ξανά την εφαρμογή.'
+            'menuError': 'Δεν ήταν δυνατό το άνοιγμα του μενού Mazda. Ανοίξτε ξανά την εφαρμογή.',
+            'audio_order_title': 'Σειρά μενού ψυχαγωγίας',
+            'audio_order_custom': 'Ενεργοποίηση προσαρμοσμένης σειράς',
+            'custom': 'Προσαρμοσμένο',
+            'default': 'Προεπιλογή',
+            'audio_order_hint': 'Πιέστε και περιστρέψτε το διακόπτη για αλλαγή σειράς',
+            'settings_saved': 'Οι ρυθμίσεις αποθηκεύτηκαν'
         },
         'hr_HR': {
             'gui.label': 'MZD Tweaks',
@@ -273,9 +361,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Zvuk izbornika popisa',
             'short_delay': 'Kraća kašnjenja izbornika popisa',
             'saveError': 'Spremanje postavki nije uspjelo',
-            'loading': 'Učitavanje postavki...',
-            'serviceUnavailable': 'Usluga nije dostupna. Pokušajte ponovno.',
-            'menuError': 'Mazda izbornik nije se mogao otvoriti. Ponovno otvorite aplikaciju.'
+            'menuError': 'Mazda izbornik nije se mogao otvoriti. Ponovno otvorite aplikaciju.',
+            'audio_order_title': 'Redoslijed izbornika zabave',
+            'audio_order_custom': 'Omogući prilagođeni redoslijed',
+            'custom': 'Prilagođeno',
+            'default': 'Zadano',
+            'audio_order_hint': 'Pritisnite i okrenite gumb za promjenu redoslijeda',
+            'settings_saved': 'Postavke spremljene'
         },
         'bg_BG': {
             'gui.label': 'MZD Tweaks',
@@ -285,9 +377,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Звук на меню на списък',
             'short_delay': 'По-кратка забавяне на меню на списък',
             'saveError': 'Неуспешно запазване на настройките',
-            'loading': 'Зареждане на настройките...',
-            'serviceUnavailable': 'Услугата не е достъпна. Опитайте отново.',
-            'menuError': 'Менюто на Mazda не можа да се отвори. Отворете приложението отново.'
+            'menuError': 'Менюто на Mazda не можа да се отвори. Отворете приложението отново.',
+            'audio_order_title': 'Ред на менюто за развлечения',
+            'audio_order_custom': 'Активиране на персонализиран ред',
+            'custom': 'Персонализиран',
+            'default': 'По подразбиране',
+            'audio_order_hint': 'Натиснете и завъртете бутона за промяна на реда',
+            'settings_saved': 'Настройките са запазени'
         },
         'ro_RO': {
             'gui.label': 'MZD Tweaks',
@@ -297,9 +393,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Sunet meniu listă',
             'short_delay': 'Întârziere meniu listă mai scurtă',
             'saveError': 'Salvarea setărilor a eșuat',
-            'loading': 'Se încarcă setările...',
-            'serviceUnavailable': 'Serviciu indisponibil. Încearcă din nou.',
-            'menuError': 'Meniul Mazda nu a putut fi deschis. Redeschide aplicația.'
+            'menuError': 'Meniul Mazda nu a putut fi deschis. Redeschide aplicația.',
+            'audio_order_title': 'Ordinea meniului divertisment',
+            'audio_order_custom': 'Activați ordinea personalizată',
+            'custom': 'Personalizat',
+            'default': 'Implicit',
+            'audio_order_hint': 'Apăsați și rotiți butonul pentru a schimba ordinea',
+            'settings_saved': 'Setări salvate'
         },
         'sr_RS': {
             'gui.label': 'MZD Tweaks',
@@ -309,9 +409,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Звук менија листе',
             'short_delay': 'Краће одложена менија листе',
             'saveError': 'Чување подешавања није успело',
-            'loading': 'Учитавање подешавања...',
-            'serviceUnavailable': 'Услуга није доступна. Покушајте поново.',
-            'menuError': 'Није било могуће отворити Mazda мени. Поново отворите апликацију.'
+            'menuError': 'Није било могуће отворити Mazda мени. Поново отворите апликацију.',
+            'audio_order_title': 'Редослед менија забаве',
+            'audio_order_custom': 'Омогући прилагођени редослед',
+            'custom': 'Прилагођено',
+            'default': 'Подразумевано',
+            'audio_order_hint': 'Притисните и окрените дугме за промену редоследа',
+            'settings_saved': 'Подешавања сачувана'
         },
         'uk_UA': {
             'gui.label': 'MZD Tweaks',
@@ -321,9 +425,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Звуковий сигнал меню списку',
             'short_delay': 'Коротша затримка меню списку',
             'saveError': 'Не вдалося зберегти налаштування',
-            'loading': 'Завантаження налаштувань...',
-            'serviceUnavailable': 'Сервіс недоступний. Спробуйте ще раз.',
-            'menuError': 'Не вдалося відкрити меню Mazda. Відкрийте застосунок знову.'
+            'menuError': 'Не вдалося відкрити меню Mazda. Відкрийте застосунок знову.',
+            'audio_order_title': 'Порядок меню розваг',
+            'audio_order_custom': 'Увімкнути власний порядок',
+            'custom': 'Власний',
+            'default': 'За замовчуванням',
+            'audio_order_hint': 'Натисніть і поверніть джойстик для зміни порядку',
+            'settings_saved': 'Налаштування збережено'
         },
         'ms_MY': {
             'gui.label': 'MZD Tweaks',
@@ -333,9 +441,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Bunyi menu senarai',
             'short_delay': 'Lengah menu senarai lebih pendek',
             'saveError': 'Gagal menyimpan tetapan',
-            'loading': 'Memuatkan tetapan...',
-            'serviceUnavailable': 'Perkhidmatan tidak tersedia. Cuba lagi.',
-            'menuError': 'Menu Mazda tidak dapat dibuka. Buka semula aplikasi.'
+            'menuError': 'Menu Mazda tidak dapat dibuka. Buka semula aplikasi.',
+            'audio_order_title': 'Susunan menu hiburan',
+            'audio_order_custom': 'Dayakan susunan tersuai',
+            'custom': 'Tersuai',
+            'default': 'Lalai',
+            'audio_order_hint': 'Tekan tombol dan putar untuk ubah susunan',
+            'settings_saved': 'Tetapan disimpan'
         },
         'id_ID': {
             'gui.label': 'MZD Tweaks',
@@ -345,9 +457,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Suara menu daftar',
             'short_delay': 'Penundaan menu daftar lebih pendek',
             'saveError': 'Gagal menyimpan pengaturan',
-            'loading': 'Memuat pengaturan...',
-            'serviceUnavailable': 'Layanan tidak tersedia. Coba lagi.',
-            'menuError': 'Menu Mazda tidak dapat dibuka. Buka kembali aplikasi.'
+            'menuError': 'Menu Mazda tidak dapat dibuka. Buka kembali aplikasi.',
+            'audio_order_title': 'Urutan menu hiburan',
+            'audio_order_custom': 'Aktifkan urutan kustom',
+            'custom': 'Kustom',
+            'default': 'Default',
+            'audio_order_hint': 'Tekan kenop dan putar untuk mengubah urutan',
+            'settings_saved': 'Pengaturan disimpan'
         },
         'ja_JP': {
             'gui.label': 'MZD Tweaks',
@@ -357,9 +473,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'リストメニュー ビープ',
             'short_delay': 'より短いリストメニュー 遅延',
             'saveError': '設定の保存に失敗しました',
-            'loading': '設定を読み込み中...',
-            'serviceUnavailable': 'サービスを利用できません。再試行してください。',
-            'menuError': 'マツダメニューを開けませんでした。アプリを開き直してください。'
+            'menuError': 'マツダメニューを開けませんでした。アプリを開き直してください。',
+            'audio_order_title': 'エンタメメニュー順序',
+            'audio_order_custom': 'カスタム順を有効化',
+            'custom': 'カスタム',
+            'default': '標準',
+            'audio_order_hint': 'ノブを押して回すと順序を変更できます',
+            'settings_saved': '設定を保存しました'
         },
         'zh_CN': {
             'gui.label': 'MZD Tweaks',
@@ -369,9 +489,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': '列表菜单提示音',
             'short_delay': '更短的列表菜单延迟',
             'saveError': '设置保存失败',
-            'loading': '正在加载设置...',
-            'serviceUnavailable': '服务不可用，请重试。',
-            'menuError': '无法打开Mazda菜单，请重新打开应用。'
+            'menuError': '无法打开Mazda菜单，请重新打开应用。',
+            'audio_order_title': '娱乐菜单顺序',
+            'audio_order_custom': '启用自定义排序',
+            'custom': '自定义',
+            'default': '默认',
+            'audio_order_hint': '按压旋钮并旋转可调整顺序',
+            'settings_saved': '设置已保存'
         },
         'zh_TW': {
             'gui.label': 'MZD Tweaks',
@@ -381,9 +505,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': '列表選單提示音',
             'short_delay': '較短的列表選單延遲',
             'saveError': '設定儲存失敗',
-            'loading': '正在載入設定...',
-            'serviceUnavailable': '服務無法使用，請重試。',
-            'menuError': '無法開啟Mazda選單，請重新開啟應用程式。'
+            'menuError': '無法開啟Mazda選單，請重新開啟應用程式。',
+            'audio_order_title': '娛樂選單順序',
+            'audio_order_custom': '啟用自訂排序',
+            'custom': '自訂',
+            'default': '預設',
+            'audio_order_hint': '按下旋鈕並旋轉可調整順序',
+            'settings_saved': '設定已儲存'
         },
         'cn_HK': {
             'gui.label': 'MZD Tweaks',
@@ -393,9 +521,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': '列表選單提示音',
             'short_delay': '較短的列表選單延遲',
             'saveError': '設定儲存失敗',
-            'loading': '正在載入設定...',
-            'serviceUnavailable': '服務無法使用，請重試。',
-            'menuError': '無法開啟Mazda選單，請重新開啟應用程式。'
+            'menuError': '無法開啟Mazda選單，請重新開啟應用程式。',
+            'audio_order_title': '娛樂選單順序',
+            'audio_order_custom': '啟用自訂排序',
+            'custom': '自訂',
+            'default': '預設',
+            'audio_order_hint': '按下旋鈕並旋轉可調整順序',
+            'settings_saved': '設定已儲存'
         },
         'ar_SA': {
             'gui.label': 'MZD Tweaks',
@@ -405,9 +537,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'تنبيه قائمة القائمة',
             'short_delay': 'تأخير قائمة القائمة الأقصر',
             'saveError': 'فشل حفظ الإعدادات',
-            'loading': 'جارٍ تحميل الإعدادات...',
-            'serviceUnavailable': 'الخدمة غير متاحة. حاول مجددًا.',
-            'menuError': 'تعذر فتح قائمة Mazda. افتح التطبيق مجددًا.'
+            'menuError': 'تعذر فتح قائمة Mazda. افتح التطبيق مجددًا.',
+            'audio_order_title': 'ترتيب قائمة الترفيه',
+            'audio_order_custom': 'تمكين الترتيب المخصص',
+            'custom': 'مخصص',
+            'default': 'افتراضي',
+            'audio_order_hint': 'اضغط على المقبض وأدر لتغيير الترتيب',
+            'settings_saved': 'تم حفظ الإعدادات'
         },
         'he_IL': {
             'gui.label': 'MZD Tweaks',
@@ -417,9 +553,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'צליל תפריט הרשימה',
             'short_delay': 'עיכוב קצר יותר של תפריט הרשימה',
             'saveError': 'שמירת ההגדרות נכשלה',
-            'loading': 'טוען הגדרות...',
-            'serviceUnavailable': 'השירות אינו זמין. נסה שוב.',
-            'menuError': 'לא ניתן היה לפתוח את תפריט Mazda. פתח מחדש את היישום.'
+            'menuError': 'לא ניתן היה לפתוח את תפריט Mazda. פתח מחדש את היישום.',
+            'audio_order_title': 'סדר תפריט בידור',
+            'audio_order_custom': 'הפעל סדר מותאם אישית',
+            'custom': 'מותאם אישית',
+            'default': 'ברירת מחדל',
+            'audio_order_hint': 'לחץ על הכפתור וסובב כדי לשנות סדר',
+            'settings_saved': 'ההגדרות נשמרו'
         },
         'th_TH': {
             'gui.label': 'MZD Tweaks',
@@ -429,9 +569,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'เสียงบิปเมนูรายการ',
             'short_delay': 'ความล่าช้าของเมนูรายการที่สั้นกว่า',
             'saveError': 'บันทึกการตั้งค่าไม่สำเร็จ',
-            'loading': 'กำลังโหลดการตั้งค่า...',
-            'serviceUnavailable': 'บริการไม่พร้อมใช้งาน โปรดลองอีกครั้ง',
-            'menuError': 'ไม่สามารถเปิดเมนู Mazda ได้ โปรดเปิดแอปอีกครั้ง'
+            'menuError': 'ไม่สามารถเปิดเมนู Mazda ได้ โปรดเปิดแอปอีกครั้ง',
+            'audio_order_title': 'ลำดับเมนูความบันเทิง',
+            'audio_order_custom': 'เปิดใช้งานลำดับที่กำหนดเอง',
+            'custom': 'กำหนดเอง',
+            'default': 'ค่าเริ่มต้น',
+            'audio_order_hint': 'กดปุ่มแล้วหมุนเพื่อเปลี่ยนลำดับ',
+            'settings_saved': 'บันทึกการตั้งค่าแล้ว'
         },
         'en_UK': {
             'gui.label': 'MZD Tweaks',
@@ -441,9 +585,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'List menu beep',
             'short_delay': 'Shorter list menu delay',
             'saveError': 'Failed to save settings',
-            'loading': 'Loading settings...',
-            'serviceUnavailable': 'Service unavailable. Please retry.',
-            'menuError': 'The Mazda menu could not be opened. Please reopen the app.'
+            'menuError': 'The Mazda menu could not be opened. Please reopen the app.',
+            'audio_order_title': 'Entertainment menu order',
+            'audio_order_custom': 'Enable custom order',
+            'custom': 'Custom',
+            'default': 'Default',
+            'audio_order_hint': 'Press knob and rotate to change order',
+            'settings_saved': 'Settings saved'
         },
         'en_AU': {
             'gui.label': 'MZD Tweaks',
@@ -453,9 +601,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'List menu beep',
             'short_delay': 'Shorter list menu delay',
             'saveError': 'Failed to save settings',
-            'loading': 'Loading settings...',
-            'serviceUnavailable': 'Service unavailable. Please retry.',
-            'menuError': 'The Mazda menu could not be opened. Please reopen the app.'
+            'menuError': 'The Mazda menu could not be opened. Please reopen the app.',
+            'audio_order_title': 'Entertainment menu order',
+            'audio_order_custom': 'Enable custom order',
+            'custom': 'Custom',
+            'default': 'Default',
+            'audio_order_hint': 'Press knob and rotate to change order',
+            'settings_saved': 'Settings saved'
         },
         'es_MX': {
             'gui.label': 'MZD Tweaks',
@@ -465,9 +617,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Pitido del menú de lista',
             'short_delay': 'Retraso del menú de lista más corto',
             'saveError': 'Error al guardar los ajustes',
-            'loading': 'Cargando ajustes...',
-            'serviceUnavailable': 'Servicio no disponible. Inténtalo de nuevo.',
-            'menuError': 'No se pudo abrir el menú de Mazda. Abre de nuevo la aplicación.'
+            'menuError': 'No se pudo abrir el menú de Mazda. Abre de nuevo la aplicación.',
+            'audio_order_title': 'Orden del menú entretenimiento',
+            'audio_order_custom': 'Activar orden personalizado',
+            'custom': 'Personalizado',
+            'default': 'Predeterminado',
+            'audio_order_hint': 'Presione el mando y gire para cambiar el orden',
+            'settings_saved': 'Ajustes guardados'
         },
         'fr_CN': {
             'gui.label': 'MZD Tweaks',
@@ -477,9 +633,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': 'Bip du menu liste',
             'short_delay': 'Délai du menu liste réduit',
             'saveError': 'Échec de l\'enregistrement des réglages',
-            'loading': 'Chargement des réglages...',
-            'serviceUnavailable': 'Service indisponible. Réessayez.',
-            'menuError': 'Impossible d’ouvrir le menu Mazda. Rouvrez l’application.'
+            'menuError': 'Impossible d’ouvrir le menu Mazda. Rouvrez l’application.',
+            'audio_order_title': 'Ordre du menu divertissement',
+            'audio_order_custom': 'Activer l’ordre personnalisé',
+            'custom': 'Personnalisé',
+            'default': 'Par défaut',
+            'audio_order_hint': 'Appuyez sur la molette et tournez pour changer l’ordre',
+            'settings_saved': 'Réglages enregistrés'
         },
         'mn_TW': {
             'gui.label': 'MZD Tweaks',
@@ -489,9 +649,13 @@ window.MzdGuiI18n.register('mzd-tweaks', {
             'list_beep': '列表選單提示音',
             'short_delay': '較短的列表選單延遲',
             'saveError': '設定儲存失敗',
-            'loading': '正在載入設定...',
-            'serviceUnavailable': '服務無法使用，請重試。',
-            'menuError': '無法開啟Mazda選單，請重新開啟應用程式。'
+            'menuError': '無法開啟Mazda選單，請重新開啟應用程式。',
+            'audio_order_title': '娛樂選單順序',
+            'audio_order_custom': '啟用自訂排序',
+            'custom': '自訂',
+            'default': '預設',
+            'audio_order_hint': '按下旋鈕並旋轉可調整順序',
+            'settings_saved': '設定已儲存'
         }
     }
 });

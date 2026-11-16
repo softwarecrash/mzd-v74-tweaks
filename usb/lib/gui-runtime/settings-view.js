@@ -14,6 +14,7 @@
 
     var has = Object.prototype.hasOwnProperty;
     var REBOOT_ICON = 'common/images/icons/IcnListSynchronize_En.png';
+    var REBOOT_ICON_DISABLED = 'common/images/icons/IcnListSynchronize_Ds.png';
     var DEFAULT_TEXTS = {
         saveError: 'Failed to save settings',
         reboot: 'Reboot to apply changes',
@@ -96,7 +97,8 @@
         // rebootRequired and no save is running; always confirmed, default No.
         reboot: {
             row: function (def, api) {
-                return { image1: REBOOT_ICON, disabled: api.saving() || !api.rebootRequired() };
+                var disabled = api.saving() || !api.rebootRequired();
+                return { image1: disabled ? REBOOT_ICON_DISABLED : REBOOT_ICON, disabled: disabled };
             },
             activate: function (def, row, params, api) {
                 api.confirm({
@@ -175,6 +177,8 @@
             if (def.action) { row.action = def.action; }
             if (row.label == null) { row.label = def.label != null ? def.label : tr(row.id, row.id); }
             if (def.image1) { row.image1 = def.image1; }
+            if (def.image2) { row.image2 = def.image2; }
+            if (def.rightSpinner != null) { row.rightSpinner = def.rightSpinner === true; }
             if (def.detail != null && row.detail == null) { row.detail = def.detail; }
             if (def.checkable) { row.checkable = true; row.checked = def.checked === true; }
             if (def.radio) { row.radio = true; }
@@ -211,9 +215,19 @@
             }
         }
 
-        function render() {
+        function leavePages(targetDepth) {
+            var p;
+            for (p = pages.length - 1; p >= (targetDepth || 0); p -= 1) {
+                if (pages[p] && typeof pages[p].onLeave === 'function') {
+                    try { pages[p].onLeave(api); } catch (ignore) {}
+                }
+            }
+        }
+
+        function render(newIndex) {
             var current, list, heading;
             if (ended || !state || dialog) { return; }
+            if (typeof newIndex === 'number' && newIndex >= 0) { index = newIndex; }
             current = page();
             list = rows(definitions(current));
             if (index >= list.length) { index = 0; }
@@ -251,6 +265,10 @@
         // Leaves the current sub-page. silent skips the render, for callers
         // that render through save() right after.
         function back(silent) {
+            var leaving = page();
+            if (pages.length >= 2 && leaving && typeof leaving.onLeave === 'function') {
+                try { leaving.onLeave(api); } catch (ignore) {}
+            }
             flush(null);
             notice = '';
             if (!state || pages.length < 2) { return false; }
@@ -378,14 +396,36 @@
         }
 
         function input(action, phase) {
+            var current;
             if (ended) { return false; }
-            if (action === 'back') {
-                if (phase === 'press') { return true; }
-                if (dialog) {
+            if (dialog) {
+                if (action === 'back' || action === 'home') {
+                    if (phase === 'press') { return true; }
                     closeDialog();
                     return true;
                 }
+                if (state) { post({ type: prefix + '-native-input', action: action, phase: phase }); }
+                return true;
+            }
+            current = page();
+            if (current && typeof current.onInput === 'function') {
+                try {
+                    if (current.onInput(action, phase, api)) {
+                        return true;
+                    }
+                } catch (ignore) {}
+            }
+            if (action === 'back') {
+                if (phase === 'press') { return true; }
                 return back(false);
+            }
+            if (action === 'home') {
+                if (phase === 'press') { return true; }
+                leavePages(0);
+                flush(null);
+                pages = [home];
+                index = positions[home.id] || 0;
+                return false;
             }
             if (state) { post({ type: prefix + '-native-input', action: action, phase: phase }); }
             return true;
@@ -393,6 +433,7 @@
 
         function dispose() {
             if (ended) { return; }
+            leavePages(0);
             flush(null);
             post({ type: prefix + '-native-release' });
             ended = true;
@@ -412,6 +453,17 @@
             render: render,
             openPage: openPage,
             back: back,
+            home: function () {
+                leavePages(0);
+                flush(null);
+                pages = [home];
+                index = positions[home.id] || 0;
+                if (sdk && typeof sdk.send === 'function') {
+                    sdk.send('home');
+                } else {
+                    post({ type: prefix + '-native-home' });
+                }
+            },
             confirm: confirm,
             flush: function () { flush(null); },
             stepValue: stepValue,

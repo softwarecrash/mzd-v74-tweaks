@@ -25,6 +25,7 @@
         try { if (input) { handled = input(action, phase) === true; } }
         catch (error) { send('error', String(error)); }
         if (action === 'back' && phase !== 'press' && !handled) { send('close'); }
+        if (action === 'home' && phase !== 'press' && !handled) { send('home'); }
     }
     function receive(event) {
         var data = event.data;
@@ -52,9 +53,9 @@
             }
             return;
         }
-        if (data.type === 'mzd-gui-input' && ['left','right','up','down','select','rotateLeft','rotateRight','back'].indexOf(data.action) >= 0 && ['press','release','step'].indexOf(data.phase) >= 0) { handle(data.action,data.phase); }
+        if (data.type === 'mzd-gui-input' && ['left','right','up','down','select','rotateLeft','rotateRight','back','home'].indexOf(data.action) >= 0 && ['press','release','step'].indexOf(data.phase) >= 0) { handle(data.action,data.phase); }
     }
-    function action(code) { return {37:'left',39:'right',38:'up',40:'down',13:'select',77:'rotateRight',78:'rotateLeft',27:'back'}[code]; }
+    function action(code) { return {36:'home',37:'left',39:'right',38:'up',40:'down',13:'select',77:'rotateRight',78:'rotateLeft',27:'back'}[code]; }
     function stop(event) { if (event.preventDefault) { event.preventDefault(); } if (event.stopImmediatePropagation) { event.stopImmediatePropagation(); } event.returnValue = false; }
     function down(event) {
         if (ended || suspended) { return; }

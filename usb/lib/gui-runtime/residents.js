@@ -379,7 +379,7 @@
             root.className = '';
             root.appendChild(container);
             var baseStyle = document.createElement('style');
-            baseStyle.textContent = '.mzd-custom-menu .List2Ctrl .ListItem.styleStep .label1{width:320px!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .line1{display:none!important;}.mzd-custom-menu .List2Ctrl .ListItem .image1[style*="Refreshing"]{-o-animation:infinite_rotation 2s linear infinite!important;-webkit-animation:infinite_rotation 2s linear infinite!important;animation:infinite_rotation 2s linear infinite!important;}';
+            baseStyle.textContent = '.mzd-custom-menu .List2Ctrl .ListItem.styleStep .label1{width:320px!important;}.mzd-custom-menu .List2Ctrl .ListItem.styleStep .line1{display:none!important;}.mzd-custom-menu .List2Ctrl .ListItem .image1[style*="Refreshing"]{-o-animation:infinite_rotation 2s linear infinite!important;-webkit-animation:infinite_rotation 2s linear infinite!important;animation:infinite_rotation 2s linear infinite!important;}.mzd-custom-menu .List2Ctrl .ListItem .image2[style*="Refreshing"]{-o-animation:infinite_rotation 2s linear infinite!important;-webkit-animation:infinite_rotation 2s linear infinite!important;animation:infinite_rotation 2s linear infinite!important;}';
             container.appendChild(baseStyle);
             session.baseStyle = baseStyle;
             if (options.split || options.splitClass) {
@@ -395,14 +395,25 @@
             }
             originalSend = session.originalSend;
             session.backWrapper = function (uia, event) {
-                if (session && event === 'Global.GoBack' && inApplications()) {
-                    session.frame.contentWindow.postMessage({
-                        type: 'mzd-gui-input',
-                        token: session.token,
-                        action: 'back',
-                        phase: 'step'
-                    }, '*');
-                    return;
+                if (session && inApplications()) {
+                    if (event === 'Global.GoBack') {
+                        session.frame.contentWindow.postMessage({
+                            type: 'mzd-gui-input',
+                            token: session.token,
+                            action: 'back',
+                            phase: 'step'
+                        }, '*');
+                        return;
+                    }
+                    if (event === 'Global.IntentHome') {
+                        session.frame.contentWindow.postMessage({
+                            type: 'mzd-gui-input',
+                            token: session.token,
+                            action: 'home',
+                            phase: 'step'
+                        }, '*');
+                        return;
+                    }
                 }
                 return originalSend.apply(this, arguments);
             };
@@ -457,12 +468,14 @@
                 row = menu.rows[i];
                 var isStep = row.itemStyle === 'styleStep';
                 var spinnerImg = (row.spinner || row.saving) ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : '';
+                var rightSpinnerImg = row.rightSpinner ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : (row.image2 || '');
                 items.push({
                     appData: { itemIndex: i, aaIndex: i, wallpaperIndex: i },
                     text1Id: null,
                     text1: isStep ? (row.text1 || '') : row.label,
-                    itemStyle: row.itemStyle || (row.checkable ? 'style03' : row.detail ? 'style06' : 'style01'),
+                    itemStyle: row.itemStyle || (rightSpinnerImg ? 'style02' : (row.checkable ? 'style03' : row.detail ? 'style06' : 'style01')),
                     image1: spinnerImg || (row.checkable && !isStep ? (row.radio ? 'radio' : 'tick') : (row.image1 || '')),
+                    image2: rightSpinnerImg,
                     checked: row.checked === true,
                     value: row.value != null ? row.value : (row.checked ? 1 : 2),
                     label1Id: null,
@@ -482,7 +495,38 @@
                 return;
             }
             if (session.control && oldPage === menu.page) {
-                captured = session.control.getContextCapture();
+                captured = (session.control && typeof session.control.getContextCapture === 'function')
+                    ? session.control.getContextCapture()
+                    : { topItem: 0, focussedItem: 0, hasFocus: true };
+                var targetIndex = (typeof menu.index === 'number' && menu.index >= 0 && menu.index < items.length)
+                    ? menu.index
+                    : (typeof captured.focussedItem === 'number' && captured.focussedItem < items.length ? captured.focussedItem : 0);
+                captured.focussedItem = targetIndex;
+                captured.hasFocus = true;
+                var vis = (session.control.properties && session.control.properties.visibleItems) || 5;
+                if (captured.topItem > targetIndex) {
+                    captured.topItem = targetIndex;
+                } else if (targetIndex >= captured.topItem + vis) {
+                    captured.topItem = targetIndex - vis + 1;
+                }
+                if (captured.focussedItem >= items.length) {
+                    captured.focussedItem = 0;
+                    captured.topItem = 0;
+                }
+
+                if (session.control.properties) {
+                    session.control.properties.focussedItem = targetIndex;
+                    session.control.properties.scrollTo = captured.topItem;
+                }
+                session.control._lastItemWithFocus = targetIndex;
+                session.control._inputMode = 'controller';
+                session.control._hasFocus = true;
+                session.control._inScroll = false;
+                session.control._scrollNature = null;
+                session.control._inDrag = false;
+                session.control._stopSelect = false;
+                session.control._initialScrollMode = 'config';
+
                 session.control.setDataListAndUpdateItems({
                     itemCountKnown: true,
                     itemCount: items.length,
@@ -492,11 +536,50 @@
                 if (typeof session.control.setLoading === 'function') {
                     session.control.setLoading(false);
                 }
-                if (captured.focussedItem >= items.length) {
-                    captured.focussedItem = 0;
-                    captured.topItem = 0;
+
+                session.control._inScroll = false;
+                session.control._scrollNature = null;
+                session.control._inDrag = false;
+                session.control._stopSelect = false;
+                session.control._inputMode = 'controller';
+                session.control._hasFocus = true;
+                session.control._initialScrollMode = 'config';
+
+                if (typeof session.control.restoreContext === 'function') {
+                    session.control.restoreContext(captured);
                 }
-                session.control.restoreContext(captured);
+                if (typeof session.control._scrollTo === 'function') {
+                    session.control._scrollTo(captured.topItem, 0);
+                }
+                if (session.control.scrollerAnimationEndCallback && session.control.scroller) {
+                    session.control.scroller.removeEventListener(session.control._VENDOR + 'TransitionEnd', session.control.scrollerAnimationEndCallback, false);
+                    session.control.scrollerAnimationEndCallback = null;
+                }
+                session.control._inScroll = false;
+                session.control._scrollNature = null;
+                session.control._inDrag = false;
+                session.control._stopSelect = false;
+                session.control._initialScrollMode = 'config';
+
+                if (typeof session.control._showFocus === 'function') {
+                    session.control._showFocus(targetIndex, true);
+                }
+                session.control._lastItemWithFocus = targetIndex;
+                if (session.control.properties) {
+                    session.control.properties.focussedItem = targetIndex;
+                }
+                if (session.control.items && session.control.items.length) {
+                    for (var k = 0; k < session.control.items.length; k++) {
+                        var it = session.control.items[k];
+                        if (it && it.domElt && it.domElt.classList) {
+                            if (it.ref === targetIndex) {
+                                it.domElt.classList.add('focus');
+                            } else {
+                                it.domElt.classList.remove('focus');
+                            }
+                        }
+                    }
+                }
             } else {
                 global.clearTimeout(selection);
                 destroyList();

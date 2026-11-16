@@ -214,11 +214,34 @@
 
     function mzdTweaks() {
         var key = 'mzd-preview-mzd-tweaks';
+        var defaultAudioOrder = {
+            audio_traffic_info: 0,
+            audio_fm_radio: 1,
+            audio_am_radio: 2,
+            audio_dab: 3,
+            audio_sat_radio: 4,
+            audio_xm_audio: 5,
+            audio_aha_radio: 6,
+            audio_pandora: 7,
+            audio_stitcher: 8,
+            audio_bt_audio: 9,
+            audio_car_play_wifi: 10,
+            audio_car_play: 11,
+            audio_android_auto: 12,
+            audio_usb_a: 13,
+            audio_usb_b: 14,
+            audio_cd: 15,
+            audio_aux_in: 16,
+            audio_dvd: 17,
+            audio_tv: 18
+        };
         var schemaDefaults = {
             main_menu_loop: false,
             list_loop: false,
             list_beep: true,
-            short_delay: false
+            short_delay: false,
+            audio_order_custom: false,
+            audio_order: defaultAudioOrder
         };
         var initial = defaults['mzd-tweaks'] || schemaDefaults;
         var settings = stored(key, initial);
@@ -226,7 +249,20 @@
 
         for (name in schemaDefaults) {
             if (Object.prototype.hasOwnProperty.call(schemaDefaults, name)) {
-                if (typeof settings[name] !== 'boolean') {
+                if (name === 'audio_order') {
+                    if (typeof settings[name] !== 'object' || settings[name] === null) {
+                        settings[name] = copy(defaultAudioOrder);
+                    } else {
+                        for (var aoKey in defaultAudioOrder) {
+                            if (settings[name][aoKey] === undefined) {
+                                settings[name][aoKey] = defaultAudioOrder[aoKey];
+                            }
+                        }
+                    }
+                    for (var aoProp in settings[name]) {
+                        settings['audio_order.' + aoProp] = settings[name][aoProp];
+                    }
+                } else if (typeof settings[name] !== 'boolean') {
                     settings[name] = (initial && typeof initial[name] === 'boolean') ? initial[name] : schemaDefaults[name];
                 }
             }
@@ -234,10 +270,22 @@
 
         function applyGlobals() {
             if (!window.mzdTweaks) { window.mzdTweaks = {}; }
+            if (!window.mzdTweaks.audio_order) { window.mzdTweaks.audio_order = {}; }
             for (var k in settings) {
                 if (Object.prototype.hasOwnProperty.call(settings, k)) {
-                    window.mzdTweaks[k] = settings[k];
+                    if (k === 'audio_order' && typeof settings[k] === 'object' && settings[k] !== null) {
+                        for (var sub in settings[k]) {
+                            if (Object.prototype.hasOwnProperty.call(settings[k], sub)) {
+                                window.mzdTweaks.audio_order[sub] = settings[k][sub];
+                            }
+                        }
+                    } else {
+                        window.mzdTweaks[k] = settings[k];
+                    }
                 }
+            }
+            if (typeof window.mzdTweaksResortEntertainment === 'function') {
+                try { window.mzdTweaksResortEntertainment(); } catch (ignore) {}
             }
         }
 
@@ -254,10 +302,24 @@
                 return { settings: copy(settings) };
             }
             if (operation === 'set') {
-                if (typeof args.key !== 'string' || !Object.prototype.hasOwnProperty.call(schemaDefaults, args.key) || typeof args.value !== 'boolean') {
+                if (typeof args.key !== 'string') {
                     throw new Error('Invalid setting: ' + String(args.key));
                 }
-                settings[args.key] = args.value;
+                if (args.key === 'audio_order') {
+                    if (typeof args.value !== 'object' || args.value === null) {
+                        throw new Error('Invalid setting value');
+                    }
+                    settings.audio_order = copy(args.value);
+                    for (var audioKey in args.value) {
+                        if (Object.prototype.hasOwnProperty.call(args.value, audioKey)) {
+                            settings['audio_order.' + audioKey] = args.value[audioKey];
+                        }
+                    }
+                } else if (Object.prototype.hasOwnProperty.call(schemaDefaults, args.key) && typeof args.value === 'boolean') {
+                    settings[args.key] = args.value;
+                } else {
+                    throw new Error('Invalid setting: ' + String(args.key));
+                }
                 save();
                 applyGlobals();
                 return { settings: copy(settings) };
@@ -276,6 +338,9 @@
             if (module === 'android-auto' && (operation === 'set' || operation === 'save') &&
                 ((args && args.key === 'resolution_dpi') || (args && args.settings && args.settings.resolution_dpi !== undefined))) {
                 delay = 2000;
+            }
+            if (module === 'mzd-tweaks' && operation === 'set' && args && args.key === 'audio_order') {
+                delay = 1000;
             }
             window.setTimeout(function () {
                 var value, service;

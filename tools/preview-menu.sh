@@ -155,7 +155,31 @@ SETTINGS_JSON="{}"
 if [ -n "$CONF_FILE" ]; then
     case "$CONF_FILE" in
         *.js)
-            SETTINGS_JSON=$(sed -n '/{/,/}/p' "$CONF_FILE" | sed -e '1s/^[^{]*//' -e '$s/[^}]*$//')
+            SETTINGS_JSON=$(awk '
+            BEGIN { inside = 0; brace_count = 0 }
+            /{/ {
+                if (!inside) {
+                    inside = 1
+                    sub(/^[^{]*/, "")
+                }
+            }
+            inside {
+                line = $0
+                n = length(line)
+                for (i = 1; i <= n; i++) {
+                    c = substr(line, i, 1)
+                    if (c == "{") brace_count++
+                    else if (c == "}") {
+                        brace_count--
+                        if (brace_count == 0) {
+                            print substr(line, 1, i)
+                            exit
+                        }
+                    }
+                }
+                print line
+            }
+            ' "$CONF_FILE")
             ;;
         *)
             SETTINGS_JSON=$(awk '
@@ -228,21 +252,46 @@ if [ "$USE_EMU" -eq 1 ]; then
         "$ID" "$GUI_MENU_PATH" "$GUI_LABEL" "$ID" "$GUI_ENTRYPOINT" "$resident" "$service" "$translations" | \
         awk -f "$REPO_DIR/usb/lib/gui-registry.awk" > "$EMU_DIR/data/integration/mzd-gui-registry.js"
 
-    # Ensure persistent settings directory and default settings file exist in the emulator if not present
-    EMU_SETTINGS_DIR="$EMU_DIR/tmp/mnt/data_persist/$ID/data/$ID"
-    mkdir -p "$EMU_SETTINGS_DIR"
-    if [ ! -f "$EMU_SETTINGS_DIR/settings.js" ]; then
-        if [ -f "$TWEAK_DIR/assets/settings.js" ]; then
-            cp "$TWEAK_DIR/assets/settings.js" "$EMU_SETTINGS_DIR/settings.js"
-            echo "Copied default settings.js to emulator persistent storage ($EMU_SETTINGS_DIR/settings.js)"
-        elif [ -n "$CONF_FILE" ] && [ -f "$CONF_FILE" ]; then
-            cp "$CONF_FILE" "$EMU_SETTINGS_DIR/settings.js"
-            echo "Copied $CONF_FILE to emulator persistent storage ($EMU_SETTINGS_DIR/settings.js)"
+    # Ensure persistent config files/directories declared in manifest exist in the emulator
+    if [ -n "$CONFIGS" ]; then
+        tab=$(printf '\t')
+        awk -v base="/tmp/mnt/data_persist" -f "$REPO_DIR/usb/lib/configs.awk" "$MANIFEST_CONF" | while IFS="$tab" read -r cfg_key cfg_kind cfg_target cfg_source; do
+            emu_cfg_target="$EMU_DIR$cfg_target"
+            if [ "$cfg_kind" = "dir" ]; then
+                mkdir -p "$emu_cfg_target"
+                if [ "$cfg_source" != "-" ] && [ -d "$TWEAK_DIR/$cfg_source" ]; then
+                    cp -R "$TWEAK_DIR/$cfg_source/"* "$emu_cfg_target/" 2>/dev/null || true
+                fi
+            elif [ "$cfg_kind" = "file" ]; then
+                mkdir -p "$(dirname "$emu_cfg_target")"
+                if [ ! -f "$emu_cfg_target" ]; then
+                    if [ "$cfg_source" != "-" ] && [ -f "$TWEAK_DIR/$cfg_source" ]; then
+                        cp "$TWEAK_DIR/$cfg_source" "$emu_cfg_target"
+                        echo "Copied default $cfg_key to emulator persistent storage ($emu_cfg_target)"
+                    fi
+                fi
+            fi
+        done
+    fi
+
+    # Ensure saved package settings.conf exists in emulator if the tweak defines settings
+    if [ -n "$SETTINGS" ]; then
+        EMU_PACKAGE_DIR="$EMU_DIR/tmp/mnt/data_persist/mzd-tweaks/installed/$ID/package"
+        mkdir -p "$EMU_PACKAGE_DIR/tweaks/$ID"
+        cp "$MANIFEST_CONF" "$EMU_PACKAGE_DIR/tweaks/$ID/manifest.conf"
+        if [ ! -f "$EMU_PACKAGE_DIR/settings.conf" ]; then
+            (
+                . "$REPO_DIR/usb/lib/manifest.sh"
+                . "$REPO_DIR/usb/lib/settings.sh"
+                mzd_manifest_load "$MANIFEST_CONF"
+                mzd_settings_normalize "$MANIFEST_CONF" > "$EMU_PACKAGE_DIR/settings.conf"
+            ) || true
+            echo "Initialized settings.conf in emulator ($EMU_PACKAGE_DIR/settings.conf)"
         fi
     fi
 
     # Restore any previously patched OEM files if .orig backups exist in the emulator.
-    for target_rel in /jci/gui/common/controls/List2/js/List2Ctrl.js /jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js; do
+    for target_rel in /jci/gui/common/controls/List2/js/List2Ctrl.js /jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js /jci/gui/apps/system/js/systemApp.js; do
         if [ -f "$EMU_DIR$target_rel.orig" ]; then
             cp "$EMU_DIR$target_rel.orig" "$EMU_DIR$target_rel"
             rm -f "$EMU_DIR$target_rel.orig"
@@ -603,6 +652,7 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                     }
                 }
             }
+            initialFocus = '';
         }
         menuTitle.textContent = menu.title || '';
         menuList.innerHTML = '';
@@ -677,6 +727,7 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
             }
 
             item.addEventListener('click', function() {
+                setFocus(idx);
                 sendSelect(idx);
             });
             item.addEventListener('mouseenter', function() {
@@ -726,7 +777,8 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
     }
 
     function sendSelect(idx, params) {
-        var msg = { type: 'aa-native-select', token: token, index: idx };
+        var reqType = (tweakId === 'mzd-tweaks') ? 'mzd-tweaks-native-select' : 'aa-native-select';
+        var msg = { type: reqType, token: token, index: idx };
         if (params) { msg.params = params; }
         sendToFrame(msg);
     }
@@ -776,7 +828,7 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                     if (failSave) {
                         showSbn('Failed to save settings');
                         sendToFrame({
-                            type: 'aa-response',
+                            type: respType,
                             token: data.token || token,
                             id: data.id,
                             state: settings,
@@ -785,9 +837,16 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                     } else {
                         if (data.payload && data.payload.key !== undefined) {
                             settings[data.payload.key] = data.payload.value;
+                            if (data.payload.key === 'audio_order' && typeof data.payload.value === 'object' && data.payload.value !== null) {
+                                for (var aok in data.payload.value) {
+                                    if (Object.prototype.hasOwnProperty.call(data.payload.value, aok)) {
+                                        settings['audio_order.' + aok] = data.payload.value[aok];
+                                    }
+                                }
+                            }
                         }
                         sendToFrame({
-                            type: 'aa-response',
+                            type: respType,
                             token: data.token || token,
                             id: data.id,
                             state: settings,
@@ -808,9 +867,33 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
         } else if (data.type === 'aa-native-release' || data.type === 'mzd-tweaks-native-release') {
             nativeMenu.style.display = 'none';
             currentMenu = null;
-        } else if (data.type === 'aa-sbn') {
+        } else if (data.type === 'mzd-gui-home' || data.type === 'aa-native-home' || data.type === 'mzd-tweaks-native-home') {
+            if (nativeMenu.style.display !== 'none') {
+                nativeMenu.style.display = 'none';
+                currentMenu = null;
+            }
+            if (statusMsg) statusMsg.textContent = 'Home';
+        } else if (data.type === 'aa-native-input' || data.type === 'mzd-tweaks-native-input') {
+            var inputAct = data.action;
+            if (data.phase !== 'release' && currentMenu && nativeMenu.style.display !== 'none') {
+                if (inputAct === 'up' || inputAct === 'rotateLeft') {
+                    setFocus(focusedIndex - 1);
+                } else if (inputAct === 'down' || inputAct === 'rotateRight') {
+                    setFocus(focusedIndex + 1);
+                } else if (inputAct === 'left' || inputAct === 'right') {
+                    var curRow = currentMenu.rows && currentMenu.rows[focusedIndex];
+                    if (curRow && curRow.itemStyle === 'styleStep') {
+                        stepRow(curRow, focusedIndex, inputAct === 'right' ? 1 : -1);
+                    }
+                } else if (inputAct === 'select') {
+                    sendSelect(focusedIndex);
+                } else if (inputAct === 'back') {
+                    sendBack();
+                }
+            }
+        } else if (data.type === 'aa-sbn' || data.type === 'mzd-tweaks-sbn') {
             showSbn(data.text);
-        } else if (data.type === 'aa-sbn-end') {
+        } else if (data.type === 'aa-sbn-end' || data.type === 'mzd-tweaks-sbn-end') {
             if (sbnEl) sbnEl.style.display = 'none';
         } else if (data.type === 'mzd-gui-close') {
             if (nativeMenu.style.display !== 'none') {
@@ -823,39 +906,20 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
 
     window.addEventListener('keydown', function(e) {
         var code = e.keyCode;
-        var map = {38:'up', 40:'down', 37:'left', 39:'right', 13:'select', 77:'rotateRight', 78:'rotateLeft', 27:'back', 8:'back'};
+        var map = {38:'up', 40:'down', 37:'left', 39:'right', 13:'select', 77:'rotateRight', 78:'rotateLeft', 27:'back', 8:'back', 36:'home', 72:'home'};
         var act = map[code];
         if (!act) return;
         e.preventDefault();
 
-        if (currentMenu && nativeMenu.style.display !== 'none') {
-            if (act === 'up' || act === 'rotateLeft') {
-                setFocus(focusedIndex - 1);
-            } else if (act === 'down' || act === 'rotateRight') {
-                setFocus(focusedIndex + 1);
-            } else if (act === 'left' || act === 'right') {
-                var curRow = currentMenu.rows && currentMenu.rows[focusedIndex];
-                if (curRow && curRow.itemStyle === 'styleStep') {
-                    stepRow(curRow, focusedIndex, act === 'right' ? 1 : -1);
-                }
-            } else if (act === 'select') {
-                sendSelect(focusedIndex);
-            } else if (act === 'back') {
-                sendBack();
-            }
-        } else {
-            sendToFrame({ type: 'mzd-gui-input', token: token, action: act, phase: 'press' });
-        }
+        sendToFrame({ type: 'mzd-gui-input', token: token, action: act, phase: 'press' });
     });
 
     window.addEventListener('keyup', function(e) {
         var code = e.keyCode;
-        var map = {38:'up', 40:'down', 37:'left', 39:'right', 13:'select', 77:'rotateRight', 78:'rotateLeft', 27:'back', 8:'back'};
+        var map = {38:'up', 40:'down', 37:'left', 39:'right', 13:'select', 77:'rotateRight', 78:'rotateLeft', 27:'back', 8:'back', 36:'home', 72:'home'};
         var act = map[code];
         if (!act) return;
-        if (!currentMenu || nativeMenu.style.display === 'none') {
-            sendToFrame({ type: 'mzd-gui-input', token: token, action: act, phase: 'release' });
-        }
+        sendToFrame({ type: 'mzd-gui-input', token: token, action: act, phase: 'release' });
     });
 
     if (initialSbnText) {

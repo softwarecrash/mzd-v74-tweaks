@@ -820,14 +820,16 @@ test('action rows send their request, optionally after a Yes/No confirmation', (
 test('the reboot row waits for a needed reboot and an idle service, then confirms', () => {
   const page = viewPage({ entries: () => [{ type: 'reboot', id: 'reboot', label: 'Reboot', question: 'Reboot now?', fallback: 'Hold both buttons' }] });
   page.respond({ state: {}, rebootRequired: false });
-  assert.equal(page.row(0).image1, 'common/images/icons/IcnListSynchronize_En.png');
+  assert.equal(page.row(0).image1, 'common/images/icons/IcnListSynchronize_Ds.png');
   assert.equal(page.row(0).disabled, true, 'nothing to apply');
   page.select(0);
   assert.equal(page.dialogs().length, 0);
 
   page.respond({ state: {}, rebootRequired: true, saving: true, pending: ['a'] });
+  assert.equal(page.row(0).image1, 'common/images/icons/IcnListSynchronize_Ds.png');
   assert.equal(page.row(0).disabled, true, 'a save may still be lost');
   page.respond({ state: {}, rebootRequired: true });
+  assert.equal(page.row(0).image1, 'common/images/icons/IcnListSynchronize_En.png');
   assert.equal(page.row(0).disabled, false);
 
   page.select(0);

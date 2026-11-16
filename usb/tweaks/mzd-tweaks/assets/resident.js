@@ -1,30 +1,91 @@
 /*
  * MZD Tweaks resident. The shared settings host owns the native menu and the
- * save queue; this file keeps window.mzdTweaks in sync and hooks MainMenuCtrl
- * and List2Ctrl at runtime without modifying OEM target files.
+ * save queue; this file keeps window.mzdTweaks in sync and hooks MainMenuCtrl,
+ * List2Ctrl and systemApp at runtime without modifying OEM target files.
  *
- * Three sources set window.mzdTweaks, in this order:
- * 1. The inline defaults below, so OEM code and hooks always find the object.
- * 2. settings.js, written by the service; it loads asynchronously at boot,
- *    before the service is running, and holds the last saved values.
- * 3. The service, through onConfirmed. It runs after a successful read
- *    (syncOnStart) and after each successful save, never for unsaved values.
+ * Sources that populate window.mzdTweaks:
+ * - Inline defaults below, so OEM code and hooks always find the object.
+ * - settings.js, written by the service; loads asynchronously at boot.
+ * - The service, through onConfirmed, after a successful read or save.
  */
 (function (global) {
     'use strict';
+
+    var AUDIO_ORDER_MAP = {
+        'TrafficInfo': 'audio_traffic_info',
+        'FMRadio': 'audio_fm_radio',
+        'AMRadio': 'audio_am_radio',
+        'DAB': 'audio_dab',
+        'SatRadio': 'audio_sat_radio',
+        'XmAudio': 'audio_xm_audio',
+        'AhaRadio': 'audio_aha_radio',
+        'Pandora': 'audio_pandora',
+        'Stitcher': 'audio_stitcher',
+        'BTAudio': 'audio_bt_audio',
+        'CarPlayWifi': 'audio_car_play_wifi',
+        'CarPlay': 'audio_car_play',
+        'AndroidAuto': 'audio_android_auto',
+        'USB_A': 'audio_usb_a',
+        'USB_B': 'audio_usb_b',
+        'CD': 'audio_cd',
+        'AuxIn': 'audio_aux_in',
+        'DVD': 'audio_dvd',
+        'TV': 'audio_tv'
+    };
+
+    var DEFAULT_AUDIO_ORDER = {
+        audio_traffic_info: 0,
+        audio_fm_radio: 1,
+        audio_am_radio: 2,
+        audio_dab: 3,
+        audio_sat_radio: 4,
+        audio_xm_audio: 5,
+        audio_aha_radio: 6,
+        audio_pandora: 7,
+        audio_stitcher: 8,
+        audio_bt_audio: 9,
+        audio_car_play_wifi: 10,
+        audio_car_play: 11,
+        audio_android_auto: 12,
+        audio_usb_a: 13,
+        audio_usb_b: 14,
+        audio_cd: 15,
+        audio_aux_in: 16,
+        audio_dvd: 17,
+        audio_tv: 18
+    };
 
     var DEFAULTS = {
         main_menu_loop: false,
         list_loop: false,
         list_beep: true,
-        short_delay: false
+        short_delay: false,
+        audio_order_custom: false,
+        audio_order: DEFAULT_AUDIO_ORDER
     };
 
     function backfillDefaults(obj) {
         if (!obj) { return; }
         for (var k in DEFAULTS) {
             if (Object.prototype.hasOwnProperty.call(DEFAULTS, k) && obj[k] === undefined) {
-                obj[k] = DEFAULTS[k];
+                if (k === 'audio_order') {
+                    obj[k] = {};
+                    for (var subKey in DEFAULT_AUDIO_ORDER) {
+                        if (Object.prototype.hasOwnProperty.call(DEFAULT_AUDIO_ORDER, subKey)) {
+                            obj[k][subKey] = DEFAULT_AUDIO_ORDER[subKey];
+                        }
+                    }
+                } else {
+                    obj[k] = DEFAULTS[k];
+                }
+            }
+        }
+        if (!obj.audio_order) {
+            obj.audio_order = {};
+        }
+        for (var ak in DEFAULT_AUDIO_ORDER) {
+            if (Object.prototype.hasOwnProperty.call(DEFAULT_AUDIO_ORDER, ak) && obj.audio_order[ak] === undefined) {
+                obj.audio_order[ak] = DEFAULT_AUDIO_ORDER[ak];
             }
         }
     }
@@ -415,6 +476,89 @@
         }
     }
 
+    // Entertainment Audio Order (systemApp hook)
+    // OEM systemApp.js accesses CarPlay and Android Auto slots relative to
+    // _USB1EntIndex in _masterEntertainmentDataList.items. We must never reorder
+    // _masterEntertainmentDataList.items in place, but instead sort only the
+    // visible list returned by _buildEntertainmentDataList().
+    function sortEntertainmentItems(items) {
+        if (!items || !items.length) {
+            return;
+        }
+        var isCustom = global.mzdTweaks && global.mzdTweaks.audio_order_custom;
+        var audioOrder = (isCustom && global.mzdTweaks && global.mzdTweaks.audio_order) ? global.mzdTweaks.audio_order : {};
+
+        for (var i = 0; i < items.length; i++) {
+            var srcId = items[i].appData && items[i].appData.audioSourceId;
+            var key = AUDIO_ORDER_MAP[srcId];
+            var defIdx = (key && DEFAULT_AUDIO_ORDER[key] !== undefined) ? DEFAULT_AUDIO_ORDER[key] : i;
+            if (items[i].defaultIndex === undefined) {
+                items[i].defaultIndex = defIdx;
+            }
+            if (isCustom && key && audioOrder[key] !== undefined) {
+                items[i].index = audioOrder[key];
+            } else {
+                items[i].index = items[i].defaultIndex;
+            }
+        }
+
+        items.sort(function (a, b) {
+            var diff = (a.index || 0) - (b.index || 0);
+            if (diff !== 0) {
+                return diff;
+            }
+            return (a.defaultIndex || 0) - (b.defaultIndex || 0);
+        });
+    }
+
+    function hookSystemApp() {
+        if (!global.systemApp || !global.systemApp.prototype || global.systemApp.prototype._mzdTweaksHooked) {
+            return;
+        }
+        var proto = global.systemApp.prototype;
+        if (typeof proto._buildEntertainmentDataList !== 'function') {
+            return;
+        }
+        proto._mzdTweaksHooked = true;
+
+        var origBuildEnt = proto._buildEntertainmentDataList;
+        proto._buildEntertainmentDataList = function () {
+            var dataList = origBuildEnt.apply(this, arguments);
+            if (dataList && dataList.items) {
+                sortEntertainmentItems(dataList.items);
+            }
+            return dataList;
+        };
+
+        if (global.framework && typeof global.framework.getAppInstance === 'function') {
+            var currentApp = global.framework.getAppInstance('system');
+            if (currentApp && currentApp._currentContext && currentApp._currentContext.ctxtId === 'Entertainment' &&
+                currentApp._currentContextTemplate && currentApp._currentContextTemplate.list2Ctrl) {
+                var list = currentApp._buildEntertainmentDataList();
+                if (list && list.items) {
+                    currentApp._currentContextTemplate.list2Ctrl.setDataList(list);
+                    currentApp._currentContextTemplate.list2Ctrl.updateItems(0, list.items.length - 1);
+                }
+            }
+        }
+    }
+
+    // Expose global resort function
+    global.mzdTweaksResortEntertainment = function () {
+        var fw = (global.parent && global.parent.framework) || global.framework;
+        var sysApp = fw && typeof fw.getAppInstance === 'function' ? fw.getAppInstance('system') : null;
+        if (sysApp && typeof sysApp._buildEntertainmentDataList === 'function') {
+            var dataList = sysApp._buildEntertainmentDataList();
+            if (sysApp._currentContext && sysApp._currentContext.ctxtId === 'Entertainment' &&
+                sysApp._currentContextTemplate && sysApp._currentContextTemplate.list2Ctrl &&
+                dataList && dataList.items) {
+                sysApp._currentContextTemplate.list2Ctrl.setDataList(dataList);
+                sysApp._currentContextTemplate.list2Ctrl.updateItems(0, dataList.items.length - 1);
+            }
+            return dataList;
+        }
+    };
+
     function hookFramework() {
         if (global.framework && typeof global.framework.instantiateControl === 'function' && !global.framework._mzdTweaksInstantiateHooked) {
             global.framework._mzdTweaksInstantiateHooked = true;
@@ -433,6 +577,7 @@
     function initHooks() {
         hookMainMenu();
         hookList2();
+        hookSystemApp();
         hookFramework();
 
         // Also poll during initial boot until both controls are hooked or limit reached
@@ -440,7 +585,8 @@
         var clearTimer = global.clearInterval || (typeof clearInterval !== 'undefined' ? clearInterval : null);
         var isHooked = function () {
             return global.MainMenuCtrl && global.MainMenuCtrl.prototype && global.MainMenuCtrl.prototype._mzdTweaksHooked &&
-                global.List2Ctrl && global.List2Ctrl.prototype && global.List2Ctrl.prototype._mzdTweaksHooked;
+                global.List2Ctrl && global.List2Ctrl.prototype && global.List2Ctrl.prototype._mzdTweaksHooked &&
+                global.systemApp && global.systemApp.prototype && global.systemApp.prototype._mzdTweaksHooked;
         };
         if (pollTimer && !isHooked()) {
             var attempts = 0;
@@ -450,6 +596,7 @@
                 attempts++;
                 hookMainMenu();
                 hookList2();
+                hookSystemApp();
                 hookFramework();
                 if (isHooked() || attempts >= maxAttempts) {
                     if (clearTimer && poll !== null) { clearTimer(poll); }
@@ -470,14 +617,34 @@
             throw new Error('Shared settings code is unavailable.');
         }
         function applyGlobals(settings) {
-            var k;
+            var k, subKey;
             if (!global.mzdTweaks) { global.mzdTweaks = {}; }
+            if (!global.mzdTweaks.audio_order) { global.mzdTweaks.audio_order = {}; }
             for (k in settings) {
                 if (Object.prototype.hasOwnProperty.call(settings, k)) {
-                    global.mzdTweaks[k] = settings[k];
+                    if (k.indexOf('audio_order.') === 0) {
+                        subKey = k.substring(12);
+                        global.mzdTweaks.audio_order[subKey] = settings[k];
+                    } else if (k === 'audio_order' && typeof settings[k] === 'object' && settings[k] !== null) {
+                        for (subKey in settings[k]) {
+                            if (Object.prototype.hasOwnProperty.call(settings[k], subKey)) {
+                                global.mzdTweaks.audio_order[subKey] = settings[k][subKey];
+                            }
+                        }
+                    } else {
+                        global.mzdTweaks[k] = settings[k];
+                    }
                 }
             }
             backfillDefaults(global.mzdTweaks);
+            if (typeof global.mzdTweaksResortEntertainment === 'function') {
+                try {
+                    global.mzdTweaksResortEntertainment();
+                } catch (error) {
+                    context.log('Failed to resort entertainment list: ' + (error && error.message ? error.message : error));
+                    context.notify('Failed to save settings. Please retry.', true);
+                }
+            }
         }
 
         global.MzdSettingsHost.create(context, {

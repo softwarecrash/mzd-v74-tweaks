@@ -1,19 +1,48 @@
 -- Runtime settings manager for MZD Tweaks.
 -- settings.js is the saved source of truth. resident.js loads it at boot so
 -- runtime hooks have the saved values before this service is running.
-local DEFAULTS = {
+local BOOL_DEFAULTS = {
     main_menu_loop = false,
     list_loop = false,
     list_beep = true,
-    short_delay = false
+    short_delay = false,
+    audio_order_custom = false
 }
 
-local KEYS = {
+local BOOL_KEYS = {
     'main_menu_loop',
     'list_loop',
     'list_beep',
-    'short_delay'
+    'short_delay',
+    'audio_order_custom'
 }
+
+local AUDIO_KEYS = {
+    'audio_traffic_info',
+    'audio_fm_radio',
+    'audio_am_radio',
+    'audio_dab',
+    'audio_sat_radio',
+    'audio_xm_audio',
+    'audio_aha_radio',
+    'audio_pandora',
+    'audio_stitcher',
+    'audio_bt_audio',
+    'audio_car_play_wifi',
+    'audio_car_play',
+    'audio_android_auto',
+    'audio_usb_a',
+    'audio_usb_b',
+    'audio_cd',
+    'audio_aux_in',
+    'audio_dvd',
+    'audio_tv'
+}
+
+local AUDIO_DEFAULTS = {}
+for i, k in ipairs(AUDIO_KEYS) do
+    AUDIO_DEFAULTS[k] = i - 1
+end
 
 return function(context)
     local fs = context.files
@@ -22,14 +51,27 @@ return function(context)
 
     local function read_settings()
         local settings = {}
-        for _, k in ipairs(KEYS) do
-            settings[k] = DEFAULTS[k]
+        local audio_order = {}
+        for _, k in ipairs(BOOL_KEYS) do
+            settings[k] = BOOL_DEFAULTS[k]
         end
+        for _, k in ipairs(AUDIO_KEYS) do
+            local default_val = AUDIO_DEFAULTS[k]
+            settings['audio_order.' .. k] = default_val
+            audio_order[k] = default_val
+        end
+        settings.audio_order = audio_order
+
         if not fs.exists(settings_path) then
-            return settings
+            return settings, true
         end
-        local content = fs.read(settings_path, 65536)
-        for _, k in ipairs(KEYS) do
+
+        local ok, content = pcall(fs.read, settings_path, 65536)
+        if not ok or not content or not content:find('window%.mzdTweaks%s*=') or not content:find('};%s*$') then
+            return settings, false
+        end
+
+        for _, k in ipairs(BOOL_KEYS) do
             local val = content:match('"' .. k .. '"%s*:%s*([a-z]+)')
             if val == 'true' then
                 settings[k] = true
@@ -37,17 +79,38 @@ return function(context)
                 settings[k] = false
             end
         end
-        return settings
+
+        for _, k in ipairs(AUDIO_KEYS) do
+            local val = content:match('"' .. k .. '"%s*:%s*(%d+)')
+            if val then
+                local num = tonumber(val)
+                settings['audio_order.' .. k] = num
+                audio_order[k] = num
+            end
+        end
+
+        return settings, true
     end
 
     local function serialize_js(settings)
         local lines = { 'window.mzdTweaks = {' }
-        for i, k in ipairs(KEYS) do
+        for _, k in ipairs(BOOL_KEYS) do
             local val = settings[k]
-            if val == nil then val = DEFAULTS[k] end
-            local comma = (i < #KEYS) and ',' or ''
-            lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. comma
+            if val == nil then val = BOOL_DEFAULTS[k] end
+            lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. ','
         end
+        lines[#lines + 1] = '    "audio_order": {'
+        for i, k in ipairs(AUDIO_KEYS) do
+            local dot_k = 'audio_order.' .. k
+            local val = settings[dot_k]
+            if val == nil and type(settings.audio_order) == 'table' then
+                val = settings.audio_order[k]
+            end
+            if val == nil then val = AUDIO_DEFAULTS[k] end
+            local comma = (i < #AUDIO_KEYS) and ',' or ''
+            lines[#lines + 1] = '        "' .. k .. '": ' .. tostring(val) .. comma
+        end
+        lines[#lines + 1] = '    }'
         lines[#lines + 1] = '};'
         return table.concat(lines, '\n') .. '\n'
     end
@@ -75,23 +138,47 @@ return function(context)
     return {
         request = function(operation, args)
             if operation == 'get' then
-                local settings = read_settings()
-                if not fs.exists(settings_path) then
+                local settings, valid = read_settings()
+                if not fs.exists(settings_path) or not valid then
                     write_settings(settings)
                 end
                 return { settings = settings }
             elseif operation == 'set' then
                 assert(type(args) == 'table', 'Invalid arguments.')
-                if type(args.key) ~= 'string' or DEFAULTS[args.key] == nil then
+                if type(args.key) ~= 'string' then
                     error('Unknown setting: ' .. tostring(args.key), 0)
                 end
-                if type(args.value) ~= 'boolean' then
-                    error('Invalid setting value.', 0)
+                if args.key == 'audio_order' then
+                    if type(args.value) ~= 'table' then
+                        error('Invalid setting value.', 0)
+                    end
+                    local order_map = {}
+                    for _, k in ipairs(AUDIO_KEYS) do
+                        local v = args.value[k]
+                        if v == nil then v = args.value['audio_order.' .. k] end
+                        if type(v) ~= 'number' or v ~= v or v < 0 or v > (#AUDIO_KEYS - 1) or math.floor(v) ~= v or v == math.huge or v == -math.huge then
+                            error('Invalid setting value.', 0)
+                        end
+                        order_map[k] = v
+                    end
+                    local settings = read_settings()
+                    for _, k in ipairs(AUDIO_KEYS) do
+                        settings['audio_order.' .. k] = order_map[k]
+                        settings.audio_order[k] = order_map[k]
+                    end
+                    write_settings(settings)
+                    return { settings = settings }
+                elseif BOOL_DEFAULTS[args.key] ~= nil then
+                    if type(args.value) ~= 'boolean' then
+                        error('Invalid setting value.', 0)
+                    end
+                    local settings = read_settings()
+                    settings[args.key] = args.value
+                    write_settings(settings)
+                    return { settings = settings }
+                else
+                    error('Unknown setting: ' .. tostring(args.key), 0)
                 end
-                local settings = read_settings()
-                settings[args.key] = args.value
-                write_settings(settings)
-                return { settings = settings }
             else
                 error('Unknown operation: ' .. tostring(operation), 0)
             end

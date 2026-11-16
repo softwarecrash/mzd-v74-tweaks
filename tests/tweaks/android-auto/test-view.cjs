@@ -533,7 +533,7 @@ assert.equal(control.dataList.items[8].hasCaret, true);
 
 // 1b. Reboot uses the OEM reset icon and is disabled until a change is saved
 assert.equal(rebootRow().text1, 'Reboot to apply changes');
-assert.equal(rebootRow().image1, 'common/images/icons/IcnListSynchronize_En.png');
+assert.equal(rebootRow().image1, 'common/images/icons/IcnListSynchronize_Ds.png');
 assert.equal(rebootRow().disabled, true, 'Reboot is disabled before any setting changes');
 click(16);
 assert.equal(dialogConfig, null, 'A disabled reboot row does not open the confirmation dialog');
