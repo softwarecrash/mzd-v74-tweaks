@@ -9,7 +9,7 @@ button:focus{outline:3px solid #fff;outline-offset:-4px}button:active{background
 #subtitle{position:absolute;left:28px;top:44px;font-size:11px;letter-spacing:3px;color:#a1a1a9}
 .small{position:absolute;top:12px;height:43px;font-size:17px}#refresh{right:122px;width:104px}#exit{right:24px;width:83px}
 #tabs{position:absolute;left:20px;right:20px;top:81px;height:47px;overflow-x:auto;overflow-y:hidden;white-space:nowrap}
-.tab{height:42px;min-width:150px;margin-right:8px;padding:0 19px;border:0;border-bottom:3px solid #42444a;background:#1b1c21;font-size:19px}
+.tab{height:42px;min-width:120px;margin-right:6px;padding:0 19px;border:0;border-bottom:3px solid #42444a;background:#1b1c21;font-size:19px}
 .tab.selected{border-bottom:3px solid #ec2848;background:#431723;color:#fff}
 #content{position:absolute;left:20px;right:14px;top:128px;bottom:47px;overflow:auto}
 /* Compact, single-column CMU-style rows; five entries fit below the tabs. */
