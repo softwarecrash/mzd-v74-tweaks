@@ -145,6 +145,13 @@ assert(refreshRow);assert.equal(refreshRow.image1,'common/images/icons/IcnListSy
 click(0);assert.equal(sb,'Import image');
 assert.equal(control.dataList.items[0].text1,'Import image');
 assert.equal(control.dataList.items[0].image1,'common/images/icons/IcnListImport_En.png');
+assert.equal(control.dataList.items[0].disabled,false);
+// Clicking import disables the row and switches icon to disabled state
+click(0);
+assert.equal(control.dataList.items[0].text1,'Importing...');
+assert.equal(control.dataList.items[0].image1,'common/images/icons/IcnListImport_Ds.png');
+assert.equal(control.dataList.items[0].disabled,true);
+flush();
 assert.equal(control.dataList.items[1].text1,'photo');
 assert.equal(control.dataList.items[1].disabled,true);
 assert.equal(control.dataList.items[2].text1,'PNG: 800 x 480, max. 1 MiB');

@@ -70,7 +70,8 @@
             result.push({id:'retry',label:tr('refresh','Refresh USB'),image1:'common/images/icons/IcnListSynchronize_En.png',itemStyle:'style02'}); return result;
         }
         if (page === 'import-image') {
-            return [{id:'import-one',label:state.importing ? tr('importing','Importing...') : tr('importImage','Import image'),image1:'common/images/icons/IcnListImport_En.png',itemStyle:'style02',disabled:state.importing || !usbChosen || !!usbChosen.error},
+            var importDisabled = state.importing || !usbChosen || !!usbChosen.error;
+            return [{id:'import-one',label:state.importing ? tr('importing','Importing...') : tr('importImage','Import image'),image1:importDisabled ? 'common/images/icons/IcnListImport_Ds.png' : 'common/images/icons/IcnListImport_En.png',itemStyle:'style02',disabled:importDisabled},
                 {id:'hint-name',label:usbChosen ? stripExt(usbChosen.label || usbChosen.name) : '',disabled:true},
                 {id:'hint',label:usbChosen && message(usbChosen.error) || tr('limits','PNG: 800 x 480, max. 1 MiB'),disabled:true}];
         }
