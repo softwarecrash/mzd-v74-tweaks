@@ -711,7 +711,7 @@
         text("dialog-state",item.error || "");
         var description = item.manifest.description || "Manifest could not be loaded.";
         if (item.manifest.type === "patch" || item.manifest.type === "service" || item.manifest.type === "files" || item.manifest.type === "gui-extension") {
-            if (item.state === "broken" || (item.state === "unavailable" && /target|patch|file|content|incompatible/i.test(item.error || ""))) description += "\n\nUse System > Restore originals, then retry.\nThis resets ALL patches on affected files.";
+            if (item.state === "broken" || (item.state === "unavailable" && /target|patch|file|content|incompatible/i.test(item.error || ""))) description += "\n\nUse Tools > Restore originals, then retry.\nThis resets ALL patches on affected files.";
         }
         text("dialog-description", description);
         clear(el("dialog-settings")); clear(el("dialog-meta")); text("dialog-output", "");

@@ -661,7 +661,7 @@ function brokenSaved(reply) {
     "Eligibility must not slow the menu scan"
   );
   y.nodes.tabs.children
-    .find((n) => n.textContent.indexOf("System") === 0)
+    .find((n) => n.textContent.indexOf("Tools") === 0)
     .onclick();
   y.click("tweak-ssh");
   return y;
@@ -737,7 +737,7 @@ test("INSTALLER_UI_TESTS", async (t) => {
   await t.test(
     "shows three tabs and the broken tweak first, with an error dot and no action",
     () => {
-      assert.equal(x.nodes.tabs.children.length, 3); // Errors, Interface, System.
+      assert.equal(x.nodes.tabs.children.length, 3); // Errors, Interface, Tools.
       assert.equal(x.nodes.cards.firstChild.id, "tweak-broken");
       assert.equal(x.nodes.cards.firstChild.children[0].className, "dot error");
       x.click("tweak-broken");
@@ -839,7 +839,7 @@ test("INSTALLER_UI_TESTS", async (t) => {
 
   await t.test("offers Retry status for an ambiguous status", () => {
     x.nodes.tabs.children
-      .find((n) => n.textContent.indexOf("System") === 0)
+      .find((n) => n.textContent.indexOf("Tools") === 0)
       .onclick();
     x.click("tweak-ssh");
     assert.equal(x.nodes.action.textContent, "Retry status");
@@ -929,7 +929,7 @@ test("CONTRACT_V1_UI", async (t) => {
           x.click("refresh");
           x.pump();
           x.nodes.tabs.children
-            .find((n) => n.textContent.indexOf("System") === 0)
+            .find((n) => n.textContent.indexOf("Tools") === 0)
             .onclick();
           assert.equal(
             x.doc.getElementById("tweak-ssh").children[0].className,
@@ -955,7 +955,7 @@ test("CONTRACT_V1_UI", async (t) => {
     x.click("refresh");
     x.pump();
     x.nodes.tabs.children
-      .find((n) => n.textContent.indexOf("System") === 0)
+      .find((n) => n.textContent.indexOf("Tools") === 0)
       .onclick();
     x.click("tweak-ssh");
     assert.match(x.nodes["dialog-state"].textContent, /without a reason/);
@@ -1018,23 +1018,23 @@ test("MULTICONTROLLER", async (t) => {
     const interfaceTab = x.nodes.tabs.children.find(
       (n) => n.textContent.indexOf("Interface") === 0
     );
-    const systemTab = x.nodes.tabs.children.find(
-      (n) => n.textContent.indexOf("System") === 0
+    const toolsTab = x.nodes.tabs.children.find(
+      (n) => n.textContent.indexOf("Tools") === 0
     );
     interfaceTab.onclick();
     assert.equal(x.doc.activeElement, interfaceTab);
     controller("onkeydown", 77);
-    assert.equal(x.doc.activeElement, systemTab);
+    assert.equal(x.doc.activeElement, toolsTab);
     controller("onkeydown", 13);
-    assert.equal(x.doc.activeElement, systemTab);
-    assert.equal(systemTab.attributes["aria-selected"], "true");
+    assert.equal(x.doc.activeElement, toolsTab);
+    assert.equal(toolsTab.attributes["aria-selected"], "true");
     assert.equal(interfaceTab.attributes["aria-selected"], "false");
     controller("onkeydown", 78);
     assert.equal(x.doc.activeElement, interfaceTab);
     controller("onkeydown", 13);
     assert.equal(x.doc.activeElement, interfaceTab);
-    systemTab.onclick();
-    assert.equal(x.doc.activeElement, systemTab);
+    toolsTab.onclick();
+    assert.equal(x.doc.activeElement, toolsTab);
   });
 
   await t.test("rotate moves from the tabs into the list", () => {
@@ -1223,7 +1223,7 @@ test("EXPORT_PROGRESS_UI", async (t) => {
         await t.test(id, () => {
           x = boot(undefined, false, false, true);
           x.nodes.tabs.children
-            .find((n) => n.textContent.indexOf("System") === 0)
+            .find((n) => n.textContent.indexOf("Tools") === 0)
             .onclick();
           x.click("tweak-" + id);
           assert.equal(x.nodes.action.textContent, "Run");
@@ -1299,7 +1299,7 @@ test("RESTORE_UI", async (t) => {
     // Restore is a deliberate second confirmation and refreshes every tweak afterwards.
     x = boot(undefined, false, false, true);
     x.nodes.tabs.children
-      .find((n) => n.textContent.indexOf("System") === 0)
+      .find((n) => n.textContent.indexOf("Tools") === 0)
       .onclick();
     x.click("tweak-restore-originals");
     x.click("action");
@@ -1343,7 +1343,7 @@ test("RESTORE_UI", async (t) => {
   });
 
   await t.test(
-    "a blocked tweak points to System > Restore originals",
+    "a blocked tweak points to Tools > Restore originals",
     async (t) => {
       for (const blockedState of ["broken", "unavailable"]) {
         await t.test(blockedState, () => {
@@ -1358,7 +1358,7 @@ test("RESTORE_UI", async (t) => {
           x.click("tweak-patch-example");
           assert.match(
             x.nodes["dialog-description"].textContent,
-            /System > Restore originals/
+            /Tools > Restore originals/
           );
           assert.match(
             x.nodes["dialog-description"].textContent,
@@ -1440,7 +1440,7 @@ test("RESTART_UI", async (t) => {
     x.click("refresh");
     x.pump();
     x.nodes.tabs.children
-      .find((n) => n.textContent.indexOf("System") === 0)
+      .find((n) => n.textContent.indexOf("Tools") === 0)
       .onclick();
     x.click("tweak-ssh");
     x.click("action");
@@ -2411,7 +2411,7 @@ test("DETAIL_SECTIONS", async (t) => {
       x.click("refresh");
       x.pump();
       x.nodes.tabs.children
-        .find((n) => n.textContent.indexOf("System") === 0)
+        .find((n) => n.textContent.indexOf("Tools") === 0)
         .onclick();
       x.click("tweak-ssh");
       x.pump();
@@ -2468,7 +2468,7 @@ test("LIST_POSITION", async (t) => {
 
   await t.test("another tab rebuilds the segments", () => {
     x.nodes.tabs.children
-      .find((n) => n.textContent.indexOf("System") === 0)
+      .find((n) => n.textContent.indexOf("Tools") === 0)
       .onclick();
     assert.equal(
       x.nodes["list-position"].children.length,

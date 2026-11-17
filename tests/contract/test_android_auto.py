@@ -267,9 +267,9 @@ esac
 
     # User settings defaults override via USB user/<id>/settings.conf
     user_dir = usb / 'user/android-auto'
-    write(user_dir / 'settings.conf', '# Custom user defaults\nresolution_dpi=153\nresolution_par=15800\n')
+    write(user_dir / 'settings.conf', '# Custom user defaults\nresolution_dpi=153\nresolution_par=15880\n')
     info = call(['settings-info', 'android-auto']).stdout
-    assert 'value.resolution_dpi=153' in info and 'value.resolution_par=15800' in info
+    assert 'value.resolution_dpi=153' in info and 'value.resolution_par=15880' in info
 
     # User asset override via USB user/<id>/libpatch.conf
     # The override replaces bundled assets/libpatch.conf entirely (not merged)
@@ -309,13 +309,13 @@ esac
         assert 'libpatch-aap_service.so' in aaps
         assert 'libpatch-' not in mmui
 
-    # Verify dynamic patch applied DPI=153 and PAR=15800 into XML targets
+    # Verify dynamic patch applied DPI=153 and PAR=15880 into XML targets
     std_patched = xml_std.read_text()
     ucp_patched = xml_ucp.read_text()
     for text in [std_patched, ucp_patched]:
         assert '<density>153</density>' in text
         assert '<real_density>153</real_density>' in text
-        assert '<par>15800</par>' in text
+        assert '<par>15880</par>' in text
         assert '<subscribe>TRUE</subscribe>' in text
     config_patched = config.read_text()
     second_patched = second.read_text()
@@ -338,7 +338,7 @@ esac
     # Verify persistent package and settings
     saved = store / 'android-auto/package'
     saved_settings = (saved / 'settings.conf').read_text()
-    assert 'resolution_dpi=153\n' in saved_settings and 'resolution_par=15800\n' in saved_settings
+    assert 'resolution_dpi=153\n' in saved_settings and 'resolution_par=15880\n' in saved_settings
     assert (saved / 'tweaks/android-auto/assets/libpatch.conf').read_text() == custom_asset_content
 
     # Fast and deep status installed
@@ -368,9 +368,9 @@ esac
     inventory_before = (entry / 'package.files').read_text()
     r = apply_settings('resolution_dpi=113')
     assert 'resolution_dpi is now 113. Restart the CMU' in r.stdout, r.stdout
-    assert (saved / 'settings.conf').read_text() == 'resolution_dpi=113\nresolution_par=15800\n'
+    assert (saved / 'settings.conf').read_text() == 'resolution_dpi=113\nresolution_par=15880\n'
     for text in [xml_std.read_text(), xml_ucp.read_text()]:
-        assert '<density>113</density>' in text and '<real_density>113</real_density>' in text and '<par>15800</par>' in text
+        assert '<density>113</density>' in text and '<real_density>113</real_density>' in text and '<par>15880</par>' in text
     inventory_after = (entry / 'package.files').read_text()
     changed = [(a, b) for a, b in zip(inventory_before.splitlines(), inventory_after.splitlines()) if a != b]
     assert len(changed) == 1 and changed[0][1].endswith('\tpackage/settings.conf'), changed
@@ -416,7 +416,7 @@ esac
     write(xml_std, tampered)
     r = apply_settings('resolution_dpi=120', code=1)
     assert 'does not match the saved settings' in r.stderr, r.stderr
-    assert xml_std.read_text() == tampered and (saved / 'settings.conf').read_text() == 'resolution_dpi=113\nresolution_par=15800\n'
+    assert xml_std.read_text() == tampered and (saved / 'settings.conf').read_text() == 'resolution_dpi=113\nresolution_par=15880\n'
     write(xml_std, tampered.replace('<real_density>999</real_density>', '<real_density>113</real_density>'))
     before = snapshot()
 
@@ -516,7 +516,7 @@ exec {real_mv} "$@"
     # The in-car value applied earlier remains (saved settings.conf drives uninstall)
     for text in [xml_std.read_text(), xml_ucp.read_text()]:
         assert '<density>122</density>' in text
-        assert '<par>15800</par>' in text
+        assert '<par>15880</par>' in text
 
     # GUI installation remains intact
     assert (gui_module / 'manifest.conf').exists()
