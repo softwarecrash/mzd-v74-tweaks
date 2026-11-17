@@ -1136,4 +1136,100 @@ test("createNativeMenu full features", async (t) => {
     assert(appTemplateEvents.includes("acceptFocusFromLeft"));
     assert.equal(appLinesRestored, 1);
   });
+
+  await t.test("createNativeMenu without home: true passes Global.IntentHome through to original sendEventToMmui", () => {
+    const mmuiEvents = [];
+    customFw.sendEventToMmui = function (app, event) {
+      mmuiEvents.push({ app, event });
+    };
+
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const token = "tok-home-passthrough";
+
+    menu.render(frame, token, {
+      title: "HomePassthrough",
+      page: "p1",
+      rows: [{ label: "Row" }]
+    });
+
+    frame.contentWindow.messages.length = 0;
+    mmuiEvents.length = 0;
+
+    // Simulate top-left home touch in MZD UI
+    customFw.sendEventToMmui("common", "Global.IntentHome");
+
+    // Must NOT post to iframe
+    assert.equal(frame.contentWindow.messages.filter(m => m.action === "home").length, 0);
+    // Must pass through to original sendEventToMmui
+    assert.deepEqual(mmuiEvents, [{ app: "common", event: "Global.IntentHome" }]);
+
+    menu.close();
+  });
+
+  await t.test("createNativeMenu with home: true intercepts Global.IntentHome and sends mzd-gui-input home", () => {
+    const mmuiEvents = [];
+    customFw.sendEventToMmui = function (app, event) {
+      mmuiEvents.push({ app, event });
+    };
+
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom", home: true });
+    const token = "tok-home-intercept";
+
+    menu.render(frame, token, {
+      title: "HomeIntercept",
+      page: "p1",
+      rows: [{ label: "Row" }]
+    });
+
+    frame.contentWindow.messages.length = 0;
+    mmuiEvents.length = 0;
+
+    // Simulate top-left home touch in MZD UI
+    customFw.sendEventToMmui("common", "Global.IntentHome");
+
+    // Must post action: "home" to iframe
+    const homeMsgs = frame.contentWindow.messages.filter(m => m.action === "home");
+    assert.equal(homeMsgs.length, 1);
+    assert.deepEqual(JSON.parse(JSON.stringify(homeMsgs[0])), {
+      type: "mzd-gui-input",
+      token: token,
+      action: "home",
+      phase: "step"
+    });
+    // Must NOT call original sendEventToMmui
+    assert.equal(mmuiEvents.length, 0);
+
+    menu.close();
+  });
+
+  await t.test("menu.input fallback for action 'home' closes menu and delegates to original sendEventToMmui", () => {
+    const mmuiEvents = [];
+    customFw.sendEventToMmui = function (app, event) {
+      mmuiEvents.push({ app, event });
+    };
+
+    const { frame } = makeFrame();
+    const menu = api.createNativeMenu({ prefix: "custom" });
+    const token = "tok-home-fallback";
+
+    menu.render(frame, token, {
+      title: "HomeFallback",
+      page: "p1",
+      rows: [{ label: "Row" }]
+    });
+
+    mmuiEvents.length = 0;
+
+    // 'press' phase should be ignored
+    menu.input(frame, token, "home", "press");
+    assert.equal(mmuiEvents.length, 0);
+    assert.notEqual(menu.getSession(), null);
+
+    // 'step' / 'release' phase closes menu and calls originalSend with Global.IntentHome
+    menu.input(frame, token, "home", "step");
+    assert.equal(menu.getSession(), null);
+    assert.deepEqual(mmuiEvents, [{ app: "common", event: "Global.IntentHome" }]);
+  });
 });

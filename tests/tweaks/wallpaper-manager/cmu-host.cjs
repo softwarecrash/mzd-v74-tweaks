@@ -6,7 +6,7 @@ const status=element(),rootNode=element(),frame=element();rootNode.style.cssText
 const head=element(),body=element();
 const document={head,body,getElementById:()=>status,createElement:element,getElementsByTagName:n=>n==='head'?[head]:frames,documentElement:{contains:()=>attached}};
 const common={_customBgSet:false,_defaultBgPath:'common/images/background.png',_currentBgPath:'common/images/background.png',_bgDiv1:element(),_bgDiv2:null,setSbName:v=>sb=v,setSbNameId:()=>sb='Applications'};
-const originalSend=()=>{},fw={common,getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=>({_currentContextTemplate:{list2Ctrl:{setLineNumbers(){}}}}),sendEventToMmui:originalSend,
+const mmuiCalls=[],originalSend=(app,event)=>mmuiCalls.push({app,event}),fw={common,getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=>({_currentContextTemplate:{list2Ctrl:{setLineNumbers(){}}}}),sendEventToMmui:originalSend,
  _templatesLoaded:{Dialog3Tmplt:{isLoaded:true}},
  _controlsLoaded:{Dialog3Ctrl:{isLoaded:true},ButtonCtrl:{isLoaded:true}},
  instantiateTemplate(app,parent,type,props){dialogConfig=props.Dialog3Ctrl;return {dialog3Ctrl:props.Dialog3Ctrl,cleanUp(){dialogConfig=null;}};},
@@ -151,6 +151,8 @@ assert.equal(control.dataList.items[2].text1,'PNG: 800 x 480, max. 1 MiB');
 assert.equal(control.dataList.items[2].disabled,true);
 // 10. Re-enable slideshow for resident tests
 input('back');input('back');click(1);click(1);assert(saved.enabled);
+mmuiCalls.length=0;const queuedBefore=queue.length;input('home');assert.equal(queue.length,queuedBefore,'input home returns false and emits no native-input message');
+fw.sendEventToMmui('common','Global.IntentHome');assert.deepEqual(mmuiCalls,[{app:'common',event:'Global.IntentHome'}],'touching Home delegates to OEM sendEventToMmui');
 resident.closed();assert.equal(host.WallpaperManager.snapshot().enabled,true,'closing the manager retains resident slideshow');
 resident.reconnected();flush();assert.equal(host.WallpaperManager.snapshot().active,imageID);
 const before=writes;const rotation=[...timers.values()].find(t=>t.ms===5000);if(rotation){rotation.f();flush();}assert.equal(writes,before,'no flash writes per slideshow tick');

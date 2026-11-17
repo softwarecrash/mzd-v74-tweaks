@@ -405,7 +405,7 @@
                         }, '*');
                         return;
                     }
-                    if (event === 'Global.IntentHome') {
+                    if (options.home && event === 'Global.IntentHome') {
                         session.frame.contentWindow.postMessage({
                             type: 'mzd-gui-input',
                             token: session.token,
@@ -651,6 +651,17 @@
         function input(frame, token, action, phase) {
             var control, event, dialog;
             if (!owns(frame, token) || !session.control) { return; }
+            if (action === 'home') {
+                if (phase === 'press') { return; }
+                var orig = session.originalSend, fw = global.framework;
+                close(false);
+                if (orig) {
+                    orig.call(fw, 'common', 'Global.IntentHome');
+                } else if (fw && typeof fw.sendEventToMmui === 'function') {
+                    fw.sendEventToMmui('common', 'Global.IntentHome');
+                }
+                return;
+            }
             dialog = session.dialog;
             if (dialog && !dialog.template) { return; }
             control = dialog ? dialog.template : session.control;

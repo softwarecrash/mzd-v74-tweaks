@@ -180,6 +180,7 @@ test('boot continues with the remaining scripts when one of them cannot be loade
 
 test('handleNativeMessage routes the messages of the active view to the native menu', () => {
   const { win, ctx, source } = hostPage({ prefix: 'p' });
+  assert.equal(ctx.menuOptions.home, true, 'settings host passes home: true to createNativeMenu');
   const route = win.MzdSettingsHost.handleNativeMessage;
   const message = (type, extra) => ({ source: source, data: Object.assign({ type: 'p-' + type, token: 'tok' }, extra) });
   const last = () => ctx.menuCalls[ctx.menuCalls.length - 1];

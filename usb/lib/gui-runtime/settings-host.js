@@ -160,6 +160,7 @@
         menuOptions = {
             prefix: prefix,
             dialog: !!options.dialog,
+            home: true,
             onOpen: function () {
                 if (!viewOpen) {
                     viewOpen = true;

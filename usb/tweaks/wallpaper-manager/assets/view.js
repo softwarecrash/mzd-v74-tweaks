@@ -233,6 +233,7 @@
     function input(action, phase) {
         if (ended) { return false; }
         if (action === 'back') { if (phase === 'press') { return true; } return back(); }
+        if (action === 'home') { return false; }
         if (state) { post({type:'wallpaper-native-input',action:action,phase:phase}); }
         return true;
     }
