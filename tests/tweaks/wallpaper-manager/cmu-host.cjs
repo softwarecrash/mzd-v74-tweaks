@@ -32,7 +32,7 @@ const frames=[frame];
 function MockImage(){this.width=800;this.height=480;Object.defineProperty(this,'src',{set:()=>queue.push(()=>this.onload())});}
 const context={window:host,Image:MockImage,document,Dialog3Tmplt:function(){}};host.Dialog3Tmplt=context.Dialog3Tmplt;
 
-let saved={version:1,selected:null,enabled:false,interval:10,slides:[],removed:[]},failSave=false;
+let saved={version:1,selected:null,enabled:false,interval:10,slides:[],removed:[]},failSave=false,prepareImport=null;
 const imageID='img-'+ 'a'.repeat(32),imageID2='img-'+ 'b'.repeat(32);
 const records=[{id:imageID,label:'User image.png',url:'/image.png'},{id:imageID2,label:'Second.png',url:'/second.png'}];
 const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:view,frame,token:'fixture-token'}),onMessage:fn=>hostEvents.message=fn,onViewClose:fn=>resident.closed=fn,onDispose:fn=>hostEvents.unload=fn,onServiceRequest:fn=>resident.serviceRequest=fn,
@@ -41,6 +41,8 @@ const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:vie
   else if(op==='save'){writes++;if(failSave){failSave=false;cb('Disk full.');}else{saved=JSON.parse(JSON.stringify(args));cb(null,{settings:saved});}}
   else if(op==='delete'){writes++;const id=args.id||args.value;const idx=records.findIndex(r=>r.id===id);if(idx>=0)records.splice(idx,1);saved.slides=saved.slides.filter(x=>x!==id);if(saved.selected===id)saved.selected=null;cb(null,{images:records.slice(),settings:saved});}
   else if(op==='usb')cb(null,{status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]});
+  else if(op==='prepare'){assert.equal(args.source,'sda1');assert.equal(args.name,'photo.png');prepareImport=cb;}
+  else if(op==='commit'){assert.equal(args.ticket,'import-ticket');assert.equal(args.width,800);assert.equal(args.height,480);records.push({id:'img-'+'c'.repeat(32),label:'photo.png',url:'/photo.png'});cb(null,{images:records.slice(),settings:saved});}
   else throw Error('Unexpected request '+op);
  });}}};
 vm.runInNewContext(fs.readFileSync(path.join(repo,'usb/lib/gui-runtime/residents.js'),'utf8'),context);
@@ -156,6 +158,10 @@ assert.equal(control.dataList.items[1].text1,'photo');
 assert.equal(control.dataList.items[1].disabled,true);
 assert.equal(control.dataList.items[2].text1,'PNG: 800 x 480, max. 1 MiB');
 assert.equal(control.dataList.items[2].disabled,true);
+// Complete the staged import only after checking its in-progress row.
+assert.equal(typeof prepareImport,'function');
+prepareImport(null,{ticket:'import-ticket',url:'/staged-photo.png'});flush();
+assert.equal(sb,'Gallery');assert.equal(control.dataList.items[1].text1,'photo');
 // 10. Re-enable slideshow for resident tests
 input('back');input('back');click(1);click(1);assert(saved.enabled);
 mmuiCalls.length=0;const queuedBefore=queue.length;input('home');assert.equal(queue.length,queuedBefore,'input home returns false and emits no native-input message');
