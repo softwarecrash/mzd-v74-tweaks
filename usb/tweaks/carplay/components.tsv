@@ -1,0 +1,2 @@
+# kind	target	source	service	oem-md5
+patch	/jci/carplay/carplay_config_create.xml	assets/carplay_config_create.patch	-	b420a8a510aa8e3de24c04430dd07638

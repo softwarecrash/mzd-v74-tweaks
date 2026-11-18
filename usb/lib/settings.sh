@@ -24,6 +24,10 @@ mzd_settings_process() (
                 mzd_settings_error "User configuration file exceeds size limit of $(( ${MZD_CONFIG_SIZE_LIMIT:-65536} / 1024 )) KB: ${user_file##*/}"; exit 1;
             }
             defaults_file=$user_file
+            if ! awk -v mode=check -v strict=0 -v defaults="$user_file" -f "$schema" "$manifest" "$user_file" /dev/null >/dev/null 2>&1; then
+                printf 'Settings: User configuration file "%s" does not match manifest; ignoring and using manifest defaults.\n' "${user_file##*/}" >&2
+                defaults_file=''
+            fi
         fi
     fi
     # Keep diagnostics on stderr without assuming /dev/stderr exists on the CMU.

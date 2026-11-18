@@ -81,13 +81,17 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     write(user_conf, 'log_limit_mb=35\n')
     info = call(['settings-info', 'settings-example']).stdout
     assert 'value.log_limit_mb=35' in info and 'value.compress=true' in info and 'value.profile=stock' in info
-    # Invalid user defaults are rejected with clear diagnostics
+    # Invalid user defaults are ignored with a warning, falling back to manifest defaults
     write(user_conf, 'log_limit_mb=21\n')
-    r = call(['settings-info', 'settings-example'], 1)
-    assert 'Invalid default for log_limit_mb: 21' in r.stderr
+    r = call(['settings-info', 'settings-example'], 0)
+    assert 'value.log_limit_mb=20' in r.stdout
+    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
+    out = call(['action', 'settings-example', 'run']).stdout
+    assert '20 MB' in out and 'true' in out and 'stock' in out
     write(user_conf, 'unknown_key=foo\n')
-    r = call(['settings-info', 'settings-example'], 1)
-    assert 'Unknown default: unknown_key' in r.stderr
+    r = call(['settings-info', 'settings-example'], 0)
+    assert 'value.log_limit_mb=20' in r.stdout
+    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
     # Size limit on settings.conf (exceeding 64 KB is rejected)
     write(user_conf, 'log_limit_mb=30\n' + ('# padding comment line\n' * 3000))
     assert user_conf.stat().st_size > 65536

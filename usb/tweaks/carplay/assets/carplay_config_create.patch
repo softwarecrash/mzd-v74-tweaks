@@ -1,0 +1,11 @@
+--- target.data
++++ target.data
+@@ -40,7 +40,7 @@
+ 	<osInfo vehicleType="default" value="Linux cmu 3.0.35 armv7l 32"/>
+
+ 	<limitedUiEnabled vehicleType="default" value="TRUE"/>
+-	<screenInfo  vehicleType="default" uuid="" uuidIsNull="TRUE" heightPixel="480" widthPixel="800" heightPhysical="85" widthPhysical="154" fps="60"/>
++	<screenInfo  vehicleType="default" uuid="" uuidIsNull="TRUE" heightPixel="480" widthPixel="800" heightPhysical="100" widthPhysical="177" fps="60"/><!-- mzd-tweaks -->
+ 	<touchInfo   vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" lowFidelity="TRUE" multiTouch="FALSE" minx="0" maxx="800" miny="0" maxy="480" />
+ 	<knobInfo    vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" cmin="-128" cmax="127" />
+ 	<playKeyInfo vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" />
