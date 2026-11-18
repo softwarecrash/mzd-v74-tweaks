@@ -7,6 +7,7 @@ local BOOL_DEFAULTS = {
     list_beep = true,
     short_delay = false,
     statusbar_date = false,
+    skip_usb_reconnect = false,
     audio_order_custom = false
 }
 
@@ -16,6 +17,7 @@ local BOOL_KEYS = {
     'list_beep',
     'short_delay',
     'statusbar_date',
+    'skip_usb_reconnect',
     'audio_order_custom'
 }
 

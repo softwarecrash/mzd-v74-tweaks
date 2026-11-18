@@ -48,6 +48,7 @@ const DEFAULTS = {
   list_beep: true,
   short_delay: false,
   statusbar_date: false,
+  skip_usb_reconnect: false,
   audio_order_custom: false,
   audio_order: DEFAULT_AUDIO_ORDER
 };
@@ -290,9 +291,9 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, skip_usb_reconnect: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, skip_usb_reconnect: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
@@ -1034,6 +1035,149 @@ function lastResponse(source) {
   assert.equal(restoredNoDefault.items[2].appData.audioSourceId, 'USB_B');
 }
 
+{
+  // Skip USB reconnect message: systemApp contexts SourceReconnect and SourceReconnectFailed.
+  const sent = [];
+  function makeApp() {
+    function ReconnectSystemApp() {
+      // baseApp.init() gives every instance its own bound handleContext.
+      this.entered = [];
+      this.handleContext = function (contextObj) {
+        this._currentContext = contextObj;
+        this.entered.push(this._contextTable[contextObj.ctxtId]);
+      }.bind(this);
+    }
+    ReconnectSystemApp.prototype.appInit = function () {
+      this._contextTable = {
+        HomeScreen: { hideHomeBtn: true },
+        SourceReconnect: { template: 'Dialog3Tmplt', readyFunction: function () {} },
+        SourceReconnectFailed: { template: 'Dialog3Tmplt', readyFunction: function () {} }
+      };
+    };
+    ReconnectSystemApp.prototype._buildEntertainmentDataList = function () { return { items: [] }; };
+    return ReconnectSystemApp;
+  }
+  const ctx = (ctxtId, audioSource) => ({ uiaId: 'system', ctxtId: ctxtId, params: { payload: { audioSource: audioSource } } });
+  const loadResident = win => {
+    vm.runInNewContext(settingsHostSource, { window: win });
+    win.MzdGuiResidents = { register: () => {}, log: () => {} };
+    vm.runInNewContext(residentSource, { window: win, document: { head: { appendChild: () => {} }, documentElement: {} } });
+  };
+
+  // App created after the resident: the hook arrives through appInit.
+  const LateApp = makeApp();
+  const win = { systemApp: LateApp, setInterval: () => 1, clearInterval: () => {},
+    framework: { getAppInstance: () => null, sendEventToMmui(uiaId, eventId) { sent.push([uiaId, eventId]); } } };
+  loadResident(win);
+  assert.equal(LateApp.prototype._mzdTweaksReconnectHooked, true, 'systemApp appInit hooked');
+  assert.equal(win.mzdTweaks.skip_usb_reconnect, false, 'off by default');
+
+  const app = new LateApp();
+  app.appInit();
+  const stock = app._contextTable.SourceReconnect;
+  const stockFailed = app._contextTable.SourceReconnectFailed;
+  app.handleContext(ctx('SourceReconnect', 'AndroidAuto'));
+  assert.equal(app.entered.pop(), stock, 'off: the OEM reconnect dialog opens');
+
+  win.mzdTweaks.skip_usb_reconnect = true;
+  for (const source of ['AndroidAuto', 'USB_A', 'USB_B', 'USBAudio']) {
+    app.handleContext(ctx('SourceReconnect', source));
+    const entry = app.entered.pop();
+    assert.equal(entry.template, 'NoCtrlTmplt', 'on: no dialog for ' + source);
+    assert.equal(entry.properties.customBgImage, 'common/images/FullTransparent.png');
+    entry.readyFunction();
+    assert.deepEqual(sent.pop(), ['common', 'Global.IntentHome'], 'on: home is requested for ' + source);
+  }
+  app.handleContext(ctx('SourceReconnectFailed', 'USB_A'));
+  assert.equal(app.entered.pop().template, 'NoCtrlTmplt', 'on: no failed dialog for USB');
+
+  for (const source of ['BTAudio', 'CD', 'CarPlay', undefined]) {
+    app.handleContext(ctx('SourceReconnect', source));
+    assert.equal(app.entered.pop(), stock, 'on: other sources keep the OEM dialog (' + source + ')');
+  }
+  app.handleContext({ uiaId: 'system', ctxtId: 'SourceReconnect' });
+  assert.equal(app.entered.pop(), stock, 'on: a context without payload keeps the OEM dialog');
+  const home = app._contextTable.HomeScreen;
+  app.handleContext(ctx('HomeScreen', 'AndroidAuto'));
+  assert.equal(app.entered.pop(), home, 'other contexts are untouched');
+
+  win.mzdTweaks.skip_usb_reconnect = 'true';
+  app.handleContext(ctx('SourceReconnect', 'AndroidAuto'));
+  assert.equal(app.entered.pop(), stock, 'only the boolean true turns it on');
+
+  win.mzdTweaks.skip_usb_reconnect = false;
+  app.handleContext(ctx('SourceReconnectFailed', 'USB_A'));
+  assert.equal(app.entered.pop(), stockFailed, 'switched off without reboot: the OEM failed dialog is back');
+  assert.equal(app._contextTable.SourceReconnect, stock, 'the OEM entry is back in the table');
+  assert.equal(sent.length, 0, 'nothing else was sent to MMUI');
+
+  // App that already exists when the resident loads.
+  const EarlyApp = makeApp();
+  const early = new EarlyApp();
+  early.appInit();
+  const earlyWin = { systemApp: EarlyApp, setInterval: () => 1, clearInterval: () => {},
+    framework: { getAppInstance: id => (id === 'system' ? early : null), sendEventToMmui() {} } };
+  loadResident(earlyWin);
+  earlyWin.mzdTweaks.skip_usb_reconnect = true;
+  early.handleContext(ctx('SourceReconnect', 'AndroidAuto'));
+  assert.equal(early.entered.pop().template, 'NoCtrlTmplt', 'a running systemApp is hooked too');
+  const wrapped = early.handleContext;
+  early.appInit();
+  assert.equal(early.handleContext, wrapped, 'handleContext is wrapped only once');
+  earlyWin.mzdTweaks.skip_usb_reconnect = false;
+  early.handleContext(ctx('SourceReconnect', 'AndroidAuto'));
+  assert.equal(early.entered.pop().template, 'Dialog3Tmplt', 'after appInit rebuilt the table the OEM dialog is used again');
+}
+
+{
+  // The OEM reconnect message is already open when settings.js or the service answer arrives.
+  const sent = [];
+  const scripts = [];
+  const contextTable = {
+    SourceReconnect: { template: 'Dialog3Tmplt' },
+    SourceReconnectFailed: { template: 'Dialog3Tmplt' }
+  };
+  const open = { uiaId: 'system', ctxtId: 'SourceReconnect', params: { payload: { audioSource: 'AndroidAuto' } } };
+  const running = { _contextTable: contextTable, _currentContext: open, handleContext() {} };
+  function OpenSystemApp() {}
+  OpenSystemApp.prototype.appInit = function () {};
+  const win = { systemApp: OpenSystemApp, setInterval: () => 1, clearInterval: () => {},
+    framework: { getAppInstance: id => (id === 'system' ? running : null), sendEventToMmui(uiaId, eventId) { sent.push([uiaId, eventId]); } } };
+  const head = { appendChild(script) { scripts.push(script); } };
+  vm.runInNewContext(settingsHostSource, { window: win });
+  let factory = null;
+  win.MzdGuiResidents = { register(id, fn) { factory = fn; }, log: () => {} };
+  vm.runInNewContext(residentSource, { window: win, document: { head: head, documentElement: head, createElement: () => ({}) } });
+  assert.deepEqual(sent, [], 'nothing is sent while the setting is still the inline default');
+
+  // settings.js sets the saved value and its onload runs.
+  win.mzdTweaks.skip_usb_reconnect = true;
+  scripts[0].onload();
+  assert.deepEqual(sent, [['common', 'Global.IntentHome']], 'an open USB reconnect message is left once settings.js says so');
+  scripts[0].onload();
+  assert.equal(sent.length, 1, 'the same open message is left only once');
+
+  // The service confirms the settings while a Bluetooth message is open: it stays.
+  running._currentContext = { uiaId: 'system', ctxtId: 'SourceReconnect', params: { payload: { audioSource: 'BTAudio' } } };
+  const ctx = { requests: [], handlers: {}, current: null, view: () => null, onMessage() {}, onViewClose() {}, onDispose() {},
+    log() {}, onServiceReady() {}, notify() {}, loadLanguage() {}, createNativeMenu: () => ({ close() {}, check() {}, owns: () => false }),
+    service: { request(op, args, cb) { ctx.requests.push(cb); } } };
+  win.MzdSettingsHost.create = (context, options) => { ctx.onConfirmed = options.onConfirmed; };
+  factory(ctx);
+  ctx.onConfirmed({ skip_usb_reconnect: true });
+  assert.equal(sent.length, 1, 'other sources keep the OEM message');
+
+  // A new USB reconnect message is open when the service confirms the setting.
+  running._currentContext = { uiaId: 'system', ctxtId: 'SourceReconnectFailed', params: { payload: { audioSource: 'USB_A' } } };
+  ctx.onConfirmed({ skip_usb_reconnect: true });
+  assert.deepEqual(sent.pop(), ['common', 'Global.IntentHome'], 'a confirmed setting leaves an open USB failure message');
+  running._currentContext = { uiaId: 'system', ctxtId: 'HomeScreen', params: {} };
+  ctx.onConfirmed({ skip_usb_reconnect: true });
+  running._currentContext = { uiaId: 'system', ctxtId: 'SourceReconnect', params: { payload: { audioSource: 'USB_B' } } };
+  ctx.onConfirmed({ skip_usb_reconnect: false });
+  assert.equal(sent.length, 1, 'nothing is sent from the home screen or when the setting is off');
+}
+
 // --- View -------------------------------------------------------------------
 
 function viewPage(options) {
@@ -1105,10 +1249,11 @@ function viewPage(options) {
   page.respond({ main_menu_loop: true, list_loop: false, short_delay: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Entertainment menu order']);
-  assert.equal(menu.rows[5].detail, 'Default', 'detail shows Default when custom order is off');
-  assert.equal(menu.rows[5].caret, true);
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'skip_usb_reconnect', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Skip USB reconnect message', 'Entertainment menu order']);
+  assert.equal(menu.rows[5].checked, false, 'the USB reconnect message is shown by default');
+  assert.equal(menu.rows[6].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[6].caret, true);
 
   page.select(2);
   assert.deepEqual(page.sets(), [{ key: 'list_beep', value: false }], 'switching the default beep off saves false');
@@ -1118,9 +1263,13 @@ function viewPage(options) {
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
   page.select(0);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
+  page.select(5);
+  assert.deepEqual(page.sets().pop(), { key: 'skip_usb_reconnect', value: true }, 'the USB reconnect row saves true');
+  page.respond({ main_menu_loop: true, list_loop: false, list_beep: true, short_delay: false, skip_usb_reconnect: true });
+  assert.equal(page.menu().rows[5].checked, true);
 
   // Open the Entertainment menu order subpage
-  page.select(5);
+  page.select(6);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1234,7 +1383,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(5);
+  page.select(6);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1242,7 +1391,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(5);
+  page.select(6);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1301,6 +1450,7 @@ function viewPage(options) {
     assert(dict.audio_order_hint && dict.audio_order_hint.length > 0, 'audio_order_hint present in ' + lang);
     assert(dict.default && dict.default.length > 0, 'default present in ' + lang);
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
+    assert(dict.skip_usb_reconnect && dict.skip_usb_reconnect.length > 0, 'skip_usb_reconnect present in ' + lang);
     assert(dict.audio_order_title && dict.audio_order_title.length > 0, 'audio_order_title present in ' + lang);
     assert(dict.statusbar_date && dict.statusbar_date.length > 0, 'statusbar_date present in ' + lang);
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
@@ -1333,4 +1483,4 @@ function viewPage(options) {
   assert.equal(unknown.clock.children[1].textContent, 'Wed 18', 'an unsupported language falls back to English');
 }
 
-console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');
+console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, USB reconnect message skipped only when on and only for USB sources (also when already open), audio order subpage with deferred save, resort confirmation.');

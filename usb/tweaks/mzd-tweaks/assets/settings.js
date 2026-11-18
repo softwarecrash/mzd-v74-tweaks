@@ -4,6 +4,7 @@ window.mzdTweaks = {
     "list_beep": true,
     "short_delay": false,
     "statusbar_date": false,
+    "skip_usb_reconnect": false,
     "audio_order_custom": false,
     "audio_order": {
         "audio_traffic_info": 0,
