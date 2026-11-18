@@ -160,121 +160,140 @@
     }
 
     // 2. List Loop, List Beep, Shorter Delay
-    function wrapListForward(origFn) {
-        return function () {
-            var beforeIndex = typeof this._getFocussedIndex === 'function' ? this._getFocussedIndex() : -1;
-            var res = origFn.apply(this, arguments);
-            if (global.mzdTweaks && global.mzdTweaks.list_loop && typeof this._getFocussedIndex === 'function' && this._getFocussedIndex() === beforeIndex) {
-                if (beforeIndex >= 0 && this.dataList && this.dataList.items && this.dataList.itemCount > 0) {
-                    var nextIndex = beforeIndex + 1;
-                    while (nextIndex < this.dataList.itemCount && this.dataList.items[nextIndex] && this.dataList.items[nextIndex].disabled) {
-                        nextIndex++;
-                    }
-                    if (nextIndex >= this.dataList.itemCount) {
-                        var idx = 0;
-                        while (idx < this.dataList.itemCount && this.dataList.items[idx] && this.dataList.items[idx].disabled) {
-                            idx++;
-                        }
-                        if (idx < this.dataList.itemCount && this.dataList.items[idx] && !this.dataList.items[idx].disabled) {
-                            var vis = (this.properties && typeof this.properties.visibleItems === 'number') ? this.properties.visibleItems : 5;
-                            var isShort = (this.dataList.itemCount <= vis) || (this._isScrollable === false);
-                            if (isShort) {
-                                if (typeof this._scrollTo === 'function') {
-                                    this._scrollTo(0, 0);
-                                }
-                                this._topItem = 0;
-                                if (typeof this._showFocus === 'function') {
-                                    this._showFocus(idx, true);
-                                } else if (typeof this._manageFocus === 'function') {
-                                    this._manageFocus(idx);
-                                }
-                            } else {
-                                if (typeof this._scrollTo === 'function') {
-                                    this._scrollTo(0, 0);
-                                }
-                                if (typeof this._manageFocus === 'function') {
-                                    this._manageFocus(idx);
-                                }
-                            }
-                            return 'consumed';
-                        }
+    function firstEnabled(list) {
+        for (var i = 0; i < list.itemCount; i++) {
+            if (list.items[i] && !list.items[i].disabled) { return i; }
+        }
+        return -1;
+    }
+
+    function lastEnabled(list) {
+        for (var i = list.itemCount - 1; i >= 0; i--) {
+            if (list.items[i] && !list.items[i].disabled) { return i; }
+        }
+        return -1;
+    }
+
+    // Wrap only in plain list focus mode. While OEM waits for list data
+    // (_inLoading without scrollingDuringLoading) it ignores focus and scroll
+    // changes, so a wrap then would leave the list half moved.
+    function canWrap(control) {
+        if (!global.mzdTweaks || !global.mzdTweaks.list_loop) { return false; }
+        if (control._inListReorder || control._inLetterIndexMulticontroller) { return false; }
+        if (control._inLoading && !(control.properties && control.properties.scrollingDuringLoading)) { return false; }
+        if (!control.dataList || !control.dataList.items || !(control.dataList.itemCount > 0)) { return false; }
+        if (typeof control._getFocussedIndex !== 'function') { return false; }
+        var current = control._getFocussedIndex();
+        return typeof current === 'number' && current >= 0;
+    }
+
+    // Top item that shows idx at the bottom of the list, like OEM scrolling down.
+    function bottomTop(control, idx) {
+        var count = control.dataList.itemCount;
+        var vis = (control.properties && typeof control.properties.visibleItems === 'number') ? control.properties.visibleItems : 6;
+        if (count <= vis || control._isScrollable === false) { return 0; }
+        return Math.max(0, Math.min(count - vis, idx));
+    }
+
+    function focusListItem(control, idx, topPos) {
+        if (control.scrollerAnimationEndCallback && control.scroller) {
+            control.scroller.removeEventListener(control._VENDOR + 'TransitionEnd', control.scrollerAnimationEndCallback, false);
+            control.scrollerAnimationEndCallback = null;
+        }
+        control._inScroll = false;
+        control._scrollNature = null;
+
+        if (control.properties) {
+            control.properties.focussedItem = idx;
+            control.properties.scrollTo = topPos;
+        }
+        // OEM sets _topItem from the clamped scroll position.
+        if (typeof control._scrollTo === 'function') {
+            control._scrollTo(topPos, 0);
+        }
+        // A 0 ms scroll fires no transition end; drop its listener.
+        if (control.scrollerAnimationEndCallback && control.scroller) {
+            control.scroller.removeEventListener(control._VENDOR + 'TransitionEnd', control.scrollerAnimationEndCallback, false);
+            control.scrollerAnimationEndCallback = null;
+        }
+        control._inScroll = false;
+        control._scrollNature = null;
+
+        if (typeof control._showFocus === 'function') {
+            control._showFocus(idx, true);
+        } else if (typeof control._manageFocus === 'function') {
+            control._manageFocus(idx);
+        }
+        control._lastItemWithFocus = idx;
+        // Keep the highlight when the scroll started a real OEM data request.
+        if (control.items && control.items.length) {
+            for (var k = 0; k < control.items.length; k++) {
+                var it = control.items[k];
+                if (it && it.domElt && it.domElt.classList) {
+                    if (it.ref === idx) {
+                        it.domElt.classList.add('focus');
+                    } else {
+                        it.domElt.classList.remove('focus');
                     }
                 }
             }
-            return res;
+        }
+    }
+
+    function wrapListForward(origFn) {
+        return function () {
+            if (canWrap(this)) {
+                var list = this.dataList, next = this._getFocussedIndex() + 1;
+                while (next < list.itemCount && list.items[next] && list.items[next].disabled) {
+                    next++;
+                }
+                if (next >= list.itemCount) {
+                    var first = firstEnabled(list);
+                    if (first >= 0) {
+                        focusListItem(this, first, 0);
+                        return 'consumed';
+                    }
+                }
+            }
+            return origFn.apply(this, arguments);
         };
     }
 
     function wrapListBackward(origFn) {
         return function () {
-            var beforeIndex = typeof this._getFocussedIndex === 'function' ? this._getFocussedIndex() : -1;
-            var res = origFn.apply(this, arguments);
-            if (global.mzdTweaks && global.mzdTweaks.list_loop && typeof this._getFocussedIndex === 'function' && this._getFocussedIndex() === beforeIndex) {
-                if (beforeIndex >= 0 && this.dataList && this.dataList.items && this.dataList.itemCount > 0) {
-                    var prevIndex = beforeIndex - 1;
-                    while (prevIndex >= 0 && this.dataList.items[prevIndex] && this.dataList.items[prevIndex].disabled) {
-                        prevIndex--;
-                    }
-                    if (prevIndex < 0) {
-                        var idx = this.dataList.itemCount - 1;
-                        while (idx >= 0 && this.dataList.items[idx] && this.dataList.items[idx].disabled) {
-                            idx--;
-                        }
-                        if (idx >= 0 && this.dataList.items[idx] && !this.dataList.items[idx].disabled) {
-                            var vis = (this.properties && typeof this.properties.visibleItems === 'number') ? this.properties.visibleItems : 5;
-                            var isShort = (this.dataList.itemCount <= vis) || (this._isScrollable === false);
-                            if (isShort) {
-                                if (typeof this._scrollTo === 'function') {
-                                    this._scrollTo(0, 0);
-                                }
-                                this._topItem = 0;
-                                if (typeof this._showFocus === 'function') {
-                                    this._showFocus(idx, true);
-                                } else if (typeof this._manageFocus === 'function') {
-                                    this._manageFocus(idx);
-                                }
-                            } else {
-                                var maxTop = this.dataList.itemCount - vis;
-                                if (typeof this._scrollTo === 'function' && maxTop > 0) {
-                                    this._scrollTo(maxTop, 0);
-                                }
-                                if (typeof this._manageFocus === 'function') {
-                                    this._manageFocus(idx);
-                                }
-                            }
-                            return 'consumed';
-                        }
+            if (canWrap(this)) {
+                var list = this.dataList, prev = this._getFocussedIndex() - 1;
+                while (prev >= 0 && list.items[prev] && list.items[prev].disabled) {
+                    prev--;
+                }
+                if (prev < 0) {
+                    var last = lastEnabled(list);
+                    if (last >= 0) {
+                        focusListItem(this, last, bottomTop(this, last));
+                        return 'consumed';
                     }
                 }
             }
-            return res;
+            return origFn.apply(this, arguments);
         };
     }
 
     function wrapScrollDownPage(origFn) {
         return function () {
-            if (!global.mzdTweaks || !global.mzdTweaks.list_loop) {
+            if (!canWrap(this)) {
                 return origFn.apply(this, arguments);
             }
             var pos = (typeof this._getListPosition === 'function') ? this._getListPosition() : '';
             if (pos === 'onepage') {
                 return (typeof this._handleMCDown === 'function') ? this._handleMCDown() : 'consumed';
             }
-            var beforeIndex = (typeof this._getFocussedIndex === 'function') ? this._getFocussedIndex() : -1;
+            var beforeIndex = this._getFocussedIndex();
             var res = origFn.apply(this, arguments);
-            if (beforeIndex >= 0 && (res === 'atLimit' || pos === 'bottom' || (typeof this._getFocussedIndex === 'function' && this._getFocussedIndex() === beforeIndex))) {
-                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0) {
-                    var idx = 0;
-                    while (idx < this.dataList.itemCount && this.dataList.items[idx] && this.dataList.items[idx].disabled) {
-                        idx++;
-                    }
-                    if (idx < this.dataList.itemCount && this.dataList.items[idx] && !this.dataList.items[idx].disabled && typeof this._manageFocus === 'function') {
-                        if (typeof this._scrollTo === 'function') {
-                            this._scrollTo(0, 0);
-                        }
-                        this._manageFocus(idx);
-                        return 'paged';
-                    }
+            if (res === 'atLimit' || pos === 'bottom' || this._getFocussedIndex() === beforeIndex) {
+                var first = firstEnabled(this.dataList);
+                if (first >= 0) {
+                    focusListItem(this, first, 0);
+                    return 'paged';
                 }
             }
             return res;
@@ -283,30 +302,20 @@
 
     function wrapScrollUpPage(origFn) {
         return function () {
-            if (!global.mzdTweaks || !global.mzdTweaks.list_loop) {
+            if (!canWrap(this)) {
                 return origFn.apply(this, arguments);
             }
             var pos = (typeof this._getListPosition === 'function') ? this._getListPosition() : '';
             if (pos === 'onepage') {
                 return (typeof this._handleMCUp === 'function') ? this._handleMCUp() : 'consumed';
             }
-            var beforeIndex = (typeof this._getFocussedIndex === 'function') ? this._getFocussedIndex() : -1;
+            var beforeIndex = this._getFocussedIndex();
             var res = origFn.apply(this, arguments);
-            if (beforeIndex >= 0 && (res === 'atLimit' || pos === 'top' || (typeof this._getFocussedIndex === 'function' && this._getFocussedIndex() === beforeIndex))) {
-                if (this.dataList && this.dataList.items && this.dataList.itemCount > 0) {
-                    var idx = this.dataList.itemCount - 1;
-                    while (idx >= 0 && this.dataList.items[idx] && this.dataList.items[idx].disabled) {
-                        idx--;
-                    }
-                    if (idx >= 0 && this.dataList.items[idx] && !this.dataList.items[idx].disabled && typeof this._manageFocus === 'function') {
-                        var vis = (this.properties && typeof this.properties.visibleItems === 'number') ? this.properties.visibleItems : 5;
-                        var maxTop = this.dataList.itemCount - vis;
-                        if (typeof this._scrollTo === 'function') {
-                            this._scrollTo(maxTop > 0 ? maxTop : 0, 0);
-                        }
-                        this._manageFocus(idx);
-                        return 'paged';
-                    }
+            if (res === 'atLimit' || pos === 'top' || this._getFocussedIndex() === beforeIndex) {
+                var last = lastEnabled(this.dataList);
+                if (last >= 0) {
+                    focusListItem(this, last, bottomTop(this, last));
+                    return 'paged';
                 }
             }
             return res;

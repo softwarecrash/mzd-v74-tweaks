@@ -219,11 +219,27 @@ function lastResponse(source) {
       this._setHighlight(next);
     };
 
+    function makeFakeDomItem(ref) {
+      const classes = new Set();
+      return {
+        ref: ref,
+        domElt: {
+          classList: {
+            add: (c) => classes.add(c),
+            remove: (c) => classes.delete(c),
+            contains: (c) => classes.has(c)
+          }
+        }
+      };
+    }
+
     function List2Ctrl() {
       this.focussedIndex = 0;
+      this._lastItemWithFocus = 0;
       this.dataList = { itemCount: 5, items: [{ disabled: false }, { disabled: false }, { disabled: false }, { disabled: false }, { disabled: false }] };
       this.beeps = [];
       this.init();
+      this._rebuildItems();
     }
     List2Ctrl.prototype.defaultProperties = {
       autoscrollTier1Timeout: 1500,
@@ -234,42 +250,106 @@ function lastResponse(source) {
     List2Ctrl.prototype.init = function () {
       this.properties = Object.assign({}, List2Ctrl.prototype.defaultProperties);
     };
-    List2Ctrl.prototype._getFocussedIndex = function () { return this.focussedIndex; };
-    List2Ctrl.prototype._manageFocus = function (idx) { this.focussedIndex = idx; };
+    List2Ctrl.prototype._rebuildItems = function () {
+      const count = this.dataList ? this.dataList.itemCount : 0;
+      this.items = [];
+      for (let i = 0; i < count; i++) {
+        const item = makeFakeDomItem(i);
+        if (i === this.focussedIndex) {
+          item.domElt.classList.add('focus');
+        }
+        this.items.push(item);
+      }
+    };
+    List2Ctrl.prototype._getFocussedIndex = function () {
+      return this.focussedIndex;
+    };
+    // Like OEM: focus and scroll changes are ignored while list data is loading.
+    List2Ctrl.prototype._loadingLocked = function () {
+      return this._inLoading === true && !this.properties.scrollingDuringLoading;
+    };
+    List2Ctrl.prototype._showFocus = function (idx, allowOffscreen) {
+      if (this._loadingLocked()) return;
+      this._manageFocus(idx);
+    };
+    List2Ctrl.prototype._manageFocus = function (idx) {
+      this.focussedIndex = idx;
+      this._lastItemWithFocus = idx;
+      if (this.items) {
+        for (let i = 0; i < this.items.length; i++) {
+          if (this.items[i].ref === idx) {
+            this.items[i].domElt.classList.add('focus');
+          } else {
+            this.items[i].domElt.classList.remove('focus');
+          }
+        }
+      }
+    };
     List2Ctrl.prototype._beep = function (pressType, eventCause) { this.beeps.push([pressType, eventCause]); };
     List2Ctrl.prototype._handleMCCW = function () {
-      if (this.focussedIndex >= 0 && this.focussedIndex < this.dataList.itemCount - 1) { this.focussedIndex += 1; }
+      if (this.focussedIndex >= 0 && this.dataList && this.dataList.items) {
+        let next = this.focussedIndex + 1;
+        while (next < this.dataList.itemCount && this.dataList.items[next] && this.dataList.items[next].disabled) {
+          next++;
+        }
+        if (next < this.dataList.itemCount && !this.dataList.items[next].disabled) {
+          this._manageFocus(next);
+        }
+      }
       return 'consumed';
     };
     List2Ctrl.prototype._handleMCCCW = function () {
-      if (this.focussedIndex > 0) { this.focussedIndex -= 1; }
+      if (this.focussedIndex > 0 && this.dataList && this.dataList.items) {
+        let prev = this.focussedIndex - 1;
+        while (prev >= 0 && this.dataList.items[prev] && this.dataList.items[prev].disabled) {
+          prev--;
+        }
+        if (prev >= 0 && !this.dataList.items[prev].disabled) {
+          this._manageFocus(prev);
+        }
+      }
       return 'consumed';
     };
     List2Ctrl.prototype._handleMCDown = function () {
-      if (this.focussedIndex >= 0 && this.focussedIndex < this.dataList.itemCount - 1) { this.focussedIndex += 1; }
-      return 'consumed';
+      return this._handleMCCW();
     };
     List2Ctrl.prototype._handleMCUp = function () {
-      if (this.focussedIndex > 0) { this.focussedIndex -= 1; }
-      return 'consumed';
+      return this._handleMCCCW();
     };
     List2Ctrl.prototype._getListPosition = function () {
-      if (this.dataList.itemCount <= (this.properties.visibleItems || 5)) return 'onepage';
+      const vis = (this.properties && typeof this.properties.visibleItems === 'number') ? this.properties.visibleItems : 5;
+      if (this.dataList.itemCount <= vis) return 'onepage';
       if (this.focussedIndex === 0) return 'top';
       if (this.focussedIndex === this.dataList.itemCount - 1) return 'bottom';
       return 'middle';
     };
-    List2Ctrl.prototype._scrollTo = function (pos) { this._scrollPos = pos; };
+    List2Ctrl.prototype._scrollTo = function (pos) {
+      if (this._loadingLocked()) return;
+      const vis = typeof this.properties.visibleItems === 'number' ? this.properties.visibleItems : 6;
+      const top = Math.max(0, Math.min(pos, this.dataList.itemCount - vis));
+      this._scrollPos = top;
+      this._topItem = top;
+    };
     List2Ctrl.prototype._scrollDownPage = function () {
       var pos = this._getListPosition();
       if (pos === 'onepage' || pos === 'bottom') return 'atLimit';
-      this.focussedIndex = Math.min(this.focussedIndex + 4, this.dataList.itemCount - 1);
+      var next = Math.min(this.focussedIndex + 4, this.dataList.itemCount - 1);
+      while (next > this.focussedIndex && this.dataList.items[next] && this.dataList.items[next].disabled) {
+        next--;
+      }
+      if (next === this.focussedIndex) return 'atLimit';
+      this._manageFocus(next);
       return 'paged';
     };
     List2Ctrl.prototype._scrollUpPage = function () {
       var pos = this._getListPosition();
       if (pos === 'onepage' || pos === 'top') return 'atLimit';
-      this.focussedIndex = Math.max(this.focussedIndex - 4, 0);
+      var prev = Math.max(this.focussedIndex - 4, 0);
+      while (prev < this.focussedIndex && this.dataList.items[prev] && this.dataList.items[prev].disabled) {
+        prev++;
+      }
+      if (prev === this.focussedIndex) return 'atLimit';
+      this._manageFocus(prev);
       return 'paged';
     };
     List2Ctrl.prototype.handleControllerEvent = function (eventID) {
@@ -446,15 +526,161 @@ function lastResponse(source) {
     items: Array.from({ length: 10 }, () => ({ disabled: false }))
   };
   multiPageList.properties.visibleItems = 5;
-  multiPageList.focussedIndex = 9;
+  multiPageList._rebuildItems();
+  multiPageList._manageFocus(9);
   assert.equal(multiPageList._scrollDownPage(), 'paged', 'multi-page scroll down wraps to top page');
   assert.equal(multiPageList.focussedIndex, 0, 'focus placed on first item after wrap');
   assert.equal(multiPageList._scrollPos, 0, 'scrolled to top');
 
-  multiPageList.focussedIndex = 0;
+  multiPageList._manageFocus(0);
   assert.equal(multiPageList._scrollUpPage(), 'paged', 'multi-page scroll up wraps to bottom page');
   assert.equal(multiPageList.focussedIndex, 9, 'focus placed on last item after wrap');
   assert.equal(multiPageList._scrollPos, 5, 'scrolled to bottom');
+
+  // AA Settings simulation: 17 items, item 16 (reboot) is disabled
+  const aaList = new controls1.List2Ctrl();
+  aaList.dataList = {
+    itemCount: 17,
+    items: Array.from({ length: 17 }, (_, i) => ({ disabled: i === 16 }))
+  };
+  aaList.properties.visibleItems = 6;
+  aaList._rebuildItems();
+  aaList._manageFocus(15); // focused at last enabled item
+
+  function getFocusRef(ctrl) {
+    let ref = -1;
+    let count = 0;
+    for (const it of ctrl.items) {
+      if (it.domElt.classList.contains('focus')) {
+        ref = it.ref;
+        count++;
+      }
+    }
+    return { ref, count };
+  }
+
+  assert.deepEqual(getFocusRef(aaList), { ref: 15, count: 1 }, 'initially focus is on item 15 with highlight');
+
+  // 1. Rotary CW from 15 loops forward to 0 (skipping disabled reboot item 16)
+  aaList._handleMCCW();
+  assert.equal(aaList.focussedIndex, 0, 'CW on last enabled item wraps to 0');
+  assert.deepEqual(getFocusRef(aaList), { ref: 0, count: 1 }, 'DOM focus highlight preserved on item 0');
+  assert.equal(aaList._scrollPos, 0, 'scrollPos reset to top');
+  aaList._handleMCCW();
+  assert.equal(aaList.focussedIndex, 1, 'very next CW after forward wrap advances to 1 on first click without stall');
+  assert.deepEqual(getFocusRef(aaList), { ref: 1, count: 1 }, 'DOM focus highlight on item 1');
+
+  // 2. Rotary CCW from 0 loops backward to 15 (skipping disabled reboot item 16)
+  aaList._manageFocus(0);
+  aaList._handleMCCCW();
+  assert.equal(aaList.focussedIndex, 15, 'CCW on 0 wraps to 15');
+  assert.deepEqual(getFocusRef(aaList), { ref: 15, count: 1 }, 'DOM focus highlight preserved on item 15');
+  assert.equal(aaList._scrollPos, 11, 'backward wrap scrolls to the OEM bottom position (17 - 6)');
+  assert.equal(aaList._topItem, 11, '_topItem follows the clamped scroll position');
+  aaList._handleMCCCW();
+  assert.equal(aaList.focussedIndex, 14, 'very next CCW after backward wrap advances to 14 on first click without stall');
+  assert.deepEqual(getFocusRef(aaList), { ref: 14, count: 1 }, 'DOM focus highlight on item 14');
+
+  // 3. Tilt Down from 15 loops forward to 0
+  aaList._manageFocus(15);
+  aaList._handleMCDown();
+  assert.equal(aaList.focussedIndex, 0, 'tilt down wraps to 0');
+  assert.deepEqual(getFocusRef(aaList), { ref: 0, count: 1 }, 'highlight preserved on 0');
+  aaList._handleMCDown();
+  assert.equal(aaList.focussedIndex, 1, 'tilt down on 0 advances to 1 on first click without stall');
+
+  // 4. Tilt Up from 0 loops backward to 15
+  aaList._manageFocus(0);
+  aaList._handleMCUp();
+  assert.equal(aaList.focussedIndex, 15, 'tilt up wraps to 15');
+  assert.deepEqual(getFocusRef(aaList), { ref: 15, count: 1 }, 'highlight preserved on 15');
+  aaList._handleMCUp();
+  assert.equal(aaList.focussedIndex, 14, 'tilt up on 15 advances to 14 on first click without stall');
+
+  // 5. Continuous autoscroll (downStart and upStart) across disabled boundary
+  aaList._manageFocus(15);
+  aaList.handleControllerEvent('downStart');
+  assert.equal(aaList.focussedIndex, 0, 'downStart on 15 wraps to 0');
+  assert.deepEqual(getFocusRef(aaList), { ref: 0, count: 1 }, 'highlight on 0 after downStart');
+  aaList.handleControllerEvent('down');
+  aaList.handleControllerEvent('downStart');
+  assert.equal(aaList.focussedIndex, 1, 'downStart on 0 advances to 1 on first click without stall');
+  aaList.handleControllerEvent('down');
+
+  aaList._manageFocus(0);
+  aaList.handleControllerEvent('upStart');
+  assert.equal(aaList.focussedIndex, 15, 'upStart on 0 wraps to 15');
+  assert.deepEqual(getFocusRef(aaList), { ref: 15, count: 1 }, 'highlight on 15 after upStart');
+  aaList.handleControllerEvent('up');
+  aaList.handleControllerEvent('upStart');
+  assert.equal(aaList.focussedIndex, 14, 'upStart on 15 advances to 14 on first click without stall');
+  aaList.handleControllerEvent('up');
+
+  // 6. Page down and page up across disabled boundary
+  aaList._manageFocus(15);
+  aaList._scrollPos = 11;
+  assert.equal(aaList._scrollDownPage(), 'paged', 'page down wraps to 0');
+  assert.equal(aaList.focussedIndex, 0, 'page down placed focus on 0');
+  assert.deepEqual(getFocusRef(aaList), { ref: 0, count: 1 }, 'highlight preserved on 0 after page down');
+
+  assert.equal(aaList._scrollUpPage(), 'paged', 'page up wraps to 15');
+  assert.equal(aaList.focussedIndex, 15, 'page up placed focus on 15');
+  assert.deepEqual(getFocusRef(aaList), { ref: 15, count: 1 }, 'highlight preserved on 15 after page up');
+  assert.equal(aaList._scrollPos, 11, 'page up aligned scrollPos to 11');
+
+  // 6b. No wrap while OEM waits for list data: the list would move only half way
+  aaList._manageFocus(15);
+  aaList._scrollTo(11);
+  aaList._inLoading = true;
+  aaList._handleMCCW();
+  assert.equal(aaList.focussedIndex, 15, 'CW at the end does not wrap while the list is loading');
+  assert.equal(aaList._topItem, 11, 'loading list keeps its scroll position on CW');
+  aaList._manageFocus(0);
+  aaList._handleMCCCW();
+  assert.equal(aaList.focussedIndex, 0, 'CCW at the start does not wrap while the list is loading');
+  assert.equal(aaList._topItem, 11, 'loading list keeps its scroll position on CCW');
+  aaList.properties.scrollingDuringLoading = true;
+  aaList._handleMCCCW();
+  assert.equal(aaList.focussedIndex, 15, 'a list that scrolls during loading still wraps');
+  aaList.properties.scrollingDuringLoading = false;
+  aaList._inLoading = false;
+
+  // 6c. No wrap in list reorder or letter index mode
+  aaList._manageFocus(15);
+  aaList._inListReorder = true;
+  aaList._handleMCCW();
+  assert.equal(aaList.focussedIndex, 15, 'CW does not wrap in list reorder mode');
+  aaList._inListReorder = false;
+  aaList._inLetterIndexMulticontroller = true;
+  aaList._handleMCCW();
+  assert.equal(aaList.focussedIndex, 15, 'CW does not wrap in letter index mode');
+  aaList._inLetterIndexMulticontroller = false;
+
+  // 7. Middle disabled row (Audio Custom Order simulation: 21 items, item 1 disabled)
+  const audioList = new controls1.List2Ctrl();
+  audioList.dataList = {
+    itemCount: 21,
+    items: Array.from({ length: 21 }, (_, i) => ({ disabled: i === 1 }))
+  };
+  audioList.properties.visibleItems = 5;
+  audioList._rebuildItems();
+  audioList._manageFocus(0);
+
+  audioList._handleMCCW();
+  assert.equal(audioList.focussedIndex, 2, 'CW skips disabled item 1 to item 2');
+  assert.deepEqual(getFocusRef(audioList), { ref: 2, count: 1 }, 'highlight on 2');
+
+  audioList._handleMCCCW();
+  assert.equal(audioList.focussedIndex, 0, 'CCW skips disabled item 1 back to item 0');
+  assert.deepEqual(getFocusRef(audioList), { ref: 0, count: 1 }, 'highlight on 0');
+
+  audioList._handleMCCCW();
+  assert.equal(audioList.focussedIndex, 20, 'CCW on 0 wraps to 20');
+  assert.deepEqual(getFocusRef(audioList), { ref: 20, count: 1 }, 'highlight on 20');
+
+  audioList._handleMCCW();
+  assert.equal(audioList.focussedIndex, 0, 'CW on 20 wraps to 0');
+  assert.deepEqual(getFocusRef(audioList), { ref: 0, count: 1 }, 'highlight on 0');
 
   // List beep muted
   listCtrl1.beeps = [];

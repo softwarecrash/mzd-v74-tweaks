@@ -753,7 +753,7 @@ test("createNativeMenu full features", async (t) => {
     assert.equal(items[4].itemStyle, "styleStep");
     assert.equal(items[4].label1, "Resolution DPI");
     assert.equal(items[4].label2, "141");
-    assert.equal(items[4].text1, "");
+    assert.equal(items[4].text1, "Resolution DPI", "OEM List2 locks focus while a row has an empty text1");
     assert.equal(items[4].min, 100);
     assert.equal(items[4].max, 160);
     assert.equal(items[4].increment, 1);

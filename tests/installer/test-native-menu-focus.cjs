@@ -6,7 +6,7 @@ for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash'
   if (!fs.existsSync(source)) continue;
   test(id + ' OEM Back arrow focus and cleanup', () => {
     function node() { return {style:{cssText:''},children:[],appendChild(n){n.parentNode=this;this.children.push(n);},removeChild(n){this.children.splice(this.children.indexOf(n),1);n.parentNode=null;},set innerHTML(v){this.children=[];}}; }
-    let focused=false, list, restored=false, title='', callback;
+    let focused=false, list, restored=false, title='', callback, created=null, updated=null;
     const messages=[], events=[];
     const template={divElt:{style:{visibility:'visible'}},list2Ctrl:{setLineNumbers(){}},handleControllerEvent(e){restored=e==='acceptFocusFromLeft';}};
     const fw={getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=>({_currentContextTemplate:template}),sendEventToMmui(){},
@@ -16,7 +16,7 @@ for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash'
         if(e==='right')return 'giveFocusRight';
         if(e==='select'){fw.sendEventToMmui('common','Global.GoBack');return 'consumed';}
       }}},
-      instantiateControl(a,p,t,props){list={handleControllerEvent(e){events.push(e);return e==='leftStart'?'giveFocusLeft':'consumed';},getContextCapture(){return {focussedItem:0,topItem:0};},restoreContext(){},setDataListAndUpdateItems(){}};return list;},destroyControl(){}
+      instantiateControl(a,p,t,props){created=props;list={handleControllerEvent(e){events.push(e);return e==='leftStart'?'giveFocusLeft':'consumed';},getContextCapture(){return {focussedItem:0,topItem:0};},restoreContext(){},setDataListAndUpdateItems(d){updated=d;}};return list;},destroyControl(){}
     };
     const head=node(), body=node();
     const document={head,body,createElement:node,getElementById:()=>null,getElementsByTagName:n=>n==='head'?[head]:n==='body'?[body]:[],documentElement:{contains:()=>true}};
@@ -28,6 +28,15 @@ for (const [id,api] of [['wallpaper-manager','WallpaperNativeMenu'],['drivedash'
     const menu=win[api].create(), parent=node(), frame=node();
     frame.contentWindow={postMessage(m){messages.push(m);}};parent.appendChild(frame);
     const spec={title:'Settings',page:'one',rows:[{label:'Entry'}]};
+    menu.render(frame,'token',spec);
+    // OEM List2 locks focus for 3 s while it requests rows with an empty text1.
+    const step={label:'DPI',itemStyle:'styleStep',value:141,min:100,max:160};
+    menu.render(frame,'token',{...spec,page:'step',rows:[step]});
+    assert.equal(created.dataList.items[0].text1,'DPI','a new step row has a text1');
+    menu.render(frame,'token',{...spec,page:'step',rows:[{...step,value:142}]});
+    assert.equal(updated.items[0].text1,'DPI','an updated step row keeps a text1');
+    menu.render(frame,'token',{...spec,page:'step',rows:[{itemStyle:'styleStep',value:1,min:0,max:2}]});
+    assert(updated.items[0].text1,'an unlabeled step row still has a non-empty text1');
     menu.render(frame,'token',spec);
     menu.input(frame,'token','left','step');assert(focused);assert(events.includes('lostFocus'));
     menu.input(frame,'token','right','step');assert(!focused);assert(events.includes('acceptFocusFromLeft'));
