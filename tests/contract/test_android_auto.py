@@ -265,8 +265,22 @@ esac
     info = call(['settings-info', 'android-auto']).stdout
     assert 'value.resolution_dpi=141' in info and 'value.resolution_par=10670' in info
 
-    # User settings defaults override via USB user/<id>/settings.conf
+    # Corrupted user settings: ignored and loads defaults with warning
     user_dir = usb / 'user/android-auto'
+    write(user_dir / 'settings.conf', 'resolution_dpi=invalid\nresolution_par=invalid\n')
+    r = call(['settings-info', 'android-auto'])
+    assert 'value.resolution_dpi=141' in r.stdout and 'value.resolution_par=10670' in r.stdout
+    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
+    # Install when corrupted user settings file is present: should use manifest defaults
+    call(['action', 'android-auto', 'install'])
+    saved = store / 'android-auto/package'
+    saved_settings = (saved / 'settings.conf').read_text()
+    assert 'resolution_dpi=141\n' in saved_settings and 'resolution_par=10670\n' in saved_settings
+    # Clean up corrupted settings file and uninstall
+    (user_dir / 'settings.conf').unlink()
+    call(['action', 'android-auto', 'uninstall'])
+
+    # User settings defaults override via USB user/<id>/settings.conf
     write(user_dir / 'settings.conf', '# Custom user defaults\nresolution_dpi=153\nresolution_par=15880\n')
     info = call(['settings-info', 'android-auto']).stdout
     assert 'value.resolution_dpi=153' in info and 'value.resolution_par=15880' in info
@@ -849,3 +863,20 @@ assert(not pcall(dpi_service.request, "set", {{ key = "resolution_dpi", value = 
         checks += 1
 
     print('ANDROID_AUTO_PASSED:', checks, 'real package checks; shims, XML patch hook, user settings defaults and asset overrides, saved uninstall.')
+    # Test each resolution via explicit arguments
+    resolutions = [
+        ('141', '10670'),
+        ('153', '15880'),
+        ('113', '15880'),
+    ]
+    for dpi, par in resolutions:
+        call(['action', 'android-auto', 'install', f'resolution_dpi={dpi}', f'resolution_par={par}'])
+        saved = store / 'android-auto/package'
+        saved_settings = (saved / 'settings.conf').read_text()
+        assert f'resolution_dpi={dpi}\n' in saved_settings
+        assert f'resolution_par={par}\n' in saved_settings
+        # Verify XML patches reflect the new resolution
+        for txt in [xml_std.read_text(), xml_ucp.read_text()]:
+            assert f'<density>{dpi}</density>' in txt
+            assert f'<par>{par}</par>' in txt
+        call(['action', 'android-auto', 'uninstall'])
