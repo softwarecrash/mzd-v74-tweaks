@@ -65,7 +65,7 @@
                 for (i = 0; i < usb.items.length; i += 1) { row = usb.items[i]; result.push({id:'usb-file',name:row.name,label:stripExt(row.label),caret:true}); }
             } else {
                 result.push({id:'hint',label:usb.status === 'missing' ? tr('folderHint','Create wallpapers in USB root') : usb.status === 'empty' ? tr('noImages','No PNG images found') : usb.status === 'loading' ? tr('readingUsb','Reading USB...') : tr('connectUsb','Connect USB with wallpapers folder'),disabled:true});
-                result.push({id:'hint',label:tr('limits','PNG: 800 x 480, max. 1 MiB'),disabled:true});
+                result.push({id: 'hint', label: tr('limits', 'PNG: 800 x 480, max. 1 MiB'), image1: 'common/images/icons/IcnUmpInfo_Ds.png', disabled: true});
             }
             result.push({id:'retry',label:tr('refresh','Refresh USB'),image1:'common/images/icons/IcnListSynchronize_En.png',itemStyle:'style02'}); return result;
         }
@@ -73,7 +73,7 @@
             var importDisabled = state.importing || !usbChosen || !!usbChosen.error;
             return [{id:'import-one',label:state.importing ? tr('importing','Importing...') : tr('importImage','Import image'),image1:importDisabled ? 'common/images/icons/IcnListImport_Ds.png' : 'common/images/icons/IcnListImport_En.png',itemStyle:'style02',disabled:importDisabled},
                 {id:'hint-name',label:usbChosen ? stripExt(usbChosen.label || usbChosen.name) : '',disabled:true},
-                {id:'hint',label:usbChosen && message(usbChosen.error) || tr('limits','PNG: 800 x 480, max. 1 MiB'),disabled:true}];
+                {id: 'hint', label: usbChosen && message(usbChosen.error) || tr('limits', 'PNG: 800 x 480, max. 1 MiB'), image1: 'common/images/icons/IcnUmpInfo_Ds.png', disabled: true}];
         }
         if (page === 'image') {
             var isCheckedBg = !state.enabled && ((state.selected && state.selected === chosen) || (!state.selected && state.active === chosen));
