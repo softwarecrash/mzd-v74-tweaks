@@ -281,6 +281,7 @@
                 { key: 'list_loop', type: 'bool', label: tr('list_loop', 'List menu loop') },
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'Shorter list menu delay') },
+                { key: 'statusbar_date', type: 'bool', label: tr('statusbar_date', 'Date in status bar') },
                 {
                     key: 'audio_order_menu',
                     label: tr('audio_order_title', 'Entertainment menu order'),

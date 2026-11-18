@@ -2,7 +2,8 @@
  * MZD Tweaks resident and view on the shared settings code (usb/lib/gui-runtime/settings-host.js and settings-view.js).
  * The resident keeps window.mzdTweaks, read by runtime hooks, in step with the saved
  * settings: it changes only after the service confirmed a read or a save. The view
- * declares On/Off rows and an Entertainment menu order subpage. Fake contexts, no CMU.
+ * declares settings rows and subpages. The resident applies StatusBarCtrl changes
+ * at runtime. Fake contexts, no CMU.
  * Run: node tests/tweaks/mzd-tweaks/settings.cjs
  */
 const assert = require('node:assert/strict');
@@ -44,18 +45,35 @@ const DEFAULTS = {
   list_loop: false,
   list_beep: true,
   short_delay: false,
+  statusbar_date: false,
   audio_order_custom: false,
   audio_order: DEFAULT_AUDIO_ORDER
 };
 
 // --- Resident ---------------------------------------------------------------
 
-function residentPage(boot) {
+function residentPage(boot, options) {
+  options = options || {};
   const win = { setInterval: () => 1, clearInterval() {} };
+  if (options.framework) { win.framework = options.framework; }
+  if (options.StatusBarCtrl) { win.StatusBarCtrl = options.StatusBarCtrl; }
+  if (options.Intl) { win.Intl = options.Intl; }
+  if (options.utility) { win.utility = options.utility; }
+  if (options.previewServices) { win.mzdPreviewServiceDefaults = options.previewServices; }
+  if (options.parentPreviewServices) { win.parent = { mzdPreviewServiceDefaults: options.parentPreviewServices }; }
   const scripts = [];
   if (boot) { win.mzdTweaks = boot; }
   const head = { appendChild(script) { scripts.push(script); } };
-  const document = { head: head, documentElement: head, createElement: () => ({}) };
+  const document = {
+    head: head,
+    documentElement: head,
+    createElement: options.createElement || (() => ({})),
+    getElementsByClassName(name) {
+      if (name === 'StatusBarCtrlClock') { return options.statusbarElements || []; }
+      return [];
+    }
+  };
+  win.document = document;
   vm.runInNewContext(settingsHostSource, { window: win });
   const registered = [], logs = [];
   win.MzdGuiResidents = { register(id, factory) { registered.push(id); win.factory = factory; }, log(id, message) { logs.push([id, message]); } };
@@ -74,7 +92,60 @@ function residentPage(boot) {
   ctx.createNativeMenu = options => { ctx.options = options; return { close() {}, check() {}, owns: () => false }; };
   ctx.service = { request(op, args, cb) { ctx.requests.push({ op: op, args: plain(args), cb: cb }); } };
   win.factory(ctx);
-  return { win, ctx, source, scripts, registered, logs };
+  return { win, ctx, source, scripts, registered, logs, document };
+}
+
+function fakeElement() {
+  let text = '';
+  const element = {
+    style: {},
+    children: [],
+    appendChild(child) { this.children.push(child); return child; }
+  };
+  Object.defineProperty(element, 'innerText', {
+    get() { return this.children.length ? this.children.map(child => child.innerText || child.textContent).join('\n') : text; },
+    set(value) { text = String(value); this.children = []; }
+  });
+  Object.defineProperty(element, 'textContent', {
+    get() { return this.children.length ? this.children.map(child => child.textContent || child.innerText).join('') : text; },
+    set(value) { text = String(value); this.children = []; }
+  });
+  return element;
+}
+
+function statusbarFixture(mode, contextId, usePrivateClock, existingBeforeHook, currentApp, disableIntl) {
+  const currentTime = new Date(2026, 10, 18, 8, 26);
+  const clocks = [];
+  const framework = {
+    localize: {
+      getCurrentLanguage: () => 'en_US',
+      getTimeFormat: () => '24hrs'
+    },
+    common: { getCurrentTime: () => currentTime },
+    getCurrCtxtId: () => contextId || 'Home',
+    getCurrentApp: () => currentApp || (contextId === 'AndroidAutoUI' ? 'androidauto' : contextId === 'CarPlayUI' ? 'carplay' : 'system')
+  };
+  function StatusBarCtrl() {
+    this.clock = fakeElement(); // stock v74 has no date element
+    clocks.push(this.clock);
+    if (usePrivateClock) { this._updateClock(currentTime); }
+    else { this.updateClock(currentTime); }
+  }
+  const updateClock = function () {
+    this.clock.innerText = contextId === 'AndroidAutoUI' || contextId === 'CarPlayUI' ? '' : '08:26';
+  };
+  if (usePrivateClock) { StatusBarCtrl.prototype._updateClock = updateClock; }
+  else { StatusBarCtrl.prototype.updateClock = updateClock; }
+  const control = existingBeforeHook ? new StatusBarCtrl() : null;
+  const pageOptions = {
+    framework,
+    StatusBarCtrl,
+    statusbarElements: clocks,
+    createElement: () => fakeElement()
+  };
+  if (!disableIntl) { pageOptions.Intl = Intl; }
+  const page = residentPage(Object.assign({}, DEFAULTS, { statusbar_date: mode }), pageOptions);
+  return { page, control: control || new page.win.StatusBarCtrl() };
 }
 
 function request(ctx, action, payload) {
@@ -90,6 +161,55 @@ function complete(ctx, op, error, result) {
 function lastResponse(source) {
   const all = source.messages.filter(m => m.type === 'mzd-tweaks-response');
   return all[all.length - 1];
+}
+
+{
+  const on = statusbarFixture(true).control;
+  assert.equal(on.clock.innerText, '08:26\nWed 18', 'On shows the time with the short date below it');
+  assert.equal(on.clock.children[0].style.fontSize, '30px', 'the time font is smaller');
+  assert.equal(on.clock.children[1].style.fontSize, '22px', 'the date is smaller than the time');
+  assert.equal(on.clock.style.top, '0', 'the factory clock box is reused, so the bar does not grow');
+
+  for (const value of [false, 'long', 'on', undefined]) {
+    const stock = statusbarFixture(value).control;
+    assert.equal(stock.clock.innerText, '08:26', 'only true changes the clock: ' + String(value));
+    assert(!stock.clock.style.top, 'other values keep stock styling');
+  }
+
+  const missing = statusbarFixture(true);
+  delete missing.page.win.mzdTweaks.statusbar_date;
+  missing.control.updateClock();
+  assert.equal(missing.control.clock.innerText, '08:26', 'a missing setting leaves the stock clock intact');
+
+  for (const contextId of ['AndroidAutoUI', 'CarPlayUI']) {
+    const projection = statusbarFixture(true, contextId).control;
+    assert.equal(projection.clock.innerText, '', contextId + ' keeps the stock empty clock');
+    assert(!projection.clock.style.top, contextId + ' keeps OEM clock styling');
+  }
+
+  const activeProjectionApp = statusbarFixture(true, 'Home', false, false, 'androidauto').control;
+  assert.equal(activeProjectionApp.clock.innerText, '08:26\nWed 18',
+    'the stock context ID, not the current audio app, determines projection behavior');
+
+  const noIntl = statusbarFixture(true, null, false, false, null, true).control;
+  assert.equal(noIntl.clock.innerText, '08:26\nWed 18', 'English day names are used when Intl is unavailable');
+
+  const repeat = statusbarFixture(true).control;
+  repeat.updateClock();
+  assert.equal(repeat.clock.innerText, '08:26\nWed 18', 'a repeated OEM update does not duplicate the date');
+
+  for (const existingBeforeHook of [false, true]) {
+    const live = statusbarFixture(false, null, true, existingBeforeHook);
+    complete(live.page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
+    request(live.page.ctx, 'set', { key: 'statusbar_date', value: true });
+    assert.equal(live.control.clock.innerText, '08:26', 'unsaved changes do not affect the status bar');
+    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: true }) });
+    assert.equal(live.control.clock.innerText, '08:26\nWed 18', 'a confirmed setting refreshes the clock');
+    request(live.page.ctx, 'set', { key: 'statusbar_date', value: false });
+    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: false }) });
+    assert.equal(live.control.clock.innerText, '08:26', 'switching to Off restores the stock clock');
+    assert(!live.control.clock.style.top, 'switching to Off restores stock styling');
+  }
 }
 
 {
@@ -113,7 +233,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true, audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -124,9 +244,15 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage(undefined, { parentPreviewServices: { 'mzd-tweaks': {} } });
+  assert.equal(page.scripts.length, 0, 'the emulator preview service replaces the vehicle settings.js boot script');
+  assert.deepEqual(page.ctx.requests.map(r => r.op), ['get'], 'the preview service still loads settings at startup');
+}
+
+{
+  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
@@ -873,12 +999,18 @@ function lastResponse(source) {
 function viewPage(options) {
   options = options || {};
   const posts = [], listeners = {};
+  const previewTime = new Date(2026, 10, 18, 8, 26);
+  const framework = {
+    localize: { getCurrentLanguage: () => 'en_US', getTimeFormat: () => '24hrs' },
+    common: { getCurrentTime: () => previewTime }
+  };
   let readyCalls = 0;
   let inputHandler = null;
   const notes = [];
   const status = { style: {}, textContent: 'Opening MZD Tweaks...', dir: '' };
   const win = {
-    parent: { postMessage(message) { posts.push(plain(message)); } },
+    parent: { framework, postMessage(message) { posts.push(plain(message)); } },
+    Intl,
     addEventListener(name, fn) { listeners[name] = fn; },
     removeEventListener() {}
   };
@@ -920,14 +1052,23 @@ function viewPage(options) {
 
 {
   const page = viewPage();
+  page.respond({ statusbar_date: false });
+  assert.equal(page.menu().rows[4].label, 'Date in status bar');
+  assert.equal(page.menu().rows[4].checked, false, 'the date is off by default');
+  page.select(4);
+  assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: true }], 'switching the date on saves true');
+}
+
+{
+  const page = viewPage();
   assert.deepEqual(page.posts.map(m => m.type + ':' + m.action), ['mzd-tweaks-request:get'], 'the view asks the resident for the settings');
   page.respond({ main_menu_loop: true, list_loop: false, short_delay: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Entertainment menu order']);
-  assert.equal(menu.rows[4].detail, 'Default', 'detail shows Default when custom order is off');
-  assert.equal(menu.rows[4].caret, true);
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Entertainment menu order']);
+  assert.equal(menu.rows[5].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[5].caret, true);
 
   page.select(2);
   assert.deepEqual(page.sets(), [{ key: 'list_beep', value: false }], 'switching the default beep off saves false');
@@ -939,7 +1080,7 @@ function viewPage(options) {
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
   // Open the Entertainment menu order subpage
-  page.select(4);
+  page.select(5);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1053,7 +1194,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(4);
+  page.select(5);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1061,7 +1202,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(4);
+  page.select(5);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1121,9 +1262,10 @@ function viewPage(options) {
     assert(dict.default && dict.default.length > 0, 'default present in ' + lang);
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
     assert(dict.audio_order_title && dict.audio_order_title.length > 0, 'audio_order_title present in ' + lang);
+    assert(dict.statusbar_date && dict.statusbar_date.length > 0, 'statusbar_date present in ' + lang);
     assert.equal(dict.title, 'MZD Tweaks', 'title not translated in ' + lang);
     assert.equal(dict['gui.label'], 'MZD Tweaks', 'gui.label not translated in ' + lang);
   }
 }
 
-console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, no unconfirmed state, read on service ready, globals only after a confirmed save, failed save restored, four On/Off rows, audio order subpage with deferred save, resort confirmation.');
+console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

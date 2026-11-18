@@ -33,7 +33,8 @@ test('emulated MZD Tweaks service', async t => {
             main_menu_loop: false,
             list_loop: false,
             list_beep: true,
-            short_delay: false
+            short_delay: false,
+            statusbar_date: false
         }
     });
 
@@ -42,6 +43,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(env.window.mzdTweaks.list_loop, false);
         assert.equal(env.window.mzdTweaks.list_beep, true);
         assert.equal(env.window.mzdTweaks.short_delay, false);
+        assert.equal(env.window.mzdTweaks.statusbar_date, false);
 
         const res = await request(env.services, 'get', {});
         assert.equal(res.settings.main_menu_loop, false);

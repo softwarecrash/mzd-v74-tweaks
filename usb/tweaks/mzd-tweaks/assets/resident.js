@@ -1,7 +1,7 @@
 /*
  * MZD Tweaks resident. The shared settings host owns the native menu and the
  * save queue; this file keeps window.mzdTweaks in sync and hooks MainMenuCtrl,
- * List2Ctrl and systemApp at runtime without modifying OEM target files.
+ * List2Ctrl, StatusBarCtrl and systemApp at runtime without modifying OEM files.
  *
  * Sources that populate window.mzdTweaks:
  * - Inline defaults below, so OEM code and hooks always find the object.
@@ -60,9 +60,101 @@
         list_loop: false,
         list_beep: true,
         short_delay: false,
+        statusbar_date: false,
         audio_order_custom: false,
         audio_order: DEFAULT_AUDIO_ORDER
     };
+
+    var EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    function statusbarDateEnabled() {
+        return !!global.mzdTweaks && global.mzdTweaks.statusbar_date === true;
+    }
+
+    // Short date such as "Wed 18". Intl is used when the browser has it.
+    function statusbarDateText(date) {
+        var day = '', language = '', localize = global.framework && global.framework.localize;
+        try {
+            if (localize && typeof localize.getCurrentLanguage === 'function') {
+                language = String(localize.getCurrentLanguage() || '').replace('_', '-');
+            }
+            if (global.Intl && typeof global.Intl.DateTimeFormat === 'function') {
+                day = new global.Intl.DateTimeFormat(language || undefined, { weekday: 'short' }).format(date);
+            }
+        } catch (ignore) {
+            day = '';
+        }
+        return (day || EN_DAYS[date.getDay()]) + ' ' + date.getDate();
+    }
+
+    function clockText(clock) {
+        return clock.innerText || clock.textContent || '';
+    }
+
+    function isStatusbarAAContext() {
+        var fw = global.framework, contextId;
+        try {
+            contextId = fw && typeof fw.getCurrCtxtId === 'function' ? fw.getCurrCtxtId() : '';
+        } catch (ignore) {
+            return false;
+        }
+        return contextId === 'AndroidAutoUI' || contextId === 'CarPlayUI';
+    }
+
+    // Puts the factory clock back: its text and the CSS-defined layout.
+    function restoreClock(clock) {
+        if (clock._mzdTweaksOut !== undefined && clockText(clock) === clock._mzdTweaksOut) {
+            clock.innerText = clock._mzdTweaksTime;
+        }
+        clock._mzdTweaksOut = undefined;
+        clock.style.top = '';
+    }
+
+    // Time on the first line (smaller), short date on the second line. The clock
+    // keeps its factory box, so the status bar does not grow.
+    function renderClock(clock, currentTime) {
+        var current, time, date, timeLine, dateLine;
+        if (!statusbarDateEnabled() || isStatusbarAAContext()) {
+            restoreClock(clock);
+            return;
+        }
+        current = clockText(clock);
+        // Text written here is not the factory time; keep the saved factory time.
+        time = clock._mzdTweaksOut !== undefined && current === clock._mzdTweaksOut ? clock._mzdTweaksTime : current;
+        if (!time) { return; }
+        date = typeof currentTime === 'number' ? new Date(currentTime) :
+            (currentTime && typeof currentTime.getTime === 'function' ? currentTime : new Date());
+        timeLine = global.document.createElement('div');
+        timeLine.style.fontSize = '30px';
+        timeLine.style.lineHeight = '32px';
+        timeLine.textContent = time;
+        dateLine = global.document.createElement('div');
+        dateLine.style.fontSize = '22px';
+        dateLine.style.lineHeight = '22px';
+        dateLine.textContent = statusbarDateText(date);
+        clock.innerText = '';
+        clock.appendChild(timeLine);
+        clock.appendChild(dateLine);
+        clock.style.top = '0';
+        clock._mzdTweaksTime = time;
+        clock._mzdTweaksOut = clockText(clock);
+    }
+
+    function refreshStatusbarDisplays(log) {
+        var fw = global.framework, doc = global.document, currentTime = null, clocks, i;
+        if (!doc || typeof doc.getElementsByClassName !== 'function') { return; }
+        try {
+            if (fw && fw.common && typeof fw.common.getCurrentTime === 'function') {
+                currentTime = fw.common.getCurrentTime();
+            }
+            clocks = doc.getElementsByClassName('StatusBarCtrlClock');
+            for (i = 0; i < clocks.length; i++) { renderClock(clocks[i], currentTime); }
+        } catch (error) {
+            if (typeof log === 'function') {
+                log('Status bar refresh failed: ' + (error && error.message ? error.message : error));
+            }
+        }
+    }
 
     function backfillDefaults(obj) {
         if (!obj) { return; }
@@ -95,26 +187,29 @@
     }
     backfillDefaults(global.mzdTweaks);
 
-    try {
-        var bootScript = document.createElement('script');
-        bootScript.type = 'text/javascript';
-        bootScript.src = '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js';
-        bootScript.onload = function () {
-            backfillDefaults(global.mzdTweaks);
-        };
-        bootScript.onerror = function (event) {
-            if (event && event.preventDefault) { event.preventDefault(); }
+    if (!(global.mzdPreviewServiceDefaults ||
+        (global.parent && global.parent.mzdPreviewServiceDefaults))) {
+        try {
+            var bootScript = document.createElement('script');
+            bootScript.type = 'text/javascript';
+            bootScript.src = '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js';
+            bootScript.onload = function () {
+                backfillDefaults(global.mzdTweaks);
+            };
+            bootScript.onerror = function (event) {
+                if (event && event.preventDefault) { event.preventDefault(); }
+                backfillDefaults(global.mzdTweaks);
+                if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                    global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be loaded; using defaults until the service answers.');
+                }
+                return true;
+            };
+            (document.head || document.documentElement).appendChild(bootScript);
+        } catch (failure) {
             backfillDefaults(global.mzdTweaks);
             if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
-                global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be loaded; using defaults until the service answers.');
+                global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be added: ' + failure);
             }
-            return true;
-        };
-        (document.head || document.documentElement).appendChild(bootScript);
-    } catch (failure) {
-        backfillDefaults(global.mzdTweaks);
-        if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
-            global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be added: ' + failure);
         }
     }
 
@@ -568,6 +663,34 @@
         }
     };
 
+    function hookStatusbar() {
+        var proto = global.StatusBarCtrl && global.StatusBarCtrl.prototype;
+        if (!proto || proto._mzdTweaksDateHooked) { return; }
+        if (typeof proto.updateClock !== 'function' && typeof proto._updateClock !== 'function') { return; }
+
+        function wrapClockMethod(name) {
+            var original = proto[name];
+            if (typeof original !== 'function') { return; }
+            proto[name] = function () {
+                var result = original.apply(this, arguments);
+                try {
+                    if (this.clock) { renderClock(this.clock, arguments.length ? arguments[0] : null); }
+                } catch (error) {
+                    if (this.clock) { restoreClock(this.clock); }
+                    if (global.MzdGuiResidents && typeof global.MzdGuiResidents.log === 'function') {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Status bar date display failed: ' +
+                            (error && error.message ? error.message : error));
+                    }
+                }
+                return result;
+            };
+        }
+
+        proto._mzdTweaksDateHooked = true;
+        wrapClockMethod('updateClock');
+        wrapClockMethod('_updateClock');
+    }
+
     function hookFramework() {
         if (global.framework && typeof global.framework.instantiateControl === 'function' && !global.framework._mzdTweaksInstantiateHooked) {
             global.framework._mzdTweaksInstantiateHooked = true;
@@ -577,6 +700,8 @@
                     hookList2();
                 } else if (type === 'MainMenuCtrl') {
                     hookMainMenu();
+                } else if (type === 'StatusBarCtrl') {
+                    hookStatusbar();
                 }
                 return origInstantiate.apply(this, arguments);
             };
@@ -587,6 +712,7 @@
         hookMainMenu();
         hookList2();
         hookSystemApp();
+        hookStatusbar();
         hookFramework();
 
         // Also poll during initial boot until both controls are hooked or limit reached
@@ -595,7 +721,8 @@
         var isHooked = function () {
             return global.MainMenuCtrl && global.MainMenuCtrl.prototype && global.MainMenuCtrl.prototype._mzdTweaksHooked &&
                 global.List2Ctrl && global.List2Ctrl.prototype && global.List2Ctrl.prototype._mzdTweaksHooked &&
-                global.systemApp && global.systemApp.prototype && global.systemApp.prototype._mzdTweaksHooked;
+                global.systemApp && global.systemApp.prototype && global.systemApp.prototype._mzdTweaksHooked &&
+                global.StatusBarCtrl && global.StatusBarCtrl.prototype && global.StatusBarCtrl.prototype._mzdTweaksDateHooked;
         };
         if (pollTimer && !isHooked()) {
             var attempts = 0;
@@ -606,6 +733,7 @@
                 hookMainMenu();
                 hookList2();
                 hookSystemApp();
+                hookStatusbar();
                 hookFramework();
                 if (isHooked() || attempts >= maxAttempts) {
                     if (clearTimer && poll !== null) { clearTimer(poll); }
@@ -646,6 +774,9 @@
                 }
             }
             backfillDefaults(global.mzdTweaks);
+            if (Object.prototype.hasOwnProperty.call(settings, 'statusbar_date')) {
+                refreshStatusbarDisplays(context.log);
+            }
             if (typeof global.mzdTweaksResortEntertainment === 'function') {
                 try {
                     global.mzdTweaksResortEntertainment();

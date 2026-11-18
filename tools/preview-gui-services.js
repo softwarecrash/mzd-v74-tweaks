@@ -240,6 +240,7 @@
             list_loop: false,
             list_beep: true,
             short_delay: false,
+            statusbar_date: false,
             audio_order_custom: false,
             audio_order: defaultAudioOrder
         };

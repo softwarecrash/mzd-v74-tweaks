@@ -78,6 +78,7 @@ local DEFAULTS = {
     list_loop = false,
     list_beep = true,
     short_delay = false,
+    statusbar_date = false,
     audio_order_custom = false
 }
 local DEFAULT_AUDIO_ORDER = {}
@@ -87,7 +88,7 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table)
+local function js(a, b, c, d, custom, audio_table, statusbar_date)
     custom = custom or 'false'
     local lines = {
         'window.mzdTweaks = {',
@@ -95,6 +96,7 @@ local function js(a, b, c, d, custom, audio_table)
         '    "list_loop": ' .. b .. ',',
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
+        '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
         '    "audio_order": {'
     }
@@ -128,6 +130,7 @@ do
         list_loop = false,
         list_beep = false,
         short_delay = true,
+        statusbar_date = false,
         audio_order_custom = true,
         audio_order = custom_audio
     }
