@@ -25,7 +25,7 @@ Configurable in the installer UI or via `user/android-auto/settings.conf`:
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
 | `resolution_dpi` | Number (100–160) | `141` | Display DPI. Common values impacting layout: 103, 113, 122, 141, 153, 160. |
-| `resolution_par` | Choice | `10670` | Pixel aspect ratio. Factory screen: `10670`. Aftermarket 10.25-inch display: `15800`. |
+| `resolution_par` | Choice | `10670` | Pixel aspect ratio. Factory 7-inch: `10871`, factory 8-inch: `10670`, aftermarket 10.25-inch: `15880`, aftermarket 12.3-inch: `15770`. |
 
 ### Applications menu GUI (`libpatch.conf`)
 
@@ -147,7 +147,7 @@ When installing an aftermarket 10.25-inch screen (1920x720) in place of the fact
 
 **Solution:**
 
-- Set `resolution_par` to `15800` (factory default is `10670`) in `user/android-auto/settings.conf` or select it in the installer UI. This corrects the aspect ratio so Android Auto renders with sharp, undistorted proportions.
+- Set `resolution_par` to `15880` (factory default is `10670`) in `user/android-auto/settings.conf` or select it in the installer UI. This corrects the aspect ratio so Android Auto renders with sharp, undistorted proportions.
 
 ### UI elements too small or crowded in divided screen mode
 
