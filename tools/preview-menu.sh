@@ -5,6 +5,9 @@
 set -eu
 
 REPO_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+ALL_GUI_TWEAKS="android-auto mzd-tweaks wallpaper-manager"
+SELECTED_TWEAKS=""
+TWEAKS_SPECIFIED=0
 TWEAK_ID="android-auto"
 NO_OPEN=0
 USE_EMU=0
@@ -18,23 +21,35 @@ FOCUS_ROW=""
 SCROLL_MODE="nearest"
 PREVIEW_HTML="${PREVIEW_OUT:-/tmp/mzd-menu-preview.html}"
 
+mzd_normalize_tweak() {
+    case "$1" in
+        aa|android_auto) echo "android-auto" ;;
+        wallpaper|wallpaper_manager) echo "wallpaper-manager" ;;
+        mzd|mzd_tweaks) echo "mzd-tweaks" ;;
+        *) echo "$1" ;;
+    esac
+}
+
 usage() {
     cat << HELP
 Usage: $(basename "$0") [options]
 
 Options:
-  --tweak <id>         Tweak ID to preview (default: android-auto)
-  --out <path>         Output path for generated preview HTML
-  --no-open            Generate preview HTML file without launching browser
-  --emu [path]         Sync GUI assets into mzd-emu and launch emulator (default: ../mzd-emu, or ./mzd-emu if present)
-  --sbn <text>         Display an MZD Status Bar Notification (SBN) toast
-  --focus <id|idx>     Focus menu row by index or ID (e.g. 7 or hud_maneuver_max_distance_m)
-  --scroll <mode>      Scroll mode for initial render (nearest, start, bottom)
-  --screenshot [path]  Capture 800x480 screenshot using Google Chrome
-  --fail-save          Simulate saving failure on setting changes
-  --fail-reboot        Simulate reboot failure
-  --fail <target>      Simulate failure (save, reboot, or all)
-  -h, --help           Show this help message
+  --tweak <id|list|all> Tweak ID, comma-separated list, or 'all' to preview
+                        (default in --emu: all; default standalone: android-auto)
+                        Aliases: aa (android-auto), wallpaper (wallpaper-manager), mzd (mzd-tweaks)
+  --all                 Preview all GUI extension tweaks at the same time in the emulator
+  --out <path>          Output path for generated preview HTML
+  --no-open             Generate preview HTML file without launching browser
+  --emu [path]          Sync GUI assets into mzd-emu and launch emulator (default: ../mzd-emu, or ./mzd-emu if present)
+  --sbn <text>          Display an MZD Status Bar Notification (SBN) toast
+  --focus <id|idx>      Focus menu row by index or ID (e.g. 7 or hud_maneuver_max_distance_m)
+  --scroll <mode>       Scroll mode for initial render (nearest, start, bottom)
+  --screenshot [path]   Capture 800x480 screenshot using Google Chrome
+  --fail-save           Simulate saving failure on setting changes
+  --fail-reboot         Simulate reboot failure
+  --fail <target>       Simulate failure (save, reboot, or all)
+  -h, --help            Show this help message
 HELP
     exit 0
 }
@@ -42,8 +57,31 @@ HELP
 while [ $# -gt 0 ]; do
     case "$1" in
         --tweak)
-            TWEAK_ID="$2"
+            TWEAKS_SPECIFIED=1
+            case "$2" in
+                all|ALL)
+                    SELECTED_TWEAKS="$ALL_GUI_TWEAKS"
+                    ;;
+                *)
+                    old_ifs=$IFS
+                    IFS=','
+                    for t in $2; do
+                        norm=$(mzd_normalize_tweak "$t")
+                        if [ -z "$SELECTED_TWEAKS" ]; then
+                            SELECTED_TWEAKS="$norm"
+                        else
+                            SELECTED_TWEAKS="$SELECTED_TWEAKS $norm"
+                        fi
+                    done
+                    IFS=$old_ifs
+                    ;;
+            esac
             shift 2
+            ;;
+        --all|--all-gui)
+            TWEAKS_SPECIFIED=1
+            SELECTED_TWEAKS="$ALL_GUI_TWEAKS"
+            shift
             ;;
         --out)
             PREVIEW_HTML="$2"
@@ -115,106 +153,107 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-TWEAK_DIR="$REPO_DIR/usb/tweaks/$TWEAK_ID"
-MANIFEST_CONF="$TWEAK_DIR/manifest.conf"
+if [ "$TWEAKS_SPECIFIED" -eq 0 ]; then
+    if [ "$USE_EMU" -eq 1 ]; then
+        SELECTED_TWEAKS="$ALL_GUI_TWEAKS"
+    else
+        SELECTED_TWEAKS="android-auto"
+    fi
+fi
 
-if [ ! -f "$MANIFEST_CONF" ]; then
-    echo "Error: manifest.conf not found in $TWEAK_DIR" >&2
+tweak_count=0
+for t in $SELECTED_TWEAKS; do
+    tweak_count=$((tweak_count + 1))
+done
+
+if [ "$USE_EMU" -eq 0 ] && [ "$tweak_count" -gt 1 ]; then
+    echo "Error: Previewing multiple GUI extension tweaks at the same time is only supported in the emulator (--emu). Specify a single tweak or add --emu." >&2
     exit 1
 fi
 
 . "$REPO_DIR/usb/lib/manifest.sh"
-mzd_manifest_load "$MANIFEST_CONF" || {
-    echo "Error: Failed to load manifest for $TWEAK_ID" >&2
-    exit 1
-}
 
-if [ "$TYPE" != "gui-extension" ] && [ -z "${GUI_API:-}" ]; then
-    echo "Error: Tweak $TWEAK_ID is not a GUI extension (requires type=gui-extension or gui_api)." >&2
-    exit 1
-fi
-
-if [ -z "${GUI_ENTRYPOINT:-}" ] || [ ! -f "$TWEAK_DIR/$GUI_ENTRYPOINT" ]; then
-    echo "Error: GUI entrypoint ($GUI_ENTRYPOINT) not found in $TWEAK_DIR" >&2
-    exit 1
-fi
-
-CONF_FILE=""
-if [ -f "$TWEAK_DIR/assets/settings.conf" ]; then
-    CONF_FILE="$TWEAK_DIR/assets/settings.conf"
-elif [ -f "$TWEAK_DIR/assets/libpatch.conf" ]; then
-    CONF_FILE="$TWEAK_DIR/assets/libpatch.conf"
-else
-    cfg_src=$(awk -F= '$1=="config.settings.source"{print $2}' "$MANIFEST_CONF")
-    if [ -n "$cfg_src" ] && [ -f "$TWEAK_DIR/$cfg_src" ]; then
-        CONF_FILE="$TWEAK_DIR/$cfg_src"
-    fi
-fi
-
-SETTINGS_JSON="{}"
-if [ -n "$CONF_FILE" ]; then
-    case "$CONF_FILE" in
-        *.js)
-            SETTINGS_JSON=$(awk '
-            BEGIN { inside = 0; brace_count = 0 }
-            /{/ {
-                if (!inside) {
-                    inside = 1
-                    sub(/^[^{]*/, "")
-                }
-            }
-            inside {
-                line = $0
-                n = length(line)
-                for (i = 1; i <= n; i++) {
-                    c = substr(line, i, 1)
-                    if (c == "{") brace_count++
-                    else if (c == "}") {
-                        brace_count--
-                        if (brace_count == 0) {
-                            print substr(line, 1, i)
-                            exit
-                        }
-                    }
-                }
-                print line
-            }
-            ' "$CONF_FILE")
-            ;;
-        *)
-            SETTINGS_JSON=$(awk '
-            BEGIN { count = 0; printf "{" }
-            /^[ \t]*#/ { next }
-            /^[ \t]*$/ { next }
-            /=/ {
-                split($0, parts, "=")
-                sub(/^[ \t]+/, "", parts[1]); sub(/[ \t]+$/, "", parts[1])
-                sub(/^[ \t]+/, "", parts[2]); sub(/[ \t]+$/, "", parts[2])
-                k = tolower(parts[1])
-                v = parts[2]
-                if (v ~ /^[0-9]+$/) val = v
-                else if (v == "true" || v == "yes" || v == "on") val = "true"
-                else if (v == "false" || v == "no" || v == "off") val = "false"
-                else val = "\"" v "\""
-                if (count++ > 0) printf ","
-                printf "\"%s\":%s", k, val
-            }
-            END { printf "}" }
-            ' "$CONF_FILE")
-            ;;
-    esac
-fi
-
-if [ -f "$TWEAK_DIR/manifest.conf" ] && grep -q '^setting\.resolution_dpi\.default=' "$TWEAK_DIR/manifest.conf"; then
-    dpi_default=$(awk -F= '$1=="setting.resolution_dpi.default" {print $2+0}' "$TWEAK_DIR/manifest.conf")
-    if [ -n "$dpi_default" ]; then
-        if [ "$SETTINGS_JSON" = "{}" ]; then
-            SETTINGS_JSON="{\"resolution_dpi\":$dpi_default}"
-        else
-            SETTINGS_JSON=$(printf '%s' "$SETTINGS_JSON" | sed "s/^{/{\"resolution_dpi\":$dpi_default,/")
+mzd_extract_settings_json() {
+    _tweak_dir="$1"
+    _manifest_conf="$2"
+    _conf_file=""
+    if [ -f "$_tweak_dir/assets/settings.conf" ]; then
+        _conf_file="$_tweak_dir/assets/settings.conf"
+    elif [ -f "$_tweak_dir/assets/libpatch.conf" ]; then
+        _conf_file="$_tweak_dir/assets/libpatch.conf"
+    else
+        _cfg_src=$(awk -F= '$1=="config.settings.source"{print $2}' "$_manifest_conf")
+        if [ -n "$_cfg_src" ] && [ -f "$_tweak_dir/$_cfg_src" ]; then
+            _conf_file="$_tweak_dir/$_cfg_src"
         fi
     fi
-fi
+
+    _settings_json="{}"
+    if [ -n "$_conf_file" ]; then
+        case "$_conf_file" in
+            *.js)
+                _settings_json=$(awk '
+                BEGIN { inside = 0; brace_count = 0 }
+                /{/ {
+                    if (!inside) {
+                        inside = 1
+                        sub(/^[^{]*/, "")
+                    }
+                }
+                inside {
+                    line = $0
+                    n = length(line)
+                    for (i = 1; i <= n; i++) {
+                        c = substr(line, i, 1)
+                        if (c == "{") brace_count++
+                        else if (c == "}") {
+                            brace_count--
+                            if (brace_count == 0) {
+                                print substr(line, 1, i)
+                                exit
+                            }
+                        }
+                    }
+                    print line
+                }
+                ' "$_conf_file")
+                ;;
+            *)
+                _settings_json=$(awk '
+                BEGIN { count = 0; printf "{" }
+                /^[ \t]*#/ { next }
+                /^[ \t]*$/ { next }
+                /=/ {
+                    split($0, parts, "=")
+                    sub(/^[ \t]+/, "", parts[1]); sub(/[ \t]+$/, "", parts[1])
+                    sub(/^[ \t]+/, "", parts[2]); sub(/[ \t]+$/, "", parts[2])
+                    k = tolower(parts[1])
+                    v = parts[2]
+                    if (v ~ /^[0-9]+$/) val = v
+                    else if (v == "true" || v == "yes" || v == "on") val = "true"
+                    else if (v == "false" || v == "no" || v == "off") val = "false"
+                    else val = "\"" v "\""
+                    if (count++ > 0) printf ","
+                    printf "\"%s\":%s", k, val
+                }
+                END { printf "}" }
+                ' "$_conf_file")
+                ;;
+        esac
+    fi
+
+    if [ -f "$_manifest_conf" ] && grep -q '^setting\.resolution_dpi\.default=' "$_manifest_conf"; then
+        _dpi_default=$(awk -F= '$1=="setting.resolution_dpi.default" {print $2+0}' "$_manifest_conf")
+        if [ -n "$_dpi_default" ]; then
+            if [ "$_settings_json" = "{}" ]; then
+                _settings_json="{\"resolution_dpi\":$_dpi_default}"
+            else
+                _settings_json=$(printf '%s' "$_settings_json" | sed "s/^{/{\"resolution_dpi\":$_dpi_default,/")
+            fi
+        fi
+    fi
+    printf '%s' "$_settings_json"
+}
 
 if [ "$USE_EMU" -eq 1 ]; then
     if [ -n "$EMU_PATH" ]; then
@@ -237,58 +276,10 @@ if [ "$USE_EMU" -eq 1 ]; then
         echo "You can pass --emu <path>, set MZD_EMU_DIR, or clone into ./mzd-emu or ../mzd-emu." >&2
         exit 1
     fi
-    echo "Syncing GUI assets to $EMU_DIR..."
+
+    echo "Syncing shared GUI runtime to $EMU_DIR..."
     mkdir -p "$EMU_DIR/data/integration/mzd-gui-runtime"
     cp -R "$REPO_DIR/usb/lib/gui-runtime/"* "$EMU_DIR/data/integration/mzd-gui-runtime/"
-    mkdir -p "$EMU_DIR/data/integration/mzd-gui-modules/$ID"
-    cp "$MANIFEST_CONF" "$EMU_DIR/data/integration/mzd-gui-modules/$ID/"
-    cp -R "$TWEAK_DIR/assets" "$EMU_DIR/data/integration/mzd-gui-modules/$ID/"
-
-    resident=-; service=-; translations=-
-    [ -z "$GUI_RESIDENT" ] || resident="/data/integration/mzd-gui-modules/$ID/$GUI_RESIDENT"
-    [ -z "$GUI_SERVICE" ] || service=$GUI_SERVICE
-    [ -z "$GUI_TRANSLATIONS" ] || translations="/data/integration/mzd-gui-modules/$ID/$GUI_TRANSLATIONS"
-    printf '%s\t%s\t%s\t/data/integration/mzd-gui-modules/%s/%s\t%s\t%s\t%s\n' \
-        "$ID" "$GUI_MENU_PATH" "$GUI_LABEL" "$ID" "$GUI_ENTRYPOINT" "$resident" "$service" "$translations" | \
-        awk -f "$REPO_DIR/usb/lib/gui-registry.awk" > "$EMU_DIR/data/integration/mzd-gui-registry.js"
-
-    # Ensure persistent config files/directories declared in manifest exist in the emulator
-    if [ -n "$CONFIGS" ]; then
-        tab=$(printf '\t')
-        awk -v base="/tmp/mnt/data_persist" -f "$REPO_DIR/usb/lib/configs.awk" "$MANIFEST_CONF" | while IFS="$tab" read -r cfg_key cfg_kind cfg_target cfg_source; do
-            emu_cfg_target="$EMU_DIR$cfg_target"
-            if [ "$cfg_kind" = "dir" ]; then
-                mkdir -p "$emu_cfg_target"
-                if [ "$cfg_source" != "-" ] && [ -d "$TWEAK_DIR/$cfg_source" ]; then
-                    cp -R "$TWEAK_DIR/$cfg_source/"* "$emu_cfg_target/" 2>/dev/null || true
-                fi
-            elif [ "$cfg_kind" = "file" ]; then
-                mkdir -p "$(dirname "$emu_cfg_target")"
-                if [ ! -f "$emu_cfg_target" ]; then
-                    if [ "$cfg_source" != "-" ] && [ -f "$TWEAK_DIR/$cfg_source" ]; then
-                        cp "$TWEAK_DIR/$cfg_source" "$emu_cfg_target"
-                        echo "Copied default $cfg_key to emulator persistent storage ($emu_cfg_target)"
-                    fi
-                fi
-            fi
-        done
-    fi
-
-    # Ensure saved package settings.conf exists in emulator if the tweak defines settings
-    if [ -n "$SETTINGS" ]; then
-        EMU_PACKAGE_DIR="$EMU_DIR/tmp/mnt/data_persist/mzd-tweaks/installed/$ID/package"
-        mkdir -p "$EMU_PACKAGE_DIR/tweaks/$ID"
-        cp "$MANIFEST_CONF" "$EMU_PACKAGE_DIR/tweaks/$ID/manifest.conf"
-        if [ ! -f "$EMU_PACKAGE_DIR/settings.conf" ]; then
-            (
-                . "$REPO_DIR/usb/lib/manifest.sh"
-                . "$REPO_DIR/usb/lib/settings.sh"
-                mzd_manifest_load "$MANIFEST_CONF"
-                mzd_settings_normalize "$MANIFEST_CONF" > "$EMU_PACKAGE_DIR/settings.conf"
-            ) || true
-            echo "Initialized settings.conf in emulator ($EMU_PACKAGE_DIR/settings.conf)"
-        fi
-    fi
 
     # Restore any previously patched OEM files if .orig backups exist in the emulator.
     for target_rel in /jci/gui/common/controls/List2/js/List2Ctrl.js /jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js /jci/gui/apps/system/js/systemApp.js; do
@@ -299,31 +290,123 @@ if [ "$USE_EMU" -eq 1 ]; then
         fi
     done
 
-    # If the tweak defines components, apply any GUI patches to mzd-emu's files.
-    if [ -n "${COMPONENTS:-}" ] && [ -f "$TWEAK_DIR/$COMPONENTS" ]; then
-        echo "Applying component patches to $EMU_DIR..."
-        while IFS="$(printf '\t')" read -r comp_type comp_target comp_source comp_rest || [ -n "$comp_type" ]; do
-            case "$comp_type" in ''|'#'*) continue ;; esac
-            [ "$comp_type" = "patch" ] || continue
-            case "$comp_target" in
-                /*) emu_target="$EMU_DIR$comp_target" ;;
-                *) emu_target="$EMU_DIR/$comp_target" ;;
-            esac
-            patch_file="$TWEAK_DIR/$comp_source"
-            if [ -f "$emu_target" ] && [ -f "$patch_file" ]; then
-                if ! grep -q 'mzdTweaks' "$emu_target"; then
-                    if [ ! -f "$emu_target.orig" ]; then
-                        cp "$emu_target" "$emu_target.orig"
-                        echo "Backed up $comp_target to $comp_target.orig"
+    REGISTRY_TMP=$(mktemp /tmp/mzd-registry-records.XXXXXX)
+    DEFAULTS_ENTRIES=""
+
+    for tid in $SELECTED_TWEAKS; do
+        tweak_dir="$REPO_DIR/usb/tweaks/$tid"
+        manifest_conf="$tweak_dir/manifest.conf"
+
+        if [ ! -f "$manifest_conf" ]; then
+            echo "Error: manifest.conf not found in $tweak_dir" >&2
+            rm -f "$REGISTRY_TMP"
+            exit 1
+        fi
+
+        mzd_manifest_load "$manifest_conf" || {
+            echo "Error: Failed to load manifest for $tid" >&2
+            rm -f "$REGISTRY_TMP"
+            exit 1
+        }
+
+        if [ "$TYPE" != "gui-extension" ] && [ -z "${GUI_API:-}" ]; then
+            echo "Error: Tweak $tid is not a GUI extension (requires type=gui-extension or gui_api)." >&2
+            rm -f "$REGISTRY_TMP"
+            exit 1
+        fi
+
+        if [ -z "${GUI_ENTRYPOINT:-}" ] || [ ! -f "$tweak_dir/$GUI_ENTRYPOINT" ]; then
+            echo "Error: GUI entrypoint ($GUI_ENTRYPOINT) not found in $tweak_dir" >&2
+            rm -f "$REGISTRY_TMP"
+            exit 1
+        fi
+
+        echo "Staging $NAME ($tid) assets to $EMU_DIR..."
+        mkdir -p "$EMU_DIR/data/integration/mzd-gui-modules/$ID"
+        cp "$manifest_conf" "$EMU_DIR/data/integration/mzd-gui-modules/$ID/"
+        cp -R "$tweak_dir/assets" "$EMU_DIR/data/integration/mzd-gui-modules/$ID/"
+
+        resident=-; service=-; translations=-
+        [ -z "$GUI_RESIDENT" ] || resident="/data/integration/mzd-gui-modules/$ID/$GUI_RESIDENT"
+        [ -z "$GUI_SERVICE" ] || service=$GUI_SERVICE
+        [ -z "$GUI_TRANSLATIONS" ] || translations="/data/integration/mzd-gui-modules/$ID/$GUI_TRANSLATIONS"
+        printf '%s\t%s\t%s\t/data/integration/mzd-gui-modules/%s/%s\t%s\t%s\t%s\n' \
+            "$ID" "$GUI_MENU_PATH" "$GUI_LABEL" "$ID" "$GUI_ENTRYPOINT" "$resident" "$service" "$translations" >> "$REGISTRY_TMP"
+
+        t_json=$(mzd_extract_settings_json "$tweak_dir" "$manifest_conf")
+        if [ -z "$DEFAULTS_ENTRIES" ]; then
+            DEFAULTS_ENTRIES="\"$ID\": $t_json"
+        else
+            DEFAULTS_ENTRIES="$DEFAULTS_ENTRIES, \"$ID\": $t_json"
+        fi
+
+        # Ensure persistent config files/directories declared in manifest exist in the emulator
+        if [ -n "$CONFIGS" ]; then
+            tab=$(printf '\t')
+            awk -v base="/tmp/mnt/data_persist" -f "$REPO_DIR/usb/lib/configs.awk" "$manifest_conf" | while IFS="$tab" read -r cfg_key cfg_kind cfg_target cfg_source; do
+                emu_cfg_target="$EMU_DIR$cfg_target"
+                if [ "$cfg_kind" = "dir" ]; then
+                    mkdir -p "$emu_cfg_target"
+                    if [ "$cfg_source" != "-" ] && [ -d "$tweak_dir/$cfg_source" ]; then
+                        cp -R "$tweak_dir/$cfg_source/"* "$emu_cfg_target/" 2>/dev/null || true
                     fi
-                    patch -p0 -t -N -i "$patch_file" "$emu_target" < /dev/null >/dev/null 2>&1 || true
-                    echo "Patched $comp_target in emulator"
-                else
-                    echo "$comp_target is already patched in emulator"
+                elif [ "$cfg_kind" = "file" ]; then
+                    mkdir -p "$(dirname "$emu_cfg_target")"
+                    if [ ! -f "$emu_cfg_target" ]; then
+                        if [ "$cfg_source" != "-" ] && [ -f "$tweak_dir/$cfg_source" ]; then
+                            cp "$tweak_dir/$cfg_source" "$emu_cfg_target"
+                            echo "Copied default $cfg_key to emulator persistent storage ($emu_cfg_target)"
+                        fi
+                    fi
                 fi
+            done
+        fi
+
+        # Ensure saved package settings.conf exists in emulator if the tweak defines settings
+        if [ -n "$SETTINGS" ]; then
+            EMU_PACKAGE_DIR="$EMU_DIR/tmp/mnt/data_persist/mzd-tweaks/installed/$ID/package"
+            mkdir -p "$EMU_PACKAGE_DIR/tweaks/$ID"
+            cp "$manifest_conf" "$EMU_PACKAGE_DIR/tweaks/$ID/manifest.conf"
+            if [ ! -f "$EMU_PACKAGE_DIR/settings.conf" ]; then
+                (
+                    . "$REPO_DIR/usb/lib/manifest.sh"
+                    . "$REPO_DIR/usb/lib/settings.sh"
+                    mzd_manifest_load "$manifest_conf"
+                    mzd_settings_normalize "$manifest_conf" > "$EMU_PACKAGE_DIR/settings.conf"
+                ) || true
+                echo "Initialized settings.conf in emulator ($EMU_PACKAGE_DIR/settings.conf)"
             fi
-        done < "$TWEAK_DIR/$COMPONENTS"
-    fi
+        fi
+
+        # If the tweak defines components, apply any GUI patches to mzd-emu's files.
+        if [ -n "${COMPONENTS:-}" ] && [ -f "$tweak_dir/$COMPONENTS" ]; then
+            echo "Applying component patches for $tid to $EMU_DIR..."
+            while IFS="$(printf '\t')" read -r comp_type comp_target comp_source comp_rest || [ -n "$comp_type" ]; do
+                case "$comp_type" in ''|'#'*) continue ;; esac
+                [ "$comp_type" = "patch" ] || continue
+                case "$comp_target" in
+                    /*) emu_target="$EMU_DIR$comp_target" ;;
+                    *) emu_target="$EMU_DIR/$comp_target" ;;
+                esac
+                patch_file="$tweak_dir/$comp_source"
+                if [ -f "$emu_target" ] && [ -f "$patch_file" ]; then
+                    if ! grep -q 'mzdTweaks' "$emu_target"; then
+                        if [ ! -f "$emu_target.orig" ]; then
+                            cp "$emu_target" "$emu_target.orig"
+                            echo "Backed up $comp_target to $comp_target.orig"
+                        fi
+                        patch -p0 -t -N -i "$patch_file" "$emu_target" < /dev/null >/dev/null 2>&1 || true
+                        echo "Patched $comp_target in emulator"
+                    else
+                        echo "$comp_target is already patched in emulator"
+                    fi
+                fi
+            done < "$tweak_dir/$COMPONENTS"
+        fi
+    done
+
+    awk -f "$REPO_DIR/usb/lib/gui-registry.awk" "$REGISTRY_TMP" > "$EMU_DIR/data/integration/mzd-gui-registry.js"
+    rm -f "$REGISTRY_TMP"
 
     # The Lua GUI services do not run in mzd-emu. The hook emulates them, then
     # runs the real boot hook. A hand-written hook is kept once as .orig.
@@ -334,7 +417,7 @@ if [ "$USE_EMU" -eq 1 ]; then
     fi
     {
         printf '/* Generated by tools/preview-menu.sh --emu. */\n'
-        printf 'window.mzdPreviewServiceDefaults = {"%s": %s};\n' "$ID" "$SETTINGS_JSON"
+        printf 'window.mzdPreviewServiceDefaults = {%s};\n' "$DEFAULTS_ENTRIES"
         if [ "$FAIL_SAVE" -eq 1 ]; then
             printf 'window.mzdPreviewFailSave = true;\n'
         fi
@@ -358,6 +441,32 @@ if [ "$USE_EMU" -eq 1 ]; then
     cd "$EMU_DIR"
     exec npm start
 fi
+
+TWEAK_ID="$SELECTED_TWEAKS"
+TWEAK_DIR="$REPO_DIR/usb/tweaks/$TWEAK_ID"
+MANIFEST_CONF="$TWEAK_DIR/manifest.conf"
+
+if [ ! -f "$MANIFEST_CONF" ]; then
+    echo "Error: manifest.conf not found in $TWEAK_DIR" >&2
+    exit 1
+fi
+
+mzd_manifest_load "$MANIFEST_CONF" || {
+    echo "Error: Failed to load manifest for $TWEAK_ID" >&2
+    exit 1
+}
+
+if [ "$TYPE" != "gui-extension" ] && [ -z "${GUI_API:-}" ]; then
+    echo "Error: Tweak $TWEAK_ID is not a GUI extension (requires type=gui-extension or gui_api)." >&2
+    exit 1
+fi
+
+if [ -z "${GUI_ENTRYPOINT:-}" ] || [ ! -f "$TWEAK_DIR/$GUI_ENTRYPOINT" ]; then
+    echo "Error: GUI entrypoint ($GUI_ENTRYPOINT) not found in $TWEAK_DIR" >&2
+    exit 1
+fi
+
+SETTINGS_JSON=$(mzd_extract_settings_json "$TWEAK_DIR" "$MANIFEST_CONF")
 
 if [ -e "$PREVIEW_HTML" ] && [ ! -w "$PREVIEW_HTML" ]; then
     PREVIEW_HTML="/tmp/mzd-menu-preview-$$.html"

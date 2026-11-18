@@ -52,16 +52,27 @@ The `tools/preview-menu.sh` helper automates staging GUI extension assets into t
 emulator and starting it:
 
 ```sh
-# Run with default emulator location:
+# Run all 3 GUI extension tweaks in the emulator (default behavior):
 sh tools/preview-menu.sh --emu
 
 # Specify an explicit path to mzd-emu:
 sh tools/preview-menu.sh --emu ./mzd-emu
 sh tools/preview-menu.sh --emu /path/to/mzd-emu
 
-# Test another tweak extension (default: android-auto):
-sh tools/preview-menu.sh --tweak <id> --emu
+# Preview a single tweak in isolation using an ID or alias:
+sh tools/preview-menu.sh --tweak aa --emu
+sh tools/preview-menu.sh --tweak mzd-tweaks --emu
+sh tools/preview-menu.sh --tweak wallpaper --emu
+
+# Or preview an explicit subset (comma-separated):
+sh tools/preview-menu.sh --tweak aa,wallpaper --emu
 ```
+
+**Aliases**:
+- `aa` $\rightarrow$ `android-auto`
+- `wallpaper` $\rightarrow$ `wallpaper-manager`
+- `mzd` $\rightarrow$ `mzd-tweaks`
+- `all` $\rightarrow$ all 3 GUI extension tweaks
 
 **VS Code**:
 Inside a VS Code integrated terminal the script stops mzd-emu from opening the
@@ -78,9 +89,11 @@ location in the following order:
 **What the tool does**:
 - Stages the shared GUI runtime (`usb/lib/gui-runtime/`) into
   `<mzd-emu>/data/integration/mzd-gui-runtime/`.
-- Stages the target tweak manifest, assets, and translations into
+- By default (or with `--all`), stages all 3 GUI extension tweaks (`android-auto`,
+  `mzd-tweaks`, and `wallpaper-manager`) into
   `<mzd-emu>/data/integration/mzd-gui-modules/<id>/`.
-- Generates `<mzd-emu>/data/integration/mzd-gui-registry.js` using `usb/lib/gui-registry.awk`.
+- Generates `<mzd-emu>/data/integration/mzd-gui-registry.js` using `usb/lib/gui-registry.awk`
+  containing entries for all active extensions so they appear simultaneously in Applications.
 - Generates the GUI hook `<mzd-emu>/data/integration/developer_mode_GuiConfig.js`
   from `tools/preview-gui-services.js` and the real `usb/lib/gui-runtime/boot.js`.
   The Lua module services do not run in the emulator, so that file emulates them
