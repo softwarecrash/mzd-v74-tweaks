@@ -115,7 +115,7 @@ exec '''+copy_command+''' "$@"
  def absent():assert not hook.exists() and not runtime.exists() and not registry.exists() and not provider.exists() and not modules.exists()
  if '--helper-compat-only' in sys.argv:
   api=usb/'lib/gui-runtime/api.conf';current=api.read_text()
-  assert current=='api=2\n','api.conf carries only the GUI API level'
+  assert current=='api=3\n','api.conf carries only the GUI API level'
   provider_api=provider/'package/lib/gui-runtime/api.conf'
   def snapshot():return {str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
   def reinventory(folder,inventory):
@@ -135,9 +135,9 @@ exec '''+copy_command+''' "$@"
   p=usb/'tweaks/gui-example/manifest.conf';write(p,p.read_text().replace('version=0.1.0','version=0.1.1'))
   call('gui-example','update')
   call('gui-example','uninstall');absent()
-  # The current provider (api=2) accepts level-2 consumers and is reused by them.
+  # The current provider (api=3) accepts level-2 and level-3 consumers and is reused by them.
   call('wallpaper-manager','install');call('gui-hello-world','install')
-  assert provider_api.read_text()=='api=2\n'
+  assert provider_api.read_text()=='api=3\n'
   call('gui-hello-world','uninstall');call('wallpaper-manager','uninstall');absent()
   # A saved consumer copy older than the tweak needs is refused as well, since it runs on uninstall.
   call('wallpaper-manager','install')
@@ -284,7 +284,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
   write(user_data/'test-image.png','synthetic user data\n')
   write(user_data/'gallery/gallery.tsv','saved image and slideshow settings\n')
   saved={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
-  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.3','version=0.4.4'))
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.4','version=0.4.5'))
   call('wallpaper-manager','update')
   assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
   call('wallpaper-manager','uninstall',extra=['--preserve-config']);assert hook.exists() and (user_data/'test-image.png').exists()

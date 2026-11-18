@@ -472,7 +472,9 @@
                 items.push({
                     appData: { itemIndex: i, aaIndex: i, wallpaperIndex: i },
                     text1Id: null,
-                    text1: isStep ? (row.text1 || '') : row.label,
+                    // OEM List2 treats an empty text1 as a row that is not loaded yet and
+                    // locks focus and scrolling for 3 s. The styleStep line1 is hidden above.
+                    text1: isStep ? (row.text1 || row.label || row.label1 || ' ') : row.label,
                     itemStyle: row.itemStyle || (rightSpinnerImg ? 'style02' : (row.checkable ? 'style03' : row.detail ? 'style06' : 'style01')),
                     image1: spinnerImg || (row.checkable && !isStep ? (row.radio ? 'radio' : 'tick') : (row.image1 || '')),
                     image2: rightSpinnerImg,
