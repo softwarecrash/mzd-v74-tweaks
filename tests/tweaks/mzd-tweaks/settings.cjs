@@ -194,9 +194,34 @@ function lastResponse(source) {
   const noIntl = statusbarFixture(true, null, false, false, null, true).control;
   assert.equal(noIntl.clock.innerText, '08:26\nWed 18', 'English day names are used when Intl is unavailable');
 
+  // Pass the fixture time: a no-argument OEM update uses the real current date, which is not fixed.
   const repeat = statusbarFixture(true).control;
-  repeat.updateClock();
+  repeat.updateClock(new Date(2026, 10, 18, 8, 26));
   assert.equal(repeat.clock.innerText, '08:26\nWed 18', 'a repeated OEM update does not duplicate the date');
+
+  // The framework reports 0 until the first system time arrives; that is not a date.
+  const noTime = statusbarFixture(true);
+  noTime.page.win.framework.common.getCurrentTime = () => 0;
+  noTime.control.updateClock(0);
+  assert.equal(noTime.control.clock.children[1].textContent.split(' ')[1], String(new Date().getDate()),
+    'a zero system time falls back to the current date, not 1 January 1970');
+  noTime.page.win.framework.common.getCurrentTime = () => new Date(0);
+  noTime.control.updateClock(new Date(0));
+  assert.equal(noTime.control.clock.children[1].textContent.split(' ')[1], String(new Date().getDate()),
+    'an epoch Date object is treated as unset time');
+
+  // An unreadable context must keep the factory clock, never draw over AA/CarPlay.
+  const unknownContext = statusbarFixture(true);
+  unknownContext.page.win.framework.getCurrCtxtId = () => { throw new Error('no context'); };
+  unknownContext.control.updateClock();
+  assert.equal(unknownContext.control.clock.innerText, '08:26', 'an unknown context keeps the factory clock');
+  assert(!unknownContext.control.clock.style.top, 'an unknown context keeps stock styling');
+
+  // A render failure restores the clock instead of leaving it half built.
+  const broken = statusbarFixture(true);
+  broken.page.win.document.createElement = () => { throw new Error('no elements'); };
+  broken.control.updateClock();
+  assert.equal(broken.control.clock.innerText, '08:26', 'a render failure leaves the factory clock');
 
   for (const existingBeforeHook of [false, true]) {
     const live = statusbarFixture(false, null, true, existingBeforeHook);

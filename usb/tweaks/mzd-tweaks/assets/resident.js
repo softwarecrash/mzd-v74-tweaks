@@ -95,8 +95,12 @@
         var fw = global.framework, contextId;
         try {
             contextId = fw && typeof fw.getCurrCtxtId === 'function' ? fw.getCurrCtxtId() : '';
-        } catch (ignore) {
-            return false;
+        } catch (error) {
+            // Unknown context: keep the factory clock rather than risk drawing over AA/CarPlay.
+            if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                global.MzdGuiResidents.log('mzd-tweaks', 'Status bar context unknown; keeping the factory clock: ' + (error && error.message ? error.message : error));
+            }
+            return true;
         }
         return contextId === 'AndroidAutoUI' || contextId === 'CarPlayUI';
     }
@@ -108,6 +112,13 @@
         }
         clock._mzdTweaksOut = undefined;
         clock.style.top = '';
+    }
+
+    // The framework reports 0 until the first system time arrives; that is not a date.
+    function statusbarDate(currentTime) {
+        var ms = typeof currentTime === 'number' ? currentTime :
+            (currentTime && typeof currentTime.getTime === 'function' ? currentTime.getTime() : NaN);
+        return ms > 0 ? new Date(ms) : new Date();
     }
 
     // Time on the first line (smaller), short date on the second line. The clock
@@ -122,8 +133,7 @@
         // Text written here is not the factory time; keep the saved factory time.
         time = clock._mzdTweaksOut !== undefined && current === clock._mzdTweaksOut ? clock._mzdTweaksTime : current;
         if (!time) { return; }
-        date = typeof currentTime === 'number' ? new Date(currentTime) :
-            (currentTime && typeof currentTime.getTime === 'function' ? currentTime : new Date());
+        date = statusbarDate(currentTime);
         timeLine = global.document.createElement('div');
         timeLine.style.fontSize = '30px';
         timeLine.style.lineHeight = '32px';
@@ -140,6 +150,7 @@
         clock._mzdTweaksOut = clockText(clock);
     }
 
+    // Each clock is isolated: a failure restores that clock and the others still refresh.
     function refreshStatusbarDisplays(log) {
         var fw = global.framework, doc = global.document, currentTime = null, clocks, i;
         if (!doc || typeof doc.getElementsByClassName !== 'function') { return; }
@@ -148,10 +159,20 @@
                 currentTime = fw.common.getCurrentTime();
             }
             clocks = doc.getElementsByClassName('StatusBarCtrlClock');
-            for (i = 0; i < clocks.length; i++) { renderClock(clocks[i], currentTime); }
         } catch (error) {
             if (typeof log === 'function') {
                 log('Status bar refresh failed: ' + (error && error.message ? error.message : error));
+            }
+            return;
+        }
+        for (i = 0; i < clocks.length; i++) {
+            try {
+                renderClock(clocks[i], currentTime);
+            } catch (error) {
+                try { restoreClock(clocks[i]); } catch (ignoreRestore) { /* element unusable */ }
+                if (typeof log === 'function') {
+                    log('Status bar refresh failed: ' + (error && error.message ? error.message : error));
+                }
             }
         }
     }
@@ -187,8 +208,16 @@
     }
     backfillDefaults(global.mzdTweaks);
 
-    if (!(global.mzdPreviewServiceDefaults ||
-        (global.parent && global.parent.mzdPreviewServiceDefaults))) {
+    function previewServiceActive() {
+        try {
+            return !!(global.mzdPreviewServiceDefaults ||
+                (global.parent && global.parent.mzdPreviewServiceDefaults));
+        } catch (ignore) {
+            return false; // Cross-origin parent: not the preview.
+        }
+    }
+
+    if (!previewServiceActive()) {
         try {
             var bootScript = document.createElement('script');
             bootScript.type = 'text/javascript';
@@ -666,7 +695,12 @@
     function hookStatusbar() {
         var proto = global.StatusBarCtrl && global.StatusBarCtrl.prototype;
         if (!proto || proto._mzdTweaksDateHooked) { return; }
-        if (typeof proto.updateClock !== 'function' && typeof proto._updateClock !== 'function') { return; }
+        if (typeof proto.updateClock !== 'function' && typeof proto._updateClock !== 'function') {
+            if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                global.MzdGuiResidents.log('mzd-tweaks', 'StatusBarCtrl has no updateClock method; date in status bar is unavailable');
+            }
+            return;
+        }
 
         function wrapClockMethod(name) {
             var original = proto[name];
@@ -677,9 +711,8 @@
                     if (this.clock) { renderClock(this.clock, arguments.length ? arguments[0] : null); }
                 } catch (error) {
                     if (this.clock) { restoreClock(this.clock); }
-                    if (global.MzdGuiResidents && typeof global.MzdGuiResidents.log === 'function') {
-                        global.MzdGuiResidents.log('mzd-tweaks', 'Status bar date display failed: ' +
-                            (error && error.message ? error.message : error));
+                    if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Status bar date display failed: ' + (error && error.message ? error.message : error));
                     }
                 }
                 return result;

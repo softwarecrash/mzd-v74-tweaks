@@ -88,7 +88,7 @@ required to be backward compatible across levels.
 | --- | --- |
 | 1 | Plain views, or any provider deployed before the integer level existed (its capabilities are unknown). |
 | 2 | Resident, service, translations, config data, view and parking lifecycle, original state, native menu, service request and the settings view (`settings-host.js`, `settings-view.js`). |
-| 3 | Shared settings enhancements, Home intent delegation, and entertainment audio order support. |
+| 3 | Shared settings enhancements, Home intent delegation, entertainment audio order support, and the List Loop fix for stepper rows (shared `text1` fallback in `residents.js` plus the matching `mzd-tweaks` resident). |
 
 Rules for maintainers: a level is additive only and never reused for different content. Bump
 `api` in `api.conf` whenever the runtime, registry format or shell library gains something a

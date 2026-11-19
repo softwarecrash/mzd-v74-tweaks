@@ -395,8 +395,13 @@ if [ "$USE_EMU" -eq 1 ]; then
                             cp "$emu_target" "$emu_target.orig"
                             echo "Backed up $comp_target to $comp_target.orig"
                         fi
-                        patch -p0 -t -N -i "$patch_file" "$emu_target" < /dev/null >/dev/null 2>&1 || true
-                        echo "Patched $comp_target in emulator"
+                        if patch_log=$(patch -p0 -t -N -i "$patch_file" "$emu_target" < /dev/null 2>&1); then
+                            echo "Patched $comp_target in emulator"
+                        else
+                            echo "ERROR: Patching $comp_target failed; the preview would run unpatched:" >&2
+                            echo "$patch_log" >&2
+                            exit 1
+                        fi
                     else
                         echo "$comp_target is already patched in emulator"
                     fi
