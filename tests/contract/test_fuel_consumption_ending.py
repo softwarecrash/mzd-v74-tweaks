@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-fuel-ending-') as temporary:
     shutil.copytree(ROOT/'usb/tweaks'/ID,folder)
     payload_dir=persist/'mzd-tweaks/shims'/ID
     patch=(folder/'assets/change.patch').read_text()
-    app=internal/'ecoenergyApp.js';app_stock=fixture(patch);write(app,app_stock)
+    app=internal/'ecoenergyApp.js';app_stock=(ROOT/'src/mazda/cmu/jci/gui/apps/ecoenergy/js/ecoenergyApp.js').read_text();write(app,app_stock)
     # Expected result: the shipped diff applied by the same patch command.
     expected=base/'expected';expected.mkdir();write(expected/'target.data',app_stock)
     r=subprocess.run([SHELL,'-c','cd "$1" && patch -p0 -i "$2" < /dev/null','--',bp(expected),bp(folder/'assets/change.patch')],env=env,capture_output=True,text=True,timeout=15)
