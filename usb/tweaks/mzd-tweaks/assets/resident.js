@@ -109,10 +109,11 @@
     }
 
     // The framework reports 0 until the first system time arrives; that is not a date.
+    // Returns null when no real time is available yet, so the caller can skip the date.
     function statusbarDate(currentTime) {
         var ms = typeof currentTime === 'number' ? currentTime :
             (currentTime && typeof currentTime.getTime === 'function' ? currentTime.getTime() : NaN);
-        return ms > 0 ? new Date(ms) : new Date();
+        return ms > 0 ? new Date(ms) : null;
     }
 
     // Time on the first line (smaller), short date on the second line. The clock
@@ -128,6 +129,10 @@
         time = clock._mzdTweaksOut !== undefined && current === clock._mzdTweaksOut ? clock._mzdTweaksTime : current;
         if (!time) { return; }
         date = statusbarDate(currentTime);
+        if (!date) {
+            restoreClock(clock);
+            return;
+        }
         timeLine = global.document.createElement('div');
         timeLine.style.fontSize = '30px';
         timeLine.style.lineHeight = '32px';

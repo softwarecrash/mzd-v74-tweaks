@@ -209,16 +209,21 @@ function lastResponse(source) {
   repeat.updateClock(new Date(2026, 10, 18, 8, 26));
   assert.equal(repeat.clock.innerText, '08:26\nWed 18', 'a repeated OEM update does not duplicate the date');
 
-  // The framework reports 0 until the first system time arrives; that is not a date.
+  // The framework reports 0 until the first system time arrives; the date is
+  // left out until a real time is available rather than showing a stale date.
   const noTime = statusbarFixture(true);
   noTime.page.win.framework.common.getCurrentTime = () => 0;
   noTime.control.updateClock(0);
-  assert.equal(noTime.control.clock.children[1].textContent.split(' ')[1], String(new Date().getDate()),
-    'a zero system time falls back to the current date, not 1 January 1970');
+  assert.equal(noTime.control.clock.innerText, '08:26',
+    'a zero system time keeps the factory clock without a date');
+  assert(!noTime.control.clock.style.top,
+    'a zero system time keeps stock styling');
   noTime.page.win.framework.common.getCurrentTime = () => new Date(0);
   noTime.control.updateClock(new Date(0));
-  assert.equal(noTime.control.clock.children[1].textContent.split(' ')[1], String(new Date().getDate()),
-    'an epoch Date object is treated as unset time');
+  assert.equal(noTime.control.clock.innerText, '08:26',
+    'an epoch Date object is treated as unset time and keeps the factory clock');
+  assert(!noTime.control.clock.style.top,
+    'an epoch Date object keeps stock styling');
 
   // An unreadable context must keep the factory clock, never draw over AA/CarPlay.
   const unknownContext = statusbarFixture(true);
