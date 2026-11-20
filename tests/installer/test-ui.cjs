@@ -100,6 +100,7 @@ function boot(
       ssh: "error"
     },
     outcomes = {},
+    customOutput = {},
     reasons = { ssh: "A required component is missing." };
   if (includeSettings) states["settings-example"] = "uninstalled";
   if (includeBundle) states["bundle-example"] = "uninstalled";
@@ -516,6 +517,8 @@ function boot(
         ? code === 1 && recovery[a[1]] && recoveryHints[a[1]] !== false
           ? "MZD_RECOVERY_CANDIDATE\n"
           : ""
+        : customOutput[a[1]] !== undefined
+          ? customOutput[a[1]]
         : a[2] + " completed. Other changes were preserved.",
       code,
       code === 2
@@ -575,6 +578,7 @@ function boot(
     calls,
     states,
     outcomes,
+    customOutput,
     reasons,
     recovery,
     restoreOutcomes,
@@ -1451,6 +1455,32 @@ test("RESTART_UI", async (t) => {
     x.pump();
     assert(x.calls.some((a) => a[0] === "event" && a[1] === "close"));
     assert(!x.calls.some((a) => a[0] === "event" && a[1] === "restart"));
+  });
+
+  await t.test("dynamic MZD_REBOOT_REQUIRED recommends a restart on exit", () => {
+    x = boot();
+    x.states.ssh = "uninstalled";
+    x.customOutput.ssh = "MZD_REBOOT_REQUIRED\nService configuration updated.\n";
+    x.click("refresh");
+    x.pump();
+    x.nodes.tabs.children
+      .find((n) => n.textContent.indexOf("Tools") === 0)
+      .onclick();
+    x.click("tweak-ssh");
+    x.click("action");
+    x.pump();
+    assert.match(x.nodes["dialog-title"].textContent, /Operation completed/);
+    assert.doesNotMatch(x.nodes["dialog-output"].textContent, /MZD_REBOOT_REQUIRED/);
+    assert.match(x.nodes["dialog-output"].textContent, /Service configuration updated/);
+    x.click("result-ok");
+    x.pump();
+    x.click("exit");
+    x.pump();
+    assert.match(x.nodes["dialog-title"].textContent, /Restart recommended/);
+    assert.match(x.nodes["dialog-description"].textContent, /Restart the CMU/);
+    x.click("action");
+    x.pump();
+    assert(x.calls.some((a) => a[0] === "event" && a[1] === "restart"));
   });
 
   await t.test("a rejected restart request leaves both choices usable", () => {

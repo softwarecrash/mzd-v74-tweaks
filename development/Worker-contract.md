@@ -162,10 +162,12 @@ severity and prevents backup deletion after a failed hook.
 ## Restart after leaving the launcher
 
 Workers still never reboot. The UI remembers successful install/uninstall/run
-operations with `reboot_required=true` for the current session. Exit then offers
-**Restart** or **Exit** (leave without restarting). Back/Escape on this dialog
+operations with `reboot_required=true` for the current session. A worker may also
+dynamically request a restart by printing `MZD_REBOOT_REQUIRED` on stdout during
+Install/Run (the launcher strips this marker before displaying the result dialog).
+Exit then offers **Restart** or **Exit** (leave without restarting). Back/Escape on this dialog
 also leaves without restarting. Status checks, failed operations and operations
-without the flag do not create a restart recommendation. A critical error blocks
+without the flag or dynamic marker do not create a restart recommendation. A critical error blocks
 the Restart choice even if an earlier operation requested one.
 
 Explicit Restart sends a session event over the existing shell bridge. The
