@@ -14,6 +14,7 @@ for library in manifest report system export restore; do
     . "$ROOT/lib/$library.sh" || exit 1
 done
 mzd_manifest_load "$HERE/manifest.conf" || exit 1
+EXPORT_SOURCE='/jci'
 EXPORT_TOOLS='md5sum cmp cut sort mktemp'
 if [ "$ACTION" = status ]; then
     reason=$(mzd_export_check status 2>&1); code=$?

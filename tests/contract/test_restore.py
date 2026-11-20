@@ -59,7 +59,7 @@ for scenario in ['success','invalid-path','hook-stop-failure','bad-oem','unknown
       text=text.replace('/tmp/mnt/sd[a-z][0-9]*|/mnt/sd[a-z][0-9]*',shlex.quote(bp(usb)))
       text=text.replace('LOCK="/tmp/mzd-$LOCK_GROUP-tweak.lock"','LOCK="'+bp(locks)+'/$LOCK_GROUP.lock"')
       write(lib,text)
-    source=worker.read_text().replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1).replace('/tmp/mzd-restore-originals.lock',bp(locks/'restore.lock'))
+    source=worker.read_text().replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1).replace('/tmp/mzd-restore-originals.lock',bp(locks/'restore.lock')).replace("EXPORT_SOURCE='/jci'", "EXPORT_SOURCE=" + shlex.quote(bp(internal)))
     write(worker,source)
     write(bins/'df','#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\nmock 99999999 1 99999998 1%% usb\n"\n')
     write(bins/'sync','#!/bin/sh\necho sync >> '+shlex.quote(bp(events))+'\n')

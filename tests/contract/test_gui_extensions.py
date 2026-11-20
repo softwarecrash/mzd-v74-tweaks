@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-gui-') as folder:
  p=usb/'tweaks/restore-originals/manifest.conf';write(p,p.read_text().replace('target=/jci','target='+bp(data)))
  write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(mounts,'mock '+bp(usb)+' vfat rw 0 0\n/dev/mmcblk0p1 '+bp(data)+' relfs rw 0 0\nmock '+bp(persist)+' relfs rw 0 0\nmock '+bp(b)+' relfs rw 0 0\n')
  write(b/'watchdog','0\n')
- replacements={'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+bp(b),'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts),'/sys/class/gpio/Watchdog\\ Disable/value':bp(b/'watchdog')}
+ replacements={'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+bp(b),'MZD_GUI_STARTUP_MOUNT=/':'MZD_GUI_STARTUP_MOUNT='+bp(b),'/jci/scripts/stage_wifi.sh':bp(b/'startup'),'/tmp/mzd-stage_wifi-tweak.lock':bp(b/'startup.lock'),'/tmp/mnt/data_persist':bp(persist),'/tmp/mnt/data':bp(data),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-gui-extension.lock':bp(b/'gui.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/jci/version.ini':bp(version),'/proc/mounts':bp(mounts),'/sys/class/gpio/Watchdog\\ Disable/value':bp(b/'watchdog'),"EXPORT_SOURCE='/jci'":"EXPORT_SOURCE="+bp(data)}
  if '--ssh-coexist-only' in sys.argv:
   replacements['/tmp/mnt/resources']=bp(b/'resources')
   replacements['/sys/class/gpio/Watchdog\\ Disable/value']=bp(b/'watchdog')
