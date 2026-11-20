@@ -1,4 +1,4 @@
-"""CarPlay Mod real package on synthetic CMU files."""
+"""CarPlay Display real package on synthetic CMU files."""
 from pathlib import Path
 import hashlib
 import os
@@ -128,8 +128,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-') as temporary:
 
     env = dict(os.environ, PATH=bp(bins) + ':/usr/bin:/bin')
 
-    folder = usb / 'tweaks/carplay'
-    shutil.copytree(ROOT / 'usb/tweaks/carplay', folder)
+    folder = usb / 'tweaks/carplay-display'
+    shutil.copytree(ROOT / 'usb/tweaks/carplay-display', folder)
 
     m = (folder / 'manifest.conf').read_text().replace('/jci/carplay/carplay_config_create.xml', bp(target))
     write(folder / 'manifest.conf', m)
@@ -156,50 +156,50 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-') as temporary:
         return r
 
     # Initial status
-    r = call(['statuses', 'carplay'])
-    assert 'carplay\tuninstalled\t\n' in r.stdout
+    r = call(['statuses', 'carplay-display'])
+    assert 'carplay-display\tuninstalled\t\n' in r.stdout
 
     settings_file = base / 'settings.conf'
     write(settings_file, 'display_size=177x100\n')
     deep(folder / 'run.sh', settings_file, 'uninstalled')
 
     # Manifest and settings-info checks
-    call(['manifest', 'carplay'])
-    info = call(['settings-info', 'carplay']).stdout
+    call(['manifest', 'carplay-display'])
+    info = call(['settings-info', 'carplay-display']).stdout
     assert 'value.display_size=177x100' in info
     assert 'settings_saved=false' in info
 
     # Corrupted user settings: ignored and loads defaults with warning
-    user_conf = usb / 'user/carplay/settings.conf'
+    user_conf = usb / 'user/carplay-display/settings.conf'
     write(user_conf, 'display_size=invalid_size\n')
-    r = call(['settings-info', 'carplay'])
+    r = call(['settings-info', 'carplay-display'])
     assert 'value.display_size=177x100' in r.stdout
     assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
 
     # Install when user settings file is corrupted: uses manifest defaults
-    call(['action', 'carplay', 'install'])
-    saved = store / 'carplay/package'
+    call(['action', 'carplay-display', 'install'])
+    saved = store / 'carplay-display/package'
     saved_settings = (saved / 'settings.conf').read_text()
     assert 'display_size=177x100\n' in saved_settings
     assert 'heightPhysical="100" widthPhysical="177"' in target.read_text()
-    call(['action', 'carplay', 'uninstall'])
+    call(['action', 'carplay-display', 'uninstall'])
     assert md5(target.read_bytes()) == OEM_MD5
     user_conf.unlink()
 
-    # Valid user defaults override via user/carplay/settings.conf
+    # Valid user defaults override via user/carplay-display/settings.conf
     write(user_conf, '# Custom user default\ndisplay_size=244x92\n')
-    info = call(['settings-info', 'carplay']).stdout
+    info = call(['settings-info', 'carplay-display']).stdout
     assert 'value.display_size=244x92' in info
 
     # Install using user defaults
-    call(['action', 'carplay', 'install'])
+    call(['action', 'carplay-display', 'install'])
     assert (saved / 'settings.conf').read_text() == 'display_size=244x92\n'
     assert 'heightPhysical="92" widthPhysical="244"' in target.read_text()
-    r = call(['statuses', 'carplay'])
-    assert 'carplay\tinstalled\t\n' in r.stdout
-    deep(saved / 'tweaks/carplay/run.sh', saved / 'settings.conf', 'installed')
+    r = call(['statuses', 'carplay-display'])
+    assert 'carplay-display\tinstalled\t\n' in r.stdout
+    deep(saved / 'tweaks/carplay-display/run.sh', saved / 'settings.conf', 'installed')
 
-    call(['action', 'carplay', 'uninstall'])
+    call(['action', 'carplay-display', 'uninstall'])
     assert md5(target.read_bytes()) == OEM_MD5
     user_conf.unlink()
 
@@ -212,18 +212,18 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-') as temporary:
     ]
 
     for val, expected_attr in sizes:
-        call(['action', 'carplay', 'install', f'display_size={val}'])
+        call(['action', 'carplay-display', 'install', f'display_size={val}'])
         assert (saved / 'settings.conf').read_text() == f'display_size={val}\n'
         assert expected_attr in target.read_text()
-        deep(saved / 'tweaks/carplay/run.sh', saved / 'settings.conf', 'installed')
-        call(['action', 'carplay', 'uninstall'])
+        deep(saved / 'tweaks/carplay-display/run.sh', saved / 'settings.conf', 'installed')
+        call(['action', 'carplay-display', 'uninstall'])
         assert md5(target.read_bytes()) == OEM_MD5
-        r = call(['statuses', 'carplay'])
-        assert 'carplay\tuninstalled\t\n' in r.stdout
+        r = call(['statuses', 'carplay-display'])
+        assert 'carplay-display\tuninstalled\t\n' in r.stdout
 
     # Test reset hook
-    call(['action', 'carplay', 'install', 'display_size=177x100'])
-    saved_tweak = saved / 'tweaks/carplay'
+    call(['action', 'carplay-display', 'install', 'display_size=177x100'])
+    saved_tweak = saved / 'tweaks/carplay-display'
     archive = base / 'reset-archive'
     archive.mkdir(exist_ok=True)
     system = base / 'reset-system'

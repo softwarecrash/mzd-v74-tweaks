@@ -11,7 +11,7 @@ CASES = {
     'drivedash': 'gui-extension',
     'wallpaper-manager': 'gui-extension',
     'android-auto': 'component-bundle',
-    'carplay': 'component-bundle',
+    'carplay-display': 'component-bundle',
     'carplay-hud': 'component-bundle',
     'cluster-language': 'component-bundle',
     'fuel-consumption-ending': 'component-bundle',
