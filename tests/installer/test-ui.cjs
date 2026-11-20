@@ -373,6 +373,17 @@ function boot(
             "value.hud_display_language=off\n"
         );
       }
+      if (a[1] === "logs-collector") {
+        const text = fs.readFileSync(
+          path.join(ROOT, "tweaks/logs-collector/manifest.conf"),
+          "utf8"
+        );
+        return ok(
+          "settings_saved=false\n" +
+            text.slice(text.indexOf("settings=")) +
+            "value.log_rotation_size=512\n"
+        );
+      }
       if (a[1] !== "settings-example")
         return ok("settings_saved=true\nsettings=\n");
       const text =
@@ -519,7 +530,7 @@ function boot(
           : ""
         : customOutput[a[1]] !== undefined
           ? customOutput[a[1]]
-        : a[2] + " completed. Other changes were preserved.",
+          : a[2] + " completed. Other changes were preserved.",
       code,
       code === 2
         ? "Rollback failed. Do NOT reboot."

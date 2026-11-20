@@ -132,7 +132,10 @@ sh installer.sh start-run settings-example log_limit_mb=30
 
 `settings-info ID` returns the effective schema, `settings_saved=true|false`,
 and `value.NAME=VALUE` lines. Installed packages use their saved schema and
-values, even if the USB contains a newer manifest. The menu scan never calls
+values, even if the USB contains a newer manifest. For uninstalled packages or
+command workers, `settings-info` queries `run.sh settings` when supported to inspect
+live configuration on the target system before falling back to USB
+`user/<id>/settings.conf` or manifest defaults. The menu scan never calls
 this detail-only interface. Existing manifests without settings are unchanged.
 
 ## Optional shared shim installation

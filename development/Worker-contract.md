@@ -9,6 +9,8 @@ arguments and captures stdout, stderr, exitCode, signals and output truncation.
 No worker depends on interactive stdin, dialogs, a reboot or a build step.
 
 Patch/service actions: install, uninstall, status. Command actions: run, status.
+Workers declaring `settings` may also implement an internal read-only `settings`
+query action that returns live `name=value` lines for uninstalled or command tweaks.
 No arguments, --help or -h prints usage and exits 0 without side effects.
 Extra arguments or unsupported actions return 1 with stderr and empty stdout,
 except `uninstall --preserve-config` for workers declaring `config.<name>.path`.
@@ -119,9 +121,11 @@ Contract compliance and feature correctness are separate review responsibilities
 
 System export commands declare `actions=run status`. A ready command returns `uninstalled`; the launcher labels this Ready. It does not claim an installed state after exporting. Unavailable sources, firmware, tools or USB space return `unavailable` with a reason. Status never copies data or scans the entire source tree for its size.
 
+Export workers define `EXPORT_SOURCE` (the directory to be exported), along with optional `EXPORT_TOOLS`, `EXPORT_OWN_FILES` and `EXPORT_MIN_KB`. Shared `lib/export.sh` does not load manifests or use `target`/`APP`; it operates directly on `EXPORT_SOURCE`.
+
 With optional `progress=true`, Run executes as a background job. Shared export workers call `mzd_export_progress <done> <total> <message>`; zero total means a phase without a meaningful percentage. Progress is written atomically in RAM. Completion retains the worker exit code, stdout and stderr for the usual result dialog. Only one progress job runs per session; Exit is disabled while working. Launcher cleanup waits for an active export before restoring storage state. Direct shell `run` remains synchronous.
 
-Exports write unique folders below the originating USB's `exports/<id>/`. Completed folders end in `-complete`; failed exports retain `.incomplete` and diagnostics. They do not alter source data, root mount mode, watchdog or log rotation settings.
+Exports write unique folders below the originating USB's `exports/<id>/`. Completed folders end in `-complete`; failed exports retain `.incomplete` and diagnostics. They do not alter source data, root mount mode, or watchdog.
 
 ## Explicit reset and owned extras
 

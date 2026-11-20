@@ -46,7 +46,15 @@ case "${1:-}" in
       manifest="$HERE/tweaks/$2/manifest.conf"
       mzd_manifest_load "$manifest" && [ "$ID" = "$2" ] || exit 1
       printf 'settings_saved=false\n'
-      mzd_settings_process "$manifest" info 0 /dev/null
+      live_conf=/dev/null
+      live_temp=$(mktemp /tmp/mzd-live-settings.XXXXXX) || exit 1
+      if /bin/sh "$HERE/tweaks/$2/run.sh" settings > "$live_temp" 2>/dev/null; then
+        live_conf=$live_temp
+      fi
+      code=0
+      mzd_settings_process "$manifest" info 0 "$live_conf" || code=$?
+      rm -f "$live_temp" 2>/dev/null || :
+      exit $code
     fi ;;
   statuses)
     shift
