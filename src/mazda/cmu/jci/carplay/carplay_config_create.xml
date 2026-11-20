@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CARPLAY_CREATE_CONFIGURATION>
+
+	<!--
+		vehicleType is must be set.
+		vehicleType is one of the following:
+			J03, J12, J36, J53, J71, J72, J78, J5L, default.
+		vehicleType option: can add brand name, except vehicleType is default.
+			MAZDA, FIAT.
+		
+		For Excample:
+			J03, J12, J12:MAZDA, J12:FIAT, etc...
+		
+		search action
+			1 : search : match vehicle type and brand
+			2 : search : match only vehicle type
+			3 : search : default
+			4 : startup failed
+
+		In same tag except oemIconInfoSet, if there are two or more tags with same name and vehicleType, it is not guaranteed which one will be used.
+		In oemIconInfoSet, same name, vehicleType and num instead.
+	-->
+
+
+	<!-- default -->
+	<name vehicleType="default" value="CarPlay"/>
+	<model vehicleType="default" value="Mazda"/>
+	<hwRevision vehicleType="default" value="1.0.0"/>
+	<manufacture vehicleType="default" value="Mazda"/>
+
+	<oemIconLength vehicleType="default" value="4"/>
+	<oemIconEnabled vehicleType="default" value="TRUE"/>
+	<oemIconLabel vehicleType="default" value="Mazda"/>
+
+	<oemIconInfoSet vehicleType="default" num="0" heightPixel="104" widthPixel="104" filePath="/jci/carplay/Logo_Mazda_Mask-icon_104.png" preRendered="FALSE" />
+	<oemIconInfoSet vehicleType="default" num="1" heightPixel="120" widthPixel="120" filePath="/jci/carplay/Logo_Mazda_Full-bleed-icon_120.png" preRendered="TRUE" />
+	<oemIconInfoSet vehicleType="default" num="2" heightPixel="180" widthPixel="180" filePath="/jci/carplay/Logo_Mazda_Full-bleed-icon_180.png" preRendered="TRUE" />
+	<oemIconInfoSet vehicleType="default" num="3" heightPixel="256" widthPixel="256" filePath="/jci/carplay/Logo_Mazda_Full-bleed-icon_256.png" preRendered="TRUE" />
+
+	<osInfo vehicleType="default" value="Linux cmu 3.0.35 armv7l 32"/>
+
+	<limitedUiEnabled vehicleType="default" value="TRUE"/>
+	<screenInfo  vehicleType="default" uuid="" uuidIsNull="TRUE" heightPixel="480" widthPixel="800" heightPhysical="85" widthPhysical="154" fps="60"/>
+	<touchInfo   vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" lowFidelity="TRUE" multiTouch="FALSE" minx="0" maxx="800" miny="0" maxy="480" />
+	<knobInfo    vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" cmin="-128" cmax="127" />
+	<playKeyInfo vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" />
+	<telKeyInfo  vehicleType="default" uuid="" uuidIsNull="TRUE" countryCode="33" vendorId="7434" productId="34827" />
+	
+	
+	<!-- example
+    	<model vehicleType="J03" value="Mazda J03"/>
+	    <model vehicleType="J12" value="Mazda J12"/>
+	    <model vehicleType="J36" value="Mazda J36"/>
+	    <model vehicleType="J53" value="Mazda J53"/>
+	    <model vehicleType="J71" value="Mazda J71"/>
+	    <model vehicleType="J72" value="Mazda J72"/>
+	    <model vehicleType="J78" value="Mazda J78"/>
+	    <model vehicleType="J5L" value="Mazda J5L"/>
+    -->
+</CARPLAY_CREATE_CONFIGURATION>
+

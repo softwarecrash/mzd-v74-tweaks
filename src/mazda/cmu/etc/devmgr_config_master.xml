@@ -1,0 +1,305 @@
+<params>
+<!-- Default : "Allgo" -->
+<config><name>Name</name><value>Mazda</value></config>
+<!-- Default : "ABCDEFGHIJ" -->
+<config><name>model</name><value>@model@</value></config>
+<!-- This must be in following format:
+MajorVersion.MinorVersion.Revision
+Default : "1.1.1" -->
+<config><name>fwRevision</name><value>@firmware@</value></config>
+<!-- This must be in following format:
+    MajorVersion.MinorVersion.Revision
+    Default : "2.2.2" -->
+<config><name>hwRevision</name><value>1.0.0</value></config>
+<!-- Default : "AllGo Embedded Systems" -->
+<config><name>manufacturer</name><value>Mazda</value></config>
+<!-- Default : "123344E" -->
+<config><name>serial</name><value>@serial@</value></config>
+<!-- Default : 4096 -->
+<config><name>maxPacketSize</name><value>4096</value></config>
+<!-- Default TRUE -->
+<config><name>CallStateUpdate</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>CommUpdate</name><value>FALSE</value></config>
+<!-- Default FALSE -->
+<config><name>CallControl</name><value>FALSE</value></config>
+<!-- Default FALSE -->
+<config><name>CallListUpdates</name><value>FALSE</value></config>
+<!-- Default TRUE -->
+<config><name>VehicleUpdate</name><value>FALSE</value></config>
+<!-- Default "display" -->
+<config><name>displayName</name><value>Mazda</value></config>
+<!-- Default "mapsDisplayName" -->
+<config><name>mapsDisplayName</name><value>AllGo-Maps</value></config>
+<!-- Default TRUE -->
+<config><name>LocataionUpdate</name><value>TRUE</value></config>
+<!--
+    This option will be used if accessory supports vehicle info
+-->
+<!--accessory supports vehicle range -->
+<config><name>CARPLAY_VEHICLE_RANGE</name><value>FALSE</value></config>
+<!--accessory supports outside temperature -->
+<config><name>CARPLAY_VEHICLE_OUTSIDE_TEMPERATURE</name><value>FALSE</value></config>
+<!-- accessory supports rage warning -->
+<config><name>CARPLAY_VEHICLE_RANGE_WARNING</name><value>FALSE</value></config>
+<!-- Vechicle engine type which is supported by accessory
+     possible values are
+     E_IAP2_ENGINE_GASOLINE   0
+     E_IAP2_ENGINE_DIESEL     1
+     E_IAP2_ENGINE_ELECTRIC   2
+     E_IAP2_ENGINE_CNG        3
+-->
+<config><name>CarPlayVehicleEngine</name><value>@engine@</value></config>
+<!--
+     Accessorty supports location info
+     Each option is either TRUE/FALSE.
+     TRUE means supported and FALSE unsupported
+-->
+<!-- true: accessory supports NMEA_GPGGA sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_GPGGA</name><value>@location_gpgga@</value></config>
+<!-- true: accessory supports NMEA_GPRMC sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_GPRMC</name><value>@location_gprmc@</value></config>
+<!-- true: accessory supports NMEA_GPGSV sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_GPGSV</name><value>FALSE</value></config>
+<!-- true: accessory supports NMEA_PASCD sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_PASCD</name><value>TRUE</value></config>
+<!-- true: accessory supports NMEA_PAGCD sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_PAGCD</name><value>FALSE</value></config>
+<!-- true: accessory supports NMEA_PAACD sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_PAACD</name><value>FALSE</value></config>
+<!-- true: accessory supports NMEA_GPHDT sentences -->
+<config><name>CARPLAY_LOCATION_NMEA_GPHDT</name><value>FALSE</value></config>
+<!-- Default FALSE -->
+<config><name>NaviSupported</name><value>FALSE</value></config>
+<!-- Default 0x5555 -->
+<config><name>NaviCompId</name><value>0x5555</value></config>
+<!-- Default 100 -->
+<config><name>NaviRoadNameLen</name><value>100</value></config>
+<!-- Default 5 -->
+<config><name>MaxGuidenceManeuverCapacity</name><value>5</value></config>
+
+<!-- Information of MFi Coprocessor Chip -->
+<!-- 1-I2C, 2-SPI, 3-DLN I2C -->
+<config><name>linkType</name><value>1</value></config>
+<!-- I2C/SPI device path -->
+<config><name>devPath</name><value>/dev/i2css</value></config>
+<!-- I2C slave address. Valid only for i2c -->
+<config><name>slaveAddr</name><value>17</value></config>
+<!-- I2C reset gpio number. Valid only for i2c -->
+<config><name>i2cResetGpio</name><value>0</value></config>
+<!-- SPI slave select gpio. Valid only for SPI -->
+<config><name>spiSlaveSelectGpio</name><value>0</value></config>
+<!-- SPI GPIO SOMI pin. Valid only for SPI -->
+<config><name>spiSomiPin</name><value>0</value></config>
+<!-- Device Mode need to be supported,
+possible values are
+             1 -  Device Mode Support
+             2 -  Host Mode Support
+             3 -  Both Mode Support
+    -->
+<!-- Default Both Device & Host Mode support -->
+<config><name>IAPModeSupport</name><value>3</value></config>
+<!-- Default TRUE -->
+<config><name>IAPMediaUSB</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>IAPMediaBT</name><value>FALSE</value></config>
+<!-- Default TRUE -->
+<config><name>BTUpdates</name><value>FALSE</value></config>
+<!-- If TRUE, by default digital audio will be started
+If set to FALSE, By default digital audio will not be started, until requested
+from application. This variable is applicable only for IAP2-->
+<config><name>DigitalAudio</name><value>TRUE</value></config>
+<!-- Enable iAP device chagring while connecting to  Accessory
+possible values are
+            0  - For No Charge
+            1000 - Charge With 1.0 Ampere
+            2100 - Charge With 2.1 Ampere
+            2400 - Charge With 2.4 Ampere
+     -->
+<!-- Default 2100 -->
+<config><name>PowerInfo</name><value>2100</value></config>
+<!-- Default TRUE -->
+<config><name>USBEAPSuport</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>BTEAPSuport</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>SimpleRemote</name><value>FALSE</value></config>
+<!-- If Storage lingo needs to be supported
+Default TRUE -->
+<config><name>Storage</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>IAP2Support</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>AlbumArtistBrowseSupport</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>AppNameSupport</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>IpodOutSupport</name><value>FALSE</value></config>
+<!-- Default 1 -->
+<config><name>BTDevType</name><value>1</value></config>
+<!-- Default 1 -->
+<config><name>BTDevState</name><value>1</value></config>
+<!-- Default 240048 -->
+<config><name>BTDevClass</name><value>240048</value></config>
+<!-- Default 1 -->
+<config><name>BTPairingType</name><value>1</value></config>
+<!-- Default 1234 -->
+<config><name>BTPairingPin</name><value>1234</value></config>
+<!-- Default 0C:D9:C1:C0:05:3F -->
+<config><name>BTMacAddr</name><value>0C:D9:C1:C0:05:3F</value></config>
+<!-- Default 0 -->
+<config><name>BTFaultStatus</name><value>0</value></config>
+<!-- Default 0 -->
+<config><name>BTFaultCondition</name><value>0</value></config>
+<!-- Default TRUE -->
+<config><name>AudiobookSpeedControl</name><value>FALSE</value></config>
+<!-- Default TRUE -->
+<config><name>iAP2AppLaunchBT</name><value>TRUE</value></config>
+<!-- Default FALSE -->
+<config><name>iAP2AppLaunchUSB</name><value>FALSE</value></config>
+
+<!-- Device Manager Configurations -->
+<!-- Default 9 -->
+<config><name>uiMaxDevices</name><value>16</value></config>
+<!-- Defaule 255 -->
+<config><name>uiFileSystemTypes</name><value>255</value></config>
+<!-- Defaule 2303 -->
+<config><name>uiDeviceTypes</name><value>2303</value></config>
+<!-- Default FALSE, Used to Auto enable Carplay on connection.
+     When set to TRUE, device will automatically switch to Carplay on connection.
+     When set to FALSE, device will not switch to CP automatically. -->
+<config><name>boEnableCarplayFlag</name><value>FALSE</value></config>
+<!-- Default FALSE -->
+<config><name>boEnableCarplayMedia</name><value>FALSE</value></config>
+<!-- Default TRUE -->
+<config><name>bNotifyUnsupportedDev</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>bNotifyUnsupportedFileSystem</name><value>TRUE</value></config>
+<!-- Default 15 -->
+<config><name>uiDbMaxSize</name><value>15</value></config>
+<!-- Default /dev/scd0 -->
+<config><name>acCDDeviceNode</name><value>/dev/scd0</value></config>
+<!-- Default 63 -->
+<config><name>uiCDFormats</name><value>63</value></config>
+<!-- Default TRUE -->
+<config><name>uiMixedCDMode</name><value>TRUE</value></config>
+<!-- Default TRUE -->
+<config><name>boBootFromSd</name><value>TRUE</value></config>
+<!-- Default /tmp/recordings -->
+<config><name>acRaceInternaDevPath</name><value>/tmp/recordings/</value></config>
+<!-- Default 0x0424 -->
+<config><name>uiInternalHubVID</name><value>0x0424</value></config>
+<!-- Default 0x4050 -->
+<config><name>uiInternalHubPID</name><value>0x4050</value></config>
+<!-- Default 0 -->
+<config><name>eFSDevicePartitionSupportType</name><value>0</value></config>
+<!-- Default 1 -->
+<config><name>eFSDeviceMountMode</name><value>1</value></config>
+<!-- Default TRUE -->
+<config><name>bMaintainOldDb</name><value>TRUE</value></config>
+<!-- Default NULL -->
+<config><name>acGnDirectoryPath</name><value>NULL</value></config>
+<!-- List of BCP-47 language code strings for languages supported by the accessory's character recognizer.
+     eg. "en-US" English - United States -->
+<!--Default "en-US". (TBD Add more supported language codes)-->
+<config><name>acLocale</name><value>en_US</value></config>
+<config><name>uiOnlineSettings</name><value>18</value></config>
+<!-- Default /mnt/race -->
+<config><name>acBaseMountPath</name><value>/mnt/race</value></config>
+<!-- Default /mnt/tmp/race/database -->
+<config><name>acTmpDBPath</name><value>/mnt/tmp/race/database</value></config>
+<!-- Default /data/race -->
+<config><name>acNvmDBPath</name><value>/data/race</value></config>
+<!-- Default FALSE -->
+<config><name>bUnifiedSupport</name><value>FALSE</value></config>
+<!-- Default TRUE -->
+<config><name>boLogsEnabled</name><value>TRUE</value></config>
+<!-- Default 1234 -->
+<config><name>uiUserData</name><value>1234</value></config>
+<!-- Default jp.co.denso.NaviCon -->
+<config><name>EAPProtocols</name><value>com.ahamobile.link.v1</value></config>
+<config><name>EAPProtocols</name><value>com.stitcher.connect</value></config>
+<!-- Default TRUE-->
+<config><name>EAPCarplayCompatibility</name><value>FALSE</value></config>
+<config><name>EAPCarplayCompatibility</name><value>TRUE</value></config>
+<!-- Default "9P35JD55YD" -->
+<config><name>EAPBundleId</name><value>LL29PAF236</value></config>
+<!-- Internal device support -->
+<!-- Default "TRUE" -->
+<config><name>bInternalSupport</name><value>FALSE</value></config>
+<!-- BT transport Component Information -->
+<!-- Default "0x1234" -->
+<config><name>BtTransCompId</name><value>1234</value></config>
+<!-- Default "Bluetooth" -->
+<config><name>BtTransCompName</name><value>Mazda</value></config>
+<!-- "BT support" -->
+<config><name>bBTSupport</name><value>TRUE</value></config>
+<!-- BT Lib path" -->
+<config><name>acBTLibPath</name><value>/jci/lib/libjcibcacomm.so</value></config>
+<!-- USB Lib path" -->
+<config><name>acUSBLibPath</name><value>/jci/lib/libjciusbmgrcomm.so</value></config>
+<!-- Wifi support" -->
+<config><name>bWifiSupport</name><value>@board@</value></config>
+<!-- Enable OOB pairing support" -->
+<config><name>bOOBSupport</name><value>@board@</value></config>
+<!-- Wifi transport Component Information -->
+<!-- Default "0x0002" -->
+<config><name>WifiTransCompID</name><value>0002</value></config>
+<!-- Default "Wireless" -->
+<config><name>WifiTransCompName</name><value>Wireless</value></config>
+<!-- Wifi Lib path" -->
+<config><name>acWifiLibPath</name><value>/usr/lib/libwifiplugin.so</value></config>
+<!-- CP-CL switch support -->
+<!-- Default "FALSE" -->
+<config><name>bCarPlayCarLifeSwitch</name><value>FALSE</value></config>
+<!-- EAP Native data size -->
+<!-- Default 64000. The max size the driver supports -->
+<config><name>uiEAPNativeMaxSize</name><value>64000</value></config>
+<!-- Devmgr Bin Path" -->
+<config><name>acDevmgrBinPath</name><value>/usr/bin</value></config>
+<!-- Max wireless devices -->
+<!-- Default 4 -->
+<config><name>uiMaxWirelessDevices</name><value>6</value></config>
+<!-- CarPlay device with media support -->
+<!-- Default "FALSE" -->
+<config><name>bCarPlayMediaSupport</name><value>FALSE</value></config>
+<!-- IAP2 device Support for the stop charging at 100% and then restart charging
+     threshold -->
+<!-- Default 90 -->
+<!-- Note: Changing will not be stopped for device with this value >= 100 -->
+<!-- Ex: 85 - Changing will not be stopped when the device is reached 100% and
+     then it will restart the charging once the device discharges and remaining
+     charge in the device is 85% -->
+<config><name>uiIAPRestartChargingThreshold</name><value>90</value></config>
+<!-- IAP2 Now Playing List support -->
+<!-- Default "TRUE" -->
+<config><name>bIAPNowPlayingListSupport</name><value>FALSE</value></config>
+<!-- To enable/disable Dynamic logging -->
+<config><name>bEnableDynamicLogging</name><value>FALSE</value></config>
+<!-- Textcoll path -->
+<config><name>acTextCollPath</name><value>/jci/utils/textcoll_mazda_cmu_cfg.xml</value></config>
+<!-- User alert for EAP applications at launch time -->
+<config><name>bEAPUserAlert</name><value>FALSE</value></config>
+<!-- To enable/not enable Android Auto on connection -->
+<config><name>boEnableAndroidAutoFlag</name><value>TRUE</value></config>
+<!-- To enable/not enable BT transport support for iAP2 -->
+<config><name>boEnableBTIAP2Support</name><value>TRUE</value></config>
+<!-- Enable GPRMCDataStatusValuesNotification support -->
+<config><name>boGPRMCDataStatusNotification</name><value>@location_gprmc@</value></config>
+<!-- To Enable/Disable AppLaunch -->
+<!-- None - 1, USBiAP2 - 2, BTiAP2 -4, USB_CP - 8, WCP - 16
+     To have any combination of setting, need to sum the corresponding values of
+     settings. e.g. - For USBiAP2 and BTiAP2, (2+4 = 6) should be set
+     bEAPUserAlert - Should be FALSE if this config param is set to None -->
+<config><name>uiAppLaunchSetting</name><value>4</value></config>
+<!-- TRUE: accessory supports native navigation -->
+<config><name>NativeNaviSupported</name><value>FALSE</value></config>
+<!-- Enable Carplay support, indicates if Carplay feature is supported or not.
+     It is used for registering with associated services (like bonjour) -->
+<config><name>bCarPlaySupport</name><value>TRUE</value></config>
+<!-- CarPlay Product plan UUID
+     Default : 000000-0000 -->
+<config><name>acProductPlanUUID</name><value>fe9c7341</value></config>
+<!-- Default "TRUE" -->
+<config><name>bEnableDevTransportIdentifier</name><value>TRUE</value></config>
+</params>
