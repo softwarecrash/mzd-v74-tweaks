@@ -166,22 +166,22 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-') as temporary:
     # Manifest and settings-info checks
     call(['manifest', 'carplay-display'])
     info = call(['settings-info', 'carplay-display']).stdout
-    assert 'value.display_size=177x100' in info
+    assert 'value.display_size=154x85' in info
     assert 'settings_saved=false' in info
 
     # Corrupted user settings: ignored and loads defaults with warning
     user_conf = usb / 'user/carplay-display/settings.conf'
     write(user_conf, 'display_size=invalid_size\n')
     r = call(['settings-info', 'carplay-display'])
-    assert 'value.display_size=177x100' in r.stdout
+    assert 'value.display_size=154x85' in r.stdout
     assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
 
     # Install when user settings file is corrupted: uses manifest defaults
     call(['action', 'carplay-display', 'install'])
     saved = store / 'carplay-display/package'
     saved_settings = (saved / 'settings.conf').read_text()
-    assert 'display_size=177x100\n' in saved_settings
-    assert 'heightPhysical="100" widthPhysical="177"' in target.read_text()
+    assert 'display_size=154x85\n' in saved_settings
+    assert 'heightPhysical="85" widthPhysical="154"' in target.read_text()
     call(['action', 'carplay-display', 'uninstall'])
     assert md5(target.read_bytes()) == OEM_MD5
     user_conf.unlink()

@@ -16,8 +16,6 @@ Select the physical screen size of your car's center display:
 | `244x92` | 10.25-inch (Aftermarket display) | 244 mm x 92 mm | 8:3 |
 | `297x113` | 12.3-inch (Aftermarket display) | 297 mm x 113 mm | 8:3 |
 
-The default option is `177x100` (8-inch factory display).
-
 You can configure this setting in the installer UI prior to installation or by specifying default values in `user/carplay-display/settings.conf` on your USB drive:
 
 ```ini
