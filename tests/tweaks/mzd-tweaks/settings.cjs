@@ -15,6 +15,8 @@ const repo = path.resolve(__dirname, '../../..');
 const settingsHostSource = fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/settings-host.js'), 'utf8');
 const settingsViewSource = fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/settings-view.js'), 'utf8');
 const residentSource = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/resident.js'), 'utf8');
+const i18nRuntimeSource = fs.readFileSync(path.join(repo, 'usb/lib/gui-runtime/i18n.js'), 'utf8');
+const tweaksI18nSource = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/i18n.js'), 'utf8');
 const viewSource = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/view.js'), 'utf8');
 const plain = value => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
 
@@ -54,7 +56,7 @@ const DEFAULTS = {
 
 function residentPage(boot, options) {
   options = options || {};
-  const win = { setInterval: () => 1, clearInterval() {} };
+  const win = { setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {} };
   if (options.framework) { win.framework = options.framework; }
   if (options.StatusBarCtrl) { win.StatusBarCtrl = options.StatusBarCtrl; }
   if (options.Intl) { win.Intl = options.Intl; }
@@ -77,6 +79,12 @@ function residentPage(boot, options) {
   vm.runInNewContext(settingsHostSource, { window: win });
   const registered = [], logs = [];
   win.MzdGuiResidents = { register(id, factory) { registered.push(id); win.factory = factory; }, log(id, message) { logs.push([id, message]); } };
+  if (options.i18n) {
+    // The real shared translation runtime and the real mzd-tweaks dictionaries.
+    vm.runInNewContext(i18nRuntimeSource, { window: win, document: document });
+    win.MzdGuiI18n.start([{ id: 'mzd-tweaks', translations: '/data/integration/mzd-gui-modules/mzd-tweaks/assets/i18n.js' }]);
+    vm.runInNewContext(tweaksI18nSource, { window: win });
+  }
   vm.runInNewContext(residentSource, { window: win, document: document });
 
   const source = { messages: [], postMessage(message) { this.messages.push(plain(message)); } };
@@ -87,6 +95,7 @@ function residentPage(boot, options) {
   ctx.onDispose = () => {};
   ctx.logs = [];
   ctx.log = message => ctx.logs.push(message);
+  ctx.loadLanguage = fn => { if (win.MzdGuiI18n) { win.MzdGuiI18n.load('mzd-tweaks', fn); } };
   ctx.onServiceReady = fn => { ctx.handlers.ready = fn; };
   ctx.notify = (text, isError) => ctx.notes.push([text, isError]);
   ctx.createNativeMenu = options => { ctx.options = options; return { close() {}, check() {}, owns: () => false }; };
@@ -113,12 +122,12 @@ function fakeElement() {
   return element;
 }
 
-function statusbarFixture(mode, contextId, usePrivateClock, existingBeforeHook, currentApp, disableIntl) {
+function statusbarFixture(mode, contextId, usePrivateClock, existingBeforeHook, currentApp, disableIntl, language) {
   const currentTime = new Date(2026, 10, 18, 8, 26);
   const clocks = [];
   const framework = {
     localize: {
-      getCurrentLanguage: () => 'en_US',
+      getCurrentLanguage: () => language || 'en_US',
       getTimeFormat: () => '24hrs'
     },
     common: { getCurrentTime: () => currentTime },
@@ -141,7 +150,8 @@ function statusbarFixture(mode, contextId, usePrivateClock, existingBeforeHook, 
     framework,
     StatusBarCtrl,
     statusbarElements: clocks,
-    createElement: () => fakeElement()
+    createElement: () => fakeElement(),
+    i18n: !!language
   };
   if (!disableIntl) { pageOptions.Intl = Intl; }
   const page = residentPage(Object.assign({}, DEFAULTS, { statusbar_date: mode }), pageOptions);
@@ -1288,9 +1298,34 @@ function viewPage(options) {
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
     assert(dict.audio_order_title && dict.audio_order_title.length > 0, 'audio_order_title present in ' + lang);
     assert(dict.statusbar_date && dict.statusbar_date.length > 0, 'statusbar_date present in ' + lang);
+    for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
+      assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
+    }
     assert.equal(dict.title, 'MZD Tweaks', 'title not translated in ' + lang);
     assert.equal(dict['gui.label'], 'MZD Tweaks', 'gui.label not translated in ' + lang);
   }
 }
 
-console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');
+
+{
+  // The head unit browser has no Intl: weekdays must come from the mzd-tweaks translations.
+  let registered = null;
+  vm.runInNewContext(tweaksI18nSource, { window: { MzdGuiI18n: { register(id, payload) { registered = payload; } } } });
+  const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  for (const lang of Object.keys(registered.languages)) {
+    const control = statusbarFixture(true, null, false, false, null, true, lang).control;
+    for (let n = 0; n < 7; n++) {
+      control.updateClock(new Date(2026, 10, 15 + n, 8, 26)); // 15 November 2026 is a Sunday
+      const expected = registered.languages[lang]['weekday_' + days[n]] + ' ' + (15 + n);
+      assert.equal(control.clock.children[1].textContent, expected, 'translated weekday without Intl in ' + lang + ' for ' + days[n]);
+    }
+  }
+  const german = statusbarFixture(true, null, false, false, null, true, 'de_DE').control;
+  assert.equal(german.clock.innerText, '08:26\nMi 18', 'German weekday is shown on the status bar');
+  const regional = statusbarFixture(true, null, false, false, null, true, 'de_AT').control;
+  assert.equal(regional.clock.children[1].textContent, 'Mi 18', 'a regional variant uses the base language weekdays');
+  const unknown = statusbarFixture(true, null, false, false, null, true, 'sw_KE').control;
+  assert.equal(unknown.clock.children[1].textContent, 'Wed 18', 'an unsupported language falls back to English');
+}
+
+console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

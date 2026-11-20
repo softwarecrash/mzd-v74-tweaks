@@ -7,7 +7,7 @@ Features included:
 - **List Loop**: Wrap between the first and last selectable items in scrollable lists.
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **Shorter Delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
-- **Date in status bar**: Show the short date (for example `Wed 18`) below a smaller clock. Off keeps the factory clock.
+- **Date in status bar**: Show the short date (for example `Wed 18`) below a smaller clock. The weekday follows the head unit language (English for unsupported languages). Off keeps the factory clock, which Android Auto and CarPlay always keep.
 - **Entertainment menu order**: Customize the display order of audio sources in the factory Entertainment menu.
 
 ## Configuration

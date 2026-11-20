@@ -71,20 +71,14 @@
         return !!global.mzdTweaks && global.mzdTweaks.statusbar_date === true;
     }
 
-    // Short date such as "Wed 18". Intl is used when the browser has it.
+    // Short date such as "Wed 18". Weekday names come from the mzd-tweaks translations
+    // (Opera on the head unit has no Intl); English is used until they are loaded.
     function statusbarDateText(date) {
-        var day = '', language = '', localize = global.framework && global.framework.localize;
-        try {
-            if (localize && typeof localize.getCurrentLanguage === 'function') {
-                language = String(localize.getCurrentLanguage() || '').replace('_', '-');
-            }
-            if (global.Intl && typeof global.Intl.DateTimeFormat === 'function') {
-                day = new global.Intl.DateTimeFormat(language || undefined, { weekday: 'short' }).format(date);
-            }
-        } catch (ignore) {
-            day = '';
+        var index = date.getDay(), day = EN_DAYS[index], i18n = global.MzdGuiI18n;
+        if (i18n && typeof i18n.text === 'function') {
+            day = i18n.text('mzd-tweaks', 'weekday_' + day.toLowerCase(), day);
         }
-        return (day || EN_DAYS[date.getDay()]) + ' ' + date.getDate();
+        return day + ' ' + date.getDate();
     }
 
     function clockText(clock) {
@@ -137,6 +131,7 @@
         timeLine = global.document.createElement('div');
         timeLine.style.fontSize = '30px';
         timeLine.style.lineHeight = '32px';
+        timeLine.style.paddingTop = '5px';
         timeLine.textContent = time;
         dateLine = global.document.createElement('div');
         dateLine.style.fontSize = '22px';
@@ -819,6 +814,9 @@
                 }
             }
         }
+
+        // Translations load after the resident starts; redraw the date once they are ready.
+        context.loadLanguage(function () { refreshStatusbarDisplays(context.log); });
 
         global.MzdSettingsHost.create(context, {
             prefix: 'mzd-tweaks',
