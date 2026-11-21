@@ -1,0 +1,93 @@
+#!/bin/sh
+
+#And leave everything else to the Service Manager
+TESTMODEFILE='/data_persist/testmode.conf'
+
+MESSAGE_NORMALMODE='TDE_TRIG_NORMAL_BOOT'
+SMCFG_NORMALMODE='/jci/sm/sm.conf'
+SMCFG_WCPMODE='/jci/sm/sm_WCP.conf'
+
+MESSAGE_TESTMODE='TDE_TRIG_TEST_MODE'
+SMCFG_TESTMODE='/jci/sm/smtestmode.conf'
+MODEVALUE_TESTMODE='TDE_TRIG_TEST_MODE'
+
+MESSAGE_BTRFTESTMODE='TDE_TRIG_RFCOMM_MODE'
+SMCFG_BTRFTESTMODE='/jci/sm/smbtrftestmode.conf'
+MODEVALUE_BTRFTESTMODE='TDE_TRIG_RFCOMM_MODE'
+
+MODEVALUE=''
+if [[ -f $TESTMODEFILE ]] ; then
+    MODEVALUE=`cat $TESTMODEFILE`
+fi
+
+UBLOX_FILE="/data_persist/ublox.txt"
+$(/jci/scripts/get_board_type.sh)
+if [ $? = '2' ] ; then
+    test ! -e "$UBLOX_FILE" && touch "$UBLOX_FILE"
+else
+    test -e "$UBLOX_FILE" && rm -f "$UBLOX_FILE"
+fi
+
+case $MODEVALUE in
+    $MODEVALUE_TESTMODE)
+        echo $MESSAGE_TESTMODE
+        #rm -f $TESTMODEFILE
+        # Start only the necessary processes and services from which depends the test application
+        # and also the test application
+        echo "Starting SM with $SMCFG_TESTMODE ."
+        . /jci/scripts/start_test_mode.sh
+        test ! -e "$UBLOX_FILE" && gps_enable.sh on
+        nice -n 19 /jci/jci -b=libjci.so -c=com.jci.cpp.common.logging.Logger --args --config=/config/com/jci/cpp/common/logging/Logger.xml &
+        /jci/sm/sm -f $SMCFG_TESTMODE &
+
+        echo "LVDS Speed Restriction Disabled via HMI DBUS Start"
+        mkdir -p /tmp/lvds_dbus_ready
+        dbus-tracker -a$JCI_HMI_BUS -p/tmp/lvds_dbus_ready/ -vvvv &
+        waitfor /tmp/lvds_dbus_ready/com.jci.lvds 10000 
+        rm -rfv /tmp/lvds_dbus_ready
+        dbus-send --address=$JCI_HMI_BUS --print-reply --type=method_call --dest=com.jci.lvds /com/jci/lvds com.jci.lvds.SpeedRestriction uint32:0
+        killall -9 dbus-tracker
+        echo "LVDS Speed Restriction Disabled via HMI DBUS Finish"
+    ;;
+
+    $MODEVALUE_BTRFTESTMODE)
+        echo $MESSAGE_BTRFTESTMODE
+        # Start only the necessary processes and services from which depends the test application for BTRF tests
+        # and also the test application
+        echo "Starting SM with $SMCFG_BTRFTESTMODE ."
+        . /jci/scripts/start_test_mode.sh
+        nice -n 19 /jci/jci -b=libjci.so -c=com.jci.cpp.common.logging.Logger --args --config=/config/com/jci/cpp/common/logging/Logger.xml &
+        /jci/sm/sm -f $SMCFG_BTRFTESTMODE &
+
+        echo "LVDS Speed Restriction Disabled via HMI DBUS Start"
+        mkdir -p /tmp/lvds_dbus_ready
+        dbus-tracker -a$JCI_HMI_BUS -p/tmp/lvds_dbus_ready/ -vvvv &
+        waitfor /tmp/lvds_dbus_ready/com.jci.lvds 10000 
+        rm -rfv /tmp/lvds_dbus_ready
+        dbus-send --address=$JCI_HMI_BUS --print-reply --type=method_call --dest=com.jci.lvds /com/jci/lvds com.jci.lvds.SpeedRestriction uint32:0
+        killall -9 dbus-tracker
+        echo "LVDS Speed Restriction Disabled via HMI DBUS Finish"
+    ;;
+
+    *)
+        echo $MESSAGE_NORMALMODE
+                #Start the Service Manager
+                # echo "Starting SM with $SMCFG_NORMALMODE ." //commented for logging improvement RTC35965
+                . /jci/scripts/start_normal_mode.sh
+                nice -n 19 /jci/jci -b=libjci.so -c=com.jci.cpp.common.logging.Logger --args --config=/config/com/jci/cpp/common/logging/Logger.xml &
+                sleep 1
+                $(/jci/scripts/get_board_type.sh)
+                if [ $? = '2' ] ; then
+                    echo "sm start (sm_WCP.conf)"
+                    taskset 0x02 /jci/sm/sm -f $SMCFG_WCPMODE -e /tmp/smevents.txt &
+                else
+                    echo "sm start (sm.conf)"
+                    taskset 0x02 /jci/sm/sm -f $SMCFG_NORMALMODE -e /tmp/smevents.txt &
+                fi
+    ;;
+esac
+
+echo 41943040 > /proc/sys/net/core/rmem_max
+echo 17825792 > /proc/sys/net/core/rmem_default
+echo 4096 17825792 41943040 > /proc/sys/net/ipv4/tcp_rmem
+

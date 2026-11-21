@@ -53,15 +53,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
         stock_gbt = f.read().decode('utf-8')
     gbt = internal / 'get_board_type.sh'
 
-    stock_autostart = (
-        '#!/bin/sh\n'
-        '# System autostart script\n'
-        'UBLOX_FILE="/data_persist/ublox.txt"\n'
-        'if [ -n "$UBLOX_FILE" ]; then\n'
-        '    touch "$UBLOX_FILE"\n'
-        'fi\n'
-        'exit 0\n'
-    )
+    with open(ROOT / 'src/mazda/cmu/usr/bin/autostart', 'rb') as f:
+        stock_autostart = f.read().decode('utf-8')
     autostart = internal / 'autostart'
 
     gpio1056 = internal / 'sys/class/gpio/DI_TP1056/value'
@@ -124,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     t = (folder / 'components.tsv').read_text()
     t = t.replace('/jci/sm/sm_WCP.conf', bp(config)).replace('030e918f5d6edcd62d196ee37b86fe99', md5(stock_sm.encode()))
     t = t.replace('/jci/scripts/get_board_type.sh', bp(gbt)).replace('89e4842bc3911d360d1b89ff3001e5ec', md5(stock_gbt.encode()))
-    t = t.replace('/usr/bin/autostart', bp(autostart)).replace('2588283a840b9264859a9b9448203aa3', md5(stock_autostart.encode()))
+    t = t.replace('/usr/bin/autostart', bp(autostart)).replace('90dd7122d11f6f2a279c306193a13810', md5(stock_autostart.encode()))
     write(folder / 'components.tsv', t)
 
     def call(args, expected_code=0):
@@ -152,7 +145,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     assert 'Legacy CMU150' in r_pass.stdout
 
     # 2b. Prerequisites: Standalone mod in autostart blocks install
-    write(autostart, stock_autostart.replace('touch "$UBLOX_FILE"', 'test -e "$UBLOX_FILE" && rm -f "$UBLOX_FILE" # WCP mod: do not create ublox.txt'))
+    write(autostart, stock_autostart.replace('test ! -e "$UBLOX_FILE" && touch "$UBLOX_FILE"', 'test -e "$UBLOX_FILE" && rm -f "$UBLOX_FILE" # WCP mod: do not create ublox.txt'))
     r_wcp_auto = call(['preflight-info', 'carplay-wireless'], expected_code=1)
     assert 'Another Wireless CarPlay mod is already referenced' in r_wcp_auto.stdout
     write(autostart, stock_autostart)

@@ -1,10 +1,11 @@
 --- target.data
 +++ target.data
-@@ -2,6 +2,6 @@
- # System autostart script
+@@ -23,7 +23,7 @@
  UBLOX_FILE="/data_persist/ublox.txt"
- if [ -n "$UBLOX_FILE" ]; then
--    touch "$UBLOX_FILE"
+ $(/jci/scripts/get_board_type.sh)
+ if [ $? = '2' ] ; then
+-    test ! -e "$UBLOX_FILE" && touch "$UBLOX_FILE"
 +    test -e "$UBLOX_FILE" && rm -f "$UBLOX_FILE" # MZD Tweaks WCP mod: do not create ublox.txt
+ else
+     test -e "$UBLOX_FILE" && rm -f "$UBLOX_FILE"
  fi
- exit 0
