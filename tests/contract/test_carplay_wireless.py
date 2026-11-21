@@ -111,6 +111,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     r_sh = (folder / 'reset.sh').read_text().replace('/data_persist', bp(persist))
     write(folder / 'reset.sh', r_sh)
 
+    r_run = (folder / 'run.sh').read_text().replace('/data_persist', bp(persist))
+    write(folder / 'run.sh', r_run)
+
     p_gbt = (folder / 'assets/get_board_type.patch').read_text().replace('/data_persist', bp(persist))
     write(folder / 'assets/get_board_type.patch', p_gbt)
 
@@ -157,23 +160,12 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     # 2c. Prerequisites: Standalone mod in get_board_type.sh (patched without MZD Tweaks comment) blocks install
     standalone_gbt = (
         '#!/bin/sh\nret=1\n'
-        'DI_TP1056=/sys/class/gpio/DI_TP1056/value\n'
-        'DI_TP1029=/sys/class/gpio/DI_TP1029/value\n'
+        'if [ -e /data_persist/wcp_force_off ]; then exit 1; fi\n'
         'exit 2\n'
     )
     write(gbt, standalone_gbt)
     r_wcp_gbt1 = call(['preflight-info', 'carplay-wireless'], expected_code=1)
     assert 'Another Wireless CarPlay mod is already referenced' in r_wcp_gbt1.stdout
-
-    # 2d. Prerequisites: get_board_type.sh missing DI_TP1056 blocks install
-    write(gbt, '#!/bin/sh\n# MZD Tweaks WCP mod\nDI_TP1029=/sys/class/gpio/DI_TP1029/value\nexit 2\n')
-    r_wcp_gbt2 = call(['preflight-info', 'carplay-wireless'], expected_code=1)
-    assert 'Another Wireless CarPlay mod is already referenced' in r_wcp_gbt2.stdout
-
-    # 2e. Prerequisites: get_board_type.sh missing DI_TP1029 blocks install
-    write(gbt, '#!/bin/sh\n# MZD Tweaks WCP mod\nDI_TP1056=/sys/class/gpio/DI_TP1056/value\nexit 2\n')
-    r_wcp_gbt3 = call(['preflight-info', 'carplay-wireless'], expected_code=1)
-    assert 'Another Wireless CarPlay mod is already referenced' in r_wcp_gbt3.stdout
     write(gbt, stock_gbt)
 
     # 2f. Prerequisites: Missing autostart or get_board_type.sh blocks install
@@ -186,8 +178,20 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     r_stat0 = call(['action', 'carplay-wireless', 'status'])
     assert r_stat0.stdout.strip() == 'uninstalled'
 
-    # 4. Install
+    # 4. Install deletes leftover persistent files before installation
+    extra_force = persist / 'wcp_force_off'
+    extra_boot = persist / 'wcp_bootcnt'
+    extra_ublox = persist / 'ublox.txt'
+    write(extra_force, '1\n')
+    write(extra_boot, '10\n')
+    write(extra_ublox, 'active\n')
+
     call(['action', 'carplay-wireless', 'install'])
+
+    assert not extra_force.exists()
+    assert not extra_boot.exists()
+    assert not extra_ublox.exists()
+    checks += 3
 
     # Assert sm_WCP.conf changes
     sm_text = config.read_text()
@@ -205,6 +209,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     assert 'vim_app' in gbt_text
     assert 'caller=' in gbt_text
     assert '# MZD Tweaks WCP mod' in gbt_text
+    assert 'DI_TP1056' not in gbt_text
+    assert 'DI_TP1029' not in gbt_text
 
     # Assert autostart changes
     auto_text = autostart.read_text()
@@ -258,19 +264,31 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     assert extra_force.exists()
     checks += 1
 
-    # 6. Uninstall restores exact stock files
+    # 6. Uninstall restores exact stock files and cleans up flags/logs
+    write(extra_force, '1\n')
+    extra_log = Path('/tmp/wcp_board.log')
+    write(extra_log, 'test\n')
+
     call(['action', 'carplay-wireless', 'uninstall'])
     assert config.read_text() == stock_sm
     assert gbt.read_text() == stock_gbt
     assert autostart.read_text() == stock_autostart
+    assert not extra_force.exists()
+    assert not extra_log.exists()
+    checks += 2
+
     r_stat2 = call(['action', 'carplay-wireless', 'status'])
     assert r_stat2.stdout.strip() == 'uninstalled'
 
+    write(extra_force, '1\n')
+    write(extra_boot, '5\n')
+    write(extra_log, 'test\n')
     # finish phase (after targets are restored to stock hash): cleans up extras
     r_fin = subprocess.run([SHELL, bp(reset_script), 'finish'], env=env_reset, capture_output=True, text=True)
     assert r_fin.returncode == 0, (r_fin.stdout, r_fin.stderr)
     assert not extra_force.exists()
     assert not extra_boot.exists()
+    assert not extra_log.exists()
     checks += 1
 
     # 7. Multi-tweak sharing and exact reversibility test
