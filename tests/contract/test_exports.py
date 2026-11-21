@@ -24,6 +24,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-export-') as directory:
     base = Path(directory); usb = base/'usb'; source = base/'source'; bins = base/'bin'; state = base/'state'
     source.mkdir(); bins.mkdir(); state.mkdir()
     write(source/'first.log', 'first\n'); write(source/'nested/second log.txt', 'second\n')
+    syslog_conf = base/'syslog-ng.conf'
+    shutil.copyfile(ROOT/'src/mazda/cmu/data/log/syslog-ng.conf', syslog_conf)
     shutil.copytree(ROOT/'usb/lib', usb/'lib')
     # A fixed car clock: 2026-11-01 16:49:39 UTC (development/CMU-time.md).
     write(base/'rtc', '1793551779\n'); dt=usb/'lib/datetime.sh'
@@ -39,10 +41,13 @@ with tempfile.TemporaryDirectory(prefix='cmu-export-') as directory:
     for id_ in ['backup-jci', 'logs-collector']:
         folder = usb/'tweaks'/id_; shutil.copytree(ROOT/'usb/tweaks'/id_, folder)
         manifest = folder/'manifest.conf'
-        data = manifest.read_text().replace('target=/jci', 'target='+bp(source)).replace('target=/var/log/running_log', 'target='+bp(source))
+        data = manifest.read_text().replace('target=/jci', 'target='+bp(source)).replace('target=/data/log/syslog-ng.conf', 'target='+bp(syslog_conf))
         write(manifest, data)
         worker = folder/'run.sh'
-        write(worker, worker.read_text().replace('#!/bin/sh\n', '#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n', 1))
+        worker_text = worker.read_text().replace('#!/bin/sh\n', '#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n', 1)
+        worker_text = worker_text.replace("EXPORT_SOURCE='/jci'", "EXPORT_SOURCE=" + shlex.quote(bp(source)))
+        worker_text = worker_text.replace("EXPORT_SOURCE=${LOG_ROTATION_PATH%/}", "EXPORT_SOURCE=" + shlex.quote(bp(source)))
+        write(worker, worker_text)
     # Both target and mock mount paths include no fixed drive-letter assumptions.
     write(bins/'mount', '''#!/bin/sh
 [ "$3" = USB ] || { echo FORBIDDEN_MOUNT >> EVENTS; exit 90; }
@@ -146,4 +151,118 @@ else:
         for p in [folder,folder/'run.log',folder/own]:assert int(p.stat().st_mtime)==stamp,p
         if copied:assert int((folder/copied).stat().st_mtime)!=stamp,'a copied file keeps its own date'
         checks+=1
+
+    # Log Collector rotation settings lifecycle and error handling.
+    oem_syslog_text = (ROOT / 'src/mazda/cmu/data/log/syslog-ng.conf').read_text()
+    help_out = command('logs-collector', ['--help']).stdout
+    assert 'Usage: sh run.sh <run|status|settings> [log_rotation_size=512|1024|5120]' in help_out
+    assert 'run       Copy running logs to USB' in help_out
+    assert 'status    Check export readiness' in help_out
+    assert 'settings  Print current rotation size' in help_out
+
+    # Initial settings query reflects stock 512
+    assert command('logs-collector', ['settings']).stdout == 'log_rotation_size=512\n'
+
+    # Enlarging rotation size to 1024 creates .org backup, sets target, emits dynamic reboot signal
+    r = command('logs-collector', ['run', 'log_rotation_size=1024'])
+    assert 'MZD_REBOOT_REQUIRED\n' in r.stdout
+    assert 'Running logs rotation size set to Medium 1 MB (1024 KiB).' in r.stdout
+    assert 'Reboot the CMU for changes to take effect.' in r.stdout
+    assert 'Saved to USB:' not in r.stdout
+    assert (base / 'syslog-ng.conf.org').exists()
+    assert (base / 'syslog-ng.conf.org').read_text() == oem_syslog_text
+    assert '/var/log/running_log/ 1024"' in syslog_conf.read_text()
+
+    # Settings query reflects 1024
+    assert command('logs-collector', ['settings']).stdout == 'log_rotation_size=1024\n'
+
+    # Enlarging rotation size to 5120 preserves existing .org backup
+    r = command('logs-collector', ['run', 'log_rotation_size=5120'])
+    assert 'MZD_REBOOT_REQUIRED\n' in r.stdout
+    assert 'Running logs rotation size set to Enlarged 5 MB (5120 KiB).' in r.stdout
+    assert (base / 'syslog-ng.conf.org').exists()
+    assert (base / 'syslog-ng.conf.org').read_text() == oem_syslog_text
+    assert '/var/log/running_log/ 5120"' in syslog_conf.read_text()
+
+    # Settings query reflects updated rotation size
+    assert command('logs-collector', ['settings']).stdout == 'log_rotation_size=5120\n'
+
+    # Run with unchanged setting (already 5120) copies logs instead of re-applying rotation
+    before_count = len(list((usb / 'exports/logs-collector').glob('*-complete')))
+    r = command('logs-collector', ['run', 'log_rotation_size=5120'])
+    assert 'Saved to USB:' in r.stdout
+    assert 'MZD_REBOOT_REQUIRED' not in r.stdout
+    assert len(list((usb / 'exports/logs-collector').glob('*-complete'))) == before_count + 1
+
+    # Restoring stock 512 matches OEM checksum and removes .org backup
+    r = command('logs-collector', ['run', 'log_rotation_size=512'])
+    assert 'MZD_REBOOT_REQUIRED\n' in r.stdout
+    assert 'Running logs rotation size set to Stock 512 KB (512 KiB).' in r.stdout
+    assert syslog_conf.read_text() == oem_syslog_text
+    assert not (base / 'syslog-ng.conf.org').exists()
+
+    # Settings query reflects stock 512 again
+    assert command('logs-collector', ['settings']).stdout == 'log_rotation_size=512\n'
+
+    # Non-OEM modified target keeps .org backup when restored to stock 512
+    command('logs-collector', ['run', 'log_rotation_size=5120'])
+    assert (base / 'syslog-ng.conf.org').exists()
+    write(syslog_conf, syslog_conf.read_text() + '# Non-OEM comment\n')
+    r = command('logs-collector', ['run', 'log_rotation_size=512'])
+    assert 'MZD_REBOOT_REQUIRED\n' in r.stdout
+    assert (base / 'syslog-ng.conf.org').exists(), 'Non-OEM target retains .org backup'
+    (base / 'syslog-ng.conf.org').unlink()
+    write(syslog_conf, oem_syslog_text)
+
+    # Pre-modified non-OEM file without .org warns and does not create .org
+    write(syslog_conf, syslog_conf.read_text() + '# Pre-edit comment\n')
+    r = command('logs-collector', ['run', 'log_rotation_size=1024'])
+    assert 'MZD_REBOOT_REQUIRED\n' in r.stdout
+    assert 'OEM backup (.org) was not created' in r.stdout
+    assert not (base / 'syslog-ng.conf.org').exists()
+    r = command('logs-collector', ['run', 'log_rotation_size=512'])
+    assert not (base / 'syslog-ng.conf.org').exists()
+    write(syslog_conf, oem_syslog_text)
+
+    # Unrecognized target size (e.g. 1000 KiB) warns but allows changing to selected preset
+    write(syslog_conf, oem_syslog_text.replace(' 512"', ' 1000"'))
+    assert command('logs-collector', ['settings'], 1).returncode == 1
+    r = command('logs-collector', ['run', 'log_rotation_size=512'])
+    assert 'Warning: current log rotation size (1000 KiB) in' in r.stdout
+    assert 'Running logs rotation size set to Stock 512 KB (512 KiB).' in r.stdout
+    assert syslog_conf.read_text() == oem_syslog_text
+    assert not (base / 'syslog-ng.conf.org').exists()
+
+    write(syslog_conf, oem_syslog_text.replace(' 512"', ' 1000"'))
+    r = command('logs-collector', ['run', 'log_rotation_size=1024'])
+    assert 'Warning: current log rotation size (1000 KiB) in' in r.stdout
+    assert 'OEM backup (.org) was not created' in r.stdout
+    assert 'Running logs rotation size set to Medium 1 MB (1024 KiB).' in r.stdout
+    assert not (base / 'syslog-ng.conf.org').exists()
+    write(syslog_conf, oem_syslog_text)
+
+    # Corrupted .org backup causes rotation modification to refuse
+    write(base / 'syslog-ng.conf.org', 'corrupted\n')
+    r = command('logs-collector', ['run', 'log_rotation_size=1024'], 1)
+    assert 'OEM backup is invalid' in r.stderr
+    (base / 'syslog-ng.conf.org').unlink()
+
+    # Invalid setting value is rejected
+    r = command('logs-collector', ['run', 'log_rotation_size=999'], 1)
+    assert 'Invalid value for log_rotation_size: 999' in r.stderr
+
+    # Missing target config file fails when attempting rotation change
+    syslog_conf.rename(base / 'syslog-ng.conf.bak')
+    r = command('logs-collector', ['run', 'log_rotation_size=5120'], 1)
+    assert 'configuration file not found' in r.stderr
+    r = command('logs-collector', ['settings'], 1)
+    assert r.returncode == 1
+    (base / 'syslog-ng.conf.bak').rename(syslog_conf)
+
+    # Target file missing running_log pattern fails cleanly
+    write(syslog_conf, '# config without running_log\n')
+    r = command('logs-collector', ['run', 'log_rotation_size=5120'], 1)
+    assert 'running_log rotation entry not found' in r.stderr
+    write(syslog_conf, oem_syslog_text)
+    checks += 14
 print('EXPORT_COMMANDS_PASSED:',checks,'entrypoint checks, read-only sources, USB-only unique outputs, ZIP validation/failure and live jobs.')

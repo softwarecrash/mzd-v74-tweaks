@@ -90,10 +90,9 @@ with tempfile.TemporaryDirectory(prefix='cmu-aa-') as temporary:
 
     xml_std = internal / 'aap_system_attributes.xml'
     xml_ucp = internal / 'aap_system_attributes_UCP.xml'
-    patch_std = (ROOT / 'usb/tweaks/android-auto/assets/aap_system_attributes.patch').read_text(encoding='utf-8')
-    patch_ucp = (ROOT / 'usb/tweaks/android-auto/assets/aap_system_attributes_UCP.patch').read_text(encoding='utf-8')
-    orig_std = fixture(patch_std)
-    orig_ucp = fixture(patch_ucp)
+    SRC = ROOT / 'src/mazda/cmu'
+    orig_std = (SRC / 'etc/aap_system_attributes.xml').read_text()
+    orig_ucp = (SRC / 'etc/aap_system_attributes_UCP.xml').read_text()
     write(xml_std, orig_std)
     write(xml_ucp, orig_ucp)
 

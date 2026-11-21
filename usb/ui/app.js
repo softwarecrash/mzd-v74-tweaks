@@ -952,10 +952,12 @@
             if (workingTimer!==null) {window.clearInterval(workingTimer);workingTimer=null;}
             var recoveryCandidate=result && /(^|\n)MZD_RECOVERY_CANDIDATE\n/.test(result.stdout);
             if (result && result.stdout) result.stdout=result.stdout.replace(/^MZD_RECOVERY_CANDIDATE\n/gm,"");
+            var dynamicRestart=result && /(^|\n)MZD_REBOOT_REQUIRED\n/.test(result.stdout);
+            if (result && result.stdout) result.stdout=result.stdout.replace(/^MZD_REBOOT_REQUIRED\n/gm,"");
             var problem = error || resultError(result);
             var critical = !!error || !result || (result.started && (result.exitCode === 2 || !!result.signal || result.exitCode === null));
             if (critical) locked=true;
-            if (!problem && (action==="restore-original" || (item.manifest.reboot_required && (action === "install" || action === "update" || action === "uninstall" || action === "run")))) restartRequired=true;
+            if (!problem && (dynamicRestart || action==="restore-original" || (item.manifest.reboot_required && (action === "install" || action === "update" || action === "uninstall" || action === "run")))) restartRequired=true;
             var message = result ? trim(result.stdout + (result.stderr ? "\n" + result.stderr : "")) : "";
             // Old saved workers may still return their original progress preamble.
             // Keep the single live status row authoritative; retain useful details.

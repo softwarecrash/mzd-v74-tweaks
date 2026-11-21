@@ -101,6 +101,45 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     (usb/'user/settings-example').rmdir()
     (usb/'user').rmdir()
 
+    # Dynamic settings query via run.sh settings for uninstalled or command tweaks
+    worker_orig = worker.read_text()
+    write(worker, worker_orig.replace("run|status) action=$1; shift ;;", "settings) printf 'log_limit_mb=45\\ncompress=false\\n'; exit 0 ;;\n    run|status) action=$1; shift ;;"))
+    info = call(['settings-info', 'settings-example']).stdout
+    assert 'value.log_limit_mb=45' in info and 'value.compress=false' in info and 'value.profile=stock' in info
+    # Partial live settings fall back to user defaults when present
+    write(worker, worker_orig.replace("run|status) action=$1; shift ;;", "settings) printf 'compress=false\\n'; exit 0 ;;\n    run|status) action=$1; shift ;;"))
+    user_dir = usb / 'user/settings-example'
+    user_dir.mkdir(parents=True, exist_ok=True)
+    write(user_dir / 'settings.conf', 'log_limit_mb=35\n')
+    info = call(['settings-info', 'settings-example']).stdout
+    assert 'value.log_limit_mb=35' in info and 'value.compress=false' in info and 'value.profile=stock' in info
+    (user_dir / 'settings.conf').unlink()
+    user_dir.rmdir()
+    (usb / 'user').rmdir()
+    # If run.sh settings exits 1, settings-info safely falls back to manifest defaults
+    write(worker, worker_orig.replace("run|status) action=$1; shift ;;", "settings) exit 1 ;;\n    run|status) action=$1; shift ;;"))
+    info = call(['settings-info', 'settings-example']).stdout
+    assert 'value.log_limit_mb=20' in info and 'value.compress=true' in info and 'value.profile=stock' in info
+    write(worker, worker_orig)
+    # Real logs-collector live settings inspection with installer.sh
+    shutil.copytree(ROOT / 'usb/tweaks/logs-collector', usb / 'tweaks/logs-collector')
+    mock_syslog = base / 'syslog-ng.conf'
+    write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 5120" flags(no-multi-line) template(t_default)); };\n')
+    lc_manifest = usb / 'tweaks/logs-collector/manifest.conf'
+    write(lc_manifest, lc_manifest.read_text().replace('target=/data/log/syslog-ng.conf', 'target=' + bp(mock_syslog)))
+    r = call(['settings-info', 'logs-collector'])
+    assert 'value.log_rotation_size=5120' in r.stdout
+    write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 1024" flags(no-multi-line) template(t_default)); };\n')
+    r = call(['settings-info', 'logs-collector'])
+    assert 'value.log_rotation_size=1024' in r.stdout
+    write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 1000" flags(no-multi-line) template(t_default)); };\n')
+    r = call(['settings-info', 'logs-collector'])
+    assert 'value.log_rotation_size=512' in r.stdout
+    write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 512" flags(no-multi-line) template(t_default)); };\n')
+    r = call(['settings-info', 'logs-collector'])
+    assert 'value.log_rotation_size=512' in r.stdout
+    shutil.rmtree(usb / 'tweaks/logs-collector')
+
     args = ['log_limit_mb=30', 'compress=false', 'profile=large']
     out = call(['action','settings-example','run', *args]).stdout
     assert '30 MB' in out and 'false' in out and 'large' in out

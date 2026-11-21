@@ -64,7 +64,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-safety-images-') as directory:
     version=b/'version';mounts=b/'mounts';gpio=b/'gpio'
     write(version,'JCI_SW_VER="MAZ_CMU-150_74.00.324"\n');write(gpio,'0\n')
     write(mounts,f'mock {bp(usb)} vfat rw 0 0\n/dev/root {bp(internal)} relfs ro 0 0\n/dev/mmcblk0p1 {bp(persist)} relfs rw 0 0\n')
-    replacements={'/jci/nativegui/images':bp(images),'/tmp/mnt/data_persist':bp(persist),'/proc/mounts':bp(mounts),'/jci/version.ini':bp(version),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/tmp/mzd-camera-warning-images.lock':bp(b/'camera.lock'),'/tmp/mzd-$LOCK_GROUP-tweak.lock':bp(b/'target.lock'),'/sys/class/gpio/Watchdog\\ Disable/value':shlex.quote(bp(gpio)),'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+bp(internal)}
+    replacements={'/jci/nativegui/images':bp(images),'/tmp/mnt/data_persist':bp(persist),'/proc/mounts':bp(mounts),'/jci/version.ini':bp(version),'/tmp/mzd-packages.lock':bp(b/'packages.lock'),'/tmp/mzd-restore-originals.lock':bp(b/'restore.lock'),'/tmp/mzd-camera-warning-images.lock':bp(b/'camera.lock'),'/tmp/mzd-$LOCK_GROUP-tweak.lock':bp(b/'target.lock'),'/sys/class/gpio/Watchdog\\ Disable/value':shlex.quote(bp(gpio)),'MZD_SHIM_ROOT=/':'MZD_SHIM_ROOT='+bp(internal),"EXPORT_SOURCE='/jci'":"EXPORT_SOURCE="+bp(internal)}
     for p in usb.rglob('*.sh'):
         s=p.read_text()
         for a,v in replacements.items():s=s.replace(a,v)

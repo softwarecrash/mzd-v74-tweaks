@@ -20,20 +20,23 @@ mzd_export_mount() {
 }
 mzd_export_check() {
     [ -r /jci/version.ini ] || { printf 'Cannot read firmware version.\n' >&2; return 1; }
-    awk -v expected="JCI_SW_VER=\"MAZ_CMU-150_$FIRMWARE\"" '$0==expected {found=1} END {exit !found}' /jci/version.ini || {
-        printf 'Requires firmware %s.\n' "$FIRMWARE" >&2; return 2;
+    EXPORT_FIRMWARE=${FIRMWARE:-74.00.324}
+    awk -v expected="JCI_SW_VER=\"MAZ_CMU-150_$EXPORT_FIRMWARE\"" '$0==expected {found=1} END {exit !found}' /jci/version.ini || {
+        printf 'Requires firmware %s.\n' "$EXPORT_FIRMWARE" >&2; return 2;
     }
     mzd_export_mount || return 2
-    [ -d "$APP" ] && [ -r "$APP" ] || { printf 'Source directory is unavailable: %s\n' "$APP" >&2; return 2; }
-    for tool in df du awk find cp mv mkdir date sync $EXPORT_TOOLS; do
+    [ -n "${EXPORT_SOURCE:-}" ] && [ -d "$EXPORT_SOURCE" ] && [ -r "$EXPORT_SOURCE" ] || {
+        printf 'Source directory is unavailable: %s\n' "${EXPORT_SOURCE:-}" >&2; return 2;
+    }
+    for tool in df du awk find cp mv mkdir date sync ${EXPORT_TOOLS:-}; do
         command -v "$tool" >/dev/null 2>&1 || { printf 'Required tool is missing: %s\n' "$tool" >&2; return 2; }
     done
-    APP=$(readlink -f "$APP") || return 1
+    EXPORT_SOURCE=$(readlink -f "$EXPORT_SOURCE") || return 1
     if command -v mzd_export_ready >/dev/null 2>&1; then mzd_export_ready || return $?; fi
     NEEDED_KB=${EXPORT_MIN_KB:-16384}
     # Status stays cheap: only run scans the source tree for a size estimate.
     if [ "$1" = run ]; then
-        SOURCE_KB=$(du -sk "$APP" | awk 'NR==1 {print $1}')
+        SOURCE_KB=$(du -sk "$EXPORT_SOURCE" | awk 'NR==1 {print $1}')
         case "$SOURCE_KB" in ''|*[!0-9]*) printf 'Cannot determine source size.\n' >&2; return 1 ;; esac
         [ "$((SOURCE_KB + 16384))" -le "$NEEDED_KB" ] || NEEDED_KB=$((SOURCE_KB + 16384))
     fi
@@ -67,9 +70,7 @@ mzd_export_main() {
         run|status) ;;
         *) printf 'Unsupported action. Use run or status.\n' >&2; return 1 ;;
     esac
-    . "$ROOT/lib/manifest.sh" || return 1
     . "$ROOT/lib/datetime.sh" || return 1
-    mzd_manifest_load "$HERE/manifest.conf" || return 1
     if [ "$1" = status ]; then
         reason=$(mzd_export_check status 2>&1); result=$?
         case "$result" in
@@ -86,13 +87,14 @@ mzd_export_main() {
     trap 'exit 130' INT
     trap 'exit 143' TERM
     case ",$EXPORT_MODE," in *,ro,*) mount -o rw,remount "$EXPORT_MOUNT" || return 1 ;; esac
-    mkdir -p "$EXPORT_MOUNT/exports/$ID" || return 1
+    EXPORT_ID=${ID:-${HERE##*/}}
+    mkdir -p "$EXPORT_MOUNT/exports/$EXPORT_ID" || return 1
     # Car local time in the name and the Start line: one reading (development/CMU-time.md).
     mzd_datetime_snapshot
-    EXPORT_PARTIAL=$(mktemp -d "$EXPORT_MOUNT/exports/$ID/$(mzd_datetime_name)-XXXXXX") || return 1
+    EXPORT_PARTIAL=$(mktemp -d "$EXPORT_MOUNT/exports/$EXPORT_ID/$(mzd_datetime_name)-XXXXXX") || return 1
     EXPORT_OUTPUT="$EXPORT_PARTIAL-complete"
     { mzd_datetime_start
-      printf 'Installer version: %s\nExport source: %s\nOriginating USB: %s\n' "${MZD_INSTALLER_VERSION:-unknown}" "$APP" "$EXPORT_MOUNT"; } > "$EXPORT_PARTIAL/run.log"
+      printf 'Installer version: %s\nExport source: %s\nOriginating USB: %s\n' "${MZD_INSTALLER_VERSION:-unknown}" "$EXPORT_SOURCE" "$EXPORT_MOUNT"; } > "$EXPORT_PARTIAL/run.log"
     if [ -n "${MZD_SETTINGS_FILE:-}" ] && [ -s "$MZD_SETTINGS_FILE" ]; then
         [ ! -L "$MZD_SETTINGS_FILE" ] && cp "$MZD_SETTINGS_FILE" "$EXPORT_PARTIAL/settings.conf" && cmp -s "$MZD_SETTINGS_FILE" "$EXPORT_PARTIAL/settings.conf" || return 1
     fi

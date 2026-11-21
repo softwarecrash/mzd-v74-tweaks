@@ -31,18 +31,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-hud-') as temporary:
     store=persist/'mzd-tweaks/installed'
     config=internal/'sm.conf';second=internal/'sm_WCP.conf'
     stock='<services>\n    <service name="jciMMUI" path="/jci/mmui/example.so">\n        <dependency value="other"/>\n    </service>\n    <service name="jciCARPLAY" path="/jci/carplay/example.so" reset_board="yes">\n        <dependency value="other"/>\n    </service>\n</services>\n'
-    devmgr_stock=(
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<configs>\n'
-        '<!-- true: accessory supports NMEA_GPHDT sentences -->\n'
-        '<config><name>CARPLAY_LOCATION_NMEA_GPHDT</name><value>FALSE</value></config>\n'
-        '<!-- Default FALSE -->\n'
-        '<config><name>NaviSupported</name><value>FALSE</value></config>\n'
-        '<!-- Default 0x5555 -->\n'
-        '<config><name>NaviCompId</name><value>0x5555</value></config>\n'
-        '<!-- Default 100 -->\n'
-        '</configs>\n'
-    )
+    devmgr_stock=(ROOT/'src/mazda/cmu/etc/devmgr_config_master.xml').read_text()
     devmgr=internal/'devmgr_config_master.xml'
     shutil.copytree(ROOT/'usb/lib',usb/'lib')
     write(usb/'installer.sh',(ROOT/'usb/installer.sh').read_text().replace('#!/bin/sh\n','#!/bin/sh\nPATH='+shlex.quote(bp(bins)+':/usr/bin:/bin')+'\nexport PATH\n',1))
