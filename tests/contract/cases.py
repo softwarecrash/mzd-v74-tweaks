@@ -13,6 +13,7 @@ CASES = {
     'android-auto': 'component-bundle',
     'carplay-display': 'component-bundle',
     'carplay-hud': 'component-bundle',
+    'carplay-wireless': 'component-bundle',
     'cluster-language': 'component-bundle',
     'fuel-consumption-ending': 'component-bundle',
     'mzd-tweaks': 'component-bundle',

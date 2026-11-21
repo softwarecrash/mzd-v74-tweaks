@@ -1,0 +1,8 @@
+# kind	target	source	service	options
+loader	/jci/sm/sm_WCP.conf	-	-	030e918f5d6edcd62d196ee37b86fe99
+loader_attr	args=wcp	-	jcinavi	remove_val
+loader_attr	GPS=UBLOX	-	jciLDS	remove_attr
+loader_attr	reset_board=no	-	jcinavi	set
+loader_attr	reset_board=no	-	jciLDS	set
+patch	/jci/scripts/get_board_type.sh	assets/get_board_type.patch	-	89e4842bc3911d360d1b89ff3001e5ec
+patch	/usr/bin/autostart	assets/autostart.patch	-	2588283a840b9264859a9b9448203aa3
