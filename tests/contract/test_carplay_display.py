@@ -174,7 +174,8 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-') as temporary:
     write(user_conf, 'display_size=invalid_size\n')
     r = call(['settings-info', 'carplay-display'])
     assert 'value.display_size=154x85' in r.stdout
-    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
+    assert 'warning.1=Invalid default for display_size: invalid_size' in r.stdout
+    assert 'Invalid default for display_size: invalid_size' in r.stderr
 
     # Install when user settings file is corrupted: uses manifest defaults
     call(['action', 'carplay-display', 'install'])

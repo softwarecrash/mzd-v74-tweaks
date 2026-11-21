@@ -69,6 +69,7 @@ button:focus{outline:3px solid #fff;outline-offset:-4px}button:active{background
 .setting-row{position:relative;min-height:50px;margin-bottom:10px;padding-right:240px}
 .setting-label{font-size:17px;line-height:23px;padding-top:8px}
 .setting-help{font-size:12px;line-height:17px;color:#b8bac2}
+.setting-warning{font-size:12px;line-height:17px;color:#c09038;margin-bottom:8px}
 .setting-controls{position:absolute;right:0;top:3px;min-width:220px;text-align:right;white-space:nowrap}
 .setting-controls button{min-width:45px;height:39px;padding:0 12px;margin-left:5px;font-size:19px}
 .setting-value{display:inline-block;min-width:95px;text-align:center;font-size:19px}

@@ -399,8 +399,14 @@
         closeChoice(false);
         var area=el("dialog-settings"),defs=item.settingDefs||[],readOnly=item.settingsSaved,i;
         clear(area);
-        if(!defs.length)return;
+        if(!defs.length && (!item.settingWarnings || !item.settingWarnings.length))return;
         var heading=document.createElement("div");heading.className="settings-heading";heading.textContent=readOnly?"INSTALLED SETTINGS":"SETTINGS";area.appendChild(heading);
+        if(item.settingWarnings && item.settingWarnings.length) {
+            for(var w=0;w<item.settingWarnings.length;w++) {
+                var warn=document.createElement("div");warn.className="setting-warning";
+                warn.textContent="Note: "+item.settingWarnings[w];area.appendChild(warn);
+            }
+        }
         for(i=0;i<defs.length;i++)(function(d) {
             var row=document.createElement("div"),label=document.createElement("div"),controls=document.createElement("div"),value=document.createElement("span");
             row.className="setting-row";label.className="setting-label";label.textContent=d.label;row.appendChild(label);
@@ -445,6 +451,8 @@
                 }
                 if(raw.settings_saved!=="true" && raw.settings_saved!=="false")throw new Error("Missing settings origin.");
                 item.settingsSaved=raw.settings_saved==="true";item.settingDefs=settingDefinitions(raw);
+                item.settingWarnings=[];
+                for(i=1;Object.prototype.hasOwnProperty.call(raw,"warning."+i);i++)item.settingWarnings.push(raw["warning."+i]);
                 for(i=0;i<item.settingDefs.length;i++) {
                     var d=item.settingDefs[i],v=raw["value."+d.key];
                     if(!settingValid(d,v))throw new Error("Invalid saved value: "+d.key);

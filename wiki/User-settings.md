@@ -51,7 +51,9 @@ configuration file stored on the persistent storage during installation:
 - Setting names must match the keys declared by the tweak manifest.
 - Values are strictly validated against the tweak schema: numbers must satisfy min,
   max and step constraints; choices must match declared options; boolean values must
-  be `true` or `false`. Unknown keys are rejected with clear diagnostics.
+  be `true` or `false`. If a setting is invalid or unknown, it is skipped with a
+  diagnostic warning and reverts to the manifest default, while valid settings in the
+  file are preserved.
 - Empty lines and comment lines starting with `#` are ignored.
 - File size must not exceed 64 KB (65,536 bytes).
 
