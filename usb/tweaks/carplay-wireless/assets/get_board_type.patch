@@ -1,0 +1,34 @@
+--- target.data
++++ target.data
+@@ -1,6 +1,22 @@
+ #!/bin/sh
+ 
+ ret=1
++#
++# MZD Tweaks WCP mod: spoof board type for Wireless CarPlay
++# Safety switch: if /data_persist/wcp_force_off exists, bypass spoofing
++if [ -e /data_persist/wcp_force_off ]; then
++    logger -t board "WCP Force OFF active - reporting stock board type (ret=1)"
++    exit 1
++fi
++#
++ppid2=$(awk '/^PPid:[[:space:]]*/{print $2}' /proc/$PPID/status 2>/dev/null || cut -d' ' -f4 /proc/$PPID/stat 2>/dev/null)
++for p in $PPID $ppid2; do
++    if [ "$(cat /proc/$p/comm 2>/dev/null)" = "vim_app" ]; then
++        logger -t board "caller=$(cat /proc/$PPID/comm 2>/dev/null) ppid2=$ppid2 ret=1 (Spoofed)"
++        echo "$(date +%T) caller=$(cat /proc/$PPID/comm 2>/dev/null) ppid2=$ppid2 ret=1 (Spoofed)" >> /tmp/wcp_board.log
++        exit 1
++    fi
++done
+ 
+ DI_TP1056=/sys/class/gpio/DI_TP1056/value
+ DI_TP1029=/sys/class/gpio/DI_TP1029/value
+@@ -26,5 +42,7 @@
+     done
+ fi
+ 
+-exit $ret
++logger -t board "caller=$(cat /proc/$PPID/comm 2>/dev/null) ret=2 (WCP Enabled)"
++echo "$(date +%T) caller=$(cat /proc/$PPID/comm 2>/dev/null) ret=2 (WCP Enabled)" >> /tmp/wcp_board.log
++exit 2
+ 

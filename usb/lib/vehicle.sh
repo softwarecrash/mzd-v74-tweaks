@@ -29,3 +29,25 @@ mzd_vehicle_hud() (
         *) printf 'unknown\n' ;;
     esac
 )
+mzd_vehicle_wcp_hardware() (
+    tp1056=/sys/class/gpio/DI_TP1056/value
+    tp1029=/sys/class/gpio/DI_TP1029/value
+    [ -e "$tp1056" ] && [ -e "$tp1029" ] || { printf 'unknown\n'; exit 0; }
+    v1=""
+    v2=""
+    for _ in 0 1 2; do
+        v1=$(cat "$tp1056" 2>/dev/null || :)
+        v2=$(cat "$tp1029" 2>/dev/null || :)
+        if { [ "$v1" = "0" ] || [ "$v1" = "1" ]; } && { [ "$v2" = "0" ] || [ "$v2" = "1" ]; }; then
+            break
+        fi
+        sleep 1
+    done
+    if [ "$v1" = "1" ] || [ "$v2" = "1" ]; then
+        printf 'native_wcp\n'
+    elif [ "$v1" = "0" ] && [ "$v2" = "0" ]; then
+        printf 'legacy\n'
+    else
+        printf 'unknown\n'
+    fi
+)
