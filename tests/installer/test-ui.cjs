@@ -2130,6 +2130,12 @@ test("COMPATIBILITY_UI", async (t) => {
         x.nodes["dialog-description"].textContent,
         /Cannot install: No compatible HUD/
       );
+      const descBlock = x.nodes["dialog-description"].children[0];
+      const blockEl = descBlock.children.find(
+        (c) => c.className && c.className.indexOf("dialog-message-block") !== -1
+      );
+      assert(blockEl, "Expected a dialog-message-block element");
+      assert.match(blockEl.textContent, /Cannot install: No compatible HUD/);
     }
   );
 
@@ -2145,6 +2151,12 @@ test("COMPATIBILITY_UI", async (t) => {
       x.nodes["dialog-description"].textContent,
       /Note: No extra function/
     );
+    const descWarn = x.nodes["dialog-description"].children[0];
+    const warnEl = descWarn.children.find(
+      (c) => c.className && c.className.indexOf("dialog-message-warning") !== -1
+    );
+    assert(warnEl, "Expected a dialog-message-warning element");
+    assert.match(warnEl.textContent, /Note: No extra function/);
   });
 
   await t.test("an info message keeps Install available", () => {
@@ -2157,6 +2169,12 @@ test("COMPATIBILITY_UI", async (t) => {
       x.nodes["dialog-description"].textContent,
       /Info: Supported HUD detected/
     );
+    const descInfo = x.nodes["dialog-description"].children[0];
+    const infoEl = descInfo.children.find(
+      (c) => c.className && c.className.indexOf("dialog-message-info") !== -1
+    );
+    assert(infoEl, "Expected a dialog-message-info element");
+    assert.match(infoEl.textContent, /Info: Supported HUD detected/);
   });
 
   await t.test("an info message and a warning are shown together", () => {
@@ -2174,6 +2192,17 @@ test("COMPATIBILITY_UI", async (t) => {
     assert.match(
       x.nodes["dialog-description"].textContent,
       /Note: Limited functionality in this region/
+    );
+    const descBoth = x.nodes["dialog-description"].children[0];
+    assert(
+      descBoth.children.some(
+        (c) => c.className && c.className.indexOf("dialog-message-info") !== -1
+      )
+    );
+    assert(
+      descBoth.children.some(
+        (c) => c.className && c.className.indexOf("dialog-message-warning") !== -1
+      )
     );
   });
 

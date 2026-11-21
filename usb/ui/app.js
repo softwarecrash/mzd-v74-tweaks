@@ -41,14 +41,67 @@
         node.setAttribute("data-heading",heading);
         node.onfocus=function(){revealSection(node);};
     }
+    function descMessageType(val) {
+        if (/^Info:\s/i.test(val)) return "info";
+        if (/^(Note|Warning):\s/i.test(val) || /^(Use Tools > Restore originals|Remove the saved installation|Restore original resets)/i.test(val)) return "warning";
+        if (/^(Cannot(\s|:)|Could not|Invalid compatibility|.+ unavailable)/i.test(val)) return "block";
+        return "";
+    }
+    function parseDescription(value) {
+        var raw = String(value || ""), paragraphs = raw.split("\n\n"), base = [], messages = [], inMessages = false, i, j, p, lines, firstType, currentMsg, line, t;
+        for (i = 0; i < paragraphs.length; i++) {
+            p = trim(paragraphs[i]);
+            if (!p) continue;
+            lines = p.split("\n");
+            firstType = descMessageType(lines[0]);
+            if (!inMessages && !firstType) {
+                base.push(p);
+                continue;
+            }
+            inMessages = true;
+            currentMsg = null;
+            for (j = 0; j < lines.length; j++) {
+                line = lines[j];
+                t = descMessageType(line);
+                if (t) {
+                    if (currentMsg) messages.push(currentMsg);
+                    currentMsg = { type: t, text: line };
+                } else if (currentMsg) {
+                    currentMsg.text += "\n" + line;
+                } else {
+                    currentMsg = { type: firstType || "block", text: line };
+                }
+            }
+            if (currentMsg) messages.push(currentMsg);
+        }
+        return { base: base.join("\n\n"), messages: messages };
+    }
     function text(id, value) {
         var headings={"dialog-state":"DETAILS","dialog-description":"DESCRIPTION","dialog-output":"DETAILS","dialog-contributors":"CONTRIBUTORS"};
         if(dialogMode!=="details" || !headings[id]){el(id).textContent=value;return;}
         if(id==="dialog-description") {
             clear(el(id));
             if(trim(value)) {
-                var description=document.createElement("div");description.tabIndex=0;description.textContent=String(value);
-                section(description,"DESCRIPTION");el(id).appendChild(description);
+                var description=document.createElement("div"), parsed=parseDescription(value), m, baseNode, msgNode;
+                description.tabIndex=0;
+                section(description,"DESCRIPTION");
+                if(!parsed.messages.length) {
+                    description.textContent=String(value);
+                } else {
+                    if(parsed.base) {
+                        baseNode=document.createElement("div");
+                        baseNode.className="dialog-description-text";
+                        baseNode.textContent=parsed.base;
+                        description.appendChild(baseNode);
+                    }
+                    for(m=0;m<parsed.messages.length;m++) {
+                        msgNode=document.createElement("div");
+                        msgNode.className="dialog-message dialog-message-"+parsed.messages[m].type;
+                        msgNode.textContent=parsed.messages[m].text;
+                        description.appendChild(msgNode);
+                    }
+                }
+                el(id).appendChild(description);
             }
             return;
         }
@@ -1107,7 +1160,7 @@
         if((event.keyCode||event.which)===8)controllerBack(event);
     };
     window.addEventListener("message",function (event) {
-        if(event.source!==frame.contentWindow || event.origin!==config.origin)return;
+        if(event.origin!==config.origin)return;
         var data=event.data;if(!data || data.token!==config.token)return;
         if(data.type==="shell-result") {
             var callback=pending[data.id];if(!callback)return;delete pending[data.id];
