@@ -306,10 +306,30 @@
         return found.sort();
     }
     function groupName(group) { return group.replace(/(^|-)([a-z])/g,function(match,separator,letter){return (separator?" ":"")+letter.toUpperCase();}); }
+    function activeTabIndex() {
+        var all = groups();
+        return all.indexOf(selectedGroup);
+    }
+    function activeTabButton() {
+        var tabs = el("tabs").getElementsByTagName("button");
+        var idx = activeTabIndex();
+        return idx >= 0 && idx < tabs.length ? tabs[idx] : (tabs[0] || null);
+    }
+    function activateTab(index) {
+        var tabs = el("tabs").getElementsByTagName("button"), all = groups();
+        if (index < 0 || index >= all.length) return;
+        selectedGroup = all[index];
+        for (var k = 0; k < tabs.length; k++) {
+            tabs[k].className = k === index ? "tab selected" : "tab";
+            tabs[k].setAttribute("aria-selected", k === index ? "true" : "false");
+        }
+        renderCards();
+        if (index < tabs.length) tabs[index].focus();
+    }
     function renderTabs() {
         var node = el("tabs"), all = groups(); clear(node);
         if (all.indexOf(selectedGroup) === -1) selectedGroup = all[0] || "";
-        for (var i = 0; i < all.length; i++) (function (group) {
+        for (var i = 0; i < all.length; i++) (function (group, tabIdx) {
             var count = 0;
             for (var j = 0; j < tweaks.length; j++) if (tweaks[j].group === group) count++;
             var button = document.createElement("button");
@@ -317,17 +337,10 @@
             button.textContent = groupName(group) + " (" + count + ")";
             button.setAttribute("role", "tab"); button.setAttribute("aria-selected", group === selectedGroup ? "true" : "false");
             button.onclick = function () {
-                selectedGroup = group;
-                // Keep the category buttons in the DOM so controller focus survives.
-                var tabs = el("tabs").getElementsByTagName("button");
-                for (var k = 0; k < tabs.length; k++) {
-                    tabs[k].className = tabs[k] === button ? "tab selected" : "tab";
-                    tabs[k].setAttribute("aria-selected", tabs[k] === button ? "true" : "false");
-                }
-                renderCards(); button.focus();
+                activateTab(tabIdx);
             };
             node.appendChild(button);
-        }(all[i]));
+        }(all[i], i));
         controls();
     }
     function selectCard(button,index) {
@@ -1128,12 +1141,144 @@
         discover();
     };
     el("exit").onclick=exit;
+    function cardButtons() {
+        var nodes = el("cards").getElementsByTagName("button"), list = [], i;
+        for (i = 0; i < nodes.length; i++) {
+            if (!nodes[i].disabled && nodes[i].className.indexOf("hidden") === -1) list.push(nodes[i]);
+        }
+        return list;
+    }
+    function navigateMain(key) {
+        var active = document.activeElement;
+        var tabs = el("tabs").getElementsByTagName("button");
+        var cards = cardButtons();
+        var refreshBtn = el("refresh");
+        var exitBtn = el("exit");
+        var tabIndex = -1, cardIndex = -1, i;
+
+        for (i = 0; i < tabs.length; i++) {
+            if (tabs[i] === active) { tabIndex = i; break; }
+        }
+        for (i = 0; i < cards.length; i++) {
+            if (cards[i] === active) { cardIndex = i; break; }
+        }
+
+        var inTabs = tabIndex !== -1;
+        var inList = cardIndex !== -1;
+        var inRefresh = active === refreshBtn;
+        var inExit = active === exitBtn;
+
+        if (!inTabs && !inList && !inRefresh && !inExit) {
+            var defaultTab = activeTabButton();
+            if (defaultTab) defaultTab.focus();
+            return;
+        }
+
+        if (inTabs) {
+            if (key === 37) {
+                if (tabIndex > 0) {
+                    activateTab(tabIndex - 1);
+                } else {
+                    exitBtn.focus();
+                }
+            } else if (key === 39) {
+                if (tabIndex < tabs.length - 1) {
+                    activateTab(tabIndex + 1);
+                } else {
+                    if (!refreshBtn.disabled) refreshBtn.focus();
+                    else exitBtn.focus();
+                }
+            } else if (key === 38) {
+                exitBtn.focus();
+            } else if (key === 40 || key === 77) {
+                if (cards.length > 0) {
+                    cards[0].focus();
+                    if (typeof cards[0].onfocus === "function") cards[0].onfocus();
+                }
+            } else if (key === 78) {
+                if (cards.length > 0) {
+                    var last = cards[cards.length - 1];
+                    last.focus();
+                    if (typeof last.onfocus === "function") last.onfocus();
+                }
+            }
+        } else if (inList) {
+            var t = activeTabIndex();
+            if (key === 37) {
+                if (t > 0) {
+                    activateTab(t - 1);
+                    var prevCards = cardButtons();
+                    if (prevCards.length > 0) {
+                        prevCards[0].focus();
+                        if (typeof prevCards[0].onfocus === "function") prevCards[0].onfocus();
+                    }
+                } else {
+                    exitBtn.focus();
+                }
+            } else if (key === 39) {
+                if (t < tabs.length - 1) {
+                    activateTab(t + 1);
+                    var nextCards = cardButtons();
+                    if (nextCards.length > 0) {
+                        nextCards[0].focus();
+                        if (typeof nextCards[0].onfocus === "function") nextCards[0].onfocus();
+                    }
+                } else {
+                    if (!refreshBtn.disabled) refreshBtn.focus();
+                    else exitBtn.focus();
+                }
+            } else if (key === 38) {
+                if (cardIndex > 0) {
+                    cards[cardIndex - 1].focus();
+                    if (typeof cards[cardIndex - 1].onfocus === "function") cards[cardIndex - 1].onfocus();
+                } else {
+                    var tabBtn = activeTabButton();
+                    if (tabBtn) tabBtn.focus();
+                }
+            } else if (key === 40 || key === 77) {
+                if (cardIndex < cards.length - 1) {
+                    cards[cardIndex + 1].focus();
+                    if (typeof cards[cardIndex + 1].onfocus === "function") cards[cardIndex + 1].onfocus();
+                } else {
+                    cards[0].focus();
+                    if (typeof cards[0].onfocus === "function") cards[0].onfocus();
+                }
+            } else if (key === 78) {
+                if (cardIndex > 0) {
+                    cards[cardIndex - 1].focus();
+                    if (typeof cards[cardIndex - 1].onfocus === "function") cards[cardIndex - 1].onfocus();
+                } else {
+                    var lastC = cards[cards.length - 1];
+                    lastC.focus();
+                    if (typeof lastC.onfocus === "function") lastC.onfocus();
+                }
+            }
+        } else if (inRefresh || inExit) {
+            if (key === 37) {
+                if (inExit) {
+                    if (!refreshBtn.disabled) refreshBtn.focus();
+                    else activateTab(tabs.length - 1);
+                } else {
+                    activateTab(tabs.length - 1);
+                }
+            } else if (key === 39) {
+                if (inRefresh) {
+                    exitBtn.focus();
+                } else {
+                    activateTab(0);
+                }
+            } else if (key === 40) {
+                var currentTab = activeTabButton();
+                if (currentTab) currentTab.focus();
+            }
+        }
+    }
     function controllerBack(event) {
         // Backspace is the CMU Back button. Always suppress browser history.
         if(event.preventDefault)event.preventDefault();event.returnValue=false;
         if(detailBusy() || operating || closing)return;
         if(choicePicker){closeChoice(true);return;}
-        if(dialogMode==="restore-confirm")el("back").onclick();else if(dialogMode==="restart")leaveInstaller(false);else if(dialogMode==="confirm")openDetails(selected);else if(dialogMode==="details")closeDialog();else if(dialogMode==="disclaimer" || !dialogMode)exit();
+        if(dialogMode==="restore-confirm")el("back").onclick();else if(dialogMode==="restart")leaveInstaller(false);else if(dialogMode==="confirm")openDetails(selected);else if(dialogMode==="details")closeDialog();else if(dialogMode==="disclaimer")exit();else if(!dialogMode)el("exit").focus();
     }
     document.onkeydown=function (event) {
         event=event||window.event; var key=event.keyCode||event.which, nodes, buttons=[],i,index=-1;
@@ -1143,50 +1288,58 @@
             if(event.preventDefault)event.preventDefault();event.returnValue=false;return;
         }
         if(choiceKey(event,key))return;
-        if(dialogMode==="details" && (key===38 || key===40)) {
-            var field=document.activeElement,previous;
-            if(field && field.parentNode===el("dialog-description") && field.scrollHeight>field.clientHeight) {
-                previous=field.scrollTop;
-                field.scrollTop=Math.max(0,Math.min(field.scrollHeight-field.clientHeight,previous+(key===38?-46:46)));
-                if(field.scrollTop!==previous){if(event.preventDefault)event.preventDefault();event.returnValue=false;return;}
-            }
-        }
-        // Original CMU Multicontroller.js: M = clockwise, N = counterclockwise.
-        // Rotation and tilt navigate detail sections as well as action buttons.
-        if(key===77)key=39;else if(key===78)key=37;
-        if (key===27) {
-            if (dialogMode==="restore-confirm") el("back").onclick(); else if (dialogMode==="restart") leaveInstaller(false); else if (dialogMode==="confirm") openDetails(selected); else if (dialogMode==="details") closeDialog(); else if (dialogMode==="disclaimer" || !dialogMode) exit(); else return;
-        } else if (key===38 || key===40 || key===37 || key===39) {
-            // Up/down scroll detail text; left/right selects its action buttons.
-            if (dialogMode && dialogMode!=="details" && (key===38 || key===40)) el("dialog-body").scrollTop += key===38 ? -70 : 70;
-            else {
-                nodes=(dialogMode ? el("dialog") : el("app")).getElementsByTagName("button");
-                if(dialogMode==="details") {
-                    nodes=[];
-                    (function collect(parent){
-                        for(var n=0;n<parent.children.length;n++){
-                            var child=parent.children[n];
-                            if(child.tagName.toLowerCase()==="button" || child.tabIndex===0)nodes.push(child);
-                            else collect(child);
-                        }
-                    }(el("dialog")));
+        if(dialogMode) {
+            if(dialogMode==="details" && (key===38 || key===40)) {
+                var field=document.activeElement,previous;
+                if(field && field.parentNode===el("dialog-description") && field.scrollHeight>field.clientHeight) {
+                    previous=field.scrollTop;
+                    field.scrollTop=Math.max(0,Math.min(field.scrollHeight-field.clientHeight,previous+(key===38?-46:46)));
+                    if(field.scrollTop!==previous){if(event.preventDefault)event.preventDefault();event.returnValue=false;return;}
                 }
-                for(i=0;i<nodes.length;i++) if(!nodes[i].disabled && nodes[i].className.indexOf("hidden")===-1) buttons.push(nodes[i]);
-                for(i=0;i<buttons.length;i++) if(buttons[i]===document.activeElement) index=i;
-                if(buttons.length) {
-                    index=(index+(key===37||key===38?-1:1)+buttons.length)%buttons.length;
-                    buttons[index].focus();
-                    if(dialogMode==="details")revealSection(buttons[index]);
-                    if (!dialogMode && buttons[index].className==="tweak") {
-                        var card=buttons[index],area=el("content");
-                        if(card.offsetTop<area.scrollTop)area.scrollTop=card.offsetTop;
-                        else if(card.offsetTop+card.offsetHeight>area.scrollTop+area.clientHeight)area.scrollTop=card.offsetTop+card.offsetHeight-area.clientHeight;
+            }
+            // Original CMU Multicontroller.js: M = clockwise, N = counterclockwise.
+            // Rotation and tilt navigate detail sections as well as action buttons.
+            if(key===77)key=39;else if(key===78)key=37;
+            if (key===27) {
+                if (dialogMode==="restore-confirm") el("back").onclick(); else if (dialogMode==="restart") leaveInstaller(false); else if (dialogMode==="confirm") openDetails(selected); else if (dialogMode==="details") closeDialog(); else if (dialogMode==="disclaimer") exit(); else return;
+            } else if (key===38 || key===40 || key===37 || key===39) {
+                // Up/down scroll detail text; left/right selects its action buttons.
+                if (dialogMode!=="details" && (key===38 || key===40)) el("dialog-body").scrollTop += key===38 ? -70 : 70;
+                else {
+                    nodes=[];
+                    if(dialogMode==="details") {
+                        (function collect(parent){
+                            for(var n=0;n<parent.children.length;n++){
+                                var child=parent.children[n];
+                                if(child.tagName.toLowerCase()==="button" || child.tabIndex===0)nodes.push(child);
+                                else collect(child);
+                            }
+                        }(el("dialog")));
+                    } else {
+                        nodes=el("dialog").getElementsByTagName("button");
+                    }
+                    for(i=0;i<nodes.length;i++) if(!nodes[i].disabled && nodes[i].className.indexOf("hidden")===-1) buttons.push(nodes[i]);
+                    for(i=0;i<buttons.length;i++) if(buttons[i]===document.activeElement) index=i;
+                    if(buttons.length) {
+                        index=(index+(key===37||key===38?-1:1)+buttons.length)%buttons.length;
+                        buttons[index].focus();
+                        if(dialogMode==="details")revealSection(buttons[index]);
                     }
                 }
-            }
+            } else if (key===13 || key===32) {
+                var currentDialog=document.activeElement;
+                if(currentDialog && !currentDialog.disabled && typeof currentDialog.onclick==="function") currentDialog.onclick(); else return;
+            } else return;
+            if(event.preventDefault)event.preventDefault();event.returnValue=false;
+            return;
+        }
+        if (key===27) {
+            exit();
         } else if (key===13 || key===32) {
-            var current=document.activeElement;
-            if(current && !current.disabled && typeof current.onclick==="function") current.onclick(); else return;
+            var currentMain=document.activeElement;
+            if(currentMain && !currentMain.disabled && typeof currentMain.onclick==="function") currentMain.onclick(); else return;
+        } else if (key===37 || key===38 || key===39 || key===40 || key===77 || key===78) {
+            navigateMain(key);
         } else return;
         if(event.preventDefault)event.preventDefault();event.returnValue=false;
     };

@@ -1000,49 +1000,201 @@ test("COMMAND_UI", async (t) => {
 
 test("MULTICONTROLLER", async (t) => {
   await t.test(
-    "rotate and tilt move the focus between the toolbar buttons",
+    "Tabs: left/right move between tabs, activate automatically, and transition to Exit and Refresh",
     () => {
-      // Real CMU controller codes: rotate M/N, tilt arrows, Backspace on release.
       x = boot(undefined, false, false, true);
-      x.nodes.refresh.focus();
-      controller("onkeydown", 77);
-      assert.equal(x.doc.activeElement, x.nodes.exit);
-      controller("onkeydown", 78, true);
-      assert.equal(x.doc.activeElement, x.nodes.refresh);
-      controller("onkeydown", 40);
-      assert.equal(x.doc.activeElement, x.nodes.exit);
-      controller("onkeydown", 38);
-      assert.equal(x.doc.activeElement, x.nodes.refresh);
+      const errorsTab = x.nodes.tabs.children[0];
+      const interfaceTab = x.nodes.tabs.children[1];
+      const toolsTab = x.nodes.tabs.children[2];
+
+      errorsTab.focus();
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Left on first tab moves to Exit");
+
+      errorsTab.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, interfaceTab, "Right moves to next tab");
+      assert.equal(interfaceTab.attributes["aria-selected"], "true", "New tab activated automatically");
+      assert.equal(errorsTab.attributes["aria-selected"], "false");
+
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, toolsTab, "Right moves to last tab");
+      assert.equal(toolsTab.attributes["aria-selected"], "true");
+
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Right on last tab moves to Refresh");
     }
   );
 
-  await t.test("rotate moves between the tabs and press selects one", () => {
-    const interfaceTab = x.nodes.tabs.children.find(
-      (n) => n.textContent.indexOf("Interface") === 0
-    );
-    const toolsTab = x.nodes.tabs.children.find(
-      (n) => n.textContent.indexOf("Tools") === 0
-    );
-    interfaceTab.onclick();
-    assert.equal(x.doc.activeElement, interfaceTab);
-    controller("onkeydown", 77);
-    assert.equal(x.doc.activeElement, toolsTab);
-    controller("onkeydown", 13);
-    assert.equal(x.doc.activeElement, toolsTab);
-    assert.equal(toolsTab.attributes["aria-selected"], "true");
-    assert.equal(interfaceTab.attributes["aria-selected"], "false");
-    controller("onkeydown", 78);
-    assert.equal(x.doc.activeElement, interfaceTab);
-    controller("onkeydown", 13);
-    assert.equal(x.doc.activeElement, interfaceTab);
-    toolsTab.onclick();
-    assert.equal(x.doc.activeElement, toolsTab);
-  });
+  await t.test(
+    "Tabs: up and back move to Exit, down and rotate drop into the list",
+    () => {
+      x = boot(undefined, false, false, true);
+      const interfaceTab = x.nodes.tabs.children[1];
+      interfaceTab.onclick();
 
-  await t.test("rotate moves from the tabs into the list", () => {
-    controller("onkeydown", 77);
-    assert.equal(x.doc.activeElement, x.nodes.cards.children[0]);
-  });
+      interfaceTab.focus();
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Up on tab moves to Exit");
+
+      interfaceTab.focus();
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back on tab moves to Exit");
+
+      interfaceTab.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Down moves to top card");
+
+      interfaceTab.focus();
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Rotate right moves to top card");
+
+      interfaceTab.focus();
+      controller("onkeydown", 78);
+      const lastCard = x.nodes.cards.children[x.nodes.cards.children.length - 1];
+      assert.equal(x.doc.activeElement, lastCard, "Rotate left moves to bottom card");
+    }
+  );
+
+  await t.test(
+    "List: up/down moves between items, loops at bottom, and up from first item activates tab",
+    () => {
+      x = boot(undefined, false, false, true);
+      const interfaceTab = x.nodes.tabs.children[1];
+      interfaceTab.onclick();
+      const firstCard = x.nodes.cards.children[0];
+      const secondCard = x.nodes.cards.children[1];
+      const lastCard = x.nodes.cards.children[x.nodes.cards.children.length - 1];
+
+      firstCard.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, secondCard, "Down moves to next card");
+
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, firstCard, "Up moves to previous card");
+
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, interfaceTab, "Up from first card activates active tab");
+
+      lastCard.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, firstCard, "Down on last card loops to first card");
+
+      lastCard.focus();
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, firstCard, "Rotate right on last card loops to first card");
+
+      firstCard.focus();
+      controller("onkeydown", 78);
+      assert.equal(x.doc.activeElement, lastCard, "Rotate left on first card loops to last card");
+    }
+  );
+
+  await t.test(
+    "List: left/right switches tabs and focuses first card, boundaries go to Exit and Refresh, Back goes to Exit",
+    () => {
+      x = boot(undefined, false, false, true);
+      const errorsTab = x.nodes.tabs.children[0];
+      const interfaceTab = x.nodes.tabs.children[1];
+      const toolsTab = x.nodes.tabs.children[2];
+
+      interfaceTab.onclick();
+      const cardOnInterface = x.nodes.cards.children[0];
+      cardOnInterface.focus();
+
+      controller("onkeydown", 39);
+      assert.equal(toolsTab.attributes["aria-selected"], "true");
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Right from list lands on first card of new tab");
+
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Right from last tab's list goes to Refresh");
+
+      interfaceTab.onclick();
+      x.nodes.cards.children[0].focus();
+      controller("onkeydown", 37);
+      assert.equal(errorsTab.attributes["aria-selected"], "true");
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Left from list lands on first card of new tab");
+
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Left from first tab's list goes to Exit");
+
+      interfaceTab.onclick();
+      x.nodes.cards.children[0].focus();
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back from list goes to Exit");
+    }
+  );
+
+  await t.test(
+    "Refresh | Exit buttons: navigation, active tab return, no-op keys, and disabled Refresh skipping",
+    () => {
+      x = boot(undefined, false, false, true);
+      const errorsTab = x.nodes.tabs.children[0];
+      const interfaceTab = x.nodes.tabs.children[1];
+      const toolsTab = x.nodes.tabs.children[2];
+      interfaceTab.onclick();
+
+      x.nodes.refresh.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Right from Refresh goes to Exit");
+
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Left from Exit goes to Refresh");
+
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, toolsTab, "Left from Refresh goes to last tab");
+      assert.equal(toolsTab.attributes["aria-selected"], "true");
+
+      x.nodes.exit.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, errorsTab, "Right from Exit goes to first tab");
+      assert.equal(errorsTab.attributes["aria-selected"], "true");
+
+      interfaceTab.onclick();
+      x.nodes.refresh.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, interfaceTab, "Down from Refresh goes to active tab");
+
+      x.nodes.exit.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, interfaceTab, "Down from Exit goes to active tab");
+
+      x.nodes.refresh.focus();
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Up on Refresh does nothing");
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Rotate right on Refresh does nothing");
+      controller("onkeydown", 78);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Rotate left on Refresh does nothing");
+
+      x.nodes.exit.focus();
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Up on Exit does nothing");
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Rotate right on Exit does nothing");
+      controller("onkeydown", 78);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Rotate left on Exit does nothing");
+
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back on Exit stays on Exit");
+
+      x.nodes.refresh.focus();
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back on Refresh moves to Exit");
+
+      x.nodes.refresh.disabled = true;
+      toolsTab.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Right on last tab skips disabled Refresh to Exit");
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, toolsTab, "Left on Exit skips disabled Refresh to last tab");
+      x.nodes.refresh.disabled = false;
+    }
+  );
 
   await t.test(
     "in the detail view rotate and tilt move between the buttons",
@@ -1108,12 +1260,14 @@ test("MULTICONTROLLER", async (t) => {
   });
 
   await t.test(
-    "Back on the result offers a restart, then closes the installer",
+    "Back in main view moves to Exit, which offers restart and closes",
     () => {
       x.click("result-ok");
       x.pump();
       controller("onkeydown", 8);
       controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit);
+      controller("onkeydown", 13);
       x.pump();
       assert.equal(x.nodes["dialog-title"].textContent, "Restart recommended");
       controller("onkeyup", 8);
