@@ -59,10 +59,21 @@ NR==FNR {
 }
 defaults != "" && FILENAME == defaults {
     sub(/\r$/, "")
-    if($0 ~ /[[:cntrl:]]/)fail("Control characters in defaults value.")
+    if($0 ~ /[[:cntrl:]]/) {
+        user_warning[++user_warn_count]="Control characters in user settings"
+        next
+    }
     if($0 ~ /^[[:space:]]*$/ || substr($0,1,1)=="#")next
     at=index($0,"="); key=substr($0,1,at-1); value=substr($0,at+1)
-    if(!at || length($0)>128 || user_def_seen[key]++)fail("Invalid or duplicate default: " key)
+    if(!at || length($0)>128) {
+        user_warning[++user_warn_count]="Malformed user setting: " (at ? key : substr($0,1,32))
+        next
+    }
+    if(user_def_seen[key]++) {
+        user_warning[++user_warn_count]="Duplicate user setting: " key
+        next
+    }
+    user_def_order[++user_def_count]=key
     user_def[key]=value
     next
 }
@@ -77,10 +88,21 @@ defaults != "" && FILENAME == defaults {
 END {
     if(bad)exit 1
     count=schema()
-    for(key in user_def) {
-        if(!declared[key])fail("Unknown default: " key)
-        if(!valid(key,user_def[key]))fail("Invalid default for " key ": " user_def[key])
+    for(u=1; u<=user_def_count; u++) {
+        key=user_def_order[u]
+        if(!declared[key]) {
+            user_warning[++user_warn_count]="Unknown default: " key
+            continue
+        }
+        if(!valid(key,user_def[key])) {
+            user_warning[++user_warn_count]="Invalid default for " key ": " user_def[key]
+            continue
+        }
         field[key,"default"]=user_def[key]
+    }
+    for(w=1; w<=user_warn_count; w++) {
+        print "::warning::" user_warning[w]
+        if(mode=="info") print "warning." w "=" user_warning[w]
     }
     for(key in input)if(!declared[key] && mode!="upgrade")fail("Unknown value: " key)
     if(mode=="validate")exit 0

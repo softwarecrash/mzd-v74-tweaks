@@ -7,6 +7,25 @@
     var restartRequired = false, failedStatusName = "";
     var operating = false, closing = false, locked = false, dialogMode = "", returnFocusId = "", accepted = false;
     var detailView = 0, choicePicker = null, detailLoad = null;
+    var loadTimer = null, loadDots = 0, loadText = "";
+    function clearLoadProgress() {
+        if(loadTimer){window.clearInterval(loadTimer);loadTimer=null;}
+        loadDots=0;loadText="";
+    }
+    function setLoadProgress(message) {
+        loadText=message;
+        if(!loadTimer) {
+            loadTimer=window.setInterval(function(){
+                if(closing || (!scanning && accepted)){clearLoadProgress();return;}
+                loadDots=(loadDots%3)+1;
+                var dotStr=new Array(loadDots+1).join(".");
+                footer(loadText+dotStr);
+                if(!tweaks.length)text("empty",loadText+dotStr);
+            },350);
+        }
+        footer(loadText+new Array(loadDots+1).join("."));
+        if(!tweaks.length)text("empty",loadText+new Array(loadDots+1).join("."));
+    }
     function detailBusy() { return !!detailLoad && dialogMode==="details"; }
     function clearDetailLoad() {
         if(detailLoad)window.clearInterval(detailLoad.timer);
@@ -41,14 +60,67 @@
         node.setAttribute("data-heading",heading);
         node.onfocus=function(){revealSection(node);};
     }
+    function descMessageType(val) {
+        if (/^Info:\s/i.test(val)) return "info";
+        if (/^(Note|Warning):\s/i.test(val) || /^(Use Tools > Restore originals|Remove the saved installation|Restore original resets)/i.test(val)) return "warning";
+        if (/^(Cannot(\s|:)|Could not|Invalid compatibility|.+ unavailable)/i.test(val)) return "block";
+        return "";
+    }
+    function parseDescription(value) {
+        var raw = String(value || ""), paragraphs = raw.split("\n\n"), base = [], messages = [], inMessages = false, i, j, p, lines, firstType, currentMsg, line, t;
+        for (i = 0; i < paragraphs.length; i++) {
+            p = trim(paragraphs[i]);
+            if (!p) continue;
+            lines = p.split("\n");
+            firstType = descMessageType(lines[0]);
+            if (!inMessages && !firstType) {
+                base.push(p);
+                continue;
+            }
+            inMessages = true;
+            currentMsg = null;
+            for (j = 0; j < lines.length; j++) {
+                line = lines[j];
+                t = descMessageType(line);
+                if (t) {
+                    if (currentMsg) messages.push(currentMsg);
+                    currentMsg = { type: t, text: line };
+                } else if (currentMsg) {
+                    currentMsg.text += "\n" + line;
+                } else {
+                    currentMsg = { type: firstType || "block", text: line };
+                }
+            }
+            if (currentMsg) messages.push(currentMsg);
+        }
+        return { base: base.join("\n\n"), messages: messages };
+    }
     function text(id, value) {
         var headings={"dialog-state":"DETAILS","dialog-description":"DESCRIPTION","dialog-output":"DETAILS","dialog-contributors":"CONTRIBUTORS"};
         if(dialogMode!=="details" || !headings[id]){el(id).textContent=value;return;}
         if(id==="dialog-description") {
             clear(el(id));
             if(trim(value)) {
-                var description=document.createElement("div");description.tabIndex=0;description.textContent=String(value);
-                section(description,"DESCRIPTION");el(id).appendChild(description);
+                var description=document.createElement("div"), parsed=parseDescription(value), m, baseNode, msgNode;
+                description.tabIndex=0;
+                section(description,"DESCRIPTION");
+                if(!parsed.messages.length) {
+                    description.textContent=String(value);
+                } else {
+                    if(parsed.base) {
+                        baseNode=document.createElement("div");
+                        baseNode.className="dialog-description-text";
+                        baseNode.textContent=parsed.base;
+                        description.appendChild(baseNode);
+                    }
+                    for(m=0;m<parsed.messages.length;m++) {
+                        msgNode=document.createElement("div");
+                        msgNode.className="dialog-message dialog-message-"+parsed.messages[m].type;
+                        msgNode.textContent=parsed.messages[m].text;
+                        description.appendChild(msgNode);
+                    }
+                }
+                el(id).appendChild(description);
             }
             return;
         }
@@ -92,6 +164,8 @@
         actions.style.display="none";
         actions.offsetHeight;
         dialogMode=mode;
+        el("dialog").className=mode==="disclaimer"?"welcome-dialog":"";
+        var welcome=el("dialog-welcome");if(welcome)show("dialog-welcome",mode==="disclaimer");
         el("dialog-heading").className=mode==="details"?"detail-heading":"";
         if (mode!=="details") {el("dialog-meta").tabIndex=-1;show("restore-action",false);show("uninstall-action",false);show("update-action",false);clear(el("dialog-settings"));clear(el("dialog-contributors"));}
         actions.style.display=previousDisplay||"";
@@ -232,10 +306,30 @@
         return found.sort();
     }
     function groupName(group) { return group.replace(/(^|-)([a-z])/g,function(match,separator,letter){return (separator?" ":"")+letter.toUpperCase();}); }
+    function activeTabIndex() {
+        var all = groups();
+        return all.indexOf(selectedGroup);
+    }
+    function activeTabButton() {
+        var tabs = el("tabs").getElementsByTagName("button");
+        var idx = activeTabIndex();
+        return idx >= 0 && idx < tabs.length ? tabs[idx] : (tabs[0] || null);
+    }
+    function activateTab(index) {
+        var tabs = el("tabs").getElementsByTagName("button"), all = groups();
+        if (index < 0 || index >= all.length) return;
+        selectedGroup = all[index];
+        for (var k = 0; k < tabs.length; k++) {
+            tabs[k].className = k === index ? "tab selected" : "tab";
+            tabs[k].setAttribute("aria-selected", k === index ? "true" : "false");
+        }
+        renderCards();
+        if (index < tabs.length) tabs[index].focus();
+    }
     function renderTabs() {
         var node = el("tabs"), all = groups(); clear(node);
         if (all.indexOf(selectedGroup) === -1) selectedGroup = all[0] || "";
-        for (var i = 0; i < all.length; i++) (function (group) {
+        for (var i = 0; i < all.length; i++) (function (group, tabIdx) {
             var count = 0;
             for (var j = 0; j < tweaks.length; j++) if (tweaks[j].group === group) count++;
             var button = document.createElement("button");
@@ -243,17 +337,10 @@
             button.textContent = groupName(group) + " (" + count + ")";
             button.setAttribute("role", "tab"); button.setAttribute("aria-selected", group === selectedGroup ? "true" : "false");
             button.onclick = function () {
-                selectedGroup = group;
-                // Keep the category buttons in the DOM so controller focus survives.
-                var tabs = el("tabs").getElementsByTagName("button");
-                for (var k = 0; k < tabs.length; k++) {
-                    tabs[k].className = tabs[k] === button ? "tab selected" : "tab";
-                    tabs[k].setAttribute("aria-selected", tabs[k] === button ? "true" : "false");
-                }
-                renderCards(); button.focus();
+                activateTab(tabIdx);
             };
             node.appendChild(button);
-        }(all[i]));
+        }(all[i], i));
         controls();
     }
     function selectCard(button,index) {
@@ -399,8 +486,14 @@
         closeChoice(false);
         var area=el("dialog-settings"),defs=item.settingDefs||[],readOnly=item.settingsSaved,i;
         clear(area);
-        if(!defs.length)return;
+        if(!defs.length && (!item.settingWarnings || !item.settingWarnings.length))return;
         var heading=document.createElement("div");heading.className="settings-heading";heading.textContent=readOnly?"INSTALLED SETTINGS":"SETTINGS";area.appendChild(heading);
+        if(item.settingWarnings && item.settingWarnings.length) {
+            for(var w=0;w<item.settingWarnings.length;w++) {
+                var warn=document.createElement("div");warn.className="dialog-message dialog-message-warning";
+                warn.textContent="Note: "+item.settingWarnings[w];area.appendChild(warn);
+            }
+        }
         for(i=0;i<defs.length;i++)(function(d) {
             var row=document.createElement("div"),label=document.createElement("div"),controls=document.createElement("div"),value=document.createElement("span");
             row.className="setting-row";label.className="setting-label";label.textContent=d.label;row.appendChild(label);
@@ -410,7 +503,7 @@
                 var b=document.createElement("button");b.id="setting-"+d.key+"-"+suffix;b.textContent=title;b.setAttribute("aria-label",d.label+": "+title);b.onclick=handler;controls.appendChild(b);return b;
             }
             function save(v) {item.settingValues[d.key]=v;item.settingDraft[d.key]=v;}
-            if(readOnly){row.tabIndex=0;section(row,"INSTALLED SETTING");value.textContent=settingDisplay(d,item.settingValues[d.key])+(d.unit?" "+d.unit:"");controls.appendChild(value);return;}
+            if(readOnly){row.tabIndex=0;row.onfocus=function(){revealSection(row);};value.textContent=settingDisplay(d,item.settingValues[d.key])+(d.unit?" "+d.unit:"");controls.appendChild(value);return;}
             if(d.type==="number") {
                 var minus=button("minus","-",function(){save(String(Number(item.settingValues[d.key])-Number(d.step)));update();});
                 value.className="setting-value";controls.appendChild(value);
@@ -445,6 +538,8 @@
                 }
                 if(raw.settings_saved!=="true" && raw.settings_saved!=="false")throw new Error("Missing settings origin.");
                 item.settingsSaved=raw.settings_saved==="true";item.settingDefs=settingDefinitions(raw);
+                item.settingWarnings=[];
+                for(i=1;Object.prototype.hasOwnProperty.call(raw,"warning."+i);i++)item.settingWarnings.push(raw["warning."+i]);
                 for(i=0;i<item.settingDefs.length;i++) {
                     var d=item.settingDefs[i],v=raw["value."+d.key];
                     if(!settingValid(d,v))throw new Error("Invalid saved value: "+d.key);
@@ -524,18 +619,23 @@
         return m;
     }
     function discover() {
-        scanning = true; controls(); footer("Finding tweaks on USB...");
+        if(closing)return;
+        scanning = true; controls(); setLoadProgress("Finding tweaks on USB and storage");
+        text("empty", "Reading tweaks from USB and storage...");
         function individual() {
+            if(closing){scanning=false;clearLoadProgress();return;}
             call(["list"],function(error,result){
+                if(closing){scanning=false;clearLoadProgress();return;}
                 var problem=error||resultError(result),ids,index=0,rows=[];
                 if(problem || result.stdoutTruncated || result.stderrTruncated){received(problem||"USB list was truncated.",result,false);return;}
                 ids=trim(result.stdout)?trim(result.stdout).split(/\r?\n/):[];
                 function next() {
-                    if(closing){scanning=false;return;}
+                    if(closing){scanning=false;clearLoadProgress();return;}
                     if(index===ids.length){received(null,{started:true,exitCode:0,signal:null,stdout:rows.join("\n")+(rows.length?"\n":""),stderr:""},false);return;}
                     var id=ids[index++];
                     if(!/^[a-zA-Z0-9_-]+$/.test(id)){next();return;}
                     call(["manifest",id],function(error,reply){
+                        if(closing){scanning=false;clearLoadProgress();return;}
                         rows.push(JSON.stringify({key:id,exitCode:reply && reply.exitCode===2?2:error||resultError(reply)||reply.stdoutTruncated||reply.stderrTruncated?1:0,
                             stdout:reply?reply.stdout:"",stderr:String(error||resultError(reply)||(reply.stdoutTruncated||reply.stderrTruncated?"Manifest was truncated.":""))}));
                         next();
@@ -545,17 +645,18 @@
             });
         }
         function received(error,result,canRetry) {
+            if(closing){scanning=false;clearLoadProgress();return;}
             var problem=error,rows,ids=[],id,i;
             try {if(!problem)rows=infoRows(result);}catch(e){problem=String(e);}
             if(problem && canRetry){individual();return;}
             if(result && (result.exitCode===2 || result.signal)){locked=true;failedStatusName="USB scan";}
-            if(problem){scanning=false;footer("Could not read tweaks");showResult("Cannot read tweaks",String(problem),locked,function(){});controls();return;}
+            if(problem){scanning=false;clearLoadProgress();footer("Could not read tweaks");showResult("Cannot read tweaks",String(problem),locked,function(){});controls();return;}
             tweaks=[];
             for(id in rows)if(Object.prototype.hasOwnProperty.call(rows,id))ids.push(id);
             ids.sort();
             for(i=0;i<ids.length;i++) {
                 id=ids[i];var reply=rows[id];
-                if(reply.exitCode===2){locked=true;failedStatusName=id;scanning=false;showResult("Cannot read tweak",String(resultError(reply)),true,function(){});controls();return;}
+                if(reply.exitCode===2){locked=true;failedStatusName=id;scanning=false;clearLoadProgress();showResult("Cannot read tweak",String(resultError(reply)),true,function(){});controls();return;}
                 var item={id:id,name:id,group:"errors",manifest:{actions:[]},state:"error",error:"",invalid:false};
                 try {
                     problem=resultError(reply);if(problem)throw new Error(String(problem));
@@ -565,7 +666,7 @@
                 tweaks.push(item);
             }
             tweaks.sort(function(a,b){return a.name.toLowerCase()<b.name.toLowerCase()?-1:a.name.toLowerCase()>b.name.toLowerCase()?1:0;});
-            if(closing)return;
+            if(closing){scanning=false;clearLoadProgress();return;}
             renderTabs();renderCards();refreshAll();
         }
         call(["manifests"],function(error,result){received(error,result,true);});
@@ -592,6 +693,7 @@
         });
     }
     function refreshAll() {
+        if(closing){scanning=false;clearLoadProgress();return;}
         scanning = true; controls();
         var ids = [], wanted = {}, items = [], i;
         for (i = 0; i < tweaks.length; i++) {
@@ -606,16 +708,16 @@
             item.state = "checking"; item.error = ""; updateCard(item);
         }
         function finish(problem) {
-            scanning = false; controls();
+            scanning = false; clearLoadProgress(); controls();
             footer(locked ? "Status failed: " + failedStatusName + ". Do NOT reboot." : problem ? "Could not read installation states" : "");
             if (closing) return;
             if (dialogMode === "details") openDetails(selected);
             else if (!dialogMode && el("cards").firstChild) el("cards").firstChild.focus();
         }
         if (!ids.length) { finish(null); return; }
-        footer("Reading installed tweaks...");
+        setLoadProgress("Reading installed tweaks");
         call(["statuses",ids.join(" ")],function (error,result) {
-            if (closing) {scanning=false;return;}
+            if (closing) {scanning=false;clearLoadProgress();return;}
             var problem = error || resultError(result), rows = {}, j;
             if (result && (result.exitCode === 2 || result.signal)) {locked=true;failedStatusName="status scan";}
             try {
@@ -854,7 +956,8 @@
         el("action").onclick=function () {
             if(accepted || closing)return;
             accepted=true; text("back","Back"); el("back").onclick=closeDialog;
-            closeDialog(); discover();
+            closeDialog(); controls();
+            if(!scanning && !tweaks.length)discover();
         };
         controls(); footer("Read the notice, then select OK or Exit."); el("action").focus();
     }
@@ -1001,7 +1104,7 @@
     }
     function leaveInstaller(restart) {
         if (operating || closing || (restart && (locked || scanning))) return;
-        closing=true;controls();
+        closing=true;scanning=false;clearLoadProgress();controls();
         el("back").disabled=true;el("action").disabled=true;
         footer(restart ? "Preparing restart..." : "Returning to Mazda...");
         var problem = restart ? "User confirmed restart" : restorePrimary();
@@ -1038,12 +1141,144 @@
         discover();
     };
     el("exit").onclick=exit;
+    function cardButtons() {
+        var nodes = el("cards").getElementsByTagName("button"), list = [], i;
+        for (i = 0; i < nodes.length; i++) {
+            if (!nodes[i].disabled && nodes[i].className.indexOf("hidden") === -1) list.push(nodes[i]);
+        }
+        return list;
+    }
+    function navigateMain(key) {
+        var active = document.activeElement;
+        var tabs = el("tabs").getElementsByTagName("button");
+        var cards = cardButtons();
+        var refreshBtn = el("refresh");
+        var exitBtn = el("exit");
+        var tabIndex = -1, cardIndex = -1, i;
+
+        for (i = 0; i < tabs.length; i++) {
+            if (tabs[i] === active) { tabIndex = i; break; }
+        }
+        for (i = 0; i < cards.length; i++) {
+            if (cards[i] === active) { cardIndex = i; break; }
+        }
+
+        var inTabs = tabIndex !== -1;
+        var inList = cardIndex !== -1;
+        var inRefresh = active === refreshBtn;
+        var inExit = active === exitBtn;
+
+        if (!inTabs && !inList && !inRefresh && !inExit) {
+            var defaultTab = activeTabButton();
+            if (defaultTab) defaultTab.focus();
+            return;
+        }
+
+        if (inTabs) {
+            if (key === 37) {
+                if (tabIndex > 0) {
+                    activateTab(tabIndex - 1);
+                } else {
+                    exitBtn.focus();
+                }
+            } else if (key === 39) {
+                if (tabIndex < tabs.length - 1) {
+                    activateTab(tabIndex + 1);
+                } else {
+                    if (!refreshBtn.disabled) refreshBtn.focus();
+                    else exitBtn.focus();
+                }
+            } else if (key === 38) {
+                exitBtn.focus();
+            } else if (key === 40 || key === 77) {
+                if (cards.length > 0) {
+                    cards[0].focus();
+                    if (typeof cards[0].onfocus === "function") cards[0].onfocus();
+                }
+            } else if (key === 78) {
+                if (cards.length > 0) {
+                    var last = cards[cards.length - 1];
+                    last.focus();
+                    if (typeof last.onfocus === "function") last.onfocus();
+                }
+            }
+        } else if (inList) {
+            var t = activeTabIndex();
+            if (key === 37) {
+                if (t > 0) {
+                    activateTab(t - 1);
+                    var prevCards = cardButtons();
+                    if (prevCards.length > 0) {
+                        prevCards[0].focus();
+                        if (typeof prevCards[0].onfocus === "function") prevCards[0].onfocus();
+                    }
+                } else {
+                    exitBtn.focus();
+                }
+            } else if (key === 39) {
+                if (t < tabs.length - 1) {
+                    activateTab(t + 1);
+                    var nextCards = cardButtons();
+                    if (nextCards.length > 0) {
+                        nextCards[0].focus();
+                        if (typeof nextCards[0].onfocus === "function") nextCards[0].onfocus();
+                    }
+                } else {
+                    if (!refreshBtn.disabled) refreshBtn.focus();
+                    else exitBtn.focus();
+                }
+            } else if (key === 38) {
+                if (cardIndex > 0) {
+                    cards[cardIndex - 1].focus();
+                    if (typeof cards[cardIndex - 1].onfocus === "function") cards[cardIndex - 1].onfocus();
+                } else {
+                    var tabBtn = activeTabButton();
+                    if (tabBtn) tabBtn.focus();
+                }
+            } else if (key === 40 || key === 77) {
+                if (cardIndex < cards.length - 1) {
+                    cards[cardIndex + 1].focus();
+                    if (typeof cards[cardIndex + 1].onfocus === "function") cards[cardIndex + 1].onfocus();
+                } else {
+                    cards[0].focus();
+                    if (typeof cards[0].onfocus === "function") cards[0].onfocus();
+                }
+            } else if (key === 78) {
+                if (cardIndex > 0) {
+                    cards[cardIndex - 1].focus();
+                    if (typeof cards[cardIndex - 1].onfocus === "function") cards[cardIndex - 1].onfocus();
+                } else {
+                    var lastC = cards[cards.length - 1];
+                    lastC.focus();
+                    if (typeof lastC.onfocus === "function") lastC.onfocus();
+                }
+            }
+        } else if (inRefresh || inExit) {
+            if (key === 37) {
+                if (inExit) {
+                    if (!refreshBtn.disabled) refreshBtn.focus();
+                    else activateTab(tabs.length - 1);
+                } else {
+                    activateTab(tabs.length - 1);
+                }
+            } else if (key === 39) {
+                if (inRefresh) {
+                    exitBtn.focus();
+                } else {
+                    activateTab(0);
+                }
+            } else if (key === 40) {
+                var currentTab = activeTabButton();
+                if (currentTab) currentTab.focus();
+            }
+        }
+    }
     function controllerBack(event) {
         // Backspace is the CMU Back button. Always suppress browser history.
         if(event.preventDefault)event.preventDefault();event.returnValue=false;
         if(detailBusy() || operating || closing)return;
         if(choicePicker){closeChoice(true);return;}
-        if(dialogMode==="restore-confirm")el("back").onclick();else if(dialogMode==="restart")leaveInstaller(false);else if(dialogMode==="confirm")openDetails(selected);else if(dialogMode==="details")closeDialog();else if(dialogMode==="disclaimer" || !dialogMode)exit();
+        if(dialogMode==="restore-confirm")el("back").onclick();else if(dialogMode==="restart")leaveInstaller(false);else if(dialogMode==="confirm")openDetails(selected);else if(dialogMode==="details")closeDialog();else if(dialogMode==="disclaimer")exit();else if(!dialogMode)el("exit").focus();
     }
     document.onkeydown=function (event) {
         event=event||window.event; var key=event.keyCode||event.which, nodes, buttons=[],i,index=-1;
@@ -1053,50 +1288,58 @@
             if(event.preventDefault)event.preventDefault();event.returnValue=false;return;
         }
         if(choiceKey(event,key))return;
-        if(dialogMode==="details" && (key===38 || key===40)) {
-            var field=document.activeElement,previous;
-            if(field && field.parentNode===el("dialog-description") && field.scrollHeight>field.clientHeight) {
-                previous=field.scrollTop;
-                field.scrollTop=Math.max(0,Math.min(field.scrollHeight-field.clientHeight,previous+(key===38?-46:46)));
-                if(field.scrollTop!==previous){if(event.preventDefault)event.preventDefault();event.returnValue=false;return;}
-            }
-        }
-        // Original CMU Multicontroller.js: M = clockwise, N = counterclockwise.
-        // Rotation and tilt navigate detail sections as well as action buttons.
-        if(key===77)key=39;else if(key===78)key=37;
-        if (key===27) {
-            if (dialogMode==="restore-confirm") el("back").onclick(); else if (dialogMode==="restart") leaveInstaller(false); else if (dialogMode==="confirm") openDetails(selected); else if (dialogMode==="details") closeDialog(); else if (dialogMode==="disclaimer" || !dialogMode) exit(); else return;
-        } else if (key===38 || key===40 || key===37 || key===39) {
-            // Up/down scroll detail text; left/right selects its action buttons.
-            if (dialogMode && dialogMode!=="details" && (key===38 || key===40)) el("dialog-body").scrollTop += key===38 ? -70 : 70;
-            else {
-                nodes=(dialogMode ? el("dialog") : el("app")).getElementsByTagName("button");
-                if(dialogMode==="details") {
-                    nodes=[];
-                    (function collect(parent){
-                        for(var n=0;n<parent.children.length;n++){
-                            var child=parent.children[n];
-                            if(child.tagName.toLowerCase()==="button" || child.tabIndex===0)nodes.push(child);
-                            else collect(child);
-                        }
-                    }(el("dialog")));
+        if(dialogMode) {
+            if(dialogMode==="details" && (key===38 || key===40)) {
+                var field=document.activeElement,previous;
+                if(field && field.parentNode===el("dialog-description") && field.scrollHeight>field.clientHeight) {
+                    previous=field.scrollTop;
+                    field.scrollTop=Math.max(0,Math.min(field.scrollHeight-field.clientHeight,previous+(key===38?-46:46)));
+                    if(field.scrollTop!==previous){if(event.preventDefault)event.preventDefault();event.returnValue=false;return;}
                 }
-                for(i=0;i<nodes.length;i++) if(!nodes[i].disabled && nodes[i].className.indexOf("hidden")===-1) buttons.push(nodes[i]);
-                for(i=0;i<buttons.length;i++) if(buttons[i]===document.activeElement) index=i;
-                if(buttons.length) {
-                    index=(index+(key===37||key===38?-1:1)+buttons.length)%buttons.length;
-                    buttons[index].focus();
-                    if(dialogMode==="details")revealSection(buttons[index]);
-                    if (!dialogMode && buttons[index].className==="tweak") {
-                        var card=buttons[index],area=el("content");
-                        if(card.offsetTop<area.scrollTop)area.scrollTop=card.offsetTop;
-                        else if(card.offsetTop+card.offsetHeight>area.scrollTop+area.clientHeight)area.scrollTop=card.offsetTop+card.offsetHeight-area.clientHeight;
+            }
+            // Original CMU Multicontroller.js: M = clockwise, N = counterclockwise.
+            // Rotation and tilt navigate detail sections as well as action buttons.
+            if(key===77)key=39;else if(key===78)key=37;
+            if (key===27) {
+                if (dialogMode==="restore-confirm") el("back").onclick(); else if (dialogMode==="restart") leaveInstaller(false); else if (dialogMode==="confirm") openDetails(selected); else if (dialogMode==="details") closeDialog(); else if (dialogMode==="disclaimer") exit(); else return;
+            } else if (key===38 || key===40 || key===37 || key===39) {
+                // Up/down scroll detail text; left/right selects its action buttons.
+                if (dialogMode!=="details" && (key===38 || key===40)) el("dialog-body").scrollTop += key===38 ? -70 : 70;
+                else {
+                    nodes=[];
+                    if(dialogMode==="details") {
+                        (function collect(parent){
+                            for(var n=0;n<parent.children.length;n++){
+                                var child=parent.children[n];
+                                if(child.tagName.toLowerCase()==="button" || child.tabIndex===0)nodes.push(child);
+                                else collect(child);
+                            }
+                        }(el("dialog")));
+                    } else {
+                        nodes=el("dialog").getElementsByTagName("button");
+                    }
+                    for(i=0;i<nodes.length;i++) if(!nodes[i].disabled && nodes[i].className.indexOf("hidden")===-1) buttons.push(nodes[i]);
+                    for(i=0;i<buttons.length;i++) if(buttons[i]===document.activeElement) index=i;
+                    if(buttons.length) {
+                        index=(index+(key===37||key===38?-1:1)+buttons.length)%buttons.length;
+                        buttons[index].focus();
+                        if(dialogMode==="details")revealSection(buttons[index]);
                     }
                 }
-            }
+            } else if (key===13 || key===32) {
+                var currentDialog=document.activeElement;
+                if(currentDialog && !currentDialog.disabled && typeof currentDialog.onclick==="function") currentDialog.onclick(); else return;
+            } else return;
+            if(event.preventDefault)event.preventDefault();event.returnValue=false;
+            return;
+        }
+        if (key===27) {
+            exit();
         } else if (key===13 || key===32) {
-            var current=document.activeElement;
-            if(current && !current.disabled && typeof current.onclick==="function") current.onclick(); else return;
+            var currentMain=document.activeElement;
+            if(currentMain && !currentMain.disabled && typeof currentMain.onclick==="function") currentMain.onclick(); else return;
+        } else if (key===37 || key===38 || key===39 || key===40 || key===77 || key===78) {
+            navigateMain(key);
         } else return;
         if(event.preventDefault)event.preventDefault();event.returnValue=false;
     };
@@ -1105,7 +1348,7 @@
         if((event.keyCode||event.which)===8)controllerBack(event);
     };
     window.addEventListener("message",function (event) {
-        if(event.source!==frame.contentWindow || event.origin!==config.origin)return;
+        if(event.origin!==config.origin)return;
         var data=event.data;if(!data || data.token!==config.token)return;
         if(data.type==="shell-result") {
             var callback=pending[data.id];if(!callback)return;delete pending[data.id];
@@ -1126,6 +1369,7 @@
             updateMetrics();
             window.setInterval(updateMetrics, 5000);
             window.setInterval(checkFocusRequest, 1000);
+            discover();
         });
     },false);
     controls(); frame.src=config.origin+"/#"+config.token;

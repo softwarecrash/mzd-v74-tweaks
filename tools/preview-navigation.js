@@ -4,13 +4,13 @@
     var opened=false;
     function el(id){return document.getElementById(id);}
     function navigate(){
-        if(opened || !(window.previewSettingsDemo || window.previewRecoveryDemo || window.previewBrokenUninstallDemo))return;
+        if(opened || !(window.previewSettingsDemo || window.previewRecoveryDemo || window.previewBrokenUninstallDemo || window.previewMessagesDemo))return;
         var visible=el("overlay").className.indexOf("hidden")===-1;
         if(visible && el("dialog-title").textContent==="MZD Tweaks - Before you begin" && el("action").textContent==="OK") {el("action").click();return;}
         if(!visible && !el("refresh").disabled && el("cards").children.length) {
-            var group=window.previewRecoveryDemo?"Interface":"System",tabs=el("tabs").getElementsByTagName("button");
+            var group=window.previewRecoveryDemo?"Interface":window.previewMessagesDemo?"Interface":"System",tabs=el("tabs").getElementsByTagName("button");
             for(var i=0;i<tabs.length;i++)if(tabs[i].textContent.indexOf(group)===0)tabs[i].click();
-            var id=window.previewRecoveryDemo?(window.previewRecoveryDeniedDemo?"patch-example":"patch-example-two"):(window.previewBrokenUninstallDemo?"ssh":"settings-example");
+            var id=window.previewRecoveryDemo?(window.previewRecoveryDeniedDemo?"patch-example":"patch-example-two"):(window.previewBrokenUninstallDemo?"ssh":window.previewMessagesDemo?"hud-street-name":"settings-example");
             var card=el("tweak-"+id);if(card){opened=true;card.click();}
         }
     }

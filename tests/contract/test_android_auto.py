@@ -265,20 +265,29 @@ esac
     info = call(['settings-info', 'android-auto']).stdout
     assert 'value.resolution_dpi=141' in info and 'value.resolution_par=10670' in info
 
-    # Corrupted user settings: ignored and loads defaults with warning
+    # Partial invalid user settings: invalid key skipped with warning, valid key preserved
     user_dir = usb / 'user/android-auto'
-    write(user_dir / 'settings.conf', 'resolution_dpi=invalid\nresolution_par=invalid\n')
+    write(user_dir / 'settings.conf', 'resolution_dpi=153\nresolution_par=1234\n')
     r = call(['settings-info', 'android-auto'])
-    assert 'value.resolution_dpi=141' in r.stdout and 'value.resolution_par=10670' in r.stdout
-    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
-    # Install when corrupted user settings file is present: should use manifest defaults
+    assert 'value.resolution_dpi=153' in r.stdout and 'value.resolution_par=10670' in r.stdout
+    assert 'warning.1=Invalid default for resolution_par: 1234' in r.stdout
+    assert 'Invalid default for resolution_par: 1234' in r.stderr
+    # Install with partial invalid user settings: preserves valid key and uses default for invalid key
     call(['action', 'android-auto', 'install'])
     saved = store / 'android-auto/package'
     saved_settings = (saved / 'settings.conf').read_text()
-    assert 'resolution_dpi=141\n' in saved_settings and 'resolution_par=10670\n' in saved_settings
-    # Clean up corrupted settings file and uninstall
+    assert 'resolution_dpi=153\n' in saved_settings and 'resolution_par=10670\n' in saved_settings
+    # Clean up settings file and uninstall
     (user_dir / 'settings.conf').unlink()
     call(['action', 'android-auto', 'uninstall'])
+
+    # Corrupted user settings: all invalid keys skipped, loads defaults with warning
+    write(user_dir / 'settings.conf', 'resolution_dpi=invalid\nresolution_par=invalid\n')
+    r = call(['settings-info', 'android-auto'])
+    assert 'value.resolution_dpi=141' in r.stdout and 'value.resolution_par=10670' in r.stdout
+    assert 'Invalid default for resolution_dpi: invalid' in r.stderr
+    assert 'Invalid default for resolution_par: invalid' in r.stderr
+    (user_dir / 'settings.conf').unlink()
 
     # User settings defaults override via USB user/<id>/settings.conf
     write(user_dir / 'settings.conf', '# Custom user defaults\nresolution_dpi=153\nresolution_par=15880\n')

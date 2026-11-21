@@ -142,6 +142,7 @@ function boot(
     "dialog-heading",
     "dialog-dot",
     "dialog-title",
+    "dialog-welcome",
     "dialog-body",
     "dialog-state",
     "dialog-description",
@@ -183,6 +184,7 @@ function boot(
   nodes["detail-loading"].appendChild(nodes["detail-loading-text"]);
   nodes["detail-loading"].className = "hidden";
   nodes.dialog.appendChild(nodes["dialog-body"]);
+  nodes["dialog-body"].appendChild(nodes["dialog-welcome"]);
   for (const id of [
     "dialog-state",
     "dialog-description",
@@ -998,49 +1000,201 @@ test("COMMAND_UI", async (t) => {
 
 test("MULTICONTROLLER", async (t) => {
   await t.test(
-    "rotate and tilt move the focus between the toolbar buttons",
+    "Tabs: left/right move between tabs, activate automatically, and transition to Exit and Refresh",
     () => {
-      // Real CMU controller codes: rotate M/N, tilt arrows, Backspace on release.
       x = boot(undefined, false, false, true);
-      x.nodes.refresh.focus();
-      controller("onkeydown", 77);
-      assert.equal(x.doc.activeElement, x.nodes.exit);
-      controller("onkeydown", 78, true);
-      assert.equal(x.doc.activeElement, x.nodes.refresh);
-      controller("onkeydown", 40);
-      assert.equal(x.doc.activeElement, x.nodes.exit);
-      controller("onkeydown", 38);
-      assert.equal(x.doc.activeElement, x.nodes.refresh);
+      const errorsTab = x.nodes.tabs.children[0];
+      const interfaceTab = x.nodes.tabs.children[1];
+      const toolsTab = x.nodes.tabs.children[2];
+
+      errorsTab.focus();
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Left on first tab moves to Exit");
+
+      errorsTab.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, interfaceTab, "Right moves to next tab");
+      assert.equal(interfaceTab.attributes["aria-selected"], "true", "New tab activated automatically");
+      assert.equal(errorsTab.attributes["aria-selected"], "false");
+
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, toolsTab, "Right moves to last tab");
+      assert.equal(toolsTab.attributes["aria-selected"], "true");
+
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Right on last tab moves to Refresh");
     }
   );
 
-  await t.test("rotate moves between the tabs and press selects one", () => {
-    const interfaceTab = x.nodes.tabs.children.find(
-      (n) => n.textContent.indexOf("Interface") === 0
-    );
-    const toolsTab = x.nodes.tabs.children.find(
-      (n) => n.textContent.indexOf("Tools") === 0
-    );
-    interfaceTab.onclick();
-    assert.equal(x.doc.activeElement, interfaceTab);
-    controller("onkeydown", 77);
-    assert.equal(x.doc.activeElement, toolsTab);
-    controller("onkeydown", 13);
-    assert.equal(x.doc.activeElement, toolsTab);
-    assert.equal(toolsTab.attributes["aria-selected"], "true");
-    assert.equal(interfaceTab.attributes["aria-selected"], "false");
-    controller("onkeydown", 78);
-    assert.equal(x.doc.activeElement, interfaceTab);
-    controller("onkeydown", 13);
-    assert.equal(x.doc.activeElement, interfaceTab);
-    toolsTab.onclick();
-    assert.equal(x.doc.activeElement, toolsTab);
-  });
+  await t.test(
+    "Tabs: up and back move to Exit, down and rotate drop into the list",
+    () => {
+      x = boot(undefined, false, false, true);
+      const interfaceTab = x.nodes.tabs.children[1];
+      interfaceTab.onclick();
 
-  await t.test("rotate moves from the tabs into the list", () => {
-    controller("onkeydown", 77);
-    assert.equal(x.doc.activeElement, x.nodes.cards.children[0]);
-  });
+      interfaceTab.focus();
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Up on tab moves to Exit");
+
+      interfaceTab.focus();
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back on tab moves to Exit");
+
+      interfaceTab.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Down moves to top card");
+
+      interfaceTab.focus();
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Rotate right moves to top card");
+
+      interfaceTab.focus();
+      controller("onkeydown", 78);
+      const lastCard = x.nodes.cards.children[x.nodes.cards.children.length - 1];
+      assert.equal(x.doc.activeElement, lastCard, "Rotate left moves to bottom card");
+    }
+  );
+
+  await t.test(
+    "List: up/down moves between items, loops at bottom, and up from first item activates tab",
+    () => {
+      x = boot(undefined, false, false, true);
+      const interfaceTab = x.nodes.tabs.children[1];
+      interfaceTab.onclick();
+      const firstCard = x.nodes.cards.children[0];
+      const secondCard = x.nodes.cards.children[1];
+      const lastCard = x.nodes.cards.children[x.nodes.cards.children.length - 1];
+
+      firstCard.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, secondCard, "Down moves to next card");
+
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, firstCard, "Up moves to previous card");
+
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, interfaceTab, "Up from first card activates active tab");
+
+      lastCard.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, firstCard, "Down on last card loops to first card");
+
+      lastCard.focus();
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, firstCard, "Rotate right on last card loops to first card");
+
+      firstCard.focus();
+      controller("onkeydown", 78);
+      assert.equal(x.doc.activeElement, lastCard, "Rotate left on first card loops to last card");
+    }
+  );
+
+  await t.test(
+    "List: left/right switches tabs and focuses first card, boundaries go to Exit and Refresh, Back goes to Exit",
+    () => {
+      x = boot(undefined, false, false, true);
+      const errorsTab = x.nodes.tabs.children[0];
+      const interfaceTab = x.nodes.tabs.children[1];
+      const toolsTab = x.nodes.tabs.children[2];
+
+      interfaceTab.onclick();
+      const cardOnInterface = x.nodes.cards.children[0];
+      cardOnInterface.focus();
+
+      controller("onkeydown", 39);
+      assert.equal(toolsTab.attributes["aria-selected"], "true");
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Right from list lands on first card of new tab");
+
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Right from last tab's list goes to Refresh");
+
+      interfaceTab.onclick();
+      x.nodes.cards.children[0].focus();
+      controller("onkeydown", 37);
+      assert.equal(errorsTab.attributes["aria-selected"], "true");
+      assert.equal(x.doc.activeElement, x.nodes.cards.children[0], "Left from list lands on first card of new tab");
+
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Left from first tab's list goes to Exit");
+
+      interfaceTab.onclick();
+      x.nodes.cards.children[0].focus();
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back from list goes to Exit");
+    }
+  );
+
+  await t.test(
+    "Refresh | Exit buttons: navigation, active tab return, no-op keys, and disabled Refresh skipping",
+    () => {
+      x = boot(undefined, false, false, true);
+      const errorsTab = x.nodes.tabs.children[0];
+      const interfaceTab = x.nodes.tabs.children[1];
+      const toolsTab = x.nodes.tabs.children[2];
+      interfaceTab.onclick();
+
+      x.nodes.refresh.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Right from Refresh goes to Exit");
+
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Left from Exit goes to Refresh");
+
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, toolsTab, "Left from Refresh goes to last tab");
+      assert.equal(toolsTab.attributes["aria-selected"], "true");
+
+      x.nodes.exit.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, errorsTab, "Right from Exit goes to first tab");
+      assert.equal(errorsTab.attributes["aria-selected"], "true");
+
+      interfaceTab.onclick();
+      x.nodes.refresh.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, interfaceTab, "Down from Refresh goes to active tab");
+
+      x.nodes.exit.focus();
+      controller("onkeydown", 40);
+      assert.equal(x.doc.activeElement, interfaceTab, "Down from Exit goes to active tab");
+
+      x.nodes.refresh.focus();
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Up on Refresh does nothing");
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Rotate right on Refresh does nothing");
+      controller("onkeydown", 78);
+      assert.equal(x.doc.activeElement, x.nodes.refresh, "Rotate left on Refresh does nothing");
+
+      x.nodes.exit.focus();
+      controller("onkeydown", 38);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Up on Exit does nothing");
+      controller("onkeydown", 77);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Rotate right on Exit does nothing");
+      controller("onkeydown", 78);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Rotate left on Exit does nothing");
+
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back on Exit stays on Exit");
+
+      x.nodes.refresh.focus();
+      controller("onkeydown", 8);
+      controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Back on Refresh moves to Exit");
+
+      x.nodes.refresh.disabled = true;
+      toolsTab.focus();
+      controller("onkeydown", 39);
+      assert.equal(x.doc.activeElement, x.nodes.exit, "Right on last tab skips disabled Refresh to Exit");
+      controller("onkeydown", 37);
+      assert.equal(x.doc.activeElement, toolsTab, "Left on Exit skips disabled Refresh to last tab");
+      x.nodes.refresh.disabled = false;
+    }
+  );
 
   await t.test(
     "in the detail view rotate and tilt move between the buttons",
@@ -1106,12 +1260,14 @@ test("MULTICONTROLLER", async (t) => {
   });
 
   await t.test(
-    "Back on the result offers a restart, then closes the installer",
+    "Back in main view moves to Exit, which offers restart and closes",
     () => {
       x.click("result-ok");
       x.pump();
       controller("onkeydown", 8);
       controller("onkeyup", 8);
+      assert.equal(x.doc.activeElement, x.nodes.exit);
+      controller("onkeydown", 13);
       x.pump();
       assert.equal(x.nodes["dialog-title"].textContent, "Restart recommended");
       controller("onkeyup", 8);
@@ -1149,8 +1305,7 @@ test("MANIFEST_UI", async (t) => {
 });
 
 test("STARTUP_NOTICE", async (t) => {
-  await t.test("shows the notice with OK and Exit before anything runs", () => {
-    // Startup is entirely in the styled UI; no discovery or worker runs before OK.
+  await t.test("shows the notice with OK and Exit while discovery starts in background", () => {
     x = boot(undefined, false, true);
     assert.equal(
       x.nodes["dialog-title"].textContent,
@@ -1160,7 +1315,8 @@ test("STARTUP_NOTICE", async (t) => {
     assert.equal(x.nodes.back.textContent, "Exit");
     assert.equal(x.doc.activeElement, x.nodes.action);
     assert.equal(x.nodes.refresh.disabled, true);
-    assert(!x.calls.some((a) => ["list", "manifest", "action"].includes(a[0])));
+    assert(x.calls.some((a) => a[0] === "manifests"));
+    assert(!x.calls.some((a) => a[0] === "action" && a[2] !== "status"));
   });
 
   await t.test("rotate moves between OK and Exit", () => {
@@ -1170,20 +1326,20 @@ test("STARTUP_NOTICE", async (t) => {
     assert.equal(x.doc.activeElement, x.nodes.action);
   });
 
-  await t.test("OK starts the discovery", () => {
+  await t.test("OK confirms and enters main screen with loaded tweaks", () => {
     controller("onkeydown", 13);
     x.pump();
-    assert.equal(x.calls.filter((a) => a[0] === "list").length, 1);
     assert.equal(x.nodes.back.textContent, "Back");
     assert.equal(x.nodes.refresh.disabled, false);
+    assert.equal(x.nodes["footer-status"].textContent, "");
   });
 
-  await t.test("Exit closes the installer without any discovery", () => {
+  await t.test("Exit closes the installer and stops loading", () => {
     x = boot(undefined, false, true);
     x.click("back");
     x.pump();
     assert(x.calls.some((a) => a[0] === "event" && a[1] === "close"));
-    assert(!x.calls.some((a) => ["list", "manifest", "action"].includes(a[0])));
+    assert(!x.calls.some((a) => a[0] === "action" && a[2] !== "status"));
   });
 
   await t.test("Back closes on release and a late OK starts nothing", () => {
@@ -1193,9 +1349,10 @@ test("STARTUP_NOTICE", async (t) => {
     controller("onkeyup", 8);
     x.pump();
     assert(x.calls.some((a) => a[0] === "event" && a[1] === "close"));
+    let beforeCalls = x.calls.length;
     x.nodes.action.onclick();
     x.pump();
-    assert(!x.calls.some((a) => a[0] === "list"));
+    assert.equal(x.calls.length, beforeCalls);
   });
 
   await t.test("Escape closes the installer", () => {
@@ -1987,6 +2144,33 @@ test("CHOICE_PICKER_UI", async (t) => {
   );
 
   await t.test(
+    "user settings warnings are rendered as message warnings in the settings section",
+    () => {
+      x = boot(null, false, false, false, true);
+      x.savedSettings.schemaText =
+        fs.readFileSync(
+          path.join(ROOT, "../development/examples/settings/manifest.conf"),
+          "utf8"
+        ) + "warning.1=Invalid default for log_limit_mb: 21\n";
+      x.nodes.tabs.children
+        .find((n) => n.textContent.indexOf("System") === 0)
+        .onclick();
+      x.click("tweak-settings-example");
+      x.pump();
+      assert.match(
+        x.nodes["dialog-settings"].textContent,
+        /Note: Invalid default for log_limit_mb: 21/
+      );
+      assert(
+        x.nodes["dialog-settings"].children.some(
+          (n) => n.className && n.className.indexOf("dialog-message-warning") !== -1
+        )
+      );
+      assert(!x.nodes.action.disabled);
+    }
+  );
+
+  await t.test(
     "the saved settings of an installed tweak are shown read-only",
     () => {
       x = boot(null, false, false, false, true);
@@ -2008,6 +2192,14 @@ test("CHOICE_PICKER_UI", async (t) => {
         x.nodes["dialog-settings"].getElementsByTagName("button").length,
         0
       );
+      const rows = x.nodes["dialog-settings"].children.filter(
+        (n) => (n.className || "").indexOf("setting-row") !== -1
+      );
+      assert(rows.length > 0);
+      for (const row of rows) {
+        assert.equal(row.attributes["data-heading"], undefined);
+        assert.equal(row.tabIndex, 0);
+      }
     }
   );
 
@@ -2120,6 +2312,12 @@ test("COMPATIBILITY_UI", async (t) => {
         x.nodes["dialog-description"].textContent,
         /Cannot install: No compatible HUD/
       );
+      const descBlock = x.nodes["dialog-description"].children[0];
+      const blockEl = descBlock.children.find(
+        (c) => c.className && c.className.indexOf("dialog-message-block") !== -1
+      );
+      assert(blockEl, "Expected a dialog-message-block element");
+      assert.match(blockEl.textContent, /Cannot install: No compatible HUD/);
     }
   );
 
@@ -2135,6 +2333,12 @@ test("COMPATIBILITY_UI", async (t) => {
       x.nodes["dialog-description"].textContent,
       /Note: No extra function/
     );
+    const descWarn = x.nodes["dialog-description"].children[0];
+    const warnEl = descWarn.children.find(
+      (c) => c.className && c.className.indexOf("dialog-message-warning") !== -1
+    );
+    assert(warnEl, "Expected a dialog-message-warning element");
+    assert.match(warnEl.textContent, /Note: No extra function/);
   });
 
   await t.test("an info message keeps Install available", () => {
@@ -2147,6 +2351,12 @@ test("COMPATIBILITY_UI", async (t) => {
       x.nodes["dialog-description"].textContent,
       /Info: Supported HUD detected/
     );
+    const descInfo = x.nodes["dialog-description"].children[0];
+    const infoEl = descInfo.children.find(
+      (c) => c.className && c.className.indexOf("dialog-message-info") !== -1
+    );
+    assert(infoEl, "Expected a dialog-message-info element");
+    assert.match(infoEl.textContent, /Info: Supported HUD detected/);
   });
 
   await t.test("an info message and a warning are shown together", () => {
@@ -2164,6 +2374,17 @@ test("COMPATIBILITY_UI", async (t) => {
     assert.match(
       x.nodes["dialog-description"].textContent,
       /Note: Limited functionality in this region/
+    );
+    const descBoth = x.nodes["dialog-description"].children[0];
+    assert(
+      descBoth.children.some(
+        (c) => c.className && c.className.indexOf("dialog-message-info") !== -1
+      )
+    );
+    assert(
+      descBoth.children.some(
+        (c) => c.className && c.className.indexOf("dialog-message-warning") !== -1
+      )
     );
   });
 
