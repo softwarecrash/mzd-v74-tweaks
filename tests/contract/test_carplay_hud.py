@@ -117,7 +117,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-hud-') as temporary:
         carplay_block=text.split('<service name="jciCARPLAY"')[1].split('</service>')[0]
         assert 'libpatch-blmjcicarplay.so' in carplay_block
         assert 'reset_board="no"' in text
-        assert '<!-- mzd-reset-board:yes -->' in text
+        assert '<!-- mzd-attr-reset_board:yes -->' in text
         assert 'env_name="LD_LIBRARY_PATH" env_value="/jci/lib:/usr/lib"' in carplay_block
         assert 'libpatch-blmjcicarplay.so' not in text.split('<service name="jciMMUI"')[1].split('</service>')[0]
     assert '<config><name>NaviSupported</name><value>TRUE</value></config>' in devmgr.read_text()
@@ -173,31 +173,31 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-hud-') as temporary:
     assert 'other.so' in added_text and 'libpatch-blmjcicarplay.so' in added_text
     assert '/tmp/other/lib' in added_text and '/usr/lib' in added_text
     assert 'reset_board="no"' in added_text
-    assert '<!-- mzd-reset-board:yes -->' in added_text
+    assert '<!-- mzd-attr-reset_board:yes -->' in added_text
 
-    # Test no_reset reference tracking: when another package requires no_reset on jciCARPLAY,
+    # Test loader_attr reset_board reference tracking: when another package requires reset_board=no on jciCARPLAY,
     # uninstallation keeps reset_board="no" and preserves the comment.
     other_pkg = store/'other-pkg/package/tweaks/other-pkg'
-    other_tsv = 'loader\t/jci/sm/sm.conf\t-\t-\t74d9fc389b74fb01d0cfc2615a82c782\nshim\t/tmp/mnt/data_persist/mzd-tweaks/shims/other-pkg/other.so\tassets/other.so\tjciCARPLAY\tno_reset\n'
+    other_tsv = 'loader\t/jci/sm/sm.conf\t-\t-\t74d9fc389b74fb01d0cfc2615a82c782\nloader_attr\treset_board=no\t-\tjciCARPLAY\tset\nshim\t/tmp/mnt/data_persist/mzd-tweaks/shims/other-pkg/other.so\tassets/other.so\tjciCARPLAY\t-\n'
     write(other_pkg/'components.tsv', other_tsv)
     r=subprocess.run([SHELL,bp(runner),'uninstall',bp(added_file),bp(inverse_file),bp(tab_file),bp(target_file)],capture_output=True,text=True)
     assert r.returncode==0, (r.stdout,r.stderr)
     kept_text = inverse_file.read_text()
     assert 'libpatch-blmjcicarplay.so' not in kept_text
     assert 'reset_board="no"' in kept_text
-    assert '<!-- mzd-reset-board:yes -->' in kept_text
+    assert '<!-- mzd-attr-reset_board:yes -->' in kept_text
     checks+=1
 
-    # When another package requires no_reset on a DIFFERENT service (jciMMUI),
+    # When another package requires reset_board=no on a DIFFERENT service (jciMMUI),
     # uninstallation restores reset_board="yes" on jciCARPLAY.
-    other_diff_tsv = 'loader\t/jci/sm/sm.conf\t-\t-\t74d9fc389b74fb01d0cfc2615a82c782\nshim\t/tmp/mnt/data_persist/mzd-tweaks/shims/other-pkg/other.so\tassets/other.so\tjciMMUI\tno_reset\n'
+    other_diff_tsv = 'loader\t/jci/sm/sm.conf\t-\t-\t74d9fc389b74fb01d0cfc2615a82c782\nloader_attr\treset_board=no\t-\tjciMMUI\tset\nshim\t/tmp/mnt/data_persist/mzd-tweaks/shims/other-pkg/other.so\tassets/other.so\tjciMMUI\t-\n'
     write(other_pkg/'components.tsv', other_diff_tsv)
     r=subprocess.run([SHELL,bp(runner),'uninstall',bp(added_file),bp(inverse_file),bp(tab_file),bp(target_file)],capture_output=True,text=True)
     assert r.returncode==0, (r.stdout,r.stderr)
     assert inverse_file.read_text()==shared_stock, (inverse_file.read_text(), shared_stock)
     checks+=1
 
-    # When another package has a shim on the same service WITHOUT no_reset,
+    # When another package has a shim on the same service WITHOUT reset_board loader_attr,
     # uninstallation restores reset_board="yes".
     other_noopt_tsv = 'loader\t/jci/sm/sm.conf\t-\t-\t74d9fc389b74fb01d0cfc2615a82c782\nshim\t/tmp/mnt/data_persist/mzd-tweaks/shims/other-pkg/other.so\tassets/other.so\tjciCARPLAY\t-\n'
     write(other_pkg/'components.tsv', other_noopt_tsv)
@@ -206,7 +206,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-hud-') as temporary:
     assert inverse_file.read_text()==shared_stock, (inverse_file.read_text(), shared_stock)
     checks+=1
 
-    # When another package has flat components.tsv with no_reset on jciCARPLAY,
+    # When another package has flat components.tsv with reset_board=no on jciCARPLAY,
     # reference tracking preserves reset_board="no".
     shutil.rmtree(store/'other-pkg')
     write(store/'other-pkg/components.tsv', other_tsv)
@@ -214,7 +214,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-hud-') as temporary:
     assert r.returncode==0, (r.stdout,r.stderr)
     kept_text = inverse_file.read_text()
     assert 'reset_board="no"' in kept_text
-    assert '<!-- mzd-reset-board:yes -->' in kept_text
+    assert '<!-- mzd-attr-reset_board:yes -->' in kept_text
     checks+=1
 
     # When the other package is removed from MZD_PACKAGE_STORE, uninstallation restores reset_board="yes".
