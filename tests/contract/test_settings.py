@@ -125,6 +125,12 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     write(lc_manifest, lc_manifest.read_text().replace('target=/data/log/syslog-ng.conf', 'target=' + bp(mock_syslog)))
     r = call(['settings-info', 'logs-collector'])
     assert 'value.log_rotation_size=5120' in r.stdout
+    write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 1024" flags(no-multi-line) template(t_default)); };\n')
+    r = call(['settings-info', 'logs-collector'])
+    assert 'value.log_rotation_size=1024' in r.stdout
+    write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 1000" flags(no-multi-line) template(t_default)); };\n')
+    r = call(['settings-info', 'logs-collector'])
+    assert 'value.log_rotation_size=512' in r.stdout
     write(mock_syslog, 'destination d_ram_log { program("/jci/tools/process-log  /var/log/running_log/ 512" flags(no-multi-line) template(t_default)); };\n')
     r = call(['settings-info', 'logs-collector'])
     assert 'value.log_rotation_size=512' in r.stdout

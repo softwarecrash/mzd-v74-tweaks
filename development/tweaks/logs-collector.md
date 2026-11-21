@@ -5,7 +5,7 @@ System command for firmware 74.00.324. Select **Run** in the launcher, or invoke
 ## How It Works
 
 - **Export running logs**: When the selected rotation size matches the active setting in `/data/log/syslog-ng.conf`, **Run** copies regular files from `/var/log/running_log` into `logs/` on the originating USB, retaining relative paths. Progress shows copied files / total files and elapsed time. Logs remain live: if a file disappears during copying, the export fails visibly and retains its incomplete output.
-- **Adjust log rotation size**: When the selected rotation size differs from `/data/log/syslog-ng.conf`, **Run** adjusts the rotation limit in `/data/log/syslog-ng.conf`, creates an OEM backup at `/data/log/syslog-ng.conf.org`, and signals the installer to recommend a reboot on exit (`MZD_REBOOT_REQUIRED`). Restoring the stock setting (`512`) checks MD5 against the OEM checksum (`62b15df0e73fd732774e9c5968041899`) and removes `.org` upon verification.
+- **Adjust log rotation size**: When the selected rotation size differs from `/data/log/syslog-ng.conf`, **Run** adjusts the rotation limit in `/data/log/syslog-ng.conf` to a supported preset (`512`, `1024`, or `5120` KiB), creates an OEM backup at `/data/log/syslog-ng.conf.org` if the file matches the factory OEM checksum (`62b15df0e73fd732774e9c5968041899`), and signals the installer to recommend a reboot on exit (`MZD_REBOOT_REQUIRED`). Restoring the stock setting (`512`) checks MD5 against the OEM checksum and removes `.org` upon verification. If an unrecognized rotation size (e.g. `1000`) or non-OEM content is present, **Run** warns the user while still allowing the rotation size to be updated.
 
 ## Output
 

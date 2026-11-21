@@ -7,7 +7,7 @@ ROOT=$(CDPATH= cd "$HERE/../.." && pwd) || exit 1
 
 case "${1:-}" in
     ''|-h|--help)
-        printf 'Usage: sh run.sh <run|status|settings> [log_rotation_size=512|5120]\n'
+        printf 'Usage: sh run.sh <run|status|settings> [log_rotation_size=512|1024|5120]\n'
         printf 'Actions:\n'
         printf '  run       Copy running logs to USB, or update rotation size if setting changed\n'
         printf '  status    Check export readiness\n'
@@ -28,11 +28,15 @@ EXPORT_SOURCE=${LOG_ROTATION_PATH%/}
 EXPORT_TOOLS='wc sed mktemp'
 EXPORT_OWN_FILES='source-files.txt'
 
-logs_collector_read_size() {
+logs_collector_raw_size() {
     [ -f "$CONF" ] && [ -r "$CONF" ] || return 1
-    kib=$(sed -n "s|.*${LOG_ROTATION_PATH} *\([0-9]*\)[\" ].*|\1|p" "$CONF" 2>/dev/null | sed -n '1p')
+    sed -n "s|.*${LOG_ROTATION_PATH} *\([0-9]*\)[\" ].*|\1|p" "$CONF" 2>/dev/null | sed -n '1p'
+}
+
+logs_collector_read_size() {
+    kib=$(logs_collector_raw_size) || return 1
     case "$kib" in
-        512|5120) printf '%s\n' "$kib" ;;
+        512|1024|5120) printf '%s\n' "$kib" ;;
         *) return 1 ;;
     esac
 }
@@ -95,23 +99,54 @@ mzd_settings_check "$HERE/manifest.conf" "$MZD_SETTINGS_FILE" || exit 1
 WANT_KIB=$(mzd_setting log_rotation_size) || exit 1
 case "$WANT_KIB" in
     512) LABEL="Stock 512 KB" ;;
+    1024) LABEL="Medium 1 MB" ;;
     5120) LABEL="Enlarged 5 MB" ;;
     *) printf 'Invalid log rotation size: %s\n' "$WANT_KIB" >&2; exit 1 ;;
 esac
 
-CURRENT_KIB=$(logs_collector_read_size 2>/dev/null || :)
+RAW_KIB=$(logs_collector_raw_size 2>/dev/null || :)
 
-if [ "$WANT_KIB" != "$CURRENT_KIB" ] && { [ -n "$CURRENT_KIB" ] || [ "$WANT_KIB" != 512 ]; }; then
+if [ "$WANT_KIB" != "$RAW_KIB" ] && { [ -n "$RAW_KIB" ] || [ "$WANT_KIB" != 512 ]; }; then
     [ -f "$CONF" ] || { printf 'error: configuration file not found: %s\n' "$CONF" >&2; exit 1; }
     grep -Fq "$LOG_ROTATION_PATH" "$CONF" || {
         printf 'error: running_log rotation entry not found in %s\n' "$CONF" >&2
         exit 1
     }
-    if [ ! -e "$CONF.org" ]; then
-        cp -p "$CONF" "$CONF.org" || {
-            printf 'error: failed to back up %s to %s.org\n' "$CONF" "$CONF" >&2
-            exit 1
-        }
+    warn_msg=''
+    case "$RAW_KIB" in
+        512|1024|5120) ;;
+        *)
+            warn_msg="Warning: current log rotation size (${RAW_KIB} KiB) in ${CONF} is not a recognized preset."
+            ;;
+    esac
+    if [ "$WANT_KIB" != 512 ]; then
+        if [ -e "$CONF.org" ] || [ -L "$CONF.org" ]; then
+            conf_org_md5=$(md5sum "$CONF.org" 2>/dev/null | awk '{print $1}')
+            if [ "$conf_org_md5" != "$OEM_MD5" ]; then
+                printf 'error: OEM backup is invalid: %s.org (expected MD5 %s)\n' "$CONF" "$OEM_MD5" >&2
+                exit 1
+            fi
+        else
+            conf_md5=$(md5sum "$CONF" 2>/dev/null | awk '{print $1}')
+            if [ "$conf_md5" = "$OEM_MD5" ]; then
+                cp -p "$CONF" "$CONF.org" || {
+                    printf 'error: failed to back up %s to %s.org\n' "$CONF" "$CONF" >&2
+                    exit 1
+                }
+            else
+                backup_warn="Warning: %s does not match OEM checksum; OEM backup (.org) was not created."
+                warn_msg="${warn_msg:+${warn_msg}
+}$(printf "$backup_warn" "$CONF")"
+            fi
+        fi
+    else
+        if [ -e "$CONF.org" ] || [ -L "$CONF.org" ]; then
+            conf_org_md5=$(md5sum "$CONF.org" 2>/dev/null | awk '{print $1}')
+            if [ "$conf_org_md5" != "$OEM_MD5" ]; then
+                printf 'error: OEM backup is invalid: %s.org (expected MD5 %s)\n' "$CONF" "$OEM_MD5" >&2
+                exit 1
+            fi
+        fi
     fi
     if ! sed -i "s|\(${LOG_ROTATION_PATH} \)[0-9]*\"|\1$WANT_KIB\"|" "$CONF" ||
        ! grep -Fq "${LOG_ROTATION_PATH} ${WANT_KIB}\"" "$CONF"; then
@@ -126,6 +161,7 @@ if [ "$WANT_KIB" != "$CURRENT_KIB" ] && { [ -n "$CURRENT_KIB" ] || [ "$WANT_KIB"
     fi
     sync
     printf 'MZD_REBOOT_REQUIRED\n'
+    [ -z "$warn_msg" ] || printf '%s\n' "$warn_msg"
     printf 'Running logs rotation size set to %s (%s KiB).\nReboot the CMU for changes to take effect.\n' "$LABEL" "$WANT_KIB"
     exit 0
 fi
