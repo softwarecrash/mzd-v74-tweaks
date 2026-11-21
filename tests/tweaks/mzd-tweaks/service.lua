@@ -79,6 +79,7 @@ local DEFAULTS = {
     list_beep = true,
     short_delay = false,
     statusbar_date = false,
+    skip_usb_reconnect = false,
     audio_order_custom = false
 }
 local DEFAULT_AUDIO_ORDER = {}
@@ -88,8 +89,9 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, skip)
     custom = custom or 'false'
+    skip = skip or 'false'
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
@@ -97,6 +99,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date)
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
         '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
+        '    "skip_usb_reconnect": ' .. skip .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
         '    "audio_order": {'
     }
@@ -124,13 +127,14 @@ do
     for i, k in ipairs(AUDIO_KEYS) do
         custom_audio[k] = #AUDIO_KEYS - i
     end
-    local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio)
+    local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio, nil, 'true')
     local expected = {
         main_menu_loop = true,
         list_loop = false,
         list_beep = false,
         short_delay = true,
         statusbar_date = false,
+        skip_usb_reconnect = true,
         audio_order_custom = true,
         audio_order = custom_audio
     }
@@ -138,6 +142,22 @@ do
         expected['audio_order.' .. k] = custom_audio[k]
     end
     same(service(fake_files(custom_js)).request('get').settings, expected, 'parsed')
+end
+
+-- A settings.js saved before skip_usb_reconnect existed keeps its values; the new key is off.
+do
+    local old_js = js('true', 'true', 'false', 'true'):gsub('    "skip_usb_reconnect": false,\n', '')
+    assert(not old_js:find('skip_usb_reconnect'), 'old format has no skip_usb_reconnect line')
+    local fs = fake_files(old_js)
+    local settings = service(fs).request('get').settings
+    assert(settings.skip_usb_reconnect == false, 'missing skip_usb_reconnect reads as false')
+    assert(settings.main_menu_loop == true and settings.list_loop == true and settings.short_delay == true, 'old values kept')
+    assert(fs.content == old_js, 'a valid old file is not rewritten by get')
+    local res = service(fs).request('set', { key = 'skip_usb_reconnect', value = true })
+    assert(res.settings.skip_usb_reconnect == true and res.settings.main_menu_loop == true, 'set keeps the other values')
+    assert(fs.content == js('true', 'true', 'false', 'true', 'false', nil, nil, 'true'), 'skip_usb_reconnect written')
+    local ok, err = pcall(service(fs).request, 'set', { key = 'skip_usb_reconnect', value = 1 })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'non-boolean skip_usb_reconnect refused')
 end
 
 -- Corrupt settings file auto-heals to defaults and writes valid defaults back to file
@@ -258,4 +278,4 @@ do
     assert(fs.temp == nil, 'the temp file is removed')
 end
 
-print('MZD_TWEAKS_SERVICE_PASSED: defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')
+print('MZD_TWEAKS_SERVICE_PASSED: defaults, parsing, old settings.js without skip_usb_reconnect, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')

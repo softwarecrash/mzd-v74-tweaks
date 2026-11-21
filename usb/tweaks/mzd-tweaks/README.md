@@ -8,6 +8,7 @@ Features included:
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **Shorter Delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
 - **Date in status bar**: Show the short date (for example `Wed 18`) below a smaller clock. The weekday follows the head unit language (English for unsupported languages). Off keeps the factory clock, which Android Auto and CarPlay always keep.
+- **Skip USB reconnect message**: At startup, skip the factory "Reconnecting USB device" message and its failure message for Android Auto and USB audio and show the home screen instead. Off by default; other audio sources keep the factory message.
 - **Entertainment menu order**: Customize the display order of audio sources in the factory Entertainment menu.
 
 ## Configuration
