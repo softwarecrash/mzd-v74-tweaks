@@ -24,7 +24,7 @@ button:focus{outline:3px solid #fff;outline-offset:-4px}button:active{background
 .dot.installed{background:#56bc6c;border-color:#86da98}.dot.uninstalled{background:#777b84;border-color:#a5a7ae}.dot.error{background:#e33b52;border-color:#ff8090}.dot.checking{background:#24262c;border-color:#9b9da4}
 #empty{padding:30px 10px;color:#b8bac2;font-size:22px}
 #footer{position:absolute;left:0;right:0;bottom:0;height:39px;border-top:1px solid #393b42;background:#131418;font-size:12px}
-#footer-status{position:absolute;left:24px;right:100px;top:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#footer-status{position:absolute;left:24px;right:330px;top:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 #overlay{position:absolute;left:0;top:0;width:800px;height:480px;background:rgba(0,0,0,.82);z-index:100}
 #dialog{position:absolute;left:38px;top:27px;width:720px;height:424px;background:#1b1c21;border:1px solid #6c6e75;border-top:4px solid #c7213d}
@@ -74,7 +74,7 @@ button:focus{outline:3px solid #fff;outline-offset:-4px}button:active{background
 .setting-value{display:inline-block;min-width:95px;text-align:center;font-size:19px}
 .setting-toggle{min-width:90px!important}.setting-toggle.on{border-color:#df2d4b;background:#6b1a2c}
 
-#installer-version{position:absolute;right:24px;top:12px;color:#9699a2;font-size:12px;white-space:nowrap}
+#installer-version{position:absolute;right:24px;top:12px;color:#9699a2;font-size:12px;white-space:pre}
 
 /* Focusable detail sections use the same navigation model as the tweak list. */
 #dialog-body.section-list{overflow:hidden;padding-right:0}
