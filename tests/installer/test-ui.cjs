@@ -142,6 +142,7 @@ function boot(
     "dialog-heading",
     "dialog-dot",
     "dialog-title",
+    "dialog-welcome",
     "dialog-body",
     "dialog-state",
     "dialog-description",
@@ -183,6 +184,7 @@ function boot(
   nodes["detail-loading"].appendChild(nodes["detail-loading-text"]);
   nodes["detail-loading"].className = "hidden";
   nodes.dialog.appendChild(nodes["dialog-body"]);
+  nodes["dialog-body"].appendChild(nodes["dialog-welcome"]);
   for (const id of [
     "dialog-state",
     "dialog-description",

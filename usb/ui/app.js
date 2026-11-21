@@ -92,6 +92,8 @@
         actions.style.display="none";
         actions.offsetHeight;
         dialogMode=mode;
+        el("dialog").className=mode==="disclaimer"?"welcome-dialog":"";
+        var welcome=el("dialog-welcome");if(welcome)show("dialog-welcome",mode==="disclaimer");
         el("dialog-heading").className=mode==="details"?"detail-heading":"";
         if (mode!=="details") {el("dialog-meta").tabIndex=-1;show("restore-action",false);show("uninstall-action",false);show("update-action",false);clear(el("dialog-settings"));clear(el("dialog-contributors"));}
         actions.style.display=previousDisplay||"";

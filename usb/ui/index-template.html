@@ -12,10 +12,17 @@
 <div id="overlay" class="hidden">
   <div id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
     <div id="dialog-heading"><i id="dialog-dot" class="dot"></i><span id="dialog-title"></span></div>
-    <div id="dialog-body"><div id="dialog-layout">
-      <div id="dialog-status-row"><div id="dialog-state"></div></div>
-      <div id="dialog-info-row"><div id="dialog-info"><div id="dialog-description"></div><div id="dialog-settings"></div><div id="dialog-contributors"></div><div id="dialog-meta"></div><pre id="dialog-output"></pre></div></div>
-    </div></div>
+    <div id="dialog-body">
+      <div id="dialog-welcome" class="hidden">
+        <div id="welcome-wordmark">MZD <span>Tweaks</span></div>
+        <div id="welcome-subtitle">PERSONALIZE YOUR DRIVE</div>
+        <div id="welcome-line"></div>
+      </div>
+      <div id="dialog-layout">
+        <div id="dialog-status-row"><div id="dialog-state"></div></div>
+        <div id="dialog-info-row"><div id="dialog-info"><div id="dialog-description"></div><div id="dialog-settings"></div><div id="dialog-contributors"></div><div id="dialog-meta"></div><pre id="dialog-output"></pre></div></div>
+      </div>
+    </div>
     <div id="dialog-actions"><button id="back">Back</button><button id="uninstall-action" class="hidden">Uninstall</button><button id="update-action" class="primary hidden">Update</button><button id="restore-action" class="hidden">Restore original</button><button id="action" class="primary">Install</button><button id="result-ok" class="primary hidden">OK</button></div>
     <div id="detail-loading" class="hidden" role="status" aria-live="polite" tabindex="-1"><span id="detail-loading-text">Reading tweak information...</span></div>
   </div>
