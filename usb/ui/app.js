@@ -410,7 +410,7 @@
                 var b=document.createElement("button");b.id="setting-"+d.key+"-"+suffix;b.textContent=title;b.setAttribute("aria-label",d.label+": "+title);b.onclick=handler;controls.appendChild(b);return b;
             }
             function save(v) {item.settingValues[d.key]=v;item.settingDraft[d.key]=v;}
-            if(readOnly){row.tabIndex=0;section(row,"INSTALLED SETTING");value.textContent=settingDisplay(d,item.settingValues[d.key])+(d.unit?" "+d.unit:"");controls.appendChild(value);return;}
+            if(readOnly){row.tabIndex=0;row.onfocus=function(){revealSection(row);};value.textContent=settingDisplay(d,item.settingValues[d.key])+(d.unit?" "+d.unit:"");controls.appendChild(value);return;}
             if(d.type==="number") {
                 var minus=button("minus","-",function(){save(String(Number(item.settingValues[d.key])-Number(d.step)));update();});
                 value.className="setting-value";controls.appendChild(value);

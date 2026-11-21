@@ -2008,6 +2008,14 @@ test("CHOICE_PICKER_UI", async (t) => {
         x.nodes["dialog-settings"].getElementsByTagName("button").length,
         0
       );
+      const rows = x.nodes["dialog-settings"].children.filter(
+        (n) => (n.className || "").indexOf("setting-row") !== -1
+      );
+      assert(rows.length > 0);
+      for (const row of rows) {
+        assert.equal(row.attributes["data-heading"], undefined);
+        assert.equal(row.tabIndex, 0);
+      }
     }
   );
 
