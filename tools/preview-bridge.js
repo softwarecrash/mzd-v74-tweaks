@@ -1,17 +1,41 @@
 /* Developer-only offline bridge. Never loaded by the USB installer. */
 (function () {
     "use strict";
-    var frame = document.getElementById("transport"), manifests = window.previewManifests;
-    var states = {"patch-example":"installed", "hud-street-name":"unavailable", "fuel-consumption-values":"broken"};
+    var frame = document.getElementById("transport"), manifests = window.previewManifests || {};
+    var states = {"patch-example":"installed", "hud-street-name":"uninstalled", "fuel-consumption-values":"broken", "android-auto":"uninstalled", "carplay-hud":"uninstalled", "bundle-example":"uninstalled"};
     if (window.previewBrokenUninstallDemo) states.ssh = "broken";
     if (window.previewRecoveryDemo) states["patch-example-two"] = "broken";
     if (window.previewRecoveryDeniedDemo) states["patch-example"] = "unavailable";
     var jobs = {}, nextJob = 0, sample = 0;
     var oldModification = true, recoveryHash = "0123456789abcdef0123456789abcdef";
+
+    var mockWindow = {
+        postMessage: function (message) {
+            if (!message || message.type !== "shell-exec") return;
+            var args = message.args.slice(1);
+            var delay = (args[0] === "action" && args[2] !== "status") || args[0] === "restore-original" ? 1000 : 60;
+            if (window.previewRecoveryDemo && args[0] === "action" && args[1] === "patch-example-two" && args[2] === "install" && oldModification) delay = 60;
+            window.setTimeout(function () {
+                reply({type:"shell-result", token:"preview", id:message.id, result:process(args)});
+            }, delay);
+        }
+    };
+
+    var fakeTransport = {
+        id: "transport",
+        src: "",
+        contentWindow: mockWindow
+    };
+
+    // Override getElementById for transport so browsers don't navigate the iframe or block cross-origin
+    var origGetElementById = document.getElementById.bind(document);
+    document.getElementById = function (id) {
+        if (id === "transport") return fakeTransport;
+        return origGetElementById(id);
+    };
+
     function reply(data) {
-        window.dispatchEvent(new MessageEvent("message", {
-            source:frame.contentWindow, origin:"preview", data:data
-        }));
+        window.dispatchEvent(new MessageEvent("message", {origin: "preview", data: data}));
     }
     function ok(stdout, code, stderr) {
         return {started:true, exitCode:code || 0, signal:null, stdout:stdout || "", stderr:stderr || "",
@@ -45,8 +69,11 @@
         // Demonstrate an old unmanaged JS patch without touching vehicle files.
         if (args[0] === "restore-check" && window.previewRecoveryDeniedDemo && id === "patch-example")
             return ok("",1,"Restore: The .org backup has an unexpected MD5.\nExpected MD5: e111883b9dcbeb6bb154521826fcacac\nActual MD5: bb290d22840f82b1be14400ddb41f1b0");
-        if (args[0] === "restore-check") return id === "patch-example-two" && oldModification ?
-            ok("available\t"+recoveryHash+"\t/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js\n") : ok("",1,"No verified original backup is available.");
+        if (args[0] === "restore-check") {
+            if (id === "patch-example-two" && oldModification)
+                return ok("available\t"+recoveryHash+"\t/jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js\n");
+            return ok("original\n");
+        }
         if (args[0] === "restore-original") {
             if (id !== "patch-example-two" || !oldModification || args[2] !== recoveryHash) return ok("",1,"The file changed; inspect it again.");
             oldModification = false; states[id] = "uninstalled";
@@ -55,7 +82,19 @@
         if (args[0] === "package-info") return ok(states[id] === "installed" ? "0.7.0\tinstalled\n" : "");
         if (args[0] === "uninstall-check") return (id === "fuel-consumption-values" || (id === "ssh" && window.previewBrokenUninstallDemo)) && states[id] === "broken" ?
             ok("available\t"+(id === "ssh" ? "0.8.3" : "0.8.1")+"\tfailed\n") : ok("",1,"No verified saved uninstaller is available.");
-        if (args[0] === "preflight-info") return ok("");
+        if (args[0] === "preflight-info") {
+            // Demonstrate mixed info and error (blocking) messages together on one screen:
+            if (id === "hud-street-name" || id === "bundle-example") {
+                return ok("info\tDetected compatible color Windshield HUD.\nblock\tHardware calibration error (re-aiming required).\n", 1);
+            }
+            if (id === "android-auto") {
+                return ok("warning\tDetected Combiner HUD (monochrome). Displaying street names will not work.\n");
+            }
+            if (id === "carplay-hud") {
+                return ok("block\tDetected unsupported Combiner HUD (monochrome).\n", 1);
+            }
+            return ok("");
+        }
         if (args[0] === "settings-info") {
             var rows=(manifests[id]||"").split("\n"),schema=[],values=[];
             for(var n=0;n<rows.length;n++) {
@@ -97,17 +136,11 @@
         if (args[0] === "job-output") return ok(action === "stdout" ? (jobs[id].tweak==="settings-example"?"PREVIEW ONLY: Selected values\n"+jobs[id].values.join("\n"):"PREVIEW ONLY: Export completed. Nothing was written to USB.") : "");
         return ok("",1,"Unsupported preview request.");
     }
-    // Keep the real app unchanged. Replace only this preview iframe's transport.
-    frame.contentWindow.postMessage = function (message) {
-        if (message.type !== "shell-exec") return;
-        var args = message.args.slice(1);
-        var delay = (args[0] === "action" && args[2] !== "status") || args[0] === "restore-original" ? 8000 : 120;
-        if (window.previewRecoveryDemo && args[0] === "action" && args[1] === "patch-example-two" && args[2] === "install" && oldModification) delay = 120;
-        window.setTimeout(function () {
-            reply({type:"shell-result", token:"preview", id:message.id, result:process(args)});
-        },delay);
-    };
-    Object.defineProperty(frame,"src",{set:function () {
-        window.setTimeout(function () {reply({type:"shell-ready",token:"preview"});},0);
-    }});
+
+    function sendReady() {
+        reply({type:"shell-ready", token:"preview"});
+    }
+    window.setTimeout(sendReady, 10);
+    window.setTimeout(sendReady, 100);
+    window.setTimeout(sendReady, 500);
 }());
