@@ -1990,6 +1990,33 @@ test("CHOICE_PICKER_UI", async (t) => {
   );
 
   await t.test(
+    "user settings warnings are rendered as message warnings in the settings section",
+    () => {
+      x = boot(null, false, false, false, true);
+      x.savedSettings.schemaText =
+        fs.readFileSync(
+          path.join(ROOT, "../development/examples/settings/manifest.conf"),
+          "utf8"
+        ) + "warning.1=Invalid default for log_limit_mb: 21\n";
+      x.nodes.tabs.children
+        .find((n) => n.textContent.indexOf("System") === 0)
+        .onclick();
+      x.click("tweak-settings-example");
+      x.pump();
+      assert.match(
+        x.nodes["dialog-settings"].textContent,
+        /Note: Invalid default for log_limit_mb: 21/
+      );
+      assert(
+        x.nodes["dialog-settings"].children.some(
+          (n) => n.className && n.className.indexOf("dialog-message-warning") !== -1
+        )
+      );
+      assert(!x.nodes.action.disabled);
+    }
+  );
+
+  await t.test(
     "the saved settings of an installed tweak are shown read-only",
     () => {
       x = boot(null, false, false, false, true);

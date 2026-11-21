@@ -81,17 +81,21 @@ with tempfile.TemporaryDirectory(prefix='cmu-settings-') as temporary:
     write(user_conf, 'log_limit_mb=35\n')
     info = call(['settings-info', 'settings-example']).stdout
     assert 'value.log_limit_mb=35' in info and 'value.compress=true' in info and 'value.profile=stock' in info
-    # Invalid user defaults are ignored with a warning, falling back to manifest defaults
-    write(user_conf, 'log_limit_mb=21\n')
+    # Invalid user defaults: invalid key skipped with warning, valid keys preserved
+    write(user_conf, 'log_limit_mb=21\ncompress=false\n')
     r = call(['settings-info', 'settings-example'], 0)
     assert 'value.log_limit_mb=20' in r.stdout
-    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
+    assert 'value.compress=false' in r.stdout
+    assert 'warning.1=Invalid default for log_limit_mb: 21' in r.stdout
+    assert 'Invalid default for log_limit_mb: 21' in r.stderr
     out = call(['action', 'settings-example', 'run']).stdout
-    assert '20 MB' in out and 'true' in out and 'stock' in out
-    write(user_conf, 'unknown_key=foo\n')
+    assert '20 MB' in out and 'false' in out and 'stock' in out
+    write(user_conf, 'unknown_key=foo\nprofile=large\n')
     r = call(['settings-info', 'settings-example'], 0)
     assert 'value.log_limit_mb=20' in r.stdout
-    assert 'does not match manifest; ignoring and using manifest defaults' in r.stderr
+    assert 'value.profile=large' in r.stdout
+    assert 'warning.1=Unknown default: unknown_key' in r.stdout
+    assert 'Unknown default: unknown_key' in r.stderr
     # Size limit on settings.conf (exceeding 64 KB is rejected)
     write(user_conf, 'log_limit_mb=30\n' + ('# padding comment line\n' * 3000))
     assert user_conf.stat().st_size > 65536

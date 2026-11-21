@@ -102,7 +102,7 @@
             return ok("");
         }
         if (args[0] === "settings-info") {
-            var rows=(manifests[id]||"").split("\n"),schema=[],values=[];
+            var rows=(manifests[id]||"").split("\n"),schema=[],values=[],warnings=[];
             for(var n=0;n<rows.length;n++) {
                 var line=rows[n].replace(/\r$/,"");
                 if(line.indexOf("settings=")===0 || line.indexOf("setting.")===0)schema.push(line);
@@ -110,7 +110,10 @@
                 if(def)values.push("value."+def[1]+"="+def[2]);
             }
             if(!schema.length)schema.push("settings=");
-            return ok("settings_saved="+(states[id]==="installed"?"true":"false")+"\n"+schema.join("\n")+"\n"+values.join("\n")+"\n");
+            if(id === "settings-example" || window.previewSettingsWarningDemo) {
+                warnings.push("warning.1=Invalid default for log_limit_mb: 21");
+            }
+            return ok("settings_saved="+(states[id]==="installed"?"true":"false")+"\n"+schema.join("\n")+"\n"+values.join("\n")+"\n"+(warnings.length?warnings.join("\n")+"\n":""));
         }
         if (args[0] === "manifest") return manifests[id] ? ok(manifests[id]) : ok("",1,"Missing preview manifest.");
         if (args[0] === "statuses") return ok(args[1].split(" ").map(function (entry) {

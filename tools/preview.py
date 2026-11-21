@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument("--load-delay", type=float, default=5.0, help="Minimum tweak loading delay in seconds for preview (default: 5.0)")
     parser.add_argument("--messages", action="store_true", help="Show example tweak with info and error messages")
     parser.add_argument("--settings", action="store_true", help="Show settings tweak demo")
+    parser.add_argument("--settings-warning", action="store_true", help="Show settings warning demo")
     parser.add_argument("--restore", action="store_true", help="Show recovery demo")
     parser.add_argument("--restore-denied", action="store_true", help="Show recovery denied demo")
     parser.add_argument("--broken-uninstall", action="store_true", help="Show broken uninstall demo")
@@ -66,6 +67,8 @@ def open_in_browser(html_path):
 
 def main():
     args = parse_args()
+    if args.settings_warning:
+        args.settings = True
     scenarios = [args.settings, args.restore, args.restore_denied, args.broken_uninstall, args.messages]
     if sum(bool(s) for s in scenarios) > 1:
         sys.exit("Error: Choose one preview scenario.")
@@ -118,6 +121,7 @@ def main():
 
     broken_demo = "true" if args.broken_uninstall else "false"
     settings_demo = "true" if args.settings else "false"
+    settings_warning_demo = "true" if args.settings_warning else "false"
     recovery_denied_demo = "true" if args.restore_denied else "false"
     recovery_demo = "true" if (args.restore or args.restore_denied) else "false"
     messages_demo = "true" if args.messages else "false"
@@ -127,6 +131,7 @@ def main():
         f"window.previewManifests={manifest_json};"
         f"window.previewLoadDelay={max(0.0, args.load_delay)};"
         f"window.previewSettingsDemo={settings_demo};"
+        f"window.previewSettingsWarningDemo={settings_warning_demo};"
         f"window.previewBrokenUninstallDemo={broken_demo};"
         f"window.previewRecoveryDemo={recovery_demo};"
         f"window.previewRecoveryDeniedDemo={recovery_denied_demo};"
