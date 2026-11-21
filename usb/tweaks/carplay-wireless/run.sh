@@ -28,9 +28,7 @@ mzd_bundle_prerequisites() (
     fi
 
     if [ "$(mzd_hash "$gbt_target")" != "$gbt_stock" ]; then
-        if ! grep -Fq 'DI_TP1056=/sys/class/gpio/DI_TP1056/value' "$gbt_target" || \
-           ! grep -Fq 'DI_TP1029=/sys/class/gpio/DI_TP1029/value' "$gbt_target" || \
-           ! grep -Fq '# MZD Tweaks' "$gbt_target"; then
+        if ! grep -Fq '# MZD Tweaks' "$gbt_target"; then
             printf 'block\tAnother Wireless CarPlay mod is already referenced. Uninstall it with its original installer before using this tweak.\n'
             exit 0
         fi
@@ -49,5 +47,18 @@ mzd_bundle_prerequisites() (
             ;;
     esac
 )
+
+case "${1:-}" in
+    install)
+        if [ "${MZD_WORKER_DIRECT:-0}" = 1 ]; then
+            rm -f /data_persist/wcp_force_off /data_persist/wcp_bootcnt /data_persist/ublox.txt 2>/dev/null || :
+        fi
+        ;;
+    uninstall)
+        if [ "${MZD_WORKER_DIRECT:-0}" = 1 ]; then
+            rm -f /data_persist/wcp_force_off /tmp/wcp_board.log 2>/dev/null || :
+        fi
+        ;;
+esac
 
 mzd_bundle_main "$@"

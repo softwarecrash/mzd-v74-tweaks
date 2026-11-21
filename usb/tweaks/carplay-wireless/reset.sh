@@ -19,5 +19,5 @@ esac
 mzd_bundle_reset_main "$@" || exit $?
 
 if [ "$1" = finish ]; then
-    rm -f /data_persist/wcp_force_off /data_persist/wcp_bootcnt 2>/dev/null || :
+    rm -f /data_persist/wcp_force_off /data_persist/wcp_bootcnt /tmp/wcp_board.log 2>/dev/null || :
 fi
