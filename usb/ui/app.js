@@ -7,6 +7,25 @@
     var restartRequired = false, failedStatusName = "";
     var operating = false, closing = false, locked = false, dialogMode = "", returnFocusId = "", accepted = false;
     var detailView = 0, choicePicker = null, detailLoad = null;
+    var loadTimer = null, loadDots = 0, loadText = "";
+    function clearLoadProgress() {
+        if(loadTimer){window.clearInterval(loadTimer);loadTimer=null;}
+        loadDots=0;loadText="";
+    }
+    function setLoadProgress(message) {
+        loadText=message;
+        if(!loadTimer) {
+            loadTimer=window.setInterval(function(){
+                if(closing || (!scanning && accepted)){clearLoadProgress();return;}
+                loadDots=(loadDots%3)+1;
+                var dotStr=new Array(loadDots+1).join(".");
+                footer(loadText+dotStr);
+                if(!tweaks.length)text("empty",loadText+dotStr);
+            },350);
+        }
+        footer(loadText+new Array(loadDots+1).join("."));
+        if(!tweaks.length)text("empty",loadText+new Array(loadDots+1).join("."));
+    }
     function detailBusy() { return !!detailLoad && dialogMode==="details"; }
     function clearDetailLoad() {
         if(detailLoad)window.clearInterval(detailLoad.timer);
@@ -579,18 +598,23 @@
         return m;
     }
     function discover() {
-        scanning = true; controls(); footer("Finding tweaks on USB...");
+        if(closing)return;
+        scanning = true; controls(); setLoadProgress("Finding tweaks on USB and storage");
+        text("empty", "Reading tweaks from USB and storage...");
         function individual() {
+            if(closing){scanning=false;clearLoadProgress();return;}
             call(["list"],function(error,result){
+                if(closing){scanning=false;clearLoadProgress();return;}
                 var problem=error||resultError(result),ids,index=0,rows=[];
                 if(problem || result.stdoutTruncated || result.stderrTruncated){received(problem||"USB list was truncated.",result,false);return;}
                 ids=trim(result.stdout)?trim(result.stdout).split(/\r?\n/):[];
                 function next() {
-                    if(closing){scanning=false;return;}
+                    if(closing){scanning=false;clearLoadProgress();return;}
                     if(index===ids.length){received(null,{started:true,exitCode:0,signal:null,stdout:rows.join("\n")+(rows.length?"\n":""),stderr:""},false);return;}
                     var id=ids[index++];
                     if(!/^[a-zA-Z0-9_-]+$/.test(id)){next();return;}
                     call(["manifest",id],function(error,reply){
+                        if(closing){scanning=false;clearLoadProgress();return;}
                         rows.push(JSON.stringify({key:id,exitCode:reply && reply.exitCode===2?2:error||resultError(reply)||reply.stdoutTruncated||reply.stderrTruncated?1:0,
                             stdout:reply?reply.stdout:"",stderr:String(error||resultError(reply)||(reply.stdoutTruncated||reply.stderrTruncated?"Manifest was truncated.":""))}));
                         next();
@@ -600,17 +624,18 @@
             });
         }
         function received(error,result,canRetry) {
+            if(closing){scanning=false;clearLoadProgress();return;}
             var problem=error,rows,ids=[],id,i;
             try {if(!problem)rows=infoRows(result);}catch(e){problem=String(e);}
             if(problem && canRetry){individual();return;}
             if(result && (result.exitCode===2 || result.signal)){locked=true;failedStatusName="USB scan";}
-            if(problem){scanning=false;footer("Could not read tweaks");showResult("Cannot read tweaks",String(problem),locked,function(){});controls();return;}
+            if(problem){scanning=false;clearLoadProgress();footer("Could not read tweaks");showResult("Cannot read tweaks",String(problem),locked,function(){});controls();return;}
             tweaks=[];
             for(id in rows)if(Object.prototype.hasOwnProperty.call(rows,id))ids.push(id);
             ids.sort();
             for(i=0;i<ids.length;i++) {
                 id=ids[i];var reply=rows[id];
-                if(reply.exitCode===2){locked=true;failedStatusName=id;scanning=false;showResult("Cannot read tweak",String(resultError(reply)),true,function(){});controls();return;}
+                if(reply.exitCode===2){locked=true;failedStatusName=id;scanning=false;clearLoadProgress();showResult("Cannot read tweak",String(resultError(reply)),true,function(){});controls();return;}
                 var item={id:id,name:id,group:"errors",manifest:{actions:[]},state:"error",error:"",invalid:false};
                 try {
                     problem=resultError(reply);if(problem)throw new Error(String(problem));
@@ -620,7 +645,7 @@
                 tweaks.push(item);
             }
             tweaks.sort(function(a,b){return a.name.toLowerCase()<b.name.toLowerCase()?-1:a.name.toLowerCase()>b.name.toLowerCase()?1:0;});
-            if(closing)return;
+            if(closing){scanning=false;clearLoadProgress();return;}
             renderTabs();renderCards();refreshAll();
         }
         call(["manifests"],function(error,result){received(error,result,true);});
@@ -647,6 +672,7 @@
         });
     }
     function refreshAll() {
+        if(closing){scanning=false;clearLoadProgress();return;}
         scanning = true; controls();
         var ids = [], wanted = {}, items = [], i;
         for (i = 0; i < tweaks.length; i++) {
@@ -661,16 +687,16 @@
             item.state = "checking"; item.error = ""; updateCard(item);
         }
         function finish(problem) {
-            scanning = false; controls();
+            scanning = false; clearLoadProgress(); controls();
             footer(locked ? "Status failed: " + failedStatusName + ". Do NOT reboot." : problem ? "Could not read installation states" : "");
             if (closing) return;
             if (dialogMode === "details") openDetails(selected);
             else if (!dialogMode && el("cards").firstChild) el("cards").firstChild.focus();
         }
         if (!ids.length) { finish(null); return; }
-        footer("Reading installed tweaks...");
+        setLoadProgress("Reading installed tweaks");
         call(["statuses",ids.join(" ")],function (error,result) {
-            if (closing) {scanning=false;return;}
+            if (closing) {scanning=false;clearLoadProgress();return;}
             var problem = error || resultError(result), rows = {}, j;
             if (result && (result.exitCode === 2 || result.signal)) {locked=true;failedStatusName="status scan";}
             try {
@@ -909,7 +935,8 @@
         el("action").onclick=function () {
             if(accepted || closing)return;
             accepted=true; text("back","Back"); el("back").onclick=closeDialog;
-            closeDialog(); discover();
+            closeDialog(); controls();
+            if(!scanning && !tweaks.length)discover();
         };
         controls(); footer("Read the notice, then select OK or Exit."); el("action").focus();
     }
@@ -1056,7 +1083,7 @@
     }
     function leaveInstaller(restart) {
         if (operating || closing || (restart && (locked || scanning))) return;
-        closing=true;controls();
+        closing=true;scanning=false;clearLoadProgress();controls();
         el("back").disabled=true;el("action").disabled=true;
         footer(restart ? "Preparing restart..." : "Returning to Mazda...");
         var problem = restart ? "User confirmed restart" : restorePrimary();
@@ -1181,6 +1208,7 @@
             updateMetrics();
             window.setInterval(updateMetrics, 5000);
             window.setInterval(checkFocusRequest, 1000);
+            discover();
         });
     },false);
     controls(); frame.src=config.origin+"/#"+config.token;

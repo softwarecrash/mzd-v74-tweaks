@@ -1151,8 +1151,7 @@ test("MANIFEST_UI", async (t) => {
 });
 
 test("STARTUP_NOTICE", async (t) => {
-  await t.test("shows the notice with OK and Exit before anything runs", () => {
-    // Startup is entirely in the styled UI; no discovery or worker runs before OK.
+  await t.test("shows the notice with OK and Exit while discovery starts in background", () => {
     x = boot(undefined, false, true);
     assert.equal(
       x.nodes["dialog-title"].textContent,
@@ -1162,7 +1161,8 @@ test("STARTUP_NOTICE", async (t) => {
     assert.equal(x.nodes.back.textContent, "Exit");
     assert.equal(x.doc.activeElement, x.nodes.action);
     assert.equal(x.nodes.refresh.disabled, true);
-    assert(!x.calls.some((a) => ["list", "manifest", "action"].includes(a[0])));
+    assert(x.calls.some((a) => a[0] === "manifests"));
+    assert(!x.calls.some((a) => a[0] === "action" && a[2] !== "status"));
   });
 
   await t.test("rotate moves between OK and Exit", () => {
@@ -1172,20 +1172,20 @@ test("STARTUP_NOTICE", async (t) => {
     assert.equal(x.doc.activeElement, x.nodes.action);
   });
 
-  await t.test("OK starts the discovery", () => {
+  await t.test("OK confirms and enters main screen with loaded tweaks", () => {
     controller("onkeydown", 13);
     x.pump();
-    assert.equal(x.calls.filter((a) => a[0] === "list").length, 1);
     assert.equal(x.nodes.back.textContent, "Back");
     assert.equal(x.nodes.refresh.disabled, false);
+    assert.equal(x.nodes["footer-status"].textContent, "");
   });
 
-  await t.test("Exit closes the installer without any discovery", () => {
+  await t.test("Exit closes the installer and stops loading", () => {
     x = boot(undefined, false, true);
     x.click("back");
     x.pump();
     assert(x.calls.some((a) => a[0] === "event" && a[1] === "close"));
-    assert(!x.calls.some((a) => ["list", "manifest", "action"].includes(a[0])));
+    assert(!x.calls.some((a) => a[0] === "action" && a[2] !== "status"));
   });
 
   await t.test("Back closes on release and a late OK starts nothing", () => {
@@ -1195,9 +1195,10 @@ test("STARTUP_NOTICE", async (t) => {
     controller("onkeyup", 8);
     x.pump();
     assert(x.calls.some((a) => a[0] === "event" && a[1] === "close"));
+    let beforeCalls = x.calls.length;
     x.nodes.action.onclick();
     x.pump();
-    assert(!x.calls.some((a) => a[0] === "list"));
+    assert.equal(x.calls.length, beforeCalls);
   });
 
   await t.test("Escape closes the installer", () => {

@@ -13,7 +13,13 @@
         postMessage: function (message) {
             if (!message || message.type !== "shell-exec") return;
             var args = message.args.slice(1);
+            var totalLoadDelay = typeof window.previewLoadDelay === "number" ? Math.max(0, window.previewLoadDelay * 1000) : 5000;
             var delay = (args[0] === "action" && args[2] !== "status") || args[0] === "restore-original" ? 1000 : 60;
+            if (args[0] === "manifests") {
+                delay = Math.round(totalLoadDelay * 0.55);
+            } else if (args[0] === "statuses") {
+                delay = Math.round(totalLoadDelay * 0.45);
+            }
             if (window.previewRecoveryDemo && args[0] === "action" && args[1] === "patch-example-two" && args[2] === "install" && oldModification) delay = 60;
             window.setTimeout(function () {
                 reply({type:"shell-result", token:"preview", id:message.id, result:process(args)});

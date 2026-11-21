@@ -19,6 +19,7 @@ import webbrowser
 def parse_args():
     parser = argparse.ArgumentParser(description="MZD Installer UI Preview")
     parser.add_argument("--no-open", action="store_true", help="Do not open browser automatically")
+    parser.add_argument("--load-delay", type=float, default=5.0, help="Minimum tweak loading delay in seconds for preview (default: 5.0)")
     parser.add_argument("--messages", action="store_true", help="Show example tweak with info and error messages")
     parser.add_argument("--settings", action="store_true", help="Show settings tweak demo")
     parser.add_argument("--restore", action="store_true", help="Show recovery demo")
@@ -124,6 +125,7 @@ def main():
     init_script = (
         f"<script>"
         f"window.previewManifests={manifest_json};"
+        f"window.previewLoadDelay={max(0.0, args.load_delay)};"
         f"window.previewSettingsDemo={settings_demo};"
         f"window.previewBrokenUninstallDemo={broken_demo};"
         f"window.previewRecoveryDemo={recovery_demo};"
