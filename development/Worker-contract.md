@@ -225,11 +225,13 @@ on installation. When uninstalled, only the tweak's declared tokens are removed;
 tokens still required by the OEM configuration or another installed tweak are
 preserved.
 
-Individual `shim` component records may specify `no_reset` in the 5th column
-instead of `-`. This sets `reset_board="no"` on the target service element to
-prevent reboot loops from unhandled exceptions, and records the original value
-so it can be restored on uninstall. Component status verification confirms that
-`reset_board="no"` remains active.
+`loader_attr` component records manage `<service>` XML attributes (such as
+`reset_board=no`, setting `args`, or removing arguments and tokens).
+Options are `set`, `remove_val`, or `remove_attr` (`-` is not permitted):
+- `set`: Sets or updates an attribute's value (creating it if absent), saving the original value in `<!-- mzd-attr-<name>:<orig_val> -->` (or `absent`). For example, `loader_attr reset_board=no - <service> set`.
+- `remove_val`: Removes a specific token from an attribute (such as `args=wcp`).
+- `remove_attr`: Removes the specified attribute or argument token from the `<service>` line.
+This allows configuring service attributes safely without affecting preloads, other attributes, or other tweaks, and accurately restores OEM attributes on uninstallation (preserving mutations needed by other installed packages). Component status verification confirms that the desired attribute state remains active.
 See the [bundle example](examples/bundle/README.md) for transaction and upgrade limits.
 
 ## Shared GUI extensions

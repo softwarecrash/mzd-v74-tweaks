@@ -8,8 +8,8 @@ def read(manifest, values):
     if not table.is_file() or table.is_symlink():
         raise ValueError('Missing or linked component table.')
     rows = []
-    seen, checks, seen_env = set(), set(), set()
-    primary = loaders = shims = loader_envs = 0
+    seen, checks, seen_env, seen_attr = set(), set(), set(), set()
+    primary = loaders = shims = loader_envs = loader_attrs = 0
     if values.get('payload_dir'):
         prefix = values['payload_dir'] + '/'
     else:
@@ -45,6 +45,31 @@ def read(manifest, values):
                 raise ValueError('Too many loader environment variables.')
             rows.append(fields)
             continue
+        if kind == 'loader_attr':
+            if md5 not in ('set', 'remove_val', 'remove_attr'):
+                raise ValueError('Invalid loader attribute options.')
+            if '=' not in target:
+                raise ValueError('Invalid loader attribute.')
+            attr_name, attr_val = target.split('=', 1)
+            if attr_val.startswith('"') and attr_val.endswith('"'):
+                attr_val = attr_val[1:-1]
+            if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', attr_name):
+                raise ValueError('Invalid loader attribute name.')
+            if any(c in attr_val for c in ('"', '\r', '\n', '\\', '<', '>', '&')):
+                raise ValueError('Invalid loader attribute value.')
+            if md5 in ('remove_val', 'remove_attr') and not attr_val:
+                raise ValueError('Invalid loader attribute target for removal.')
+            if source != '-' or service == '-' or not re.fullmatch(r'[A-Za-z0-9_.-]+', service):
+                raise ValueError('Invalid loader attribute record.')
+            key = f'{service}:{attr_name}'
+            if key in seen_attr:
+                raise ValueError('Duplicate service attribute modification.')
+            seen_attr.add(key)
+            loader_attrs += 1
+            if loader_attrs > 16:
+                raise ValueError('Too many loader attributes.')
+            rows.append(fields)
+            continue
         if not safe(target):
             raise ValueError('Invalid component target.')
         if kind == 'check':
@@ -72,7 +97,7 @@ def read(manifest, values):
                     raise ValueError('Payload must be a direct file in its private persistent folder.')
                 if kind == 'shim':
                     shims += 1
-                    if md5 not in ('-', 'no_reset'):
+                    if md5 != '-':
                         raise ValueError('Invalid shim options.')
                     if service == '-' or not re.fullmatch('[A-Za-z0-9_.-]+', service) or not target.endswith('.so') or not source.endswith('.so') or shims > 16:
                         raise ValueError('Invalid shim record.')
@@ -99,6 +124,6 @@ def read(manifest, values):
             else:
                 raise ValueError('Unknown component kind.')
         rows.append(fields)
-    if primary != 1 or not rows or ((shims or loader_envs) and not loaders):
+    if primary != 1 or not rows or ((shims or loader_envs or loader_attrs) and not loaders):
         raise ValueError('Missing primary target or shim loader.')
     return rows

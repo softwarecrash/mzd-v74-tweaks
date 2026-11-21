@@ -7,12 +7,11 @@ mzd_shim_targets() (
     for pair in $SHIM_EXTRA_TARGETS; do printf '%s\n' "$pair"; done
 )
 mzd_shim_transform() (
-    input=$1; mode=$2; no_reset=${3:-0}
+    input=$1; mode=$2
     output=$(mktemp /tmp/mzd-shim-transform.XXXXXX) || exit 1
     trap 'rm -f "$output"' 0
     # Do not capture file bytes in a shell variable: that strips trailing newlines.
     if awk -v service="$SHIM_SERVICE" -v library="$SHIM_PATH" -v mode="$mode" \
-        -v no_reset="$no_reset" \
         -f "$ROOT/lib/shim-preload.awk" "$input" > "$output"; then
         cat "$output"
     else
@@ -26,6 +25,44 @@ mzd_loader_env_transform() (
     if awk -v service="$service" -v env_name="$env_name" -v env_value="$env_value" -v mode="$mode" \
         -v keep="$keep" \
         -f "$ROOT/lib/loader-env.awk" "$input" > "$output"; then
+        cat "$output"
+    else
+        cat "$output" >&2; exit 1
+    fi
+)
+mzd_loader_attr_transform() (
+    input=$1; mode=$2; service=$3; attr_spec=$4; op_mode=$5; keep=${6:-0}
+    attr_name=${attr_spec%%=*}
+    attr_val=${attr_spec#*=}
+    case "$attr_val" in
+        '""') attr_val="" ;;
+        '"'*'"') attr_val=${attr_val%\"}; attr_val=${attr_val#\"} ;;
+    esac
+    case "$op_mode" in
+        remove_val)
+            token="$attr_val"
+            want_val=""
+            op_type=remove_val
+            ;;
+        remove_attr)
+            token="$attr_val"
+            want_val="$attr_val"
+            op_type=remove_attr
+            ;;
+        set)
+            token=""
+            want_val="$attr_val"
+            op_type=set
+            ;;
+        *)
+            mzd_shim_error "Invalid loader attribute option: $op_mode"; exit 1 ;;
+    esac
+    output=$(mktemp /tmp/mzd-loader-attr-transform.XXXXXX) || exit 1
+    trap 'rm -f "$output"' 0
+    if awk -v service="$service" -v attr_name="$attr_name" \
+        -v want_val="$want_val" -v token="$token" \
+        -v op_mode="$op_type" -v mode="$mode" -v keep_val="$keep" \
+        -f "$ROOT/lib/loader-attr.awk" "$input" > "$output"; then
         cat "$output"
     else
         cat "$output" >&2; exit 1

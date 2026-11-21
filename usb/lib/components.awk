@@ -32,6 +32,21 @@ BEGIN {
         if(mode=="records")print kind "\t" dest "\t" source "\t" service "\t" md5
         next
     }
+    if(kind=="loader_attr") {
+        eq=index(dest,"=")
+        if(!eq)fail("Invalid loader attribute record.")
+        attr_n=substr(dest,1,eq-1)
+        attr_v=substr(dest,eq+1)
+        if(attr_v ~ /^".*"$/)attr_v=substr(attr_v,2,length(attr_v)-2)
+        if(attr_n!~/^[A-Za-z_][A-Za-z0-9_]*$/ || attr_v ~ /["\r\n\\<>&]/)fail("Invalid loader attribute value.")
+        if(md5!="set" && md5!="remove_val" && md5!="remove_attr")fail("Invalid loader attribute options.")
+        if((md5=="remove_val" || md5=="remove_attr") && attr_v=="")fail("Invalid loader attribute target for removal.")
+        if(service=="-" || service!~/^[A-Za-z0-9_.-]+$/ || source!="-" || ++loader_attrs>16)fail("Invalid loader attribute record.")
+        key=service ":" attr_n
+        if(seen_attr[key]++)fail("Duplicate service attribute modification.")
+        if(mode=="records")print kind "\t" dest "\t" source "\t" service "\t" md5
+        next
+    }
     if(!path(dest))fail("Invalid target path.")
     if(kind=="check") {
         if(source!="-" || service!="-" || !hash(md5) || checks[dest]++)fail("Invalid module check.")
@@ -50,7 +65,7 @@ BEGIN {
         leaf=substr(dest,length(prefix)+1)
         if(index(dest,prefix)!=1 || leaf=="" || leaf ~ /\// || leaf ~ /^\./ || !asset(source))fail("Payload must be a direct file in this tweak's persistent folder.")
         if(kind=="shim") {
-            if(md5!="-" && md5!="no_reset")fail("Invalid shim options.")
+            if(md5!="-")fail("Invalid shim options.")
             if(service=="-" || service!~/^[A-Za-z0-9_.-]+$/ || dest!~/\.so$/ || source!~/\.so$/ || ++shims>16)fail("Invalid shim service or asset.")
         } else {
             if(md5!="-")fail("Unexpected options field.")
@@ -63,6 +78,6 @@ BEGIN {
 }
 END {
     if(bad)exit 1
-    if(main!=1 || count==0 || ((shims || loader_envs) && !loaders))fail("Primary target or loader declaration is missing.")
+    if(main!=1 || count==0 || ((shims || loader_envs || loader_attrs) && !loaders))fail("Primary target or loader declaration is missing.")
     if(mode=="paths" && payload)print "create\t" substr(prefix,1,length(prefix)-1)
 }
