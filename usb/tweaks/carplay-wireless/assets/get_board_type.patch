@@ -1,0 +1,48 @@
+--- target.data
++++ target.data
+@@ -2,29 +2,22 @@
+ 
+ ret=1
+ 
+-DI_TP1056=/sys/class/gpio/DI_TP1056/value
+-DI_TP1029=/sys/class/gpio/DI_TP1029/value
+-
+-if [ -e "$DI_TP1056" ] && [ -e "$DI_TP1029" ]; then
+-    for cnt in `seq 0 2`            # Retry 3 times
+-    do
+-        value1=$(cat $DI_TP1056)
+-        if [ $? = '0' ]; then
+-            if [ $value1 = '0' ] || [ $value1 = '1' ]; then
+-                value2=$(cat $DI_TP1029)
+-                if [ $? = '0' ]; then
+-                    if [ $value2 = '0' ] || [ $value2 = '1' ]; then
+-                        if [ $value1 = '1' ] || [ $value2 = '1' ]; then
+-                            ret=2                # For WCP, New Hadware.
+-                        fi
+-                        break
+-                    fi
+-                fi
+-            fi
+-        fi
+-        sleep 1                     # sleep before retry
+-    done
++# MZD Tweaks WCP mod: spoof board type for Wireless CarPlay
++# Safety switch: if /data_persist/wcp_force_off exists, bypass spoofing
++if [ -e /data_persist/wcp_force_off ]; then
++    logger -t board "WCP Force OFF active - reporting stock board type (ret=1)"
++    exit 1
+ fi
+ 
+-exit $ret
++ppid2=$(awk '/^PPid:[[:space:]]*/{print $2}' /proc/$PPID/status 2>/dev/null || cut -d' ' -f4 /proc/$PPID/stat 2>/dev/null)
++for p in $PPID $ppid2; do
++    if [ "$(cat /proc/$p/comm 2>/dev/null)" = "vim_app" ]; then
++        logger -t board "caller=$(cat /proc/$PPID/comm 2>/dev/null) ppid2=$ppid2 ret=1 (Spoofed)"
++        echo "$(date +%T) caller=$(cat /proc/$PPID/comm 2>/dev/null) ppid2=$ppid2 ret=1 (Spoofed)" >> /tmp/wcp_board.log
++        exit 1
++    fi
++done
+ 
++logger -t board "caller=$(cat /proc/$PPID/comm 2>/dev/null) ret=2 (WCP Enabled)"
++echo "$(date +%T) caller=$(cat /proc/$PPID/comm 2>/dev/null) ret=2 (WCP Enabled)" >> /tmp/wcp_board.log
++exit 2

@@ -34,8 +34,9 @@ line has five nonempty tab-separated fields. `-` means unused:
 | Kind | Target | Source | Service | Options / OEM MD5 |
 | --- | --- | --- | --- | --- |
 | loader | absolute SM config | - | - | original fingerprint |
-| shim | private persistent .so | assets/name.so | service name | `-` or `no_reset` |
+| shim | private persistent .so | assets/name.so | service name | - |
 | loader_env | `NAME=VALUE` | - | service name | - |
+| loader_attr | `NAME=VALUE` | - | service name | `set`, `remove_val`, `remove_attr` |
 | config | private persistent config | assets/name.map | - | - |
 | file | private persistent file | assets/name | - | - |
 | patch | absolute existing target | assets/change.patch | - | original fingerprint |
@@ -43,8 +44,8 @@ line has five nonempty tab-separated fields. `-` means unused:
 
 Shims are inserted into their named services in every declared loader file.
 Different shims may use different services, or share a service. Existing preload
-tokens remain intact. Setting the 5th column to `no_reset` on a `shim` configures
-`reset_board="no"` on that service and restores the previous value on uninstall.
+tokens remain intact. `loader_attr` records configure attributes on that service
+(such as `reset_board=no` with `set`, `remove_val` to strip tokens, or `remove_attr`) and restore the previous value on uninstall.
 `loader_env` records inject or merge environment variables (like `LD_LIBRARY_PATH`)
 into the specified service; colon-delimited path lists are merged without duplicates,
 and entries needed by OEM or other packages are preserved when uninstalled.
