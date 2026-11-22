@@ -171,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     r_stat0 = call(['action', 'carplay-wireless', 'status'])
     assert r_stat0.stdout.strip() == 'uninstalled'
 
-    # 4. Install deletes leftover persistent files before installation
+    # 4. Install deletes leftover persistent files after installation succeeds
     extra_force = persist / 'wcp_force_off'
     extra_boot = persist / 'wcp_bootcnt'
     extra_ublox = persist / 'ublox.txt'
@@ -257,11 +257,20 @@ with tempfile.TemporaryDirectory(prefix='cmu-carplay-wireless-') as temporary:
     assert extra_force.exists()
     checks += 1
 
-    # 6. Uninstall restores exact stock files and cleans up flags/logs
+    # 6. Failed uninstall preserves safety switch (/data_persist/wcp_force_off)
     write(extra_force, '1\n')
     extra_log = Path('/tmp/wcp_board.log')
     write(extra_log, 'test\n')
+    saved_autostart = autostart.read_text()
+    write(autostart, stock_autostart)  # Unexpected modification to target triggers uninstall failure
 
+    r_uninst_fail = call(['action', 'carplay-wireless', 'uninstall'], expected_code=1)
+    assert extra_force.exists()
+    assert extra_log.exists()
+    checks += 2
+
+    # Restore expected installed target and run successful uninstall
+    write(autostart, saved_autostart)
     call(['action', 'carplay-wireless', 'uninstall'])
     assert config.read_text() == stock_sm
     assert gbt.read_text() == stock_gbt

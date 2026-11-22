@@ -48,6 +48,8 @@ mzd_bundle_prerequisites() (
     esac
 )
 
+mzd_bundle_main "$@" || exit $?
+
 case "${1:-}" in
     install)
         if [ "${MZD_WORKER_DIRECT:-0}" = 1 ]; then
@@ -60,5 +62,3 @@ case "${1:-}" in
         fi
         ;;
 esac
-
-mzd_bundle_main "$@"
