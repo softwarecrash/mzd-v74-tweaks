@@ -11,6 +11,7 @@ window.mzdTweaks = {
     "main_menu_coins_layout": "ellipse",
     "main_menu_coins_size": 100,
     "theme": "red",
+    "fuel_ending_delay": 7,
     "main_menu_order": {
         "main_menu_app": 0,
         "main_menu_ent": 1,

@@ -82,6 +82,18 @@ for i, k in ipairs(AUDIO_KEYS) do
     AUDIO_DEFAULTS[k] = i - 1
 end
 
+-- Seconds the Fuel Consumption Ending Screen stays on. The value is read by
+-- that tweak's ecoenergyApp.js patch; the row is offered only while a version
+-- of the tweak that reads it is installed.
+local FUEL_KEY = 'fuel_ending_delay'
+local FUEL_DEFAULT, FUEL_MIN, FUEL_MAX = 7, 5, 30
+local FUEL_PACKAGE = '/tmp/mnt/data_persist/mzd-tweaks/installed/fuel-consumption-ending'
+local FUEL_MIN_VERSION = { 1, 1, 0 }
+
+local function valid_delay(v)
+    return type(v) == 'number' and v == v and math.floor(v) == v and v >= FUEL_MIN and v <= FUEL_MAX
+end
+
 local MAIN_MENU_KEYS = {
     'main_menu_app',
     'main_menu_ent',
@@ -124,6 +136,7 @@ return function(context)
             audio_order[k] = default_val
         end
         settings.audio_order = audio_order
+        settings[FUEL_KEY] = FUEL_DEFAULT
 
         if not fs.exists(settings_path) then
             return settings, true
@@ -171,6 +184,11 @@ return function(context)
             settings.main_menu_coins_layout = coins_layout_val
         end
 
+        local delay = tonumber(content:match('"' .. FUEL_KEY .. '"%s*:%s*(%d+)') or '')
+        if valid_delay(delay) then
+            settings[FUEL_KEY] = delay
+        end
+
         for _, k in ipairs(MAIN_MENU_KEYS) do
             local val = content:match('"' .. k .. '"%s*:%s*(%d+)')
             if val then
@@ -215,6 +233,9 @@ return function(context)
         local theme = settings.theme
         if not VALID_THEMES[theme] then theme = 'red' end
         lines[#lines + 1] = '    "theme": "' .. theme .. '",'
+        local delay = settings[FUEL_KEY]
+        if not valid_delay(delay) then delay = FUEL_DEFAULT end
+        lines[#lines + 1] = '    "' .. FUEL_KEY .. '": ' .. tostring(delay) .. ','
         lines[#lines + 1] = '    "main_menu_order": {'
         for i, k in ipairs(MAIN_MENU_KEYS) do
             local dot_k = 'main_menu_order.' .. k
@@ -241,6 +262,23 @@ return function(context)
         lines[#lines + 1] = '    }'
         lines[#lines + 1] = '};'
         return table.concat(lines, '\n') .. '\n'
+    end
+
+    -- Read only on a full read (boot and every time the view opens).
+    local function fuel_ending_installed()
+        local ok, result = pcall(function()
+            local state = fs.read(FUEL_PACKAGE .. '/state.conf', 4096)
+            if not ('\n' .. state):find('\nstate=installed\n', 1, true) then return false end
+            local manifest = fs.read(FUEL_PACKAGE .. '/package/tweaks/fuel-consumption-ending/manifest.conf', 65536)
+            local a, b, c = ('\n' .. manifest):match('\nversion=(%d+)%.(%d+)%.(%d+)')
+            if not a then return false end
+            local version = { tonumber(a), tonumber(b), tonumber(c) }
+            for i = 1, 3 do
+                if version[i] ~= FUEL_MIN_VERSION[i] then return version[i] > FUEL_MIN_VERSION[i] end
+            end
+            return true
+        end)
+        return ok and result == true
     end
 
     local function temp_for(target_path)
@@ -270,7 +308,11 @@ return function(context)
                 if not fs.exists(settings_path) or not valid then
                     write_settings(settings)
                 end
-                return { settings = settings }
+                local limits = {}
+                if fuel_ending_installed() then
+                    limits[FUEL_KEY] = { min = FUEL_MIN, max = FUEL_MAX, step = 1 }
+                end
+                return { settings = settings, limits = limits }
             elseif operation == 'set' then
                 assert(type(args) == 'table', 'Invalid arguments.')
                 if type(args.key) ~= 'string' then
@@ -352,6 +394,15 @@ return function(context)
                         settings['audio_order.' .. k] = order_map[k]
                         settings.audio_order[k] = order_map[k]
                     end
+                    write_settings(settings)
+                    return { settings = settings }
+                elseif args.key == FUEL_KEY then
+                    if not valid_delay(args.value) then
+                        error('Invalid setting value.', 0)
+                    end
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
+                    settings[FUEL_KEY] = args.value
                     write_settings(settings)
                     return { settings = settings }
                 elseif BOOL_DEFAULTS[args.key] ~= nil then

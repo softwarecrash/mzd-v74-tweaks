@@ -95,6 +95,7 @@
         main_menu_order_custom: false,
         main_menu_order: DEFAULT_MAIN_MENU_ORDER,
         audio_order_custom: false,
+        fuel_ending_delay: 7,
         audio_order: DEFAULT_AUDIO_ORDER
     };
 

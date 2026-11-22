@@ -80,7 +80,7 @@ with tempfile.TemporaryDirectory(prefix='cmu-fuel-ending-') as temporary:
     r=subprocess.run([SHELL,'-c','cd "$1" && patch -p0 -i "$2" < /dev/null','--',bp(expected),bp(folder/'assets/change.patch')],env=env,capture_output=True,text=True,timeout=15)
     assert r.returncode==0,(r.stdout,r.stderr)
     app_mod=(expected/'target.data').read_text()
-    assert 'EndingEffectiveness -> EndingFuelConsumption' in app_mod and '7000); // MOD' in app_mod and '5000);' not in app_mod
+    assert 'EndingEffectiveness -> EndingFuelConsumption' in app_mod and 'var delay = 7000;' in app_mod and 'window.mzdTweaks.fuel_ending_delay' in app_mod and '5000);' not in app_mod
     eco=internal/'libjciuiaecoenergy.so';mmui=internal/'svcjcimmui.so'
     write(eco,'synthetic ecoenergy UIA\n');write(mmui,'synthetic MMUI service\n')
     m=(folder/'manifest.conf').read_text().replace('/jci/sm/sm.conf',bp(config)).replace('74d9fc389b74fb01d0cfc2615a82c782',md5(stock.encode()))

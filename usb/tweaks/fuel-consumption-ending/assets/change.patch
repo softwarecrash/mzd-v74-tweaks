@@ -25,12 +25,19 @@
  }
  
  /***********************************************************/
-@@ -3515,7 +3533,7 @@
+@@ -3515,7 +3533,14 @@
  // Start the timer for Ending screen for 5 seconds
  ecoenergyApp.prototype._startEndingTimer = function() 
  {
 -    this.endingTimer = setTimeout(this._stopEndingTimer.bind(this), 5000);
-+    this.endingTimer = setTimeout(this._stopEndingTimer.bind(this), 7000); // MOD: 5000 -> 7000
++    // MOD: 5000 -> 7000, or the 5-30 s set in MZD Tweaks (window.mzdTweaks.fuel_ending_delay)
++    var delay = 7000;
++    var seconds = window.mzdTweaks ? window.mzdTweaks.fuel_ending_delay : null;
++    if (typeof seconds === "number" && Math.floor(seconds) === seconds && seconds >= 5 && seconds <= 30)
++    {
++        delay = seconds * 1000;
++    }
++    this.endingTimer = setTimeout(this._stopEndingTimer.bind(this), delay);
  };
  
  // Send event to mmui and clear the ending timeout

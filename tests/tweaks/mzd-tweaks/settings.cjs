@@ -64,6 +64,7 @@ const DEFAULTS = {
   main_menu_order_custom: false,
   main_menu_order: DEFAULT_MAIN_MENU_ORDER,
   audio_order_custom: false,
+  fuel_ending_delay: 7,
   audio_order: DEFAULT_AUDIO_ORDER
 };
 
@@ -315,10 +316,9 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
-    'existing globals are kept');
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, fuel_ending_delay: 7, audio_order: DEFAULT_AUDIO_ORDER },
+    'existing globals are kept; a settings.js without the fuel ending time gets 7 s');
 }
 
 {
@@ -1093,8 +1093,8 @@ function viewPage(options) {
   }
   if (options.noView) { delete win.MzdSettingsView; }
   vm.runInNewContext(viewSource, { window: win, document: { getElementById: () => status } });
-  const respond = (state, saving) => listeners.message({ source: win.parent, data: { type: 'mzd-tweaks-response', token: 'tok', state: state, saving: !!saving, pending: saving ? ['audio_order'] : [], limits: {}, unavailable: {} } });
-  const select = index => listeners.message({ source: win.parent, data: { type: 'mzd-tweaks-native-select', token: 'tok', index: index } });
+  const respond = (state, saving, limits) => listeners.message({ source: win.parent, data: { type: 'mzd-tweaks-response', token: 'tok', state: state, saving: !!saving, pending: saving ? ['audio_order'] : [], limits: limits || {}, unavailable: {} } });
+  const select = (index, params) => listeners.message({ source: win.parent, data: { type: 'mzd-tweaks-native-select', token: 'tok', index: index, params: params } });
   const dialogSelect = value => listeners.message({ source: win.parent, data: { type: 'mzd-tweaks-native-dialog-select', token: 'tok', value: value } });
   const lastDialog = () => {
     const dialogs = posts.filter(m => m.type === 'mzd-tweaks-native-dialog');
@@ -1113,6 +1113,44 @@ function viewPage(options) {
   const menu = () => posts.filter(m => m.type === 'mzd-tweaks-native-render').pop().menu;
   const sets = () => posts.filter(m => m.type === 'mzd-tweaks-request' && m.action === 'set').map(m => m.payload);
   return { win, posts, status, respond, select, dialogSelect, lastDialog, notes, input, menu, sets, readyCalls: () => readyCalls };
+}
+
+// Fuel ending screen time: the row exists only while the service gives its limits,
+// which it does only while Fuel Consumption Ending Screen 1.1.0+ is installed.
+{
+  const FUEL_LIMITS = { fuel_ending_delay: { min: 5, max: 30, step: 1 } };
+  const page = viewPage();
+  page.respond({ statusbar_date: false });
+  assert(!page.menu().rows.some(r => r.key === 'fuel_ending_delay'), 'no limits: no fuel ending row');
+  page.respond({ statusbar_date: false, fuel_ending_delay: 12 }, false, FUEL_LIMITS);
+  let rows = page.menu().rows;
+  const index = rows.findIndex(r => r.key === 'fuel_ending_delay');
+  assert.equal(index, rows.length - 1, 'the fuel ending row is the last row');
+  assert.equal(rows[index].label, 'Fuel ending time (s)');
+  assert.equal(rows[index].itemStyle, 'styleStep');
+  assert.deepEqual([rows[index].value, rows[index].min, rows[index].max, rows[index].increment], [12, 5, 30, 1]);
+  // The shared SDK stepper saves once, when the adjustment is finished.
+  page.select(index, { value: 13 });
+  page.select(index, { value: 14 });
+  assert.deepEqual(page.sets(), [], 'steps while adjusting are not saved yet');
+  page.select(index, { value: 14, finalAdjustment: true });
+  assert.deepEqual(page.sets(), [{ key: 'fuel_ending_delay', value: 14 }], 'the finished adjustment saves the new time once');
+  page.select(index, { value: 31, finalAdjustment: true });
+  page.select(index, { value: 4, finalAdjustment: true });
+  assert.equal(page.sets().length, 1, 'values outside 5-30 are not saved');
+  page.respond({ statusbar_date: false }, false, FUEL_LIMITS);
+  assert.equal(page.menu().rows[index].value, 7, 'a missing value shows the 7 s default');
+  page.respond({ statusbar_date: false });
+  assert(!page.menu().rows.some(r => r.key === 'fuel_ending_delay'), 'the row goes away when the limits go away');
+}
+
+{
+  const page = residentPage(DEFAULTS);
+  complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS, { fuel_ending_delay: 7 }), limits: {} });
+  request(page.ctx, 'set', { key: 'fuel_ending_delay', value: 15 });
+  assert.equal(page.win.mzdTweaks.fuel_ending_delay, 7, 'the global changes only after the service confirmed the save');
+  complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { fuel_ending_delay: 15 }) });
+  assert.equal(page.win.mzdTweaks.fuel_ending_delay, 15, 'the confirmed time reaches window.mzdTweaks for the ecoenergy app');
 }
 
 {

@@ -4,12 +4,23 @@
 local entry = assert(arg[1], 'usage: service.lua <entry.lua>')
 local factory = assert(loadfile(entry))()
 
-local function fake_files(initial)
-    local fs = { content = initial, temp = nil, fail = nil, serial = 0, syncs = 0 }
+local SETTINGS_PATH = '/data/mzd-tweaks/settings.js'
+
+-- others: other files by path (the installed Fuel Consumption Ending Screen package).
+local function fake_files(initial, others)
+    local fs = { content = initial, temp = nil, fail = nil, serial = 0, syncs = 0, others = others or {}, reads = {} }
     fs.exists = function(path)
-        return path:match('%.tmp$') and fs.temp ~= nil or fs.content ~= nil
+        if fs.others[path] ~= nil then return true end
+        return path:match('%.tmp$') and fs.temp ~= nil or (path == SETTINGS_PATH and fs.content ~= nil)
     end
     fs.read = function(path, limit)
+        fs.reads[#fs.reads + 1] = path
+        if path ~= SETTINGS_PATH then
+            local other = fs.others[path]
+            if other == nil then error('Missing path: ' .. path, 0) end
+            assert(#other <= limit, 'File is too large.')
+            return other
+        end
         assert(fs.content, 'Cannot read file.')
         assert(#fs.content <= limit, 'File is too large.')
         return fs.content
@@ -34,7 +45,7 @@ local function fake_files(initial)
 end
 
 local function service(fs)
-    return factory({ files = fs, config = '/data/mzd-tweaks/settings.js' })
+    return factory({ files = fs, config = SETTINGS_PATH })
 end
 
 local function same(actual, expected, message)
@@ -93,7 +104,8 @@ local DEFAULTS = {
     bluetooth_notification = true,
     theme = 'red',
     main_menu_order_custom = false,
-    audio_order_custom = false
+    audio_order_custom = false,
+    fuel_ending_delay = 7
 }
 local DEFAULT_MAIN_MENU_ORDER = {}
 for i, k in ipairs(MAIN_MENU_KEYS) do
@@ -108,7 +120,7 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, fuel_delay)
     main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
     main_menu_custom = main_menu_custom or 'false'
@@ -130,6 +142,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "main_menu_coins_layout": "' .. coins_layout .. '",',
         '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
         '    "theme": "' .. theme .. '",',
+        '    "fuel_ending_delay": ' .. tostring(fuel_delay or 7) .. ',',
         '    "main_menu_order": {'
     }
     for i, k in ipairs(MAIN_MENU_KEYS) do
@@ -178,6 +191,7 @@ do
         main_menu_order_custom = false,
         main_menu_order = DEFAULT_MAIN_MENU_ORDER,
         audio_order_custom = true,
+        fuel_ending_delay = 7,
         audio_order = custom_audio
     }
     for i, k in ipairs(MAIN_MENU_KEYS) do
@@ -424,6 +438,7 @@ do
         { key = 'main_menu_coins_size', value = 80 },
         { key = 'main_menu_coins_layout', value = 'flat' },
         { key = 'statusbar_date', value = 'weekday' }
+        { key = 'fuel_ending_delay', value = 10 }
     }) do
         local ok, err = pcall(svc.request, 'set', req)
         assert(not ok and tostring(err):match('Cannot read saved settings'), 'malformed file refuses set for ' .. req.key)
@@ -478,4 +493,69 @@ do
     assert(fs.content == js('false', 'true', 'true', 'false', nil, nil, 'month_numeric'), 'mode kept on other saves')
 end
 
-print('MZD_TWEAKS_SERVICE_PASSED: status bar date modes and old true/false, defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')
+-- Fuel ending screen time: read, defaults for missing or bad values, saved within 5-30 s.
+do
+    -- settings.js from MZD Tweaks 1.0.x has no fuel_ending_delay: 7 s.
+    local old = js('false', 'false', 'true', 'false'):gsub('    "fuel_ending_delay": 7,\n', '')
+    assert(not old:find('fuel_ending_delay'), 'old file without the key')
+    assert(service(fake_files(old)).request('get').settings.fuel_ending_delay == 7, 'missing key reads 7')
+    assert(service(fake_files(js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 12))).request('get').settings.fuel_ending_delay == 12, 'saved 12 is read')
+    for _, bad in ipairs({ '4', '31', '0', '999' }) do
+        local content = js('false', 'false', 'true', 'false'):gsub('"fuel_ending_delay": 7', '"fuel_ending_delay": ' .. bad)
+        assert(service(fake_files(content)).request('get').settings.fuel_ending_delay == 7, 'out of range ' .. bad .. ' reads 7')
+    end
+
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'fuel_ending_delay', value = 5 })
+    assert(res.settings.fuel_ending_delay == 5 and res.settings.list_beep == true, 'set 5 keeps other values')
+    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 5), 'js written with 5')
+    svc.request('set', { key = 'fuel_ending_delay', value = 30 })
+    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 30), 'js written with 30')
+    assert(service(fs).request('get').settings.fuel_ending_delay == 30, 'a fresh service reads 30 back')
+    local saved = fs.content
+    for _, bad in ipairs({ 4, 31, 7.5, -1, 0 / 0, math.huge, '10', true }) do
+        local ok, err = pcall(svc.request, 'set', { key = 'fuel_ending_delay', value = bad })
+        assert(not ok and tostring(err):match('Invalid setting value'), 'refused ' .. tostring(bad) .. ': ' .. tostring(err))
+    end
+    assert(fs.content == saved, 'refused values change nothing')
+    -- A boolean setting saved later keeps the time.
+    svc.request('set', { key = 'list_loop', value = true })
+    assert(fs.content == js('false', 'true', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 30), 'time kept on other saves')
+end
+
+-- The row is offered (limits) only while Fuel Consumption Ending Screen 1.1.0 or later is installed.
+do
+    local PKG = '/tmp/mnt/data_persist/mzd-tweaks/installed/fuel-consumption-ending'
+    local STATE, MANIFEST = PKG .. '/state.conf', PKG .. '/package/tweaks/fuel-consumption-ending/manifest.conf'
+    local INSTALLED = 'format=1\nstate=installed\n'
+    local function manifest(version)
+        return 'contract_version=1\nid=fuel-consumption-ending\nname=Fuel Consumption Ending Screen\nversion=' .. version .. '\ntype=files\n'
+    end
+    local function limits(others)
+        local res = service(fake_files(js('false', 'false', 'true', 'false'), others)).request('get')
+        return res.limits and res.limits.fuel_ending_delay
+    end
+    local l = limits({ [STATE] = INSTALLED, [MANIFEST] = manifest('1.1.0') })
+    assert(l and l.min == 5 and l.max == 30 and l.step == 1, 'installed 1.1.0 offers 5-30 s')
+    assert(limits({ [STATE] = INSTALLED, [MANIFEST] = manifest('1.10.2') }), 'later minor version')
+    assert(limits({ [STATE] = INSTALLED, [MANIFEST] = manifest('2.0.0') }), 'later major version')
+    assert(not limits({}), 'not installed: no row')
+    assert(not limits({ [STATE] = INSTALLED, [MANIFEST] = manifest('1.0.0') }), '1.0.0 does not read the time: no row')
+    assert(not limits({ [STATE] = INSTALLED, [MANIFEST] = manifest('0.9.9') }), 'older version: no row')
+    for _, state in ipairs({ 'prepared', 'installing', 'uninstalling', 'restoring', 'failed' }) do
+        assert(not limits({ [STATE] = 'format=1\nstate=' .. state .. '\n', [MANIFEST] = manifest('1.1.0') }), state .. ': no row')
+    end
+    assert(not limits({ [STATE] = INSTALLED }), 'missing manifest: no row')
+    assert(not limits({ [STATE] = INSTALLED, [MANIFEST] = 'id=fuel-consumption-ending\n' }), 'no version: no row')
+    assert(not limits({ [STATE] = 'format=1\nxstate=installed\n', [MANIFEST] = manifest('1.1.0') }), 'only a whole state line counts')
+    -- The package is read on get only; a save does not read it.
+    local fs = fake_files(js('false', 'false', 'true', 'false'), { [STATE] = INSTALLED, [MANIFEST] = manifest('1.1.0') })
+    local svc = service(fs)
+    fs.reads = {}
+    local res = svc.request('set', { key = 'fuel_ending_delay', value = 9 })
+    assert(res.limits == nil, 'set returns no limits; the host keeps the last ones')
+    for _, path in ipairs(fs.reads) do assert(path == SETTINGS_PATH, 'set read ' .. path) end
+end
+
+print('MZD_TWEAKS_SERVICE_PASSED: fuel ending time read/saved within 5-30 s and offered only with Fuel Consumption Ending Screen 1.1.0+, status bar date modes and old true/false, defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')

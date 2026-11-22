@@ -1,12 +1,14 @@
 # Fuel Consumption Ending Screen
 
 At ignition off, show the Fuel Consumption screen with all its data for 7 s.
+With [MZD Tweaks](../mzd-tweaks/README.md) installed, the time can be set
+from 5 to 30 s there (**Fuel ending time**).
 
 - **Car equipped with i-stop:** the stock firmware always shows the i-stop
   effectiveness screen here. This tweak shows the Fuel Consumption screen
   instead, with its graphs filled.
 - **Car without i-stop:** the stock ending screen already is the Fuel
-  Consumption screen, so the tweak only makes it 7 s long instead of 5 s.
+  Consumption screen, so the tweak only makes it longer (7 s or the MZD Tweaks time instead of 5 s).
 
 The head unit decides from the *equipped* features reported by the EEM service,
 not from whether i-stop is switched on right now. Turning i-stop off with its
@@ -20,7 +22,7 @@ Consumption settings, as with the stock screen.
 The tweak installs two parts in one step:
 
 - a JavaScript patch of `/jci/gui/apps/ecoenergy/js/ecoenergyApp.js`
-  (switches the screen, 7 s timer);
+  (switches the screen; 7 s timer, or `fuel_ending_delay` from MZD Tweaks);
 - the `fuel_ending_mmui.so` shim for the jciMMUI service, stored in
   `/tmp/mnt/data_persist/mzd-tweaks/shims/fuel-consumption-ending/`. It makes
   the MMUI request the fuel consumption data for the ending screen. On a car

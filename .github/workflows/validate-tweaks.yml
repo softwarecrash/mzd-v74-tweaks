@@ -210,3 +210,4 @@ jobs:
       - run: node tests/tweaks/android-auto/test-view.cjs
       - run: node tests/tweaks/mzd-tweaks/settings.cjs
       - run: node tests/tweaks/remove-safety-warnings/behavior.cjs
+      - run: node tests/tweaks/fuel-consumption-ending/behavior.cjs

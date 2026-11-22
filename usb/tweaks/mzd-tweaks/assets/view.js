@@ -501,7 +501,7 @@
             audioOrderCtrl.onState(state, data, api);
             mainMenuOrderCtrl.onState(state, data, api);
         },
-        entries: function (state, tr) {
+        entries: function (state, tr, api) {
             state = state || {};
             var customLabel = state.audio_order_custom ?
                 tr('custom', 'Custom') :
@@ -509,7 +509,7 @@
             var mainMenuCustomLabel = state.main_menu_order_custom ?
                 tr('custom', 'Custom') :
                 tr('default', 'Default');
-            return [
+            var rows = [
                 { key: 'main_menu_loop', type: 'bool', label: tr('main_menu_loop', 'Main menu loop') },
                 {
                     key: 'main_menu_coins_layout',
@@ -613,6 +613,12 @@
                     }
                 }
             ];
+            // The service gives limits for this row only while a Fuel
+            // Consumption Ending Screen version that reads the value is installed.
+            if (api && api.limits && api.limits() && api.limits().fuel_ending_delay) {
+                rows.push({ key: 'fuel_ending_delay', type: 'step', label: tr('fuel_ending_delay', 'Fuel ending time (s)'), defaultValue: 7 });
+            }
+            return rows;
         }
     });
 }());

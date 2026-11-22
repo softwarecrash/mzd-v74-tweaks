@@ -5,7 +5,7 @@ that are installed and removed in one transaction:
 
 | Part | Component | What it does |
 | --- | --- | --- |
-| JS patch | `patch` on `/jci/gui/apps/ecoenergy/js/ecoenergyApp.js` (OEM `32f3607c…`) | Wraps `handleContext`: `EndingEffectiveness` is shown as `EndingFuelConsumption` (with the bar graph unit from the app cache when missing). `_startEndingTimer` 5000 → 7000 ms. |
+| JS patch | `patch` on `/jci/gui/apps/ecoenergy/js/ecoenergyApp.js` (OEM `32f3607c…`) | Wraps `handleContext`: `EndingEffectiveness` is shown as `EndingFuelConsumption` (with the bar graph unit from the app cache when missing). `_startEndingTimer` 5000 → 7000 ms, or `window.mzdTweaks.fuel_ending_delay` × 1000 when it is a whole number from 5 to 30 (set in MZD Tweaks). |
 | MMUI shim | `shim` `fuel_ending_mmui.so` into jciMMUI, both SM loaders | In `libjciuiaecoenergy.so`: Effectiveness ending guard → 0, Fuel guard → original Fuel or original Effectiveness; `EEM_SetEEMUpdateScreenEnable` code 11 (i-stop ending data) → 12 (fuel ending data). |
 
 Without the shim, the JS patch alone shows the screen, but on i-stop cars only
