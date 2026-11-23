@@ -337,6 +337,7 @@
                 tr('default', 'Default');
             return [
                 { key: 'main_menu_loop', type: 'bool', label: tr('main_menu_loop', 'Main menu loop') },
+                { key: 'coins_glow', type: 'bool', label: tr('coins_glow', 'Main menu icons glow'), defaultValue: true },
                 { key: 'list_loop', type: 'bool', label: tr('list_loop', 'List menu loop') },
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'Shorter list menu delay') },

@@ -26,11 +26,11 @@ body.mzd-theme-orange .MainMenuCtrlSetFocus {
 }
 
 /* Main Menu Glow */
-body.mzd-theme-orange .MainMenuCtrlAppHighlight,
-body.mzd-theme-orange .MainMenuCtrlEntHighlight,
-body.mzd-theme-orange .MainMenuCtrlComHighlight,
-body.mzd-theme-orange .MainMenuCtrlNavHighlight,
-body.mzd-theme-orange .MainMenuCtrlSetHighlight {
+body.mzd-theme-orange.mzd-coins-glow .MainMenuCtrlAppHighlight,
+body.mzd-theme-orange.mzd-coins-glow .MainMenuCtrlEntHighlight,
+body.mzd-theme-orange.mzd-coins-glow .MainMenuCtrlComHighlight,
+body.mzd-theme-orange.mzd-coins-glow .MainMenuCtrlNavHighlight,
+body.mzd-theme-orange.mzd-coins-glow .MainMenuCtrlSetHighlight {
     background-image: url(../images/highlights/Glow_orange.png) !important;
 }
 

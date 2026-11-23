@@ -4,6 +4,7 @@ Adds interface enhancements, each with configurable settings in the Mazda Applic
 
 Features included:
 - **Main Menu Loop**: Wrap between the first and last main-menu icons.
+- **Main menu icons glow**: Toggle highlight glow behind focused main menu icons. Off hides both factory red glow and custom colored theme glows.
 - **List Loop**: Wrap between the first and last selectable items in scrollable lists.
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **Shorter Delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.

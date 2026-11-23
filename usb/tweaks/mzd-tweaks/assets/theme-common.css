@@ -1,7 +1,7 @@
 /*
  * MZD Tweaks Color Themes: Common Stylesheet
- * Shared structural rules, base sizing, Opera 12 Presto compatibility,
- * and theme selection preview swatches.
+ * Shared structural rules and base sizing for custom colored themes.
+ * Loaded only when a custom color theme is enabled.
  */
 
 /* ==========================================================================
@@ -36,6 +36,7 @@ body[class*="mzd-theme-"] .MainMenuCtrlSetFocus {
     background-position: center center, center center !important;
     background-repeat: no-repeat, no-repeat !important;
     -o-transition: opacity 0.2s linear;
+    transition: opacity 0.2s linear;
 }
 
 /* Base sizing and full opacity when coin is focused */
@@ -45,6 +46,70 @@ body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlComFocus,
 body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlNavFocus,
 body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlSetFocus {
     opacity: 1 !important;
+    -o-transition: opacity 0.2s linear;
+    transition: opacity 0.2s linear;
+}
+
+/*
+ * Standard and vendor-prefixed transitions for Main Menu highlight glow,
+ * coin scaling/translation, and normal coin crossfading under custom themes.
+ */
+body[class*="mzd-theme-"] .MainMenuCtrlAppHighlight,
+body[class*="mzd-theme-"] .MainMenuCtrlEntHighlight,
+body[class*="mzd-theme-"] .MainMenuCtrlComHighlight,
+body[class*="mzd-theme-"] .MainMenuCtrlNavHighlight,
+body[class*="mzd-theme-"] .MainMenuCtrlSetHighlight {
+    -o-transition: opacity 200ms linear;
+    transition: opacity 200ms linear;
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlAppDiv,
+body[class*="mzd-theme-"] .MainMenuCtrlEntDiv,
+body[class*="mzd-theme-"] .MainMenuCtrlComDiv,
+body[class*="mzd-theme-"] .MainMenuCtrlNavDiv,
+body[class*="mzd-theme-"] .MainMenuCtrlSetDiv {
+    -o-transition: 0.2s linear;
+    -webkit-transition: -webkit-transform 0.2s linear;
+    transition: transform 0.2s linear, -webkit-transform 0.2s linear, -o-transform 0.2s linear;
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlAppDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.2, 1.2) translate(36px, -33px);
+    -webkit-transform: scale(1.2, 1.2) translate(36px, -33px);
+    transform: scale(1.2, 1.2) translate(36px, -33px);
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlEntDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.2, 1.2) translate(0px, -10px);
+    -webkit-transform: scale(1.2, 1.2) translate(0px, -10px);
+    transform: scale(1.2, 1.2) translate(0px, -10px);
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlComDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.2, 1.2) translate(0px, -10px);
+    -webkit-transform: scale(1.2, 1.2) translate(0px, -10px);
+    transform: scale(1.2, 1.2) translate(0px, -10px);
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlNavDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.2, 1.2) translate(0px, -10px);
+    -webkit-transform: scale(1.2, 1.2) translate(0px, -10px);
+    transform: scale(1.2, 1.2) translate(0px, -10px);
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlSetDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.2, 1.2) translate(-36px, -33px);
+    -webkit-transform: scale(1.2, 1.2) translate(-36px, -33px);
+    transform: scale(1.2, 1.2) translate(-36px, -33px);
+}
+
+body[class*="mzd-theme-"] .MainMenuCtrlAppNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlEntNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlComNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlNavNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlSetNormal {
+    -o-transition: opacity 0.2s linear;
+    transition: opacity 0.2s linear;
 }
 
 /* ==========================================================================
@@ -215,88 +280,4 @@ body[class*="mzd-theme-"] .ScreenSettings2CtrlSwitchViewDown {
     box-shadow: none !important;
     filter: none !important;
     -webkit-filter: none !important;
-}
-
-/* ==========================================================================
-   10. Theme Selection Subpage Swatches (Decision 4: 180px × 36px)
-   ========================================================================== */
-
-.List2Ctrl.normalItems .ListItem.style03.mzd-theme-row .line1 {
-    width: 630px !important;
-}
-
-.List2Ctrl .ListItem.mzd-theme-row .line1:before {
-    content: "";
-    display: inline-block;
-    width: 180px;
-    height: 36px;
-    vertical-align: middle;
-    margin-right: 18px;
-    border-radius: 3px;
-    -o-border-radius: 3px;
-    box-sizing: border-box;
-    -o-box-sizing: border-box;
-}
-
-/* Red */
-.List2Ctrl .ListItem.mzd-theme-row-red .line1:before {
-    border: 1px solid #ff3b30;
-    background-image: -o-linear-gradient(left, rgba(160, 0, 0, 0.08) 0%, rgba(255, 40, 0, 0.85) 15%, rgba(160, 0, 0, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(160, 0, 0, 0.08) 0%, rgba(255, 40, 0, 0.85) 15%, rgba(160, 0, 0, 0.75) 60%, transparent 100%);
-}
-
-/* Blue */
-.List2Ctrl .ListItem.mzd-theme-row-blue .line1:before {
-    border: 1px solid #00aaff;
-    background-image: -o-linear-gradient(left, rgba(0, 80, 200, 0.08) 0%, rgba(0, 140, 255, 0.85) 15%, rgba(0, 80, 200, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(0, 80, 200, 0.08) 0%, rgba(0, 140, 255, 0.85) 15%, rgba(0, 80, 200, 0.75) 60%, transparent 100%);
-}
-
-/* Green */
-.List2Ctrl .ListItem.mzd-theme-row-green .line1:before {
-    border: 1px solid #28e070;
-    background-image: -o-linear-gradient(left, rgba(0, 112, 44, 0.08) 0%, rgba(16, 220, 96, 0.85) 15%, rgba(0, 112, 44, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(0, 112, 44, 0.08) 0%, rgba(16, 220, 96, 0.85) 15%, rgba(0, 112, 44, 0.75) 60%, transparent 100%);
-}
-
-/* Orange */
-.List2Ctrl .ListItem.mzd-theme-row-orange .line1:before {
-    border: 1px solid #ffa520;
-    background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%);
-}
-
-/* Purple */
-.List2Ctrl .ListItem.mzd-theme-row-purple .line1:before {
-    border: 1px solid #c840f0;
-    background-image: -o-linear-gradient(left, rgba(92, 0, 128, 0.08) 0%, rgba(176, 32, 224, 0.85) 15%, rgba(92, 0, 128, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(92, 0, 128, 0.08) 0%, rgba(176, 32, 224, 0.85) 15%, rgba(92, 0, 128, 0.75) 60%, transparent 100%);
-}
-
-/* Pink */
-.List2Ctrl .ListItem.mzd-theme-row-pink .line1:before {
-    border: 1px solid #ff4d90;
-    background-image: -o-linear-gradient(left, rgba(153, 0, 56, 0.08) 0%, rgba(255, 45, 120, 0.85) 15%, rgba(153, 0, 56, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(153, 0, 56, 0.08) 0%, rgba(255, 45, 120, 0.85) 15%, rgba(153, 0, 56, 0.75) 60%, transparent 100%);
-}
-
-/* Silver */
-.List2Ctrl .ListItem.mzd-theme-row-silver .line1:before {
-    border: 1px solid #eef4fa;
-    background-image: -o-linear-gradient(left, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%);
-}
-
-/* Gold */
-.List2Ctrl .ListItem.mzd-theme-row-gold .line1:before {
-    border: 1px solid #ffe44d;
-    background-image: -o-linear-gradient(left, rgba(179, 143, 0, 0.08) 0%, rgba(255, 215, 0, 0.85) 15%, rgba(179, 143, 0, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(179, 143, 0, 0.08) 0%, rgba(255, 215, 0, 0.85) 15%, rgba(179, 143, 0, 0.75) 60%, transparent 100%);
-}
-
-/* Cyan */
-.List2Ctrl .ListItem.mzd-theme-row-cyan .line1:before {
-    border: 1px solid #33ecff;
-    background-image: -o-linear-gradient(left, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
-    background-image: linear-gradient(to right, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
 }

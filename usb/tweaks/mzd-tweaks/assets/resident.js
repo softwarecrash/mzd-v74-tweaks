@@ -57,6 +57,7 @@
 
     var DEFAULTS = {
         main_menu_loop: false,
+        coins_glow: true,
         list_loop: false,
         list_beep: true,
         short_delay: false,
@@ -210,23 +211,25 @@
     backfillDefaults(global.mzdTweaks);
 
     var THEME_CLASSES = ['mzd-theme-blue', 'mzd-theme-green', 'mzd-theme-orange', 'mzd-theme-purple', 'mzd-theme-pink', 'mzd-theme-silver', 'mzd-theme-gold', 'mzd-theme-cyan'];
+    var GLOW_CLASSES = ['mzd-coins-glow', 'mzd-no-coins-glow'];
 
-    function ensureCommonStylesheet() {
+    function ensureBaseStylesheet() {
         var doc = global.document;
         if (!doc) { return; }
-        var linkId = 'mzd-tweaks-theme-common-css';
-        if (!doc.getElementById(linkId)) {
+        var linkId = 'mzd-tweaks-base-css';
+        if (typeof doc.getElementById === 'function' && !doc.getElementById(linkId)) {
             var link = doc.createElement('link');
             link.id = linkId;
             link.rel = 'stylesheet';
             link.type = 'text/css';
-            link.href = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/theme-common.css';
+            link.href = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/mzd-tweaks.css';
             (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(link);
         }
     }
 
     function applyTheme(themeName) {
-        var doc = global.document, body, i, cls, newCls, colorLinkId, colorLink;
+        var doc = global.document, body, i, cls, newCls;
+        var commonLinkId, commonLink, colorLinkId, colorLink, glowEnabled;
         if (!doc) { return; }
         body = doc.body;
         if (!body) {
@@ -237,19 +240,34 @@
             }
             return;
         }
-        ensureCommonStylesheet();
+        ensureBaseStylesheet();
         cls = body.className || '';
         for (i = 0; i < THEME_CLASSES.length; i++) {
             cls = cls.replace(new RegExp('\\b' + THEME_CLASSES[i] + '\\b', 'g'), '');
         }
+        for (i = 0; i < GLOW_CLASSES.length; i++) {
+            cls = cls.replace(new RegExp('\\b' + GLOW_CLASSES[i] + '\\b', 'g'), '');
+        }
         cls = cls.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
 
+        commonLinkId = 'mzd-tweaks-theme-common-css';
+        commonLink = typeof doc.getElementById === 'function' ? doc.getElementById(commonLinkId) : null;
         colorLinkId = 'mzd-tweaks-theme-color-css';
-        colorLink = doc.getElementById(colorLinkId);
+        colorLink = typeof doc.getElementById === 'function' ? doc.getElementById(colorLinkId) : null;
 
         if (themeName && themeName !== 'red') {
             newCls = 'mzd-theme-' + themeName;
             cls = cls ? (cls + ' ' + newCls) : newCls;
+
+            var commonHref = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/theme-common.css';
+            if (!commonLink) {
+                commonLink = doc.createElement('link');
+                commonLink.id = commonLinkId;
+                commonLink.rel = 'stylesheet';
+                commonLink.type = 'text/css';
+                commonLink.href = commonHref;
+                (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(commonLink);
+            }
 
             var targetHref = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/themes/theme-' + themeName + '.css';
             if (!colorLink) {
@@ -257,18 +275,34 @@
                 colorLink.id = colorLinkId;
                 colorLink.rel = 'stylesheet';
                 colorLink.type = 'text/css';
+                colorLink.setAttribute('data-theme', themeName);
                 colorLink.href = targetHref;
                 (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(colorLink);
-            } else if (colorLink.getAttribute('href') !== targetHref) {
+            } else if (colorLink.getAttribute('data-theme') !== themeName) {
+                colorLink.setAttribute('data-theme', themeName);
+                if (colorLink.dataset) {
+                    delete colorLink.dataset.oTransitionPatched;
+                } else if (typeof colorLink.removeAttribute === 'function') {
+                    colorLink.removeAttribute('data-o-transition-patched');
+                }
                 colorLink.href = targetHref;
             }
         } else {
-            // For factory 'red', remove theme color stylesheet completely so OEM styles run unmodified
+            // For factory 'red', remove both theme-common.css and color theme stylesheet so OEM styles run unmodified
+            if (commonLink && commonLink.parentNode) {
+                commonLink.parentNode.removeChild(commonLink);
+            }
             if (colorLink && colorLink.parentNode) {
                 colorLink.parentNode.removeChild(colorLink);
             }
         }
-        body.className = cls;
+
+        glowEnabled = !global.mzdTweaks || global.mzdTweaks.coins_glow !== false;
+        cls = cls ? (cls + ' ' + (glowEnabled ? 'mzd-coins-glow' : 'mzd-no-coins-glow')) : (glowEnabled ? 'mzd-coins-glow' : 'mzd-no-coins-glow');
+
+        if (body.className !== cls) {
+            body.className = cls;
+        }
     }
 
     applyTheme(global.mzdTweaks.theme);
@@ -918,7 +952,7 @@
                 }
             }
             backfillDefaults(global.mzdTweaks);
-            if (Object.prototype.hasOwnProperty.call(settings, 'theme')) {
+            if (Object.prototype.hasOwnProperty.call(settings, 'theme') || Object.prototype.hasOwnProperty.call(settings, 'coins_glow')) {
                 applyTheme(global.mzdTweaks.theme);
             }
             if (Object.prototype.hasOwnProperty.call(settings, 'statusbar_date')) {

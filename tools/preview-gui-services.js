@@ -237,6 +237,7 @@
         };
         var schemaDefaults = {
             main_menu_loop: false,
+            coins_glow: true,
             list_loop: false,
             list_beep: true,
             short_delay: false,

@@ -44,6 +44,7 @@ const DEFAULT_AUDIO_ORDER = {
 
 const DEFAULTS = {
   main_menu_loop: false,
+  coins_glow: true,
   list_loop: false,
   list_beep: true,
   short_delay: false,
@@ -274,7 +275,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, theme: 'red', audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, theme: 'red', audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -291,15 +292,15 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
 {
   // At boot the service is usually still starting: the first read fails at once.
-  const page = residentPage({ main_menu_loop: true, list_loop: false, list_beep: true, short_delay: false, audio_order_custom: false });
+  const page = residentPage({ main_menu_loop: true, coins_glow: true, list_loop: false, list_beep: true, short_delay: false, audio_order_custom: false });
   complete(page.ctx, 'get', 'Module service is starting or unavailable. Please retry.');
   assert.deepEqual(page.ctx.logs, [], 'the expected boot failure is not logged');
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'a failed read keeps the boot values');
@@ -1103,27 +1104,33 @@ function viewPage(options) {
 {
   const page = viewPage();
   assert.deepEqual(page.posts.map(m => m.type + ':' + m.action), ['mzd-tweaks-request:get'], 'the view asks the resident for the settings');
-  page.respond({ main_menu_loop: true, list_loop: false, short_delay: false, audio_order_custom: false });
+  page.respond({ main_menu_loop: true, coins_glow: true, list_loop: false, short_delay: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'theme_menu', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Theme', 'Entertainment menu order']);
-  assert.equal(menu.rows[5].detail, 'Red');
-  assert.equal(menu.rows[5].caret, true);
-  assert.equal(menu.rows[6].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'coins_glow', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'theme_menu', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu icons glow', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Theme', 'Entertainment menu order']);
+  assert.equal(menu.rows[6].detail, 'Red');
   assert.equal(menu.rows[6].caret, true);
+  assert.equal(menu.rows[7].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[7].caret, true);
 
-  page.select(2);
+  page.select(3);
   assert.deepEqual(page.sets(), [{ key: 'list_beep', value: false }], 'switching the default beep off saves false');
-  page.respond({ main_menu_loop: true, list_loop: false, list_beep: false, short_delay: false });
-  assert.equal(page.menu().rows[2].checked, false);
-  page.select(2);
+  page.respond({ main_menu_loop: true, coins_glow: true, list_loop: false, list_beep: false, short_delay: false });
+  assert.equal(page.menu().rows[3].checked, false);
+  page.select(3);
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
+  page.select(1);
+  assert.deepEqual(page.sets().pop(), { key: 'coins_glow', value: false });
+  page.respond({ coins_glow: false });
+  assert.equal(page.menu().rows[1].checked, false);
+  page.select(1);
+  assert.deepEqual(page.sets().pop(), { key: 'coins_glow', value: true });
   page.select(0);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
   // Open the Theme subpage
-  page.select(5);
+  page.select(6);
   const themeMenu = page.menu();
   assert.equal(themeMenu.title, 'Theme');
   assert.equal(themeMenu.rows.length, 9);
@@ -1136,10 +1143,10 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'theme', value: 'blue' });
   page.respond({ theme: 'blue' });
-  assert.equal(page.menu().rows[5].detail, 'Blue');
+  assert.equal(page.menu().rows[6].detail, 'Blue');
 
   // Open the Entertainment menu order subpage
-  page.select(6);
+  page.select(7);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1321,6 +1328,7 @@ function viewPage(options) {
     assert(dict.default && dict.default.length > 0, 'default present in ' + lang);
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
     assert(dict.audio_order_title && dict.audio_order_title.length > 0, 'audio_order_title present in ' + lang);
+    assert(dict.coins_glow && dict.coins_glow.length > 0, 'coins_glow present in ' + lang);
     assert(dict.statusbar_date && dict.statusbar_date.length > 0, 'statusbar_date present in ' + lang);
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
@@ -1350,6 +1358,80 @@ function viewPage(options) {
   assert.equal(regional.clock.children[1].textContent, 'Mi 18', 'a regional variant uses the base language weekdays');
   const unknown = statusbarFixture(true, null, false, false, null, true, 'sw_KE').control;
   assert.equal(unknown.clock.children[1].textContent, 'Wed 18', 'an unsupported language falls back to English');
+}
+
+{
+  // Theme and Coins Glow stylesheet and body class management
+  const headElements = [];
+  const byId = {};
+  const mockHead = {
+    appendChild(el) {
+      headElements.push(el);
+      if (el.id) byId[el.id] = el;
+      el.parentNode = mockHead;
+      return el;
+    },
+    removeChild(el) {
+      const idx = headElements.indexOf(el);
+      if (idx !== -1) headElements.splice(idx, 1);
+      if (el.id) delete byId[el.id];
+      el.parentNode = null;
+      return el;
+    }
+  };
+  const mockBody = { className: '' };
+  const mockDoc = {
+    head: mockHead,
+    documentElement: mockHead,
+    body: mockBody,
+    createElement(tag) {
+      return { tagName: tag, setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; } };
+    },
+    getElementById(id) {
+      return byId[id] || null;
+    },
+    getElementsByClassName() { return []; }
+  };
+
+  const win = {
+    setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {},
+    document: mockDoc,
+    mzdTweaks: { main_menu_loop: false, coins_glow: true, theme: 'red' },
+    MzdGuiResidents: { register(id, factory) { win.factory = factory; }, log() {} }
+  };
+  vm.runInNewContext(settingsHostSource, { window: win });
+  vm.runInNewContext(residentSource, { window: win, document: mockDoc });
+
+  // Initial state with theme: 'red' and coins_glow: true
+  assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css is always loaded');
+  assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'theme-common.css is not loaded when theme is red');
+  assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'theme color css is not loaded when theme is red');
+  assert.equal(mockBody.className.indexOf('mzd-coins-glow') !== -1, true, 'mzd-coins-glow is on body when enabled');
+  assert.equal(mockBody.className.indexOf('mzd-no-coins-glow'), -1, 'mzd-no-coins-glow is not on body');
+
+  // Switch to Cobalt Blue
+  const ctx = { requests: [], notes: [], handlers: {}, current: { source: { postMessage() {} }, token: 'tok' } };
+  ctx.service = { request(op, args, cb) {} };
+  win.factory(ctx);
+  ctx.options.onConfirmed({ theme: 'blue' });
+
+  assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css remains loaded');
+  assert.equal(byId['mzd-tweaks-theme-common-css'] !== undefined, true, 'theme-common.css is loaded when custom theme is blue');
+  assert.equal(byId['mzd-tweaks-theme-color-css'] !== undefined, true, 'theme color css is loaded');
+  assert.equal(mockBody.className.indexOf('mzd-theme-blue') !== -1, true, 'mzd-theme-blue is on body');
+  assert.equal(mockBody.className.indexOf('mzd-coins-glow') !== -1, true, 'mzd-coins-glow remains on body');
+
+  // Disable coins_glow
+  ctx.options.onConfirmed({ coins_glow: false });
+  assert.equal(mockBody.className.indexOf('mzd-coins-glow'), -1, 'mzd-coins-glow is removed from body');
+  assert.equal(mockBody.className.indexOf('mzd-no-coins-glow') !== -1, true, 'mzd-no-coins-glow is added to body');
+
+  // Switch back to factory red
+  ctx.options.onConfirmed({ theme: 'red' });
+  assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css remains loaded');
+  assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'theme-common.css is unloaded when theme is red');
+  assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'theme color css is unloaded when theme is red');
+  assert.equal(mockBody.className.indexOf('mzd-no-coins-glow') !== -1, true, 'mzd-no-coins-glow persists in factory red');
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

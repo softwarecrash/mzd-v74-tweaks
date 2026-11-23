@@ -75,6 +75,7 @@ local AUDIO_KEYS = {
 
 local DEFAULTS = {
     main_menu_loop = false,
+    coins_glow = true,
     list_loop = false,
     list_beep = true,
     short_delay = false,
@@ -89,12 +90,14 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, coins_glow)
+    coins_glow = coins_glow or 'true'
     custom = custom or 'false'
     theme = theme or 'red'
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
+        '    "coins_glow": ' .. coins_glow .. ',',
         '    "list_loop": ' .. b .. ',',
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
@@ -127,9 +130,10 @@ do
     for i, k in ipairs(AUDIO_KEYS) do
         custom_audio[k] = #AUDIO_KEYS - i
     end
-    local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio)
+    local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio, nil, nil, 'false')
     local expected = {
         main_menu_loop = true,
+        coins_glow = false,
         list_loop = false,
         list_beep = false,
         short_delay = true,
@@ -188,6 +192,15 @@ do
     assert(fs.syncs > 0, 'the directory is synced')
     assert(fs.temp == nil, 'no temp file remains')
     same(service(fs).request('get').settings, expected, 'a fresh service reads it back')
+end
+
+-- set coins_glow toggles main menu icon glow.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'coins_glow', value = false })
+    assert(res.settings.coins_glow == false)
+    assert(fs.content:match('"coins_glow"%s*:%s*false'))
 end
 
 -- set audio_order_custom toggles feature flag.

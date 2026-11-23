@@ -3,6 +3,7 @@
 -- runtime hooks have the saved values before this service is running.
 local BOOL_DEFAULTS = {
     main_menu_loop = false,
+    coins_glow = true,
     list_loop = false,
     list_beep = true,
     short_delay = false,
@@ -12,6 +13,7 @@ local BOOL_DEFAULTS = {
 
 local BOOL_KEYS = {
     'main_menu_loop',
+    'coins_glow',
     'list_loop',
     'list_beep',
     'short_delay',

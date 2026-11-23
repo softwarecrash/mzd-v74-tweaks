@@ -26,11 +26,11 @@ body.mzd-theme-green .MainMenuCtrlSetFocus {
 }
 
 /* Main Menu Glow */
-body.mzd-theme-green .MainMenuCtrlAppHighlight,
-body.mzd-theme-green .MainMenuCtrlEntHighlight,
-body.mzd-theme-green .MainMenuCtrlComHighlight,
-body.mzd-theme-green .MainMenuCtrlNavHighlight,
-body.mzd-theme-green .MainMenuCtrlSetHighlight {
+body.mzd-theme-green.mzd-coins-glow .MainMenuCtrlAppHighlight,
+body.mzd-theme-green.mzd-coins-glow .MainMenuCtrlEntHighlight,
+body.mzd-theme-green.mzd-coins-glow .MainMenuCtrlComHighlight,
+body.mzd-theme-green.mzd-coins-glow .MainMenuCtrlNavHighlight,
+body.mzd-theme-green.mzd-coins-glow .MainMenuCtrlSetHighlight {
     background-image: url(../images/highlights/Glow_green.png) !important;
 }
 
