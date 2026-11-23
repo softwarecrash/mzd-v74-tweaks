@@ -1095,9 +1095,9 @@ function viewPage(options) {
 {
   const page = viewPage();
   page.respond({ statusbar_date: false });
-  assert.equal(page.menu().rows[4].label, 'Date in status bar');
-  assert.equal(page.menu().rows[4].checked, false, 'the date is off by default');
-  page.select(4);
+  assert.equal(page.menu().rows[5].label, 'Date in status bar');
+  assert.equal(page.menu().rows[5].checked, false, 'the date is off by default');
+  page.select(5);
   assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: true }], 'switching the date on saves true');
 }
 
@@ -1122,10 +1122,11 @@ function viewPage(options) {
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'coins_glow', value: false });
-  page.respond({ coins_glow: false });
+  page.respond({ main_menu_loop: true, coins_glow: false, list_loop: false, list_beep: true, short_delay: false });
   assert.equal(page.menu().rows[1].checked, false);
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'coins_glow', value: true });
+  page.respond({ main_menu_loop: true, coins_glow: true, list_loop: false, list_beep: true, short_delay: false });
   page.select(0);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
@@ -1260,7 +1261,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(6);
+  page.select(7);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1268,7 +1269,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(6);
+  page.select(7);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1410,10 +1411,33 @@ function viewPage(options) {
   assert.equal(mockBody.className.indexOf('mzd-no-coins-glow'), -1, 'mzd-no-coins-glow is not on body');
 
   // Switch to Cobalt Blue
-  const ctx = { requests: [], notes: [], handlers: {}, current: { source: { postMessage() {} }, token: 'tok' } };
-  ctx.service = { request(op, args, cb) {} };
+  let hostOptions = null;
+  const originalCreate = win.MzdSettingsHost.create;
+  win.MzdSettingsHost.create = (c, opts) => {
+    hostOptions = opts;
+    return originalCreate(c, opts);
+  };
+  const source = { messages: [], postMessage(message) { this.messages.push(plain(message)); } };
+  const ctx = {
+    requests: [],
+    notes: [],
+    options: null,
+    handlers: {},
+    current: { source: source, token: 'tok', frame: {} },
+    logs: [],
+    log(message) { this.logs.push(message); },
+    notify(text, isError) { this.notes.push([text, isError]); },
+    view() { return this.current; },
+    onMessage(fn) { this.handlers.message = fn; },
+    onViewClose(fn) { this.handlers.viewClose = fn; },
+    onDispose(fn) { this.handlers.dispose = fn; },
+    loadLanguage(fn) { if (typeof fn === 'function') fn(); },
+    onServiceReady(fn) { this.handlers.ready = fn; },
+    createNativeMenu(options) { this.options = options; return { close() {}, check() {}, owns: () => false }; },
+    service: { request(op, args, cb) { ctx.requests.push({ op: op, args: plain(args), cb: cb }); } }
+  };
   win.factory(ctx);
-  ctx.options.onConfirmed({ theme: 'blue' });
+  hostOptions.onConfirmed({ theme: 'blue' });
 
   assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css remains loaded');
   assert.equal(byId['mzd-tweaks-theme-common-css'] !== undefined, true, 'theme-common.css is loaded when custom theme is blue');
@@ -1422,12 +1446,12 @@ function viewPage(options) {
   assert.equal(mockBody.className.indexOf('mzd-coins-glow') !== -1, true, 'mzd-coins-glow remains on body');
 
   // Disable coins_glow
-  ctx.options.onConfirmed({ coins_glow: false });
+  hostOptions.onConfirmed({ coins_glow: false });
   assert.equal(mockBody.className.indexOf('mzd-coins-glow'), -1, 'mzd-coins-glow is removed from body');
   assert.equal(mockBody.className.indexOf('mzd-no-coins-glow') !== -1, true, 'mzd-no-coins-glow is added to body');
 
   // Switch back to factory red
-  ctx.options.onConfirmed({ theme: 'red' });
+  hostOptions.onConfirmed({ theme: 'red' });
   assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css remains loaded');
   assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'theme-common.css is unloaded when theme is red');
   assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'theme color css is unloaded when theme is red');
