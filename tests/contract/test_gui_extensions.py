@@ -260,7 +260,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
    user_data=persist/'mzd-tweaks/gui-data'/game_id
    owner=(user_data/'owner').read_bytes();write(user_data/'record.conf','best=42\n')
    assert (user_data/'record.conf').read_text()=='best=42\n'
-   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.2','version=0.1.3'))
+   p=usb/'tweaks'/game_id/'manifest.conf';write(p,p.read_text().replace('version=0.1.3','version=0.1.4'))
    call(game_id,'update');assert (user_data/'record.conf').read_text()=='best=42\n' and (user_data/'owner').read_bytes()==owner
    call(game_id,'uninstall',extra=['--preserve-config']);assert (user_data/'record.conf').exists() and hook.exists()
    call(game_id,'install');assert (user_data/'record.conf').read_text()=='best=42\n'
@@ -284,7 +284,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
   write(user_data/'test-image.png','synthetic user data\n')
   write(user_data/'gallery/gallery.tsv','saved image and slideshow settings\n')
   saved={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
-  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.4','version=0.4.5'))
+  p=usb/'tweaks/wallpaper-manager/manifest.conf';write(p,p.read_text().replace('version=0.4.5','version=0.4.6'))
   call('wallpaper-manager','update')
   assert saved=={p.relative_to(user_data):p.read_bytes() for p in user_data.rglob('*') if p.is_file()}
   call('wallpaper-manager','uninstall',extra=['--preserve-config']);assert hook.exists() and (user_data/'test-image.png').exists()
@@ -340,7 +340,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
   score=persist/'mzd-tweaks/data/tetris/highscore.conf'
   assert score.exists() and score.read_text()==''
   write(score,'highscore=1234\n')
-  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.1','version=0.5.2'))
+  p=usb/'tweaks/tetris/manifest.conf';write(p,p.read_text().replace('version=0.5.2','version=0.5.3'))
   call('tetris','update');assert score.read_text()=='highscore=1234\n'
   call('tetris','uninstall',extra=['--preserve-config']);assert score.exists();absent()
   call('tetris','install');assert score.read_text()=='highscore=1234\n'
@@ -358,7 +358,7 @@ awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}
   assert 'drivedash' in (base/'mzd-gui-services.tsv').read_text()
   edited='version=1\ndesign=oem-style\nlanguage=de_DE\nspeedUnit=mph\ntempUnit=F\nanimated=true\n'
   write(settings,edited);deep('drivedash','installed')
-  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.7','version=0.1.8'))
+  manifest=usb/'tweaks/drivedash/manifest.conf';write(manifest,manifest.read_text().replace('version=0.1.8','version=0.1.9'))
   call('drivedash','update');assert settings.read_text()==edited
   call('tetris','install');call('drivedash','uninstall',extra=['--preserve-config']);assert settings.read_text()==edited and hook.exists()
   call('tetris','uninstall');absent();assert startup.read_bytes()==original and settings.read_text()==edited
