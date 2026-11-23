@@ -115,7 +115,7 @@ exec '''+copy_command+''' "$@"
  def absent():assert not hook.exists() and not runtime.exists() and not registry.exists() and not provider.exists() and not modules.exists()
  if '--helper-compat-only' in sys.argv:
   api=usb/'lib/gui-runtime/api.conf';current=api.read_text()
-  assert current=='api=3\n','api.conf carries only the GUI API level'
+  assert current=='api=4\n','api.conf carries only the GUI API level'
   provider_api=provider/'package/lib/gui-runtime/api.conf'
   def snapshot():return {str(p.relative_to(persist)):p.read_bytes() for p in persist.rglob('*') if p.is_file()}
   def reinventory(folder,inventory):
@@ -135,9 +135,9 @@ exec '''+copy_command+''' "$@"
   p=usb/'tweaks/gui-example/manifest.conf';write(p,p.read_text().replace('version=0.1.0','version=0.1.1'))
   call('gui-example','update')
   call('gui-example','uninstall');absent()
-  # The current provider (api=3) accepts level-2 and level-3 consumers and is reused by them.
+  # The current provider (api=4) accepts level-2, level-3, and level-4 consumers and is reused by them.
   call('wallpaper-manager','install');call('gui-hello-world','install')
-  assert provider_api.read_text()=='api=3\n'
+  assert provider_api.read_text()=='api=4\n'
   call('gui-hello-world','uninstall');call('wallpaper-manager','uninstall');absent()
   # A saved consumer copy older than the tweak needs is refused as well, since it runs on uninstall.
   call('wallpaper-manager','install')

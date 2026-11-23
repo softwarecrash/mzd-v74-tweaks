@@ -34,7 +34,7 @@ assert 'components' not in m
 assert 'target' not in m
 assert m['config.settings.path'] == '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js'
 assert m['config.settings.source'] == 'assets/settings.js'
-assert m['gui_api'] == '3'
+assert m['gui_api'] == '4'
 assert m['gui_resident'] == 'assets/resident.js'
 assert m['gui_service'] == 'assets/service/entry.lua'
 checks += 1

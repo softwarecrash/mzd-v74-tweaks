@@ -498,6 +498,7 @@ function stepDpi(val, isFinal = true) {
 flush();
 assert.equal(intervalsStarted, 1, 'Polling interval started on view open');
 assert.equal(sb, 'Android Auto Settings');
+assert(head.children.some(c => c.tagName === 'link' && c.href === '/jci/gui/common/templates/Dialog3/css/Dialog3Tmplt.css'), 'Dialog3Tmplt.css preloaded for modal z-index parity');
 assert.equal(control.dataList.items.length, 17);
 assert.equal(control.props.smallItemText, true, 'AA settings use the Safety-tab compact text size');
 assert.equal(control.hasFocus, true, 'The settings list takes focus when it opens');

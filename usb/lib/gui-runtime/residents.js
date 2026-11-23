@@ -6,6 +6,7 @@
     var DIALOG_ASSETS = [
         {css: '/jci/gui/common/controls/Dialog3/css/Dialog3Ctrl.css'},
         {css: '/jci/gui/common/controls/Button/css/ButtonCtrl.css'},
+        {css: '/jci/gui/common/templates/Dialog3/css/Dialog3Tmplt.css'},
         {js: '/jci/gui/common/controls/Button/js/ButtonCtrl.js', method: 'registerCtrlLoaded', registry: '_controlsLoaded', name: 'ButtonCtrl', key: 'common/controls/Button'},
         {js: '/jci/gui/common/controls/Dialog3/js/Dialog3Ctrl.js', method: 'registerCtrlLoaded', registry: '_controlsLoaded', name: 'Dialog3Ctrl', key: 'common/controls/Dialog3'},
         {js: '/jci/gui/common/templates/Dialog3/js/Dialog3Tmplt.js', method: 'registerTmpltLoaded', registry: '_templatesLoaded', name: 'Dialog3Tmplt'}
