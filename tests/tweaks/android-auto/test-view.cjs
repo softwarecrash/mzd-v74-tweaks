@@ -303,7 +303,7 @@ function serviceResult() {
     return {
         success: true,
         settings: Object.assign({}, savedSettings),
-        limits: { resolution_dpi: { min: 100, max: 160, step: 1 } },
+        limits: { resolution_dpi: { min: 100, max: 240, step: 1 } },
         unavailable: {},
         rebootRequired: Object.keys(applied).some(k => applied[k] !== savedSettings[k])
     };
@@ -507,7 +507,7 @@ assert.equal(dpiRow().label1, 'Resolution DPI');
 assert.equal(dpiRow().itemStyle, 'styleStep');
 assert.equal(dpiRow().value, 141);
 assert.equal(dpiRow().min, 100);
-assert.equal(dpiRow().max, 160);
+assert.equal(dpiRow().max, 240);
 assert.equal(dpiRow().increment, 1);
 assert.equal(dpiRow().disabled, false);
 assert.equal(dpiRow().image1, '');
@@ -636,7 +636,7 @@ assert.equal(writes, 4, 'A value below the service minimum is never saved');
 customServiceResult = null;
 residentMessage({ type: 'aa-request', action: 'get' });
 assert.equal(dpiRow().min, 100, 'New limits replace the old ones');
-assert.equal(dpiRow().max, 160);
+assert.equal(dpiRow().max, 240);
 assert.equal(dpiRow().increment, 1);
 
 // 2. A save in progress keeps reboot disabled; a successful save enables it

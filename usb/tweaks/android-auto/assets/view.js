@@ -164,7 +164,7 @@
                 label: t('resolution_dpi', 'Resolution DPI'),
                 defaultValue: 141,
                 min: 100,
-                max: 160,
+                max: 240,
                 increment: 1,
                 savingSpinner: true,
                 savingDisabled: true,

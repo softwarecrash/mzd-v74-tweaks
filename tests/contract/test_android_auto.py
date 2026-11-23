@@ -410,7 +410,7 @@ esac
     assert snapshot() == before
 
     # Invalid requests are refused before any write
-    for args in [['resolution_dpi=99'], ['resolution_dpi=abc'], ['resolution_dpi=161'], [], ['resolution_par=10670'], ['resolution_dpi=120', 'extra']]:
+    for args in [['resolution_dpi=99'], ['resolution_dpi=abc'], ['resolution_dpi=241'], [], ['resolution_par=10670'], ['resolution_dpi=120', 'extra']]:
         apply_settings(*args, code=1)
         assert snapshot() == before, args
 
@@ -821,7 +821,7 @@ local dpi_service = factory({{ files = files, data = staging, config = {{ libpat
 local writes_before = #written_paths
 local res = dpi_service.request("get")
 assert(res.settings.resolution_dpi == 122, "Expected saved DPI 122, got: " .. tostring(res.settings.resolution_dpi))
-assert(res.limits.resolution_dpi.min == 100 and res.limits.resolution_dpi.max == 160 and res.limits.resolution_dpi.step == 1, "Expected manifest bounds")
+assert(res.limits.resolution_dpi.min == 100 and res.limits.resolution_dpi.max == 240 and res.limits.resolution_dpi.step == 1, "Expected manifest bounds")
 assert(res.restart_required == false and next(res.unavailable) == nil)
 assert(#written_paths == writes_before, "get must not write")
 
@@ -830,7 +830,7 @@ files.write_new(conf .. ".new", "touch = true\\nresolution_dpi = 99\\n"); os.ren
 assert(dpi_service.request("get").settings.resolution_dpi == 122, "libpatch.conf must not override the saved DPI")
 
 -- Invalid values never run the apply script
-for _, bad in ipairs({{ 99, 161, 120.5, "130", true }}) do
+for _, bad in ipairs({{ 99, 241, 120.5, "130", true }}) do
     local ok = pcall(dpi_service.request, "set", {{ key = "resolution_dpi", value = bad }})
     assert(not ok, "Expected invalid DPI to fail: " .. tostring(bad))
 end
