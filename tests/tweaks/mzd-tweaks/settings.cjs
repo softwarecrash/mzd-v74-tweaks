@@ -48,6 +48,7 @@ const DEFAULTS = {
   list_beep: true,
   short_delay: false,
   statusbar_date: false,
+  theme: 'red',
   audio_order_custom: false,
   audio_order: DEFAULT_AUDIO_ORDER
 };
@@ -273,7 +274,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, theme: 'red', audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -290,9 +291,9 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
@@ -1105,10 +1106,12 @@ function viewPage(options) {
   page.respond({ main_menu_loop: true, list_loop: false, short_delay: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Entertainment menu order']);
-  assert.equal(menu.rows[5].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'theme_menu', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Theme', 'Entertainment menu order']);
+  assert.equal(menu.rows[5].detail, 'Red');
   assert.equal(menu.rows[5].caret, true);
+  assert.equal(menu.rows[6].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[6].caret, true);
 
   page.select(2);
   assert.deepEqual(page.sets(), [{ key: 'list_beep', value: false }], 'switching the default beep off saves false');
@@ -1119,8 +1122,24 @@ function viewPage(options) {
   page.select(0);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
-  // Open the Entertainment menu order subpage
+  // Open the Theme subpage
   page.select(5);
+  const themeMenu = page.menu();
+  assert.equal(themeMenu.title, 'Theme');
+  assert.equal(themeMenu.rows.length, 9);
+  assert.equal(themeMenu.rows[0].key, 'theme_red');
+  assert.equal(themeMenu.rows[0].checked, true);
+  assert.equal(themeMenu.rows[1].key, 'theme_blue');
+  assert.equal(themeMenu.rows[1].checked, false);
+
+  // Select Blue: saves theme: 'blue' and immediately returns to main menu
+  page.select(1);
+  assert.deepEqual(page.sets().pop(), { key: 'theme', value: 'blue' });
+  page.respond({ theme: 'blue' });
+  assert.equal(page.menu().rows[5].detail, 'Blue');
+
+  // Open the Entertainment menu order subpage
+  page.select(6);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1234,7 +1253,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(5);
+  page.select(6);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1242,7 +1261,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(5);
+  page.select(6);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');

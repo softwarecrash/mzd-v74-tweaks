@@ -1,0 +1,302 @@
+/*
+ * MZD Tweaks Color Themes: Common Stylesheet
+ * Shared structural rules, base sizing, Opera 12 Presto compatibility,
+ * and theme selection preview swatches.
+ */
+
+/* ==========================================================================
+   1. Modal Dialog Buttons (Dialog3Ctrl)
+   ========================================================================== */
+
+/*
+ * Ensure all modal buttons (focused and unfocused) match the stock 80px height,
+ * border-box sizing, and 4px rounded corners on ALL four corners exactly like
+ * the stock OEM button images (Dialog_1Btn, Dialog_2Btn, Dialog_3Btn, Dialog_4Btn).
+ */
+.Dialog3Ctrl_Buttons > div {
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    height: 80px !important;
+    border-radius: 4px !important;
+    -o-border-radius: 4px !important;
+}
+
+/* ==========================================================================
+   2. Main Menu Coins (MainMenuCtrl)
+   ========================================================================== */
+
+/* Unfocused coin elements remain hidden to eliminate load flicker */
+body[class*="mzd-theme-"] .MainMenuCtrlAppFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlEntFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlComFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlNavFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlSetFocus {
+    opacity: 0 !important;
+    background-size: 100% 100%, 82% 82% !important;
+    background-position: center center, center center !important;
+    background-repeat: no-repeat, no-repeat !important;
+    -o-transition: opacity 0.2s linear;
+}
+
+/* Base sizing and full opacity when coin is focused */
+body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlAppFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlEntFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlComFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlNavFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlSetFocus {
+    opacity: 1 !important;
+}
+
+/* ==========================================================================
+   3. Inline Segmented Buttons (12/24h, Auto/Day/Night, Auto/Man)
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .List2Ctrl .ListItem .button.active,
+body[class*="mzd-theme-"] .List2Ctrl.normalItems .ListItem.style10 .button.active,
+body[class*="mzd-theme-"] .List2Ctrl.normalItems .ListItem.style11 .button.active,
+body[class*="mzd-theme-"] .List2Ctrl.thickItems .ListItem.style10 .button.active,
+body[class*="mzd-theme-"] .List2Ctrl.thickItems .ListItem.style11 .button.active,
+body[class*="mzd-theme-"] .List2Ctrl .ListItem.draggable .button.active,
+body[class*="mzd-theme-"] .List2Ctrl .InLineButton.selected {
+    width: 118px !important;
+    height: 50px !important;
+    line-height: 50px !important;
+    float: left !important;
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    border-radius: 4px !important;
+    -o-border-radius: 4px !important;
+    border: none !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   4. Stepper Secondary Focus (Retained 180x48 PNG Images)
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .List2Ctrl .ListItem.styleStep.secondaryFocus .label2,
+body[class*="mzd-theme-"] .List2Ctrl.normalItems .ListItem.styleStep.secondaryFocus .label2,
+body[class*="mzd-theme-"] .List2Ctrl.thickItems .ListItem.styleStep.secondaryFocus .label2 {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* ==========================================================================
+   5. Back Button (<) & Folder Up (Retained Curved PNG Images)
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .LeftBtnCtrlBackBtnFocused,
+body[class*="mzd-theme-"] .LeftBtnCtrlBackBtnDown,
+body[class*="mzd-theme-"] .LeftBtnCtrlMoveUpBtnFocused,
+body[class*="mzd-theme-"] .LeftBtnCtrlMoveUpBtnDown {
+    background-repeat: no-repeat !important;
+    background-position: 0 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+}
+
+/* ==========================================================================
+   6. Scrollbar Indicator Geometry
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .List2CtrlScrollIndicator,
+body[class*="mzd-theme-"] .ScrollDetailCtrlScrollIndicator,
+body[class*="mzd-theme-"] .Messaging2CtrlScrollIndicator {
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+    width: 30px !important;
+    right: 2px !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* ==========================================================================
+   7. Sliders (Track Fill & Knob Focus Geometry)
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .List2Ctrl .ListItem .List2CtrlSliderCtrlFocusedFill,
+body[class*="mzd-theme-"] .List2Ctrl.normalItems .ListItem.style12 .List2CtrlSliderCtrlFocusedFill,
+body[class*="mzd-theme-"] .List2Ctrl.thickItems .ListItem.style12 .List2CtrlSliderCtrlFocusedFill,
+body[class*="mzd-theme-"] .List2CtrlSliderCtrlFocusedFill,
+body[class*="mzd-theme-"] .SliderCtrlFocusedFill {
+    background-position: 50% 50% !important;
+    background-repeat: no-repeat !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+body[class*="mzd-theme-"] .List2Ctrl .ListItem .List2CtrlSliderCtrlFocusedHandle,
+body[class*="mzd-theme-"] .List2Ctrl.normalItems .ListItem.style12 .List2CtrlSliderCtrlFocusedHandle,
+body[class*="mzd-theme-"] .List2Ctrl.thickItems .ListItem.style12 .List2CtrlSliderCtrlFocusedHandle,
+body[class*="mzd-theme-"] .List2CtrlSliderCtrlFocusedHandle,
+body[class*="mzd-theme-"] .SliderCtrlFocusedHandle {
+    background-position: 50% 50% !important;
+    background-repeat: no-repeat !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* ==========================================================================
+   8. Notifications (SBN Banner & Wink)
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .SbnCtrl {
+    background-image: none !important;
+    background-color: rgba(18, 18, 18, 0.95) !important;
+}
+
+/* ==========================================================================
+   9. Bottom Tabs (UMP)
+   ========================================================================== */
+
+body[class*="mzd-theme-"] .Ump3Ctrl2Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl2Button_Ds.Ump3Ctrl2Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl2Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl3Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl3Button_Ds.Ump3Ctrl3Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl3Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl4Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl4Button_Ds.Ump3Ctrl4Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl4Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl5Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl5Button_Ds.Ump3Ctrl5Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl5Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl6Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl6Button_Ds.Ump3Ctrl6Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl6Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl7Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl7Button_Ds.Ump3Ctrl7Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl7Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl8Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl8Button_Ds.Ump3Ctrl8Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl8Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl9Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl9Button_Ds.Ump3Ctrl9Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl9Button_down,
+body[class*="mzd-theme-"] .Ump3Ctrl10Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl10Button_Ds.Ump3Ctrl10Button_focused,
+body[class*="mzd-theme-"] .Ump3Ctrl10Button_down {
+    border: none !important;
+}
+
+body[class*="mzd-theme-"] .UmpScrubberFocusedFillStyle06,
+body[class*="mzd-theme-"] .UMP_Scrubber_Fill_Focus {
+    background-image: none !important;
+}
+body[class*="mzd-theme-"] .UmpScrubberFocusedHandleStyle06 {
+    background-image: url(/jci/gui/common/controls/Ump3/images/UMP_ScrubberKnob.png) !important;
+    border-radius: 50% !important;
+}
+
+/* Tooltip (UMP Balloon & Point) */
+body[class*="mzd-theme-"] .Ump3CtrlTooltipBalloon {
+    background-repeat: no-repeat, no-repeat, no-repeat !important;
+    background-position: left top, right top, 49px 0 !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+body[class*="mzd-theme-"] .Ump3CtrlTooltipPoint {
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    top: 69px !important;
+    width: 36px !important;
+    height: 22px !important;
+    border: none !important;
+}
+
+/* EcoEnergy Switch View */
+body[class*="mzd-theme-"] .FuelConsumptionCtrlSwitchView,
+body[class*="mzd-theme-"] .FuelConsumptionCtrlSwitchViewDown,
+body[class*="mzd-theme-"] .EcoStatusCtrl_SwitchView,
+body[class*="mzd-theme-"] .EcoStatusCtrl_SwitchView_Hit,
+body[class*="mzd-theme-"] .EcoFlowCtrlShowUmp,
+body[class*="mzd-theme-"] .EcoFlowCtrlShowUmpHit,
+body[class*="mzd-theme-"] .ScreenSettings2CtrlSwitchView,
+body[class*="mzd-theme-"] .ScreenSettings2CtrlSwitchViewDown {
+    box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+}
+
+/* ==========================================================================
+   10. Theme Selection Subpage Swatches (Decision 4: 180px × 36px)
+   ========================================================================== */
+
+.List2Ctrl.normalItems .ListItem.style03.mzd-theme-row .line1 {
+    width: 630px !important;
+}
+
+.List2Ctrl .ListItem.mzd-theme-row .line1:before {
+    content: "";
+    display: inline-block;
+    width: 180px;
+    height: 36px;
+    vertical-align: middle;
+    margin-right: 18px;
+    border-radius: 3px;
+    -o-border-radius: 3px;
+    box-sizing: border-box;
+    -o-box-sizing: border-box;
+}
+
+/* Red */
+.List2Ctrl .ListItem.mzd-theme-row-red .line1:before {
+    border: 1px solid #ff3b30;
+    background-image: -o-linear-gradient(left, rgba(160, 0, 0, 0.08) 0%, rgba(255, 40, 0, 0.85) 15%, rgba(160, 0, 0, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(160, 0, 0, 0.08) 0%, rgba(255, 40, 0, 0.85) 15%, rgba(160, 0, 0, 0.75) 60%, transparent 100%);
+}
+
+/* Blue */
+.List2Ctrl .ListItem.mzd-theme-row-blue .line1:before {
+    border: 1px solid #00aaff;
+    background-image: -o-linear-gradient(left, rgba(0, 80, 200, 0.08) 0%, rgba(0, 140, 255, 0.85) 15%, rgba(0, 80, 200, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(0, 80, 200, 0.08) 0%, rgba(0, 140, 255, 0.85) 15%, rgba(0, 80, 200, 0.75) 60%, transparent 100%);
+}
+
+/* Green */
+.List2Ctrl .ListItem.mzd-theme-row-green .line1:before {
+    border: 1px solid #28e070;
+    background-image: -o-linear-gradient(left, rgba(0, 112, 44, 0.08) 0%, rgba(16, 220, 96, 0.85) 15%, rgba(0, 112, 44, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(0, 112, 44, 0.08) 0%, rgba(16, 220, 96, 0.85) 15%, rgba(0, 112, 44, 0.75) 60%, transparent 100%);
+}
+
+/* Orange */
+.List2Ctrl .ListItem.mzd-theme-row-orange .line1:before {
+    border: 1px solid #ffa520;
+    background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%);
+}
+
+/* Purple */
+.List2Ctrl .ListItem.mzd-theme-row-purple .line1:before {
+    border: 1px solid #c840f0;
+    background-image: -o-linear-gradient(left, rgba(92, 0, 128, 0.08) 0%, rgba(176, 32, 224, 0.85) 15%, rgba(92, 0, 128, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(92, 0, 128, 0.08) 0%, rgba(176, 32, 224, 0.85) 15%, rgba(92, 0, 128, 0.75) 60%, transparent 100%);
+}
+
+/* Pink */
+.List2Ctrl .ListItem.mzd-theme-row-pink .line1:before {
+    border: 1px solid #ff4d90;
+    background-image: -o-linear-gradient(left, rgba(153, 0, 56, 0.08) 0%, rgba(255, 45, 120, 0.85) 15%, rgba(153, 0, 56, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(153, 0, 56, 0.08) 0%, rgba(255, 45, 120, 0.85) 15%, rgba(153, 0, 56, 0.75) 60%, transparent 100%);
+}
+
+/* Silver */
+.List2Ctrl .ListItem.mzd-theme-row-silver .line1:before {
+    border: 1px solid #eef4fa;
+    background-image: -o-linear-gradient(left, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%);
+}
+
+/* Gold */
+.List2Ctrl .ListItem.mzd-theme-row-gold .line1:before {
+    border: 1px solid #ffe44d;
+    background-image: -o-linear-gradient(left, rgba(179, 143, 0, 0.08) 0%, rgba(255, 215, 0, 0.85) 15%, rgba(179, 143, 0, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(179, 143, 0, 0.08) 0%, rgba(255, 215, 0, 0.85) 15%, rgba(179, 143, 0, 0.75) 60%, transparent 100%);
+}
+
+/* Cyan */
+.List2Ctrl .ListItem.mzd-theme-row-cyan .line1:before {
+    border: 1px solid #33ecff;
+    background-image: -o-linear-gradient(left, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
+}

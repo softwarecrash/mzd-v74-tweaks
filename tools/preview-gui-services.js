@@ -242,7 +242,8 @@
             short_delay: false,
             statusbar_date: false,
             audio_order_custom: false,
-            audio_order: defaultAudioOrder
+            audio_order: defaultAudioOrder,
+            theme: 'red'
         };
         var initial = defaults['mzd-tweaks'] || schemaDefaults;
         var settings = stored(key, initial);
@@ -262,6 +263,10 @@
                     }
                     for (var aoProp in settings[name]) {
                         settings['audio_order.' + aoProp] = settings[name][aoProp];
+                    }
+                } else if (name === 'theme') {
+                    if (typeof settings[name] !== 'string') {
+                        settings[name] = (initial && typeof initial[name] === 'string') ? initial[name] : schemaDefaults[name];
                     }
                 } else if (typeof settings[name] !== 'boolean') {
                     settings[name] = (initial && typeof initial[name] === 'boolean') ? initial[name] : schemaDefaults[name];
@@ -316,6 +321,11 @@
                             settings['audio_order.' + audioKey] = args.value[audioKey];
                         }
                     }
+                } else if (args.key === 'theme') {
+                    if (typeof args.value !== 'string') {
+                        throw new Error('Invalid setting value');
+                    }
+                    settings.theme = args.value;
                 } else if (Object.prototype.hasOwnProperty.call(schemaDefaults, args.key) && typeof args.value === 'boolean') {
                     settings[args.key] = args.value;
                 } else {

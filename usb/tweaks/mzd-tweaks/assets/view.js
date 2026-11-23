@@ -8,6 +8,65 @@
         return;
     }
 
+    var THEMES = [
+        { id: 'red', defaultLabel: 'Stock Red (default)', defaultShortLabel: 'Red' },
+        { id: 'blue', defaultLabel: 'Cobalt Blue', defaultShortLabel: 'Blue' },
+        { id: 'green', defaultLabel: 'Emerald Green', defaultShortLabel: 'Green' },
+        { id: 'orange', defaultLabel: 'Amber Orange', defaultShortLabel: 'Orange' },
+        { id: 'purple', defaultLabel: 'Neon Violet', defaultShortLabel: 'Purple' },
+        { id: 'pink', defaultLabel: 'Hot Pink', defaultShortLabel: 'Pink' },
+        { id: 'silver', defaultLabel: 'Titanium Silver', defaultShortLabel: 'Silver' },
+        { id: 'gold', defaultLabel: 'Sunset Gold', defaultShortLabel: 'Gold' },
+        { id: 'cyan', defaultLabel: 'Electric Cyan', defaultShortLabel: 'Cyan' }
+    ];
+
+    function getThemeShortLabel(id, tr) {
+        for (var i = 0; i < THEMES.length; i++) {
+            if (THEMES[i].id === id) {
+                return (typeof tr === 'function') ? tr('color_' + id, THEMES[i].defaultShortLabel) : THEMES[i].defaultShortLabel;
+            }
+        }
+        return (typeof tr === 'function') ? tr('color_red', 'Red') : 'Red';
+    }
+
+    function getThemeLabel(id, tr) {
+        for (var i = 0; i < THEMES.length; i++) {
+            if (THEMES[i].id === id) {
+                return (typeof tr === 'function') ? tr('theme_' + id, THEMES[i].defaultLabel) : THEMES[i].defaultLabel;
+            }
+        }
+        return (typeof tr === 'function') ? tr('theme_red', 'Stock Red (default)') : 'Stock Red (default)';
+    }
+
+    function themeIndex(current) {
+        for (var i = 0; i < THEMES.length; i++) {
+            if (THEMES[i].id === current) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    function themeOption(theme, current, tr) {
+        var label = (typeof tr === 'function') ? tr('theme_' + theme.id, theme.defaultLabel) : theme.defaultLabel;
+        return {
+            id: 'theme-' + theme.id,
+            key: 'theme_' + theme.id,
+            label: label,
+            checkable: true,
+            checked: current === theme.id,
+            select: function (api) {
+                api.back(true);
+                var state = api.state() || {};
+                if (state.theme !== theme.id) {
+                    api.save('theme', theme.id);
+                } else {
+                    api.render();
+                }
+            }
+        };
+    }
+
     var AUDIO_SOURCES = [
         { id: 'audio_traffic_info', audioSourceId: 'TrafficInfo', text1Id: 'TrafficAlertsItem', defaultLabel: 'Traffic Alerts', japanOnly: true },
         { id: 'audio_fm_radio', audioSourceId: 'FMRadio', text1Id: 'FmRadio', defaultLabel: 'FM' },
@@ -282,6 +341,30 @@
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'Shorter list menu delay') },
                 { key: 'statusbar_date', type: 'bool', label: tr('statusbar_date', 'Date in status bar') },
+                {
+                    key: 'theme_menu',
+                    label: tr('theme', 'Theme'),
+                    detail: getThemeShortLabel(state.theme || 'red', tr),
+                    caret: true,
+                    select: function (api) {
+                        var current = (api.state() || {}).theme || 'red';
+                        api.openPage({
+                            id: 'theme',
+                            title: api.t('theme', 'Theme'),
+                            index: themeIndex(current),
+                            entries: function (pageApi) {
+                                var pageState = pageApi.state() || {};
+                                var pageCurrent = pageState.theme || 'red';
+                                var pageTr = pageApi.t;
+                                var list = [];
+                                for (var i = 0; i < THEMES.length; i++) {
+                                    list.push(themeOption(THEMES[i], pageCurrent, pageTr));
+                                }
+                                return list;
+                            }
+                        });
+                    }
+                },
                 {
                     key: 'audio_order_menu',
                     label: tr('audio_order_title', 'Entertainment menu order'),

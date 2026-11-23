@@ -1,0 +1,194 @@
+/*
+ * MZD Tweaks Color Theme: ORANGE
+ * Loaded dynamically when orange is selected.
+ */
+
+/* Main Menu Coins */
+body.mzd-theme-orange .MainMenuCtrlAppFocus {
+    background-image: url(../images/coins/HomeApps_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+    background-image: url(../images/coins/HomeApps_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+}
+body.mzd-theme-orange .MainMenuCtrlEntFocus {
+    background-image: url(../images/coins/HomeAudio_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+    background-image: url(../images/coins/HomeAudio_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+}
+body.mzd-theme-orange .MainMenuCtrlComFocus {
+    background-image: url(../images/coins/HomeCom_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+    background-image: url(../images/coins/HomeCom_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+}
+body.mzd-theme-orange .MainMenuCtrlNavFocus {
+    background-image: url(../images/coins/HomeNav_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+    background-image: url(../images/coins/HomeNav_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+}
+body.mzd-theme-orange .MainMenuCtrlSetFocus {
+    background-image: url(../images/coins/HomeSet_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+    background-image: url(../images/coins/HomeSet_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+}
+
+/* Main Menu Glow */
+body.mzd-theme-orange .MainMenuCtrlAppHighlight,
+body.mzd-theme-orange .MainMenuCtrlEntHighlight,
+body.mzd-theme-orange .MainMenuCtrlComHighlight,
+body.mzd-theme-orange .MainMenuCtrlNavHighlight,
+body.mzd-theme-orange .MainMenuCtrlSetHighlight {
+    background-image: url(../images/highlights/Glow_orange.png) !important;
+}
+
+/* List Items (Normal & Thick) Focus and Pressed */
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.focus,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.focus,
+body.mzd-theme-orange .List2Ctrl .List2CtrlRow.focus,
+body.mzd-theme-orange .List2Ctrl .List2CtrlItem.focus {
+    background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
+    background-image: linear-gradient(to right, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
+    border-top: 1px solid #ffa520 !important;
+    border-bottom: 1px solid #ffa520 !important;
+}
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.pressed,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.pressed {
+    background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.15) 0%, #ff9500 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
+    background-image: linear-gradient(to right, rgba(179, 83, 0, 0.15) 0%, #ff9500 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
+}
+
+/* Scrollbar Indicator (Fixed curved bezel arc indicating scrolling progress) */
+body.mzd-theme-orange .List2CtrlScrollIndicator,
+body.mzd-theme-orange .ScrollDetailCtrlScrollIndicator,
+body.mzd-theme-orange .Messaging2CtrlScrollIndicator {
+    background-image: url(../images/scrollbar/Scrollbar_orange.png) !important;
+}
+
+/* Back Button (<) & Folder Up Button */
+body.mzd-theme-orange .LeftBtnCtrlBackBtnFocused {
+    background-image: url(../images/leftbtn/BtnLeft_Focus_orange.png) !important;
+}
+body.mzd-theme-orange .LeftBtnCtrlBackBtnDown {
+    background-image: url(../images/leftbtn/BtnLeft_Hit_orange.png) !important;
+}
+body.mzd-theme-orange .LeftBtnCtrlMoveUpBtnFocused {
+    background-image: url(../images/leftbtn/BtnFldrUp_Focus_orange.png) !important;
+}
+body.mzd-theme-orange .LeftBtnCtrlMoveUpBtnDown {
+    background-image: url(../images/leftbtn/BtnFldrUp_Hit_orange.png) !important;
+}
+
+/* List Segmented Buttons (Auto / Man., Auto / Day / Night, 12h / 24h - Pure CSS Gradient) */
+body.mzd-theme-orange .List2Ctrl .ListItem .button.active,
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.style10 .button.active,
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.style11 .button.active,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.style10 .button.active,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.style11 .button.active,
+body.mzd-theme-orange .List2Ctrl .ListItem.draggable .button.active,
+body.mzd-theme-orange .List2Ctrl .InLineButton.selected {
+    background-image: -o-linear-gradient(top, #ff9500 0%, #b35300 100%) !important;
+    background-image: linear-gradient(to bottom, #ff9500 0%, #b35300 100%) !important;
+    box-shadow: 0 0 6px rgba(255, 149, 0, 0.85) !important;
+}
+
+/* Modal Dialog Buttons */
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle01_focused,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle02_focused,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle03_focused,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle04_focused,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle01_down,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle02_down,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle03_down,
+body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle04_down {
+    background-image: -o-linear-gradient(top, #ff9500 0%, #b35300 100%) !important;
+    background-image: linear-gradient(to bottom, #ff9500 0%, #b35300 100%) !important;
+    border: 1px solid #ffa520 !important;
+    box-shadow: 0 0 8px rgba(255, 149, 0, 0.85) !important;
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    height: 80px !important;
+    border-radius: 4px !important;
+    -o-border-radius: 4px !important;
+}
+
+/* Stepper Secondary Focus (180px x 48px centered background image) */
+body.mzd-theme-orange .List2Ctrl .ListItem.styleStep.secondaryFocus .label2,
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.styleStep.secondaryFocus .label2,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.styleStep.secondaryFocus .label2 {
+    background: url(../images/stepper/ListItem_MaintSet_Bg_Focus_orange.png) 50% 50% no-repeat, url(/jci/gui/common/controls/List2/images/ListItem_MaintSet_Bg.png) 50% 50% no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Sliders (Decision 2: Retained PNG Images) */
+body.mzd-theme-orange .List2Ctrl .ListItem .List2CtrlSliderCtrlFocusedFill,
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.style12 .List2CtrlSliderCtrlFocusedFill,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.style12 .List2CtrlSliderCtrlFocusedFill,
+body.mzd-theme-orange .List2CtrlSliderCtrlFocusedFill,
+body.mzd-theme-orange .SliderCtrlFocusedFill {
+    background-image: url(../images/slider/ListItem_Slider_Focus_orange.png) !important;
+}
+body.mzd-theme-orange .List2Ctrl .ListItem .List2CtrlSliderCtrlFocusedHandle,
+body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.style12 .List2CtrlSliderCtrlFocusedHandle,
+body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.style12 .List2CtrlSliderCtrlFocusedHandle,
+body.mzd-theme-orange .List2CtrlSliderCtrlFocusedHandle,
+body.mzd-theme-orange .SliderCtrlFocusedHandle {
+    background-image: url(../images/slider/ListItem_Slider_KnobFocus_orange.png) !important;
+}
+
+/* Notifications (SBN banner & Wink) */
+body.mzd-theme-orange .SbnCtrl {
+    border: 1px solid #ff9500 !important;
+    box-shadow: 0 0 10px rgba(255, 149, 0, 0.85) !important;
+}
+body.mzd-theme-orange .WinkCtrlBox {
+    border: 1px solid #ff9500 !important;
+    box-shadow: 0 0 10px rgba(255, 149, 0, 0.85) !important;
+}
+
+/* Bottom Tabs (UMP) */
+body.mzd-theme-orange .Ump3Ctrl2Button_focused, body.mzd-theme-orange .Ump3Ctrl2Button_Ds.Ump3Ctrl2Button_focused { background-image: url(../images/ump/UMP_Focus_2_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl2Button_down { background-image: url(../images/ump/UMP_Hit_2_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl3Button_focused, body.mzd-theme-orange .Ump3Ctrl3Button_Ds.Ump3Ctrl3Button_focused { background-image: url(../images/ump/UMP_Focus_3_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl3Button_down { background-image: url(../images/ump/UMP_Hit_3_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl4Button_focused, body.mzd-theme-orange .Ump3Ctrl4Button_Ds.Ump3Ctrl4Button_focused { background-image: url(../images/ump/UMP_Focus_4_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl4Button_down { background-image: url(../images/ump/UMP_Hit_4_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl5Button_focused, body.mzd-theme-orange .Ump3Ctrl5Button_Ds.Ump3Ctrl5Button_focused { background-image: url(../images/ump/UMP_Focus_5_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl5Button_down { background-image: url(../images/ump/UMP_Hit_5_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl6Button_focused, body.mzd-theme-orange .Ump3Ctrl6Button_Ds.Ump3Ctrl6Button_focused { background-image: url(../images/ump/UMP_Focus_6_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl6Button_down { background-image: url(../images/ump/UMP_Hit_6_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl7Button_focused, body.mzd-theme-orange .Ump3Ctrl7Button_Ds.Ump3Ctrl7Button_focused { background-image: url(../images/ump/UMP_Focus_7_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl7Button_down { background-image: url(../images/ump/UMP_Hit_7_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl8Button_focused, body.mzd-theme-orange .Ump3Ctrl8Button_Ds.Ump3Ctrl8Button_focused { background-image: url(../images/ump/UMP_Focus_8_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl8Button_down { background-image: url(../images/ump/UMP_Hit_8_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl9Button_focused, body.mzd-theme-orange .Ump3Ctrl9Button_Ds.Ump3Ctrl9Button_focused { background-image: url(../images/ump/UMP_Focus_9_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl9Button_down { background-image: url(../images/ump/UMP_Hit_9_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl10Button_focused, body.mzd-theme-orange .Ump3Ctrl10Button_Ds.Ump3Ctrl10Button_focused { background-image: url(../images/ump/UMP_Focus_10_orange.png) !important; }
+body.mzd-theme-orange .Ump3Ctrl10Button_down { background-image: url(../images/ump/UMP_Hit_10_orange.png) !important; }
+
+body.mzd-theme-orange .UmpScrubberFocusedFillStyle06,
+body.mzd-theme-orange .UMP_Scrubber_Fill_Focus {
+    background-color: #ff9500 !important;
+}
+body.mzd-theme-orange .UmpScrubberFocusedHandleStyle06 {
+    box-shadow: 0 0 10px rgba(255, 149, 0, 0.85) !important;
+}
+
+/* Tooltip (UMP Balloon & Point) */
+body.mzd-theme-orange .Ump3CtrlTooltipBalloon {
+    background-image: url(../images/ump/UmpPopupLt_orange.png), url(../images/ump/UMPPopupRt_orange.png), url(../images/ump/UMPPopupMd_orange.png) !important;
+}
+body.mzd-theme-orange .Ump3CtrlTooltipPoint {
+    background-image: url(../images/ump/UMP_Popup_Point_orange.png) !important;
+}
+
+/* EcoEnergy & Screen Settings Switch View Arrow Button */
+body.mzd-theme-orange .FuelConsumptionCtrlSwitchView,
+body.mzd-theme-orange .FuelConsumptionCtrlSwitchViewDown,
+body.mzd-theme-orange .EcoStatusCtrl_SwitchView,
+body.mzd-theme-orange .EcoStatusCtrl_SwitchView_Hit,
+body.mzd-theme-orange .EcoFlowCtrlShowUmp,
+body.mzd-theme-orange .EcoFlowCtrlShowUmpHit,
+body.mzd-theme-orange .ScreenSettings2CtrlSwitchView,
+body.mzd-theme-orange .ScreenSettings2CtrlSwitchViewDown {
+    background-image: url(../images/adjustbtn/AdjustBtn3_Focus_orange.png) !important;
+}
+
+/* Status Bar */
+body.mzd-theme-orange .StatusBarRemoteUIBtn_Focus,
+body.mzd-theme-orange .StatusBarRemoteUIBtn_Hit {
+    box-shadow: 0 0 8px rgba(255, 149, 0, 0.85) !important;
+}

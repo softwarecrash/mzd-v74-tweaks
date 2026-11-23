@@ -8,6 +8,7 @@ Features included:
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **Shorter Delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
 - **Date in status bar**: Show the short date (for example `Wed 18`) below a smaller clock. The weekday follows the head unit language (English for unsupported languages). Off keeps the factory clock, which Android Auto and CarPlay always keep.
+- **Color theme**: Customize the accent and highlight color across the Mazda Connect interface (Stock Red (default), Cobalt Blue, Emerald Green, Amber Orange, Neon Violet, Hot Pink, Titanium Silver, Sunset Gold, Electric Cyan). Applied in memory without system patching.
 - **Entertainment menu order**: Customize the display order of audio sources in the factory Entertainment menu.
 
 ## Configuration
@@ -15,6 +16,13 @@ Features included:
 MZD Tweaks adds an **MZD Tweaks** menu in **Applications**:
 - Each feature can be configured there. Changes are saved and applied to the
   running interface immediately; no reboot is needed after the first one.
+- **Color theme**:
+  - Displays the active theme name on the right. Selecting it opens a dedicated color
+    selection subpage with checkmarks.
+  - Selecting any theme instantly applies the new theme across the UI and returns
+    to the previous settings menu.
+  - Replaces red highlights across main menu coins, glows, list items, sliders,
+    buttons, dialogs, and media controls while preserving white text and dark backgrounds.
 - **Entertainment menu order**:
   - Displays **Default** or **Custom** depending on whether custom order is active.
   - Subpage provides an **Enable custom order** toggle. When disabled, the factory

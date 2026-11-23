@@ -19,6 +19,18 @@ local BOOL_KEYS = {
     'audio_order_custom'
 }
 
+local VALID_THEMES = {
+    red = true,
+    blue = true,
+    green = true,
+    orange = true,
+    purple = true,
+    pink = true,
+    silver = true,
+    gold = true,
+    cyan = true
+}
+
 local AUDIO_KEYS = {
     'audio_traffic_info',
     'audio_fm_radio',
@@ -57,6 +69,7 @@ return function(context)
         for _, k in ipairs(BOOL_KEYS) do
             settings[k] = BOOL_DEFAULTS[k]
         end
+        settings.theme = 'red'
         for _, k in ipairs(AUDIO_KEYS) do
             local default_val = AUDIO_DEFAULTS[k]
             settings['audio_order.' .. k] = default_val
@@ -82,6 +95,11 @@ return function(context)
             end
         end
 
+        local theme_val = content:match('"theme"%s*:%s*"([a-z]+)"')
+        if theme_val and VALID_THEMES[theme_val] then
+            settings.theme = theme_val
+        end
+
         for _, k in ipairs(AUDIO_KEYS) do
             local val = content:match('"' .. k .. '"%s*:%s*(%d+)')
             if val then
@@ -101,6 +119,9 @@ return function(context)
             if val == nil then val = BOOL_DEFAULTS[k] end
             lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. ','
         end
+        local theme = settings.theme
+        if not VALID_THEMES[theme] then theme = 'red' end
+        lines[#lines + 1] = '    "theme": "' .. theme .. '",'
         lines[#lines + 1] = '    "audio_order": {'
         for i, k in ipairs(AUDIO_KEYS) do
             local dot_k = 'audio_order.' .. k
@@ -150,7 +171,15 @@ return function(context)
                 if type(args.key) ~= 'string' then
                     error('Unknown setting: ' .. tostring(args.key), 0)
                 end
-                if args.key == 'audio_order' then
+                if args.key == 'theme' then
+                    if type(args.value) ~= 'string' or not VALID_THEMES[args.value] then
+                        error('Invalid setting value.', 0)
+                    end
+                    local settings = read_settings()
+                    settings.theme = args.value
+                    write_settings(settings)
+                    return { settings = settings }
+                elseif args.key == 'audio_order' then
                     if type(args.value) ~= 'table' then
                         error('Invalid setting value.', 0)
                     end

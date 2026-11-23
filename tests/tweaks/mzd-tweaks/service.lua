@@ -79,6 +79,7 @@ local DEFAULTS = {
     list_beep = true,
     short_delay = false,
     statusbar_date = false,
+    theme = 'red',
     audio_order_custom = false
 }
 local DEFAULT_AUDIO_ORDER = {}
@@ -88,8 +89,9 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme)
     custom = custom or 'false'
+    theme = theme or 'red'
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
@@ -98,6 +100,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date)
         '    "short_delay": ' .. d .. ',',
         '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
+        '    "theme": "' .. theme .. '",',
         '    "audio_order": {'
     }
     for i, k in ipairs(AUDIO_KEYS) do
@@ -131,6 +134,7 @@ do
         list_beep = false,
         short_delay = true,
         statusbar_date = false,
+        theme = 'red',
         audio_order_custom = true,
         audio_order = custom_audio
     }
@@ -234,6 +238,25 @@ do
     ok, err = pcall(svc.request, 'drop', {})
     assert(not ok and tostring(err):match('Unknown operation: drop'), 'unknown operation refused')
     assert(fs.content == initial, 'file unchanged')
+end
+
+-- set theme saves valid theme and rejects invalid theme.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local expected = {}
+    for k, v in pairs(DEFAULTS) do expected[k] = v end
+    expected.theme = 'blue'
+    same(svc.request('set', { key = 'theme', value = 'blue' }).settings, expected, 'theme set to blue')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'blue'), 'theme blue written')
+
+    -- Invalid theme string refused
+    local ok, err = pcall(svc.request, 'set', { key = 'theme', value = 'neon' })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'invalid theme refused: ' .. tostring(err))
+
+    -- Non-string refused
+    ok, err = pcall(svc.request, 'set', { key = 'theme', value = 123 })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'numeric theme refused')
 end
 
 -- A failed write of the temp file leaves the saved file untouched.

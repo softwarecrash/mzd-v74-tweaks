@@ -61,6 +61,7 @@
         list_beep: true,
         short_delay: false,
         statusbar_date: false,
+        theme: 'red',
         audio_order_custom: false,
         audio_order: DEFAULT_AUDIO_ORDER
     };
@@ -208,6 +209,70 @@
     }
     backfillDefaults(global.mzdTweaks);
 
+    var THEME_CLASSES = ['mzd-theme-blue', 'mzd-theme-green', 'mzd-theme-orange', 'mzd-theme-purple', 'mzd-theme-pink', 'mzd-theme-silver', 'mzd-theme-gold', 'mzd-theme-cyan'];
+
+    function ensureCommonStylesheet() {
+        var doc = global.document;
+        if (!doc) { return; }
+        var linkId = 'mzd-tweaks-theme-common-css';
+        if (!doc.getElementById(linkId)) {
+            var link = doc.createElement('link');
+            link.id = linkId;
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/theme-common.css';
+            (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(link);
+        }
+    }
+
+    function applyTheme(themeName) {
+        var doc = global.document, body, i, cls, newCls, colorLinkId, colorLink;
+        if (!doc) { return; }
+        body = doc.body;
+        if (!body) {
+            if (doc.addEventListener) {
+                doc.addEventListener('DOMContentLoaded', function () {
+                    applyTheme(global.mzdTweaks && global.mzdTweaks.theme);
+                }, false);
+            }
+            return;
+        }
+        ensureCommonStylesheet();
+        cls = body.className || '';
+        for (i = 0; i < THEME_CLASSES.length; i++) {
+            cls = cls.replace(new RegExp('\\b' + THEME_CLASSES[i] + '\\b', 'g'), '');
+        }
+        cls = cls.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+
+        colorLinkId = 'mzd-tweaks-theme-color-css';
+        colorLink = doc.getElementById(colorLinkId);
+
+        if (themeName && themeName !== 'red') {
+            newCls = 'mzd-theme-' + themeName;
+            cls = cls ? (cls + ' ' + newCls) : newCls;
+
+            var targetHref = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/themes/theme-' + themeName + '.css';
+            if (!colorLink) {
+                colorLink = doc.createElement('link');
+                colorLink.id = colorLinkId;
+                colorLink.rel = 'stylesheet';
+                colorLink.type = 'text/css';
+                colorLink.href = targetHref;
+                (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(colorLink);
+            } else if (colorLink.getAttribute('href') !== targetHref) {
+                colorLink.href = targetHref;
+            }
+        } else {
+            // For factory 'red', remove theme color stylesheet completely so OEM styles run unmodified
+            if (colorLink && colorLink.parentNode) {
+                colorLink.parentNode.removeChild(colorLink);
+            }
+        }
+        body.className = cls;
+    }
+
+    applyTheme(global.mzdTweaks.theme);
+
     function previewServiceActive() {
         try {
             return !!(global.mzdPreviewServiceDefaults ||
@@ -224,10 +289,12 @@
             bootScript.src = '/tmp/mnt/data_persist/mzd-tweaks/data/mzd-tweaks/settings.js';
             bootScript.onload = function () {
                 backfillDefaults(global.mzdTweaks);
+                applyTheme(global.mzdTweaks.theme);
             };
             bootScript.onerror = function (event) {
                 if (event && event.preventDefault) { event.preventDefault(); }
                 backfillDefaults(global.mzdTweaks);
+                applyTheme(global.mzdTweaks.theme);
                 if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
                     global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be loaded; using defaults until the service answers.');
                 }
@@ -500,6 +567,9 @@
             if (typeof origListInit === 'function') {
                 res = origListInit.apply(this, arguments);
             }
+            if (this.divElt) {
+                this.divElt._control = this;
+            }
             if (this.properties) {
                 defineDelayProps(this.properties);
             }
@@ -606,6 +676,47 @@
         }
         if (typeof proto._scrollUpPage === 'function') {
             proto._scrollUpPage = wrapScrollUpPage(proto._scrollUpPage);
+        }
+
+        // Swatch previews in Theme selection subpage
+        var THEME_SWATCH_IDS = ['red', 'blue', 'green', 'orange', 'purple', 'pink', 'silver', 'gold', 'cyan'];
+        function isThemeSubpage(ctrl) {
+            return ctrl && ctrl.dataList && ctrl.dataList.items && ctrl.dataList.itemCount === 9 &&
+                ctrl.dataList.items[0] && ctrl.dataList.items[1] &&
+                ctrl.dataList.items[0].image1 === 'tick' && ctrl.dataList.items[1].image1 === 'tick';
+        }
+        var origGetListItem = proto._getListItem;
+        if (typeof origGetListItem === 'function') {
+            proto._getListItem = function (listItem, dataListIndex) {
+                var li = origGetListItem.apply(this, arguments);
+                try {
+                    if (li) {
+                        li.className = (li.className || '').replace(/\bmzd-theme-row\S*/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+                        if (isThemeSubpage(this) && typeof dataListIndex === 'number' && dataListIndex >= 0 && dataListIndex < THEME_SWATCH_IDS.length) {
+                            li.className += ' mzd-theme-row mzd-theme-row-' + THEME_SWATCH_IDS[dataListIndex];
+                        }
+                    }
+                } catch (ignoreGetItem) {}
+                return li;
+            };
+        }
+        var origUpdateItems = proto.updateItems;
+        if (typeof origUpdateItems === 'function') {
+            proto.updateItems = function () {
+                var res = origUpdateItems.apply(this, arguments);
+                try {
+                    if (isThemeSubpage(this) && this.items) {
+                        for (var k = 0; k < this.items.length; k++) {
+                            var it = this.items[k];
+                            if (it && it.domElt && typeof it.ref === 'number' && it.ref >= 0 && it.ref < THEME_SWATCH_IDS.length) {
+                                it.domElt.className = (it.domElt.className || '').replace(/\bmzd-theme-row\S*/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+                                it.domElt.className += ' mzd-theme-row mzd-theme-row-' + THEME_SWATCH_IDS[it.ref];
+                            }
+                        }
+                    }
+                } catch (ignoreSwatch) {}
+                return res;
+            };
         }
     }
 
@@ -807,6 +918,9 @@
                 }
             }
             backfillDefaults(global.mzdTweaks);
+            if (Object.prototype.hasOwnProperty.call(settings, 'theme')) {
+                applyTheme(global.mzdTweaks.theme);
+            }
             if (Object.prototype.hasOwnProperty.call(settings, 'statusbar_date')) {
                 refreshStatusbarDisplays(context.log);
             }

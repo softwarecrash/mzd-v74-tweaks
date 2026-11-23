@@ -34,7 +34,8 @@ test('emulated MZD Tweaks service', async t => {
             list_loop: false,
             list_beep: true,
             short_delay: false,
-            statusbar_date: false
+            statusbar_date: false,
+            theme: 'red'
         }
     });
 
@@ -44,12 +45,14 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(env.window.mzdTweaks.list_beep, true);
         assert.equal(env.window.mzdTweaks.short_delay, false);
         assert.equal(env.window.mzdTweaks.statusbar_date, false);
+        assert.equal(env.window.mzdTweaks.theme, 'red');
 
         const res = await request(env.services, 'get', {});
         assert.equal(res.settings.main_menu_loop, false);
         assert.equal(res.settings.list_loop, false);
         assert.equal(res.settings.list_beep, true);
         assert.equal(res.settings.short_delay, false);
+        assert.equal(res.settings.theme, 'red');
     });
 
     await t.test('updates setting, applies in-flight global and persists', async () => {
@@ -73,5 +76,15 @@ test('emulated MZD Tweaks service', async t => {
             () => request(env.services, 'set', { key: 'list_loop', value: 'yes' }),
             /Invalid setting/
         );
+        await assert.rejects(
+            () => request(env.services, 'set', { key: 'theme', value: 123 }),
+            /Invalid setting/
+        );
+    });
+
+    await t.test('updates theme setting and applies global', async () => {
+        const updated = await request(env.services, 'set', { key: 'theme', value: 'blue' });
+        assert.equal(updated.settings.theme, 'blue');
+        assert.equal(env.window.mzdTweaks.theme, 'blue');
     });
 });
