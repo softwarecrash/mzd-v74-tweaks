@@ -107,3 +107,401 @@ body.mzd-no-coins-glow .MainMenuCtrlSetHighlight {
     background-image: -o-linear-gradient(left, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
     background-image: linear-gradient(to right, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
 }
+
+/* ==========================================================================
+   3. Main Menu Flat Layout
+   ========================================================================== */
+
+/* Reposition coins horizontally across the lower screen (Flat Default: top: 250px for all coins) */
+body.mzd-layout-flat .MainMenuCtrlComDiv {
+    top: 250px !important;
+    left: 329px !important;
+}
+
+body.mzd-layout-flat .MainMenuCtrlEntDiv {
+    top: 250px !important;
+    left: 159px !important;
+}
+
+body.mzd-layout-flat .MainMenuCtrlNavDiv {
+    top: 250px !important;
+    left: 499px !important;
+}
+
+/* Match Coin 1 & 5 container dimensions to Coins 2, 3, 4 (142px x 152px) */
+body.mzd-layout-flat .MainMenuCtrlAppDiv,
+body.mzd-layout-flat .MainMenuCtrlSetDiv {
+    width: 142px !important;
+    height: 152px !important;
+    top: 250px !important;
+}
+
+body.mzd-layout-flat .MainMenuCtrlAppDiv {
+    left: -11px !important;
+}
+
+body.mzd-layout-flat .MainMenuCtrlSetDiv {
+    left: 669px !important;
+}
+
+body.mzd-layout-flat .MainMenuCtrlAppNormal,
+body.mzd-layout-flat .MainMenuCtrlAppFocus,
+body.mzd-layout-flat .MainMenuCtrlSetNormal,
+body.mzd-layout-flat .MainMenuCtrlSetFocus {
+    width: 142px !important;
+    height: 152px !important;
+    background-size: contain !important;
+    background-position: center bottom !important;
+}
+
+/* Hide OEM curved ellipse in flat layout */
+body.mzd-layout-flat .MainMenuCtrlEllipse {
+    display: none !important;
+}
+
+/* Relocate icon title to the upper screen area */
+body.mzd-layout-flat .MainMenuCtrlIconName {
+    top: 60px !important;
+}
+
+body.mzd-layout-flat .MainMenuCtrl {
+    overflow: visible !important;
+}
+
+/* Flat layout focused coin elevations: identical elevation & scale across all 5 coins */
+body.mzd-layout-flat .MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.2, 1.2) translate(0px, -40px) !important;
+    transform: scale(1.2, 1.2) translate(0px, -40px) !important;
+}
+
+/* Flat layout highlight positions */
+body.mzd-layout-flat .MainMenuCtrlAppHighlight {
+    top: 50px;
+    left: -121.5px;
+}
+
+body.mzd-layout-flat .MainMenuCtrlEntHighlight {
+    top: 50px;
+    left: 48.5px;
+}
+
+body.mzd-layout-flat .MainMenuCtrlComHighlight {
+    top: 50px;
+    left: 218.5px;
+}
+
+body.mzd-layout-flat .MainMenuCtrlNavHighlight {
+    top: 50px;
+    left: 388.5px;
+}
+
+body.mzd-layout-flat .MainMenuCtrlSetHighlight {
+    top: 50px;
+    left: 558.5px;
+}
+
+/* ==========================================================================
+   4. Main Menu Coins Size (80% Small & 60% Mini)
+   ========================================================================== */
+
+/* --- 80% Small Coins (Stock Elliptical Layout) --- */
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlAppDiv {
+    left: 4.5px !important;
+    top: 262px !important;
+    -o-transform: scale(0.8, 0.8);
+    transform: scale(0.8, 0.8);
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlEntDiv {
+    left: 129px !important;
+    top: 179px !important;
+    -o-transform: scale(0.8, 0.8);
+    transform: scale(0.8, 0.8);
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlComDiv {
+    left: 329px !important;
+    top: 153px !important;
+    -o-transform: scale(0.8, 0.8);
+    transform: scale(0.8, 0.8);
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlNavDiv {
+    left: 529px !important;
+    top: 179px !important;
+    -o-transform: scale(0.8, 0.8);
+    transform: scale(0.8, 0.8);
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlSetDiv {
+    left: 681.5px !important;
+    top: 262px !important;
+    -o-transform: scale(0.8, 0.8);
+    transform: scale(0.8, 0.8);
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlAppDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlEntDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlComDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlNavDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlSetDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(0.9, 0.9) translate(0px, -12px);
+    transform: scale(0.9, 0.9) translate(0px, -12px);
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrl [class*="Highlight"] {
+    background-size: 80%;
+    background-position: center 75%;
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlAppHighlight {
+    top: 86px;
+    left: -120px;
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlEntHighlight {
+    top: 28px;
+    left: 18.5px;
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlComHighlight {
+    top: 2px;
+    left: 218.5px;
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlNavHighlight {
+    top: 28px;
+    left: 418.5px;
+}
+
+body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlSetHighlight {
+    top: 86px;
+    left: 557px;
+}
+
+/* --- 60% Mini Coins (Stock Elliptical Layout) --- */
+/* Match Coin 1 & 5 container dimensions to Coins 2, 3, 4 (142px x 152px) */
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppDiv,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetDiv {
+    width: 142px !important;
+    height: 152px !important;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppNormal,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppFocus,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetNormal,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetFocus {
+    width: 142px !important;
+    height: 152px !important;
+    background-size: contain !important;
+    background-position: center bottom !important;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppDiv {
+    left: 11px !important;
+    top: 252px !important;
+    -o-transform: scale(0.6, 0.6);
+    transform: scale(0.6, 0.6);
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlEntDiv {
+    left: 149px !important;
+    top: 189px !important;
+    -o-transform: scale(0.6, 0.6);
+    transform: scale(0.6, 0.6);
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlComDiv {
+    left: 329px !important;
+    top: 168px !important;
+    -o-transform: scale(0.6, 0.6);
+    transform: scale(0.6, 0.6);
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlNavDiv {
+    left: 509px !important;
+    top: 189px !important;
+    -o-transform: scale(0.6, 0.6);
+    transform: scale(0.6, 0.6);
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetDiv {
+    left: 647px !important;
+    top: 252px !important;
+    -o-transform: scale(0.6, 0.6);
+    transform: scale(0.6, 0.6);
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlEntDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlComDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlNavDiv.MainMenuCtrlCoinFocus,
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetDiv.MainMenuCtrlCoinFocus {
+    -o-transform: scale(0.6, 0.6) translate(0px, -10px);
+    transform: scale(0.6, 0.6) translate(0px, -10px);
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrl [class*="Highlight"] {
+    background-size: 65%;
+    background-position: center 75%;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppHighlight {
+    top: 92px;
+    left: -99.5px;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlEntHighlight {
+    top: 38px;
+    left: 38.5px;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlComHighlight {
+    top: 17px;
+    left: 218.5px;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlNavHighlight {
+    top: 38px;
+    left: 398.5px;
+}
+
+body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetHighlight {
+    top: 92px;
+    left: 536.5px;
+}
+
+/* --- Combined: Flat Layout + Scaled Coins --- */
+
+/* Flat + Small (80% scale across all 5 coins; top: 260px; identical focus scale 1.0) */
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlAppDiv,
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlEntDiv,
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlComDiv,
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlNavDiv,
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlSetDiv {
+    top: 260px !important;
+    -o-transform: scale(0.8, 0.8) !important;
+    transform: scale(0.8, 0.8) !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlAppDiv {
+    left: -2px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlEntDiv {
+    left: 163.5px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlComDiv {
+    left: 329px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlNavDiv {
+    left: 494.5px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlSetDiv {
+    left: 660px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlCoinFocus {
+    -o-transform: scale(1.0, 1.0) translate(0px, -20px) !important;
+    transform: scale(1.0, 1.0) translate(0px, -20px) !important;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrl [class*="Highlight"] {
+    background-size: 90%;
+    background-position: center 75%;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlAppHighlight {
+    top: 100px;
+    left: -112.5px;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlEntHighlight {
+    top: 100px;
+    left: 53px;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlComHighlight {
+    top: 100px;
+    left: 218.5px;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlNavHighlight {
+    top: 100px;
+    left: 384px;
+}
+
+body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlSetHighlight {
+    top: 100px;
+    left: 549.5px;
+}
+
+/* Flat + Mini (60% scale across all 5 coins; top: 270px; identical focus scale 0.75) */
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlAppDiv,
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlEntDiv,
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlComDiv,
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlNavDiv,
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlSetDiv {
+    top: 270px !important;
+    -o-transform: scale(0.6, 0.6) !important;
+    transform: scale(0.6, 0.6) !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlAppDiv {
+    left: 49px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlEntDiv {
+    left: 189px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlComDiv {
+    left: 329px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlNavDiv {
+    left: 469px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlSetDiv {
+    left: 609px !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlCoinFocus {
+    -o-transform: scale(0.75, 0.75) translate(0px, -15px) !important;
+    transform: scale(0.75, 0.75) translate(0px, -15px) !important;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrl [class*="Highlight"] {
+    background-size: 65%;
+    background-position: center 75%;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlAppHighlight {
+    top: 115px;
+    left: -61.5px;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlEntHighlight {
+    top: 115px;
+    left: 78.5px;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlComHighlight {
+    top: 115px;
+    left: 218.5px;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlNavHighlight {
+    top: 115px;
+    left: 358.5px;
+}
+
+body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlSetHighlight {
+    top: 115px;
+    left: 498.5px;
+}
+

@@ -1,12 +1,14 @@
 window.mzdTweaks = {
     "main_menu_loop": false,
-    "coins_glow": true,
+    "main_menu_coins_layout": "ellipse",
+    "main_menu_coins_size": 100,
+    "main_menu_coins_glow": true,
     "list_loop": false,
     "list_beep": true,
     "short_delay": false,
     "statusbar_date": false,
-    "theme": "red",
     "audio_order_custom": false,
+    "theme": "red",
     "audio_order": {
         "audio_traffic_info": 0,
         "audio_fm_radio": 1,

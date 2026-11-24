@@ -57,7 +57,9 @@
 
     var DEFAULTS = {
         main_menu_loop: false,
-        coins_glow: true,
+        main_menu_coins_layout: 'ellipse',
+        main_menu_coins_size: 100,
+        main_menu_coins_glow: true,
         list_loop: false,
         list_beep: true,
         short_delay: false,
@@ -212,6 +214,8 @@
 
     var THEME_CLASSES = ['mzd-theme-blue', 'mzd-theme-green', 'mzd-theme-orange', 'mzd-theme-purple', 'mzd-theme-pink', 'mzd-theme-silver', 'mzd-theme-gold', 'mzd-theme-cyan'];
     var GLOW_CLASSES = ['mzd-coins-glow', 'mzd-no-coins-glow'];
+    var LAYOUT_CLASSES = ['mzd-layout-flat'];
+    var SIZE_CLASSES = ['mzd-coins-80', 'mzd-coins-60'];
 
     function ensureBaseStylesheet() {
         var doc = global.document;
@@ -247,6 +251,12 @@
         }
         for (i = 0; i < GLOW_CLASSES.length; i++) {
             cls = cls.replace(new RegExp('\\b' + GLOW_CLASSES[i] + '\\b', 'g'), '');
+        }
+        for (i = 0; i < LAYOUT_CLASSES.length; i++) {
+            cls = cls.replace(new RegExp('\\b' + LAYOUT_CLASSES[i] + '\\b', 'g'), '');
+        }
+        for (i = 0; i < SIZE_CLASSES.length; i++) {
+            cls = cls.replace(new RegExp('\\b' + SIZE_CLASSES[i] + '\\b', 'g'), '');
         }
         cls = cls.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
 
@@ -297,8 +307,18 @@
             }
         }
 
-        glowEnabled = !global.mzdTweaks || global.mzdTweaks.coins_glow !== false;
+        glowEnabled = !global.mzdTweaks || global.mzdTweaks.main_menu_coins_glow !== false;
         cls = cls ? (cls + ' ' + (glowEnabled ? 'mzd-coins-glow' : 'mzd-no-coins-glow')) : (glowEnabled ? 'mzd-coins-glow' : 'mzd-no-coins-glow');
+
+        if (global.mzdTweaks && global.mzdTweaks.main_menu_coins_layout === 'flat') {
+            cls += ' mzd-layout-flat';
+        }
+
+        if (global.mzdTweaks && global.mzdTweaks.main_menu_coins_size === 80) {
+            cls += ' mzd-coins-80';
+        } else if (global.mzdTweaks && global.mzdTweaks.main_menu_coins_size === 60) {
+            cls += ' mzd-coins-60';
+        }
 
         if (body.className !== cls) {
             body.className = cls;
@@ -954,7 +974,10 @@
                 }
             }
             backfillDefaults(global.mzdTweaks);
-            if (Object.prototype.hasOwnProperty.call(settings, 'theme') || Object.prototype.hasOwnProperty.call(settings, 'coins_glow')) {
+            if (Object.prototype.hasOwnProperty.call(settings, 'theme') ||
+                Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_glow') ||
+                Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_size') ||
+                Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_layout')) {
                 applyTheme(global.mzdTweaks.theme);
             }
             if (Object.prototype.hasOwnProperty.call(settings, 'statusbar_date')) {

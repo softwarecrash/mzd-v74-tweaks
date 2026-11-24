@@ -44,7 +44,9 @@ const DEFAULT_AUDIO_ORDER = {
 
 const DEFAULTS = {
   main_menu_loop: false,
-  coins_glow: true,
+  main_menu_coins_layout: 'ellipse',
+  main_menu_coins_size: 100,
+  main_menu_coins_glow: true,
   list_loop: false,
   list_beep: true,
   short_delay: false,
@@ -275,7 +277,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, theme: 'red', audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, theme: 'red', audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -292,15 +294,15 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
 {
   // At boot the service is usually still starting: the first read fails at once.
-  const page = residentPage({ main_menu_loop: true, coins_glow: true, list_loop: false, list_beep: true, short_delay: false, audio_order_custom: false });
+  const page = residentPage({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: true, short_delay: false, audio_order_custom: false });
   complete(page.ctx, 'get', 'Module service is starting or unavailable. Please retry.');
   assert.deepEqual(page.ctx.logs, [], 'the expected boot failure is not logged');
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'a failed read keeps the boot values');
@@ -1095,43 +1097,73 @@ function viewPage(options) {
 {
   const page = viewPage();
   page.respond({ statusbar_date: false });
-  assert.equal(page.menu().rows[5].label, 'Date in status bar');
-  assert.equal(page.menu().rows[5].checked, false, 'the date is off by default');
-  page.select(5);
+  assert.equal(page.menu().rows[7].label, 'Date in status bar');
+  assert.equal(page.menu().rows[7].checked, false, 'the date is off by default');
+  page.select(7);
   assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: true }], 'switching the date on saves true');
 }
 
 {
   const page = viewPage();
   assert.deepEqual(page.posts.map(m => m.type + ':' + m.action), ['mzd-tweaks-request:get'], 'the view asks the resident for the settings');
-  page.respond({ main_menu_loop: true, coins_glow: true, list_loop: false, short_delay: false, audio_order_custom: false });
+  page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'coins_glow', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'theme_menu', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu icons glow', 'List menu loop', 'List menu beep', 'Shorter list menu delay', 'Date in status bar', 'Theme', 'Entertainment menu order']);
-  assert.equal(menu.rows[6].detail, 'Red');
-  assert.equal(menu.rows[6].caret, true);
-  assert.equal(menu.rows[7].detail, 'Default', 'detail shows Default when custom order is off');
-  assert.equal(menu.rows[7].caret, true);
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_size_menu', 'main_menu_coins_glow', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'theme_menu', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons size', 'Main menu icons glow', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Theme', 'Entertainment menu order']);
+  assert.equal(menu.rows[2].detail, 'Default');
+  assert.equal(menu.rows[2].caret, true);
+  assert.equal(menu.rows[8].detail, 'Red');
+  assert.equal(menu.rows[8].caret, true);
+  assert.equal(menu.rows[9].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[9].caret, true);
 
-  page.select(3);
+  // Toggle flat layout
+  page.select(1);
+  assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_layout', value: 'flat' });
+  page.respond({ main_menu_coins_layout: 'flat' });
+  assert.equal(page.menu().rows[1].checked, true);
+  page.select(1);
+  assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_layout', value: 'ellipse' });
+  page.respond({ main_menu_coins_layout: 'ellipse' });
+  assert.equal(page.menu().rows[1].checked, false);
+
+  // Open the Coin size subpage
+  page.select(2);
+  const sizeMenu = page.menu();
+  assert.equal(sizeMenu.title, 'Main menu icons size');
+  assert.equal(sizeMenu.rows.length, 3);
+  assert.equal(sizeMenu.rows[0].key, 'coins_size_100');
+  assert.equal(sizeMenu.rows[0].checked, true);
+  assert.equal(sizeMenu.rows[1].key, 'coins_size_80');
+  assert.equal(sizeMenu.rows[1].checked, false);
+  assert.equal(sizeMenu.rows[2].key, 'coins_size_60');
+  assert.equal(sizeMenu.rows[2].checked, false);
+
+  // Select Small (80)
+  page.select(1);
+  assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_size', value: 80 });
+  page.respond({ main_menu_coins_size: 80 });
+  assert.equal(page.menu().rows[2].detail, 'Small');
+
+  page.select(5);
   assert.deepEqual(page.sets(), [{ key: 'list_beep', value: false }], 'switching the default beep off saves false');
-  page.respond({ main_menu_loop: true, coins_glow: true, list_loop: false, list_beep: false, short_delay: false });
+  page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: false, short_delay: false });
+  assert.equal(page.menu().rows[5].checked, false);
+  page.select(5);
+  assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
+  page.select(3);
+  assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_glow', value: false });
+  page.respond({ main_menu_loop: true, main_menu_coins_glow: false, list_loop: false, list_beep: true, short_delay: false });
   assert.equal(page.menu().rows[3].checked, false);
   page.select(3);
-  assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
-  page.select(1);
-  assert.deepEqual(page.sets().pop(), { key: 'coins_glow', value: false });
-  page.respond({ main_menu_loop: true, coins_glow: false, list_loop: false, list_beep: true, short_delay: false });
-  assert.equal(page.menu().rows[1].checked, false);
-  page.select(1);
-  assert.deepEqual(page.sets().pop(), { key: 'coins_glow', value: true });
-  page.respond({ main_menu_loop: true, coins_glow: true, list_loop: false, list_beep: true, short_delay: false });
+  assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_glow', value: true });
+  page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: true, short_delay: false });
   page.select(0);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
   // Open the Theme subpage
-  page.select(6);
+  page.select(8);
   const themeMenu = page.menu();
   assert.equal(themeMenu.title, 'Theme');
   assert.equal(themeMenu.rows.length, 9);
@@ -1144,10 +1176,10 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'theme', value: 'blue' });
   page.respond({ theme: 'blue' });
-  assert.equal(page.menu().rows[6].detail, 'Blue');
+  assert.equal(page.menu().rows[8].detail, 'Blue');
 
   // Open the Entertainment menu order subpage
-  page.select(7);
+  page.select(9);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1261,7 +1293,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(7);
+  page.select(9);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1269,7 +1301,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(7);
+  page.select(9);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1329,7 +1361,12 @@ function viewPage(options) {
     assert(dict.default && dict.default.length > 0, 'default present in ' + lang);
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
     assert(dict.audio_order_title && dict.audio_order_title.length > 0, 'audio_order_title present in ' + lang);
-    assert(dict.coins_glow && dict.coins_glow.length > 0, 'coins_glow present in ' + lang);
+    assert(dict.main_menu_coins_glow && dict.main_menu_coins_glow.length > 0, 'main_menu_coins_glow present in ' + lang);
+    assert(dict.main_menu_flat_layout && dict.main_menu_flat_layout.length > 0, 'main_menu_flat_layout present in ' + lang);
+    assert(dict.main_menu_coins_size && dict.main_menu_coins_size.length > 0, 'main_menu_coins_size present in ' + lang);
+    assert(dict.coins_size_100 && dict.coins_size_100.length > 0, 'coins_size_100 present in ' + lang);
+    assert(dict.coins_size_80 && dict.coins_size_80.length > 0, 'coins_size_80 present in ' + lang);
+    assert(dict.coins_size_60 && dict.coins_size_60.length > 0, 'coins_size_60 present in ' + lang);
     assert(dict.statusbar_date && dict.statusbar_date.length > 0, 'statusbar_date present in ' + lang);
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
@@ -1397,13 +1434,13 @@ function viewPage(options) {
   const win = {
     setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {},
     document: mockDoc,
-    mzdTweaks: { main_menu_loop: false, coins_glow: true, theme: 'red' },
+    mzdTweaks: { main_menu_loop: false, main_menu_coins_glow: true, theme: 'red' },
     MzdGuiResidents: { register(id, factory) { win.factory = factory; }, log() {} }
   };
   vm.runInNewContext(settingsHostSource, { window: win });
   vm.runInNewContext(residentSource, { window: win, document: mockDoc });
 
-  // Initial state with theme: 'red' and coins_glow: true
+  // Initial state with theme: 'red' and main_menu_coins_glow: true
   assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css is always loaded');
   assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'theme-common.css is not loaded when theme is red');
   assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'theme color css is not loaded when theme is red');
@@ -1445,8 +1482,8 @@ function viewPage(options) {
   assert.equal(mockBody.className.indexOf('mzd-theme-blue') !== -1, true, 'mzd-theme-blue is on body');
   assert.equal(mockBody.className.indexOf('mzd-coins-glow') !== -1, true, 'mzd-coins-glow remains on body');
 
-  // Disable coins_glow
-  hostOptions.onConfirmed({ coins_glow: false });
+  // Disable main_menu_coins_glow
+  hostOptions.onConfirmed({ main_menu_coins_glow: false });
   assert.equal(mockBody.className.indexOf('mzd-coins-glow'), -1, 'mzd-coins-glow is removed from body');
   assert.equal(mockBody.className.indexOf('mzd-no-coins-glow') !== -1, true, 'mzd-no-coins-glow is added to body');
 
@@ -1456,6 +1493,23 @@ function viewPage(options) {
   assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'theme-common.css is unloaded when theme is red');
   assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'theme color css is unloaded when theme is red');
   assert.equal(mockBody.className.indexOf('mzd-no-coins-glow') !== -1, true, 'mzd-no-coins-glow persists in factory red');
+
+  // Test main_menu_coins_layout DOM classes
+  hostOptions.onConfirmed({ main_menu_coins_layout: 'flat' });
+  assert.equal(mockBody.className.indexOf('mzd-layout-flat') !== -1, true, 'mzd-layout-flat is added when flat layout is enabled');
+  hostOptions.onConfirmed({ main_menu_coins_layout: 'ellipse' });
+  assert.equal(mockBody.className.indexOf('mzd-layout-flat'), -1, 'mzd-layout-flat is removed when ellipse layout is selected');
+
+  // Test main_menu_coins_size DOM classes
+  hostOptions.onConfirmed({ main_menu_coins_size: 80 });
+  assert.equal(mockBody.className.indexOf('mzd-coins-80') !== -1, true, 'mzd-coins-80 is added for 80% size');
+  assert.equal(mockBody.className.indexOf('mzd-coins-60'), -1, 'mzd-coins-60 is not present');
+  hostOptions.onConfirmed({ main_menu_coins_size: 60 });
+  assert.equal(mockBody.className.indexOf('mzd-coins-80'), -1, 'mzd-coins-80 is removed when switching to 60%');
+  assert.equal(mockBody.className.indexOf('mzd-coins-60') !== -1, true, 'mzd-coins-60 is added for 60% size');
+  hostOptions.onConfirmed({ main_menu_coins_size: 100 });
+  assert.equal(mockBody.className.indexOf('mzd-coins-80'), -1, 'mzd-coins-80 is removed when reset to 100%');
+  assert.equal(mockBody.className.indexOf('mzd-coins-60'), -1, 'mzd-coins-60 is removed when reset to 100%');
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

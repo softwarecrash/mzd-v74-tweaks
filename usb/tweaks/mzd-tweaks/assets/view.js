@@ -67,6 +67,50 @@
         };
     }
 
+    var COINS_SIZES = [
+        { id: 100, defaultLabel: 'Default', defaultShortLabel: 'Default' },
+        { id: 80, defaultLabel: 'Small', defaultShortLabel: 'Small' },
+        { id: 60, defaultLabel: 'Mini', defaultShortLabel: 'Mini' }
+    ];
+
+    function getCoinsSizeShortLabel(id, tr) {
+        for (var i = 0; i < COINS_SIZES.length; i++) {
+            if (COINS_SIZES[i].id === id) {
+                return (typeof tr === 'function') ? tr('coins_size_' + id, COINS_SIZES[i].defaultShortLabel) : COINS_SIZES[i].defaultShortLabel;
+            }
+        }
+        return (typeof tr === 'function') ? tr('coins_size_100', 'Default') : 'Default';
+    }
+
+    function coinsSizeIndex(current) {
+        for (var i = 0; i < COINS_SIZES.length; i++) {
+            if (COINS_SIZES[i].id === current) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    function coinsSizeOption(sizeItem, current, tr) {
+        var label = (typeof tr === 'function') ? tr('coins_size_' + sizeItem.id, sizeItem.defaultLabel) : sizeItem.defaultLabel;
+        return {
+            id: 'coins-size-' + sizeItem.id,
+            key: 'coins_size_' + sizeItem.id,
+            label: label,
+            checkable: true,
+            checked: current === sizeItem.id,
+            select: function (api) {
+                api.back(true);
+                var state = api.state() || {};
+                if (state.main_menu_coins_size !== sizeItem.id) {
+                    api.save('main_menu_coins_size', sizeItem.id);
+                } else {
+                    api.render();
+                }
+            }
+        };
+    }
+
     var AUDIO_SOURCES = [
         { id: 'audio_traffic_info', audioSourceId: 'TrafficInfo', text1Id: 'TrafficAlertsItem', defaultLabel: 'Traffic Alerts', japanOnly: true },
         { id: 'audio_fm_radio', audioSourceId: 'FMRadio', text1Id: 'FmRadio', defaultLabel: 'FM' },
@@ -307,6 +351,22 @@
     View.create(sdk, {
         prefix: 'mzd-tweaks',
         statusElement: status,
+        types: {
+            enumBool: {
+                row: function (def, api) {
+                    var state = api.state() || {};
+                    var val = (state[def.key] != null) ? state[def.key] : def.defaultValue;
+                    return {
+                        itemStyle: 'styleOnOff',
+                        checked: val === def.trueValue
+                    };
+                },
+                activate: function (def, row, params, api) {
+                    var next = row.checked ? def.falseValue : def.trueValue;
+                    api.save(def.key, next);
+                }
+            }
+        },
         title: function (tr) { return tr('title', 'MZD Tweaks'); },
         onState: function (state, data, api) {
             if (state && !state.audio_order_custom) {
@@ -337,10 +397,42 @@
                 tr('default', 'Default');
             return [
                 { key: 'main_menu_loop', type: 'bool', label: tr('main_menu_loop', 'Main menu loop') },
-                { key: 'coins_glow', type: 'bool', label: tr('coins_glow', 'Main menu icons glow'), defaultValue: true },
+                {
+                    key: 'main_menu_coins_layout',
+                    type: 'enumBool',
+                    trueValue: 'flat',
+                    falseValue: 'ellipse',
+                    defaultValue: 'ellipse',
+                    label: tr('main_menu_flat_layout', 'Main menu flat layout')
+                },
+                {
+                    key: 'main_menu_coins_size_menu',
+                    label: tr('main_menu_coins_size', 'Main menu icons size'),
+                    detail: getCoinsSizeShortLabel(state.main_menu_coins_size != null ? state.main_menu_coins_size : 100, tr),
+                    caret: true,
+                    select: function (api) {
+                        var current = (api.state() && api.state().main_menu_coins_size != null) ? api.state().main_menu_coins_size : 100;
+                        api.openPage({
+                            id: 'coins_size',
+                            title: api.t('main_menu_coins_size', 'Main menu icons size'),
+                            index: coinsSizeIndex(current),
+                            entries: function (pageApi) {
+                                var pageState = pageApi.state() || {};
+                                var pageCurrent = pageState.main_menu_coins_size != null ? pageState.main_menu_coins_size : 100;
+                                var pageTr = pageApi.t;
+                                var list = [];
+                                for (var i = 0; i < COINS_SIZES.length; i++) {
+                                    list.push(coinsSizeOption(COINS_SIZES[i], pageCurrent, pageTr));
+                                }
+                                return list;
+                            }
+                        });
+                    }
+                },
+                { key: 'main_menu_coins_glow', type: 'bool', label: tr('main_menu_coins_glow', 'Main menu icons glow'), defaultValue: true },
                 { key: 'list_loop', type: 'bool', label: tr('list_loop', 'List menu loop') },
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
-                { key: 'short_delay', type: 'bool', label: tr('short_delay', 'Shorter list menu delay') },
+                { key: 'short_delay', type: 'bool', label: tr('short_delay', 'List menu shorter delay') },
                 { key: 'statusbar_date', type: 'bool', label: tr('statusbar_date', 'Date in status bar') },
                 {
                     key: 'theme_menu',

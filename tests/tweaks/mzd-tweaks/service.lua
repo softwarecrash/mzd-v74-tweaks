@@ -75,7 +75,9 @@ local AUDIO_KEYS = {
 
 local DEFAULTS = {
     main_menu_loop = false,
-    coins_glow = true,
+    main_menu_coins_layout = 'ellipse',
+    main_menu_coins_size = 100,
+    main_menu_coins_glow = true,
     list_loop = false,
     list_beep = true,
     short_delay = false,
@@ -90,14 +92,18 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, coins_glow)
-    coins_glow = coins_glow or 'true'
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout)
+    main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
     theme = theme or 'red'
+    coins_size = coins_size or 100
+    coins_layout = coins_layout or 'ellipse'
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
-        '    "coins_glow": ' .. coins_glow .. ',',
+        '    "main_menu_coins_layout": "' .. coins_layout .. '",',
+        '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
+        '    "main_menu_coins_glow": ' .. main_menu_coins_glow .. ',',
         '    "list_loop": ' .. b .. ',',
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
@@ -133,7 +139,9 @@ do
     local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio, nil, nil, 'false')
     local expected = {
         main_menu_loop = true,
-        coins_glow = false,
+        main_menu_coins_layout = 'ellipse',
+        main_menu_coins_size = 100,
+        main_menu_coins_glow = false,
         list_loop = false,
         list_beep = false,
         short_delay = true,
@@ -194,13 +202,13 @@ do
     same(service(fs).request('get').settings, expected, 'a fresh service reads it back')
 end
 
--- set coins_glow toggles main menu icon glow.
+-- set main_menu_coins_glow toggles main menu icon glow.
 do
     local fs = fake_files(js('false', 'false', 'true', 'false'))
     local svc = service(fs)
-    local res = svc.request('set', { key = 'coins_glow', value = false })
-    assert(res.settings.coins_glow == false)
-    assert(fs.content:match('"coins_glow"%s*:%s*false'))
+    local res = svc.request('set', { key = 'main_menu_coins_glow', value = false })
+    assert(res.settings.main_menu_coins_glow == false)
+    assert(fs.content:match('"main_menu_coins_glow"%s*:%s*false'))
 end
 
 -- set audio_order_custom toggles feature flag.
@@ -270,6 +278,48 @@ do
     -- Non-string refused
     ok, err = pcall(svc.request, 'set', { key = 'theme', value = 123 })
     assert(not ok and tostring(err):match('Invalid setting value'), 'numeric theme refused')
+end
+
+-- set main_menu_coins_size saves valid size and rejects invalid size.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local expected = {}
+    for k, v in pairs(DEFAULTS) do expected[k] = v end
+    expected.main_menu_coins_size = 80
+    same(svc.request('set', { key = 'main_menu_coins_size', value = 80 }).settings, expected, 'coins size set to 80')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'red', 'true', 80), 'coins size 80 written')
+
+    expected.main_menu_coins_size = 60
+    same(svc.request('set', { key = 'main_menu_coins_size', value = 60 }).settings, expected, 'coins size set to 60')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'red', 'true', 60), 'coins size 60 written')
+
+    -- Invalid coins size refused
+    local ok, err = pcall(svc.request, 'set', { key = 'main_menu_coins_size', value = 25 })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'invalid coins size refused: ' .. tostring(err))
+
+    -- Non-number (string) refused
+    ok, err = pcall(svc.request, 'set', { key = 'main_menu_coins_size', value = '80' })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'string coins size refused')
+end
+
+-- set main_menu_coins_layout saves valid layout and rejects invalid layout.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local expected = {}
+    for k, v in pairs(DEFAULTS) do expected[k] = v end
+    expected.main_menu_coins_layout = 'flat'
+    same(svc.request('set', { key = 'main_menu_coins_layout', value = 'flat' }).settings, expected, 'coins layout set to flat')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'red', 'true', 100, 'flat'), 'coins layout flat written')
+
+    -- Invalid layout refused
+    local ok, err = pcall(svc.request, 'set', { key = 'main_menu_coins_layout', value = 'round' })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'invalid coins layout refused: ' .. tostring(err))
+
+    -- Non-string refused
+    ok, err = pcall(svc.request, 'set', { key = 'main_menu_coins_layout', value = true })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'boolean coins layout refused')
 end
 
 -- A failed write of the temp file leaves the saved file untouched.

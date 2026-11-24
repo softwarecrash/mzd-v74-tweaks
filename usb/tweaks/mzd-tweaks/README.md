@@ -4,10 +4,12 @@ Adds interface enhancements, each with configurable settings in the Mazda Applic
 
 Features included:
 - **Main Menu Loop**: Wrap between the first and last main-menu icons.
+- **Main menu flat layout**: Arrange main menu icons in a horizontal dock across the lower screen and hide the background ellipse arc.
+- **Main menu icons size**: Customize the size of main menu icons (Default (100), Small (80), Mini (60)).
 - **Main menu icons glow**: Toggle highlight glow behind focused main menu icons. Off hides both factory red glow and custom colored theme glows.
 - **List Loop**: Wrap between the first and last selectable items in scrollable lists.
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
-- **Shorter Delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
+- **List menu shorter delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
 - **Date in status bar**: Show the short date (for example `Wed 18`) below a smaller clock. The weekday follows the head unit language (English for unsupported languages). Off keeps the factory clock, which Android Auto and CarPlay always keep.
 - **Color theme**: Customize the accent and highlight color across the Mazda Connect interface (Stock Red (default), Cobalt Blue, Emerald Green, Amber Orange, Neon Violet, Hot Pink, Titanium Silver, Sunset Gold, Electric Cyan). Applied in memory without system patching.
 - **Entertainment menu order**: Customize the display order of audio sources in the factory Entertainment menu.
@@ -17,6 +19,12 @@ Features included:
 MZD Tweaks adds an **MZD Tweaks** menu in **Applications**:
 - Each feature can be configured there. Changes are saved and applied to the
   running interface immediately; no reboot is needed after the first one.
+- **Main menu flat layout**:
+  - Toggles between stock elliptical orbit and horizontal dock layout.
+  - In flat layout, the background ellipse arc is hidden and the selected item title moves to the top.
+- **Main menu icons size**:
+  - Displays the active coin scale (Default, Small, Mini). Selecting opens a subpage with checkmarks.
+  - Fully compatible with both elliptical and flat layouts.
 - **Color theme**:
   - Displays the active theme name on the right. Selecting it opens a dedicated color
     selection subpage with checkmarks.

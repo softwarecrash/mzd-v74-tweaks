@@ -3,7 +3,7 @@
 -- runtime hooks have the saved values before this service is running.
 local BOOL_DEFAULTS = {
     main_menu_loop = false,
-    coins_glow = true,
+    main_menu_coins_glow = true,
     list_loop = false,
     list_beep = true,
     short_delay = false,
@@ -13,7 +13,7 @@ local BOOL_DEFAULTS = {
 
 local BOOL_KEYS = {
     'main_menu_loop',
-    'coins_glow',
+    'main_menu_coins_glow',
     'list_loop',
     'list_beep',
     'short_delay',
@@ -31,6 +31,17 @@ local VALID_THEMES = {
     silver = true,
     gold = true,
     cyan = true
+}
+
+local VALID_COINS_SIZES = {
+    [100] = true,
+    [80] = true,
+    [60] = true
+}
+
+local VALID_COINS_LAYOUTS = {
+    ellipse = true,
+    flat = true
 }
 
 local AUDIO_KEYS = {
@@ -72,6 +83,8 @@ return function(context)
             settings[k] = BOOL_DEFAULTS[k]
         end
         settings.theme = 'red'
+        settings.main_menu_coins_size = 100
+        settings.main_menu_coins_layout = 'ellipse'
         for _, k in ipairs(AUDIO_KEYS) do
             local default_val = AUDIO_DEFAULTS[k]
             settings['audio_order.' .. k] = default_val
@@ -102,6 +115,19 @@ return function(context)
             settings.theme = theme_val
         end
 
+        local coins_size_val = content:match('"main_menu_coins_size"%s*:%s*(%d+)')
+        if coins_size_val then
+            local num = tonumber(coins_size_val)
+            if num and VALID_COINS_SIZES[num] then
+                settings.main_menu_coins_size = num
+            end
+        end
+
+        local coins_layout_val = content:match('"main_menu_coins_layout"%s*:%s*"([a-z]+)"')
+        if coins_layout_val and VALID_COINS_LAYOUTS[coins_layout_val] then
+            settings.main_menu_coins_layout = coins_layout_val
+        end
+
         for _, k in ipairs(AUDIO_KEYS) do
             local val = content:match('"' .. k .. '"%s*:%s*(%d+)')
             if val then
@@ -116,11 +142,32 @@ return function(context)
 
     local function serialize_js(settings)
         local lines = { 'window.mzdTweaks = {' }
-        for _, k in ipairs(BOOL_KEYS) do
+        local val_loop = settings.main_menu_loop
+        if val_loop == nil then val_loop = BOOL_DEFAULTS.main_menu_loop end
+        lines[#lines + 1] = '    "main_menu_loop": ' .. (val_loop and 'true' or 'false') .. ','
+
+        local coins_layout = settings.main_menu_coins_layout
+        if not VALID_COINS_LAYOUTS[coins_layout] then coins_layout = 'ellipse' end
+        lines[#lines + 1] = '    "main_menu_coins_layout": "' .. coins_layout .. '",'
+
+        local coins_size = settings.main_menu_coins_size
+        if not VALID_COINS_SIZES[coins_size] then coins_size = 100 end
+        lines[#lines + 1] = '    "main_menu_coins_size": ' .. tostring(coins_size) .. ','
+
+        local other_bools = {
+            'main_menu_coins_glow',
+            'list_loop',
+            'list_beep',
+            'short_delay',
+            'statusbar_date',
+            'audio_order_custom'
+        }
+        for _, k in ipairs(other_bools) do
             local val = settings[k]
             if val == nil then val = BOOL_DEFAULTS[k] end
             lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. ','
         end
+
         local theme = settings.theme
         if not VALID_THEMES[theme] then theme = 'red' end
         lines[#lines + 1] = '    "theme": "' .. theme .. '",'
@@ -179,6 +226,22 @@ return function(context)
                     end
                     local settings = read_settings()
                     settings.theme = args.value
+                    write_settings(settings)
+                    return { settings = settings }
+                elseif args.key == 'main_menu_coins_size' then
+                    if type(args.value) ~= 'number' or not VALID_COINS_SIZES[args.value] then
+                        error('Invalid setting value.', 0)
+                    end
+                    local settings = read_settings()
+                    settings.main_menu_coins_size = args.value
+                    write_settings(settings)
+                    return { settings = settings }
+                elseif args.key == 'main_menu_coins_layout' then
+                    if type(args.value) ~= 'string' or not VALID_COINS_LAYOUTS[args.value] then
+                        error('Invalid setting value.', 0)
+                    end
+                    local settings = read_settings()
+                    settings.main_menu_coins_layout = args.value
                     write_settings(settings)
                     return { settings = settings }
                 elseif args.key == 'audio_order' then

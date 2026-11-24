@@ -237,7 +237,9 @@
         };
         var schemaDefaults = {
             main_menu_loop: false,
-            coins_glow: true,
+            main_menu_coins_layout: 'ellipse',
+            main_menu_coins_size: 100,
+            main_menu_coins_glow: true,
             list_loop: false,
             list_beep: true,
             short_delay: false,
@@ -265,9 +267,13 @@
                     for (var aoProp in settings[name]) {
                         settings['audio_order.' + aoProp] = settings[name][aoProp];
                     }
-                } else if (name === 'theme') {
+                } else if (name === 'theme' || name === 'main_menu_coins_layout') {
                     if (typeof settings[name] !== 'string') {
                         settings[name] = (initial && typeof initial[name] === 'string') ? initial[name] : schemaDefaults[name];
+                    }
+                } else if (name === 'main_menu_coins_size') {
+                    if (typeof settings[name] !== 'number') {
+                        settings[name] = (initial && typeof initial[name] === 'number') ? initial[name] : schemaDefaults[name];
                     }
                 } else if (typeof settings[name] !== 'boolean') {
                     settings[name] = (initial && typeof initial[name] === 'boolean') ? initial[name] : schemaDefaults[name];
@@ -322,11 +328,16 @@
                             settings['audio_order.' + audioKey] = args.value[audioKey];
                         }
                     }
-                } else if (args.key === 'theme') {
+                } else if (args.key === 'theme' || args.key === 'main_menu_coins_layout') {
                     if (typeof args.value !== 'string') {
                         throw new Error('Invalid setting value');
                     }
-                    settings.theme = args.value;
+                    settings[args.key] = args.value;
+                } else if (args.key === 'main_menu_coins_size') {
+                    if (typeof args.value !== 'number') {
+                        throw new Error('Invalid setting value');
+                    }
+                    settings[args.key] = args.value;
                 } else if (Object.prototype.hasOwnProperty.call(schemaDefaults, args.key) && typeof args.value === 'boolean') {
                     settings[args.key] = args.value;
                 } else {

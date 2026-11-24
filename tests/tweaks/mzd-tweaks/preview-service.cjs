@@ -31,7 +31,9 @@ test('emulated MZD Tweaks service', async t => {
     const storage = {}, env = fixture(storage, {
         'mzd-tweaks': {
             main_menu_loop: false,
-            coins_glow: true,
+            main_menu_coins_layout: 'ellipse',
+            main_menu_coins_size: 100,
+            main_menu_coins_glow: true,
             list_loop: false,
             list_beep: true,
             short_delay: false,
@@ -42,7 +44,9 @@ test('emulated MZD Tweaks service', async t => {
 
     await t.test('populates window.mzdTweaks and returns default settings', async () => {
         assert.equal(env.window.mzdTweaks.main_menu_loop, false);
-        assert.equal(env.window.mzdTweaks.coins_glow, true);
+        assert.equal(env.window.mzdTweaks.main_menu_coins_layout, 'ellipse');
+        assert.equal(env.window.mzdTweaks.main_menu_coins_size, 100);
+        assert.equal(env.window.mzdTweaks.main_menu_coins_glow, true);
         assert.equal(env.window.mzdTweaks.list_loop, false);
         assert.equal(env.window.mzdTweaks.list_beep, true);
         assert.equal(env.window.mzdTweaks.short_delay, false);
@@ -51,7 +55,9 @@ test('emulated MZD Tweaks service', async t => {
 
         const res = await request(env.services, 'get', {});
         assert.equal(res.settings.main_menu_loop, false);
-        assert.equal(res.settings.coins_glow, true);
+        assert.equal(res.settings.main_menu_coins_layout, 'ellipse');
+        assert.equal(res.settings.main_menu_coins_size, 100);
+        assert.equal(res.settings.main_menu_coins_glow, true);
         assert.equal(res.settings.list_loop, false);
         assert.equal(res.settings.list_beep, true);
         assert.equal(res.settings.short_delay, false);
