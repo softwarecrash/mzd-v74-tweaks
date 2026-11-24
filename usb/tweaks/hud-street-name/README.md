@@ -1,4 +1,4 @@
-# HUD Street Name
+# HUD Hidden Street Name Menu
 
 Unlocks the **Street Information** options in Active Driving Display settings
 for supported vehicles. The tweak changes the settings app's HUD region and

@@ -2576,9 +2576,9 @@ test("CLUSTER_MANIFEST_UI", async (t) => {
   );
 
   await t.test(
-    "HUD Street Name: a compatible HUD keeps Install available",
+    "HUD Hidden Street Name Menu: a compatible HUD keeps Install available",
     () => {
-      // Non-bundle tweak preflight info (HUD Street Name)
+      // Non-bundle tweak preflight info (HUD Hidden Street Name Menu)
       x = boot(null, false, false, false, false, false);
       x.usb.ids = ["hud-street-name"];
       x.states["hud-street-name"] = "uninstalled";
@@ -2598,7 +2598,7 @@ test("CLUSTER_MANIFEST_UI", async (t) => {
     }
   );
 
-  await t.test("HUD Street Name: an unsupported HUD disables Install", () => {
+  await t.test("HUD Hidden Street Name Menu: an unsupported HUD disables Install", () => {
     x.click("back");
     x.preflight["hud-street-name"] = x.ok(
       "block\tDetected unsupported Combiner HUD (monochrome).\n",
@@ -2614,7 +2614,7 @@ test("CLUSTER_MANIFEST_UI", async (t) => {
   });
 
   await t.test(
-    "HUD Street Name: the manifest requires a boolean preflight",
+    "HUD Hidden Street Name Menu: the manifest requires a boolean preflight",
     () => {
       const hudManifest = parseConf(
         "hud-street-name",

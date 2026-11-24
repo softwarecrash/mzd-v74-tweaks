@@ -1,4 +1,4 @@
-# HUD Street Name: physical CMU test
+# HUD Hidden Street Name Menu: physical CMU test
 
 - Date: 2026-10-31
 - Commit: `68a3616` (HEAD); installer 0.9.1 runtime on USB
