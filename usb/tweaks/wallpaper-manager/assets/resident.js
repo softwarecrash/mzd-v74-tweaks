@@ -206,9 +206,19 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
     var original = 'common/images/background.png', desired = original, request = 0;
     var menuPreview = null, previewOwner = null, previewPath = null, previewRequest = 0;
     var catalog = [], savedSettings = null, stagedSettings = null, saving = false, retry = null, loadSequence = 0, mutation = 0;
+    var bootRetry = null, menuTimer = null;
     function updateBackground() {
         var fw = window.framework, common = fw && fw.common, visible = desired;
-        if (!common) { return; }
+        if (!common) {
+            if (!bootRetry && !hostEnded) {
+                bootRetry = window.setTimeout(function () {
+                    bootRetry = null;
+                    updateBackground();
+                }, 500);
+            }
+            return;
+        }
+        if (bootRetry) { window.clearTimeout(bootRetry); bootRetry = null; }
         common._defaultBgPath = desired;
         if (previewPath && previewOwner && document.documentElement.contains(previewOwner) &&
             fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') { visible = previewPath; }
@@ -271,7 +281,25 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
         var current = context.view();
         return current && current.source === source ? current.token : '';
     }
-    var nativeMenu = context.createNativeMenu({prefix:'wallpaper',split:true,dialog:true,preview:setMenuPreview});
+    function startMenuCheck() {
+        if (!menuTimer && !hostEnded) {
+            menuTimer = window.setInterval(function () { nativeMenu.check(); }, 500);
+        }
+    }
+    function stopMenuCheck() {
+        if (menuTimer) {
+            window.clearInterval(menuTimer);
+            menuTimer = null;
+        }
+    }
+    var nativeMenu = context.createNativeMenu({
+        prefix: 'wallpaper',
+        split: true,
+        dialog: true,
+        preview: setMenuPreview,
+        onOpen: startMenuCheck,
+        onClose: stopMenuCheck
+    });
     function receive(event) {
         window.MzdSettingsHost.handleNativeMessage(nativeMenu, context, 'wallpaper', event, {leaveOnError:true});
     }
@@ -345,10 +373,9 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
             if (token) { try { frames[i].contentWindow.postMessage({type:'wallpaper-preview-response',token:token,id:0,state:snapshot(),error:''},'*'); } catch (ignore) {} }
         }
     }
-    var refresh = window.setInterval(function () { updateBackground(); nativeMenu.check(); },500);
     context.onMessage(receive);
     context.onViewClose(function () { nativeMenu.close(); });
-    context.onDispose(function () { hostEnded = true; nativeMenu.close(); if (core) { core.dispose(); } window.clearInterval(refresh); window.clearTimeout(retry); desired = original; previewPath = null; updateBackground(); delete window.WallpaperManager; });
+    context.onDispose(function () { hostEnded = true; nativeMenu.close(); stopMenuCheck(); if (core) { core.dispose(); } window.clearTimeout(retry); if (bootRetry) { window.clearTimeout(bootRetry); bootRetry = null; } desired = original; previewPath = null; updateBackground(); delete window.WallpaperManager; });
     function loadGallery() {
         var sequence = ++loadSequence;
         client.gallery(function (failure, result) {

@@ -12,7 +12,8 @@ const mmuiCalls=[],originalSend=(app,event)=>mmuiCalls.push({app,event}),fw={com
  instantiateTemplate(app,parent,type,props){dialogConfig=props.Dialog3Ctrl;return {dialog3Ctrl:props.Dialog3Ctrl,cleanUp(){dialogConfig=null;}};},
  instantiateControl(app,parent,type,props){assert.equal(type,'List2Ctrl');assert.equal(props.titleConfiguration,'noTitle');assert(parent.className.indexOf('TemplateWithStatusLeft List2Tmplt')===0);created++;
   control={props,rendered:true,focus:props.focussedItem||0,dataList:props.dataList,handleControllerEvent(event){if(event==='cw'||event==='down'){this.focus=(this.focus+1)%this.dataList.items.length;}if(event==='ccw'||event==='up'){this.focus=(this.focus+this.dataList.items.length-1)%this.dataList.items.length;}if(event==='select')props.selectCallback(this,this.dataList.items[this.focus].appData);},getContextCapture(){return{hasFocus:true,focussedItem:this.focus,topItem:0};},restoreContext(c){this.focus=c.focussedItem;},setDataList(d){this.dataList=d;this.rendered=false;},setDataListAndUpdateItems(d){this.dataList=d;this.rendered=true;}};return control;},destroyControl(c){destroyed++;if(control===c)control=null;}};
-const host={location:{hostname:'localhost',origin:undefined},framework:fw,localStorage:{getItem:()=>null,setItem:()=>writes++},addEventListener:(n,f)=>hostEvents[n]=f,removeEventListener:n=>delete hostEvents[n],setTimeout:(f,ms)=>{timers.set(++timer,{f,ms});return timer;},clearTimeout:n=>timers.delete(n),setInterval:f=>{host.refresh=f;return 1;},clearInterval:()=>{}};
+const intervals=new Set();let intervalsStarted=0,intervalsCleared=0;
+const host={location:{hostname:'localhost',origin:undefined},framework:fw,localStorage:{getItem:()=>null,setItem:()=>writes++},addEventListener:(n,f)=>hostEvents[n]=f,removeEventListener:n=>delete hostEvents[n],setTimeout:(f,ms)=>{timers.set(++timer,{f,ms});return timer;},clearTimeout:n=>timers.delete(n),setInterval:f=>{intervalsStarted++;const id=++timer;intervals.add(id);host.refresh=f;return id;},clearInterval:id=>{intervalsCleared++;intervals.delete(id);delete host.refresh;}};
 const layoutMessages=[];
 const parent={postMessage:data=>{
   if(data.type==='mzd-gui-layout')layoutMessages.push(data);
@@ -167,7 +168,9 @@ input('back');input('back');click(1);click(1);assert(saved.enabled);
 mmuiCalls.length=0;const queuedBefore=queue.length;input('home');assert.equal(queue.length,queuedBefore,'input home returns false and emits no native-input message');
 fw.sendEventToMmui('common','Global.IntentHome');assert.deepEqual(mmuiCalls,[{app:'common',event:'Global.IntentHome'}],'touching Home delegates to OEM sendEventToMmui');
 resident.closed();assert.equal(host.WallpaperManager.snapshot().enabled,true,'closing the manager retains resident slideshow');
+assert.equal(intervals.size,0,'no active intervals while view is closed');
 resident.reconnected();flush();assert.equal(host.WallpaperManager.snapshot().active,imageID);
 const before=writes;const rotation=[...timers.values()].find(t=>t.ms===5000);if(rotation){rotation.f();flush();}assert.equal(writes,before,'no flash writes per slideshow tick');
 resident.closed();hostEvents.unload();flush();assert.equal(host.WallpaperManager,undefined);assert.equal(fw.sendEventToMmui,originalSend);assert.equal(common._defaultBgPath,'common/images/background.png');
+assert.equal(intervals.size,0,'no active intervals after unload');
 console.log('WALLPAPER_CMU_HOST_PASSED: service-backed gallery, empty default membership, durable settings, save-failure rollback, view-independent lifetime and stock-background disposal.');
