@@ -244,3 +244,40 @@ body[class*="mzd-theme-"] .ScreenSettings2CtrlSwitchViewDown {
     box-shadow: none !important;
     filter: none !important;
 }
+
+/* ==========================================================================
+   10. DialPad2 (Phone Dialer)
+   ========================================================================== */
+body[class*="mzd-theme-"] .DialPad2Ctrl .btn.focused,
+body[class*="mzd-theme-"] .DialPad2Ctrl .btn.active {
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    border-radius: 4px !important;
+    -o-border-radius: 4px !important;
+}
+
+/* ==========================================================================
+   11. Keyboard (Keys & Spacebar)
+   ========================================================================== */
+body[class*="mzd-theme-"] .KeyboardCtrl .key.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .key.active,
+body[class*="mzd-theme-"] .KeyboardCtrl .keySpace.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .keySpace.active,
+body[class*="mzd-theme-"] .KeyboardCtrl .keySpecial.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .keyShift.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .keyDone.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .keyDelete.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .keyCancel.focused {
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    border-radius: 3px !important;
+    -o-border-radius: 3px !important;
+}
+
+/* ==========================================================================
+   12. Contacts Letter Index Sidebar
+   ========================================================================== */
+body[class*="mzd-theme-"] .List2CtrlLetterIndex .letter {
+    -o-transition: color 0.15s linear;
+    transition: color 0.15s linear;
+}

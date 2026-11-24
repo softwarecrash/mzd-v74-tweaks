@@ -178,3 +178,51 @@ body.mzd-theme-cyan .StatusBarRemoteUIBtn_Focus,
 body.mzd-theme-cyan .StatusBarRemoteUIBtn_Hit {
     box-shadow: 0 0 8px rgba(0, 229, 255, 0.85) !important;
 }
+
+/* DialPad2 (Phone Dialer) Focus & Press */
+body.mzd-theme-cyan .DialPad2Ctrl .btn.focused {
+    background-image: -o-linear-gradient(top, #00e5ff 0%, #008099 100%) !important;
+    background-image: linear-gradient(to bottom, #00e5ff 0%, #008099 100%) !important;
+    border: 1px solid #33ecff !important;
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.85) !important;
+}
+body.mzd-theme-cyan .DialPad2Ctrl .btn.active {
+    background-image: -o-linear-gradient(top, #00c4db 0%, #006375 100%) !important;
+    background-image: linear-gradient(to bottom, #00c4db 0%, #006375 100%) !important;
+}
+body.mzd-theme-cyan .DialPad2Ctrl.DialpadStyle02 .callBtn.focused {
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.85) !important;
+}
+
+/* Keyboard Keys & Spacebar Focus */
+body.mzd-theme-cyan .KeyboardCtrl .key.focused,
+body.mzd-theme-cyan .KeyboardCtrl .keySpace.focused,
+body.mzd-theme-cyan .KeyboardCtrl .keySpecial.focused,
+body.mzd-theme-cyan .KeyboardCtrl .keyShift.focused,
+body.mzd-theme-cyan .KeyboardCtrl .keyDone.focused,
+body.mzd-theme-cyan .KeyboardCtrl .keyDelete.focused,
+body.mzd-theme-cyan .KeyboardCtrl .keyCancel.focused {
+    background-image: -o-linear-gradient(top, #00e5ff 0%, #008099 100%) !important;
+    background-image: linear-gradient(to bottom, #00e5ff 0%, #008099 100%) !important;
+    border: 1px solid #33ecff !important;
+    box-shadow: 0 0 6px rgba(0, 229, 255, 0.85) !important;
+}
+body.mzd-theme-cyan .KeyboardCtrl .key.active,
+body.mzd-theme-cyan .KeyboardCtrl .keySpace.active {
+    background-image: -o-linear-gradient(top, #00c4db 0%, #006375 100%) !important;
+    background-image: linear-gradient(to bottom, #00c4db 0%, #006375 100%) !important;
+}
+
+/* Contacts Letter Index */
+body.mzd-theme-cyan .List2CtrlLetterIndex .letter.active {
+    color: #33ecff !important;
+    text-shadow: 0 0 8px rgba(0, 229, 255, 0.85) !important;
+}
+body.mzd-theme-cyan .List2CtrlLetterIndex .letter.focus {
+    background: -o-linear-gradient(left, transparent 0%, rgba(0, 229, 255, 0.35) 50%, transparent 100%), url(/jci/gui/common/controls/List2/images/IndexedList_Divider.png) 50% 100% no-repeat !important;
+    background: linear-gradient(to right, transparent 0%, rgba(0, 229, 255, 0.35) 50%, transparent 100%), url(/jci/gui/common/controls/List2/images/IndexedList_Divider.png) 50% 100% no-repeat !important;
+}
+body.mzd-theme-cyan .List2CtrlLetterIndex .letter.hit {
+    background: -o-linear-gradient(left, transparent 0%, rgba(0, 229, 255, 0.6) 50%, transparent 100%), url(/jci/gui/common/controls/List2/images/IndexedList_Divider.png) 50% 100% no-repeat !important;
+    background: linear-gradient(to right, transparent 0%, rgba(0, 229, 255, 0.6) 50%, transparent 100%), url(/jci/gui/common/controls/List2/images/IndexedList_Divider.png) 50% 100% no-repeat !important;
+}
