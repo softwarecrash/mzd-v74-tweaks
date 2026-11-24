@@ -257,17 +257,56 @@ body[class*="mzd-theme-"] .DialPad2Ctrl .btn.active {
 }
 
 /* ==========================================================================
-   11. Keyboard (Keys & Spacebar)
+   11. Keyboard (Keys, Spacebar, Controls, and Input Box)
    ========================================================================== */
-body[class*="mzd-theme-"] .KeyboardCtrl .key.focused,
-body[class*="mzd-theme-"] .KeyboardCtrl .key.active,
-body[class*="mzd-theme-"] .KeyboardCtrl .keySpace.focused,
-body[class*="mzd-theme-"] .KeyboardCtrl .keySpace.active,
-body[class*="mzd-theme-"] .KeyboardCtrl .keySpecial.focused,
-body[class*="mzd-theme-"] .KeyboardCtrl .keyShift.focused,
-body[class*="mzd-theme-"] .KeyboardCtrl .keyDone.focused,
-body[class*="mzd-theme-"] .KeyboardCtrl .keyDelete.focused,
-body[class*="mzd-theme-"] .KeyboardCtrl .keyCancel.focused {
+
+/* Button geometry: border-box sizing and 3px rounded corners */
+body[class*="mzd-theme-"] .KeyboardCtrl .btn.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .btn.activeState,
+body[class*="mzd-theme-"] .KeyboardCtrl .btnExtended.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .btnExtended.activeState,
+body[class*="mzd-theme-"] .KeyboardCtrl .KeyboardCtrlDeleteBtn_Fs,
+body[class*="mzd-theme-"] .KeyboardCtrl .KeyboardCtrlDeleteBtn_Dwn,
+body[class*="mzd-theme-"] .KeyboardCtrl .KeyboardCtrlDeleteBtn_Hd {
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    border-radius: 3px !important;
+    -o-border-radius: 3px !important;
+}
+
+/* Control buttons with icons: center icon above gradient background */
+body[class*="mzd-theme-"] .KeyboardCtrl #btnShift.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnShift.activeState,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnCancel.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnCancel.activeState,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnOK.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnOK.activeState,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnGlobe.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnGlobe.activeState,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnMod.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl #btnMod.activeState {
+    background-position: center center, center center !important;
+    background-repeat: no-repeat, no-repeat !important;
+}
+
+/* Input active area: suppress stock red border PNG, apply base input box geometry */
+body[class*="mzd-theme-"] .KeyboardCtrl .inputBoxTouchActiveArea.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .inputBoxTouchActiveArea.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Char_Input.png) !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 100% !important;
+    box-sizing: border-box !important;
+    -o-box-sizing: border-box !important;
+    border-radius: 3px !important;
+    -o-border-radius: 3px !important;
+}
+
+/* Word suggestions focus/active geometry */
+body[class*="mzd-theme-"] .KeyboardCtrl .suggestionSpan.focused,
+body[class*="mzd-theme-"] .KeyboardCtrl .suggestionSpan.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Char_Input.png) !important;
+    background-size: 100% 100% !important;
     box-sizing: border-box !important;
     -o-box-sizing: border-box !important;
     border-radius: 3px !important;

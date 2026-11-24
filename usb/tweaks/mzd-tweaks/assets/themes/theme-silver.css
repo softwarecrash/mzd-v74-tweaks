@@ -194,23 +194,90 @@ body.mzd-theme-silver .DialPad2Ctrl.DialpadStyle02 .callBtn.focused {
     box-shadow: 0 0 10px rgba(216, 226, 236, 0.85) !important;
 }
 
-/* Keyboard Keys & Spacebar Focus */
-body.mzd-theme-silver .KeyboardCtrl .key.focused,
-body.mzd-theme-silver .KeyboardCtrl .keySpace.focused,
-body.mzd-theme-silver .KeyboardCtrl .keySpecial.focused,
-body.mzd-theme-silver .KeyboardCtrl .keyShift.focused,
-body.mzd-theme-silver .KeyboardCtrl .keyDone.focused,
-body.mzd-theme-silver .KeyboardCtrl .keyDelete.focused,
-body.mzd-theme-silver .KeyboardCtrl .keyCancel.focused {
+/* Keyboard Keys, Spacebar & Controls Focus */
+body.mzd-theme-silver .KeyboardCtrl .btn.focused,
+body.mzd-theme-silver .KeyboardCtrl .btnExtended.focused,
+body.mzd-theme-silver .KeyboardCtrl .KeyboardCtrlDeleteBtn_Fs,
+body.mzd-theme-silver .KeyboardCtrl .suggestionSpan.focused {
     background-image: -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
     background-image: linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
     border: 1px solid #eef4fa !important;
     box-shadow: 0 0 6px rgba(216, 226, 236, 0.85) !important;
 }
-body.mzd-theme-silver .KeyboardCtrl .key.active,
-body.mzd-theme-silver .KeyboardCtrl .keySpace.active {
+
+/* Keyboard Keys, Spacebar & Controls Pressed (Active) */
+body.mzd-theme-silver .KeyboardCtrl .btn.activeState,
+body.mzd-theme-silver .KeyboardCtrl .btnExtended.activeState,
+body.mzd-theme-silver .KeyboardCtrl .KeyboardCtrlDeleteBtn_Dwn,
+body.mzd-theme-silver .KeyboardCtrl .KeyboardCtrlDeleteBtn_Hd,
+body.mzd-theme-silver .KeyboardCtrl .suggestionSpan.activeState {
     background-image: -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
     background-image: linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+    border: 1px solid #eef4fa !important;
+}
+
+/* Keyboard Control Buttons with Icons (Focus) */
+body.mzd-theme-silver .KeyboardCtrl #btnShift.focused {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_Off.png), -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_Off.png), linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnShift.capsLock.focused {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_On.png), -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_On.png), linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnCancel.focused {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Cancel_En.png), -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Cancel_En.png), linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnOK.focused {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Send.png), -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Send.png), linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnGlobe.focused {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Globe.png), -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Globe.png), linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnMod.focused {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Small_En.png), -o-linear-gradient(top, #d8e2ec 0%, #6a7684 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Small_En.png), linear-gradient(to bottom, #d8e2ec 0%, #6a7684 100%) !important;
+}
+
+/* Keyboard Control Buttons with Icons (Active / Pressed) */
+body.mzd-theme-silver .KeyboardCtrl #btnShift.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_Off.png), -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_Off.png), linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnShift.capsLock.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_On.png), -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/IcnKbdShift_On.png), linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnCancel.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Cancel_En.png), -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Cancel_En.png), linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnOK.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Send.png), -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Send.png), linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnGlobe.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Globe.png), -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Globe.png), linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl #btnMod.activeState {
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Small_En.png), -o-linear-gradient(top, #becbd8 0%, #4f5964 100%) !important;
+    background-image: url(/jci/gui/common/controls/Keyboard/images/Icn_Small_En.png), linear-gradient(to bottom, #becbd8 0%, #4f5964 100%) !important;
+}
+
+/* Keyboard Input Field (Focused & Active) & Caret */
+body.mzd-theme-silver .KeyboardCtrl .inputBoxTouchActiveArea.focused,
+body.mzd-theme-silver .KeyboardCtrl .inputBoxTouchActiveArea.activeState {
+    border: 1px solid #eef4fa !important;
+    box-shadow: 0 0 6px rgba(216, 226, 236, 0.85) !important;
+}
+body.mzd-theme-silver .KeyboardCtrl .inputDiv .caret.focused,
+body.mzd-theme-silver .KeyboardCtrl .inputDiv .caret.activeState {
+    background-image: none !important;
+    background-color: #eef4fa !important;
 }
 
 /* Contacts Letter Index */
