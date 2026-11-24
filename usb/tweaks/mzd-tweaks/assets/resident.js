@@ -715,9 +715,11 @@
         // Swatch previews in Theme selection subpage
         var THEME_SWATCH_IDS = ['red', 'blue', 'green', 'orange', 'purple', 'pink', 'silver', 'gold', 'cyan'];
         function isThemeSubpage(ctrl) {
-            return ctrl && ctrl.dataList && ctrl.dataList.items && ctrl.dataList.itemCount === 9 &&
+            return !!(ctrl && ctrl.parentDiv && typeof ctrl.parentDiv.className === 'string' &&
+                ctrl.parentDiv.className.indexOf('mzd-custom-menu') !== -1 &&
+                ctrl.dataList && ctrl.dataList.items && ctrl.dataList.itemCount === 9 &&
                 ctrl.dataList.items[0] && ctrl.dataList.items[1] &&
-                ctrl.dataList.items[0].image1 === 'tick' && ctrl.dataList.items[1].image1 === 'tick';
+                ctrl.dataList.items[0].image1 === 'tick' && ctrl.dataList.items[1].image1 === 'tick');
         }
         var origGetListItem = proto._getListItem;
         if (typeof origGetListItem === 'function') {

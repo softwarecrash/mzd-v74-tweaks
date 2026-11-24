@@ -25,6 +25,8 @@ require(len(_api_lines) == 1 and re.fullmatch(r'[1-9][0-9]*', _api_lines[0]) is 
 GUI_API_LEVEL = int(_api_lines[0])
 GUI_FEATURES = [
     (2, re.compile(r'MzdSettings(Host|View)|createNativeMenu|onServiceRequest|MzdGuiModule\.request|\bsdk\.request\b|onSuspend|onResume')),
+    (3, re.compile(r'Global\.IntentHome|\bIntentHome\b|action\s*===?\s*[\'"]home[\'"]|\bhome\s*:\s*true\b|\bapi\.home\b|audio_order|_masterEntertainmentDataList|\bonLeave\b|\brightSpinner\b')),
+    (4, re.compile(r'Dialog3(?:Tmplt)?|\bdialog\s*:\s*true\b|[-_]native[-_]dialog\b')),
 ]
 
 manifests = {}
