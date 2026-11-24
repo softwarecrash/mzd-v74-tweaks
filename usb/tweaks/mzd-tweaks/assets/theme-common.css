@@ -58,9 +58,14 @@ body[class*="mzd-theme-"] .MainMenuCtrlAppHighlight,
 body[class*="mzd-theme-"] .MainMenuCtrlEntHighlight,
 body[class*="mzd-theme-"] .MainMenuCtrlComHighlight,
 body[class*="mzd-theme-"] .MainMenuCtrlNavHighlight,
-body[class*="mzd-theme-"] .MainMenuCtrlSetHighlight {
-    -o-transition: opacity 200ms linear;
-    transition: opacity 200ms linear;
+body[class*="mzd-theme-"] .MainMenuCtrlSetHighlight,
+body[class*="mzd-theme-"] .MainMenuCtrlAppNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlEntNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlComNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlNavNormal,
+body[class*="mzd-theme-"] .MainMenuCtrlSetNormal {
+    -o-transition: opacity 0.2s linear;
+    transition: opacity 0.2s linear;
 }
 
 body[class*="mzd-theme-"] .MainMenuCtrlAppDiv,
@@ -69,47 +74,24 @@ body[class*="mzd-theme-"] .MainMenuCtrlComDiv,
 body[class*="mzd-theme-"] .MainMenuCtrlNavDiv,
 body[class*="mzd-theme-"] .MainMenuCtrlSetDiv {
     -o-transition: 0.2s linear;
-    -webkit-transition: -webkit-transform 0.2s linear;
-    transition: transform 0.2s linear, -webkit-transform 0.2s linear, -o-transform 0.2s linear;
+    transition: transform 0.2s linear, -o-transform 0.2s linear;
 }
 
 body[class*="mzd-theme-"] .MainMenuCtrlAppDiv.MainMenuCtrlCoinFocus {
     -o-transform: scale(1.2, 1.2) translate(36px, -33px);
-    -webkit-transform: scale(1.2, 1.2) translate(36px, -33px);
     transform: scale(1.2, 1.2) translate(36px, -33px);
 }
 
-body[class*="mzd-theme-"] .MainMenuCtrlEntDiv.MainMenuCtrlCoinFocus {
-    -o-transform: scale(1.2, 1.2) translate(0px, -10px);
-    -webkit-transform: scale(1.2, 1.2) translate(0px, -10px);
-    transform: scale(1.2, 1.2) translate(0px, -10px);
-}
-
-body[class*="mzd-theme-"] .MainMenuCtrlComDiv.MainMenuCtrlCoinFocus {
-    -o-transform: scale(1.2, 1.2) translate(0px, -10px);
-    -webkit-transform: scale(1.2, 1.2) translate(0px, -10px);
-    transform: scale(1.2, 1.2) translate(0px, -10px);
-}
-
+body[class*="mzd-theme-"] .MainMenuCtrlEntDiv.MainMenuCtrlCoinFocus,
+body[class*="mzd-theme-"] .MainMenuCtrlComDiv.MainMenuCtrlCoinFocus,
 body[class*="mzd-theme-"] .MainMenuCtrlNavDiv.MainMenuCtrlCoinFocus {
     -o-transform: scale(1.2, 1.2) translate(0px, -10px);
-    -webkit-transform: scale(1.2, 1.2) translate(0px, -10px);
     transform: scale(1.2, 1.2) translate(0px, -10px);
 }
 
 body[class*="mzd-theme-"] .MainMenuCtrlSetDiv.MainMenuCtrlCoinFocus {
     -o-transform: scale(1.2, 1.2) translate(-36px, -33px);
-    -webkit-transform: scale(1.2, 1.2) translate(-36px, -33px);
     transform: scale(1.2, 1.2) translate(-36px, -33px);
-}
-
-body[class*="mzd-theme-"] .MainMenuCtrlAppNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlEntNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlComNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlNavNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlSetNormal {
-    -o-transition: opacity 0.2s linear;
-    transition: opacity 0.2s linear;
 }
 
 /* ==========================================================================
@@ -162,7 +144,6 @@ body[class*="mzd-theme-"] .LeftBtnCtrlMoveUpBtnDown {
     border: none !important;
     border-radius: 0 !important;
     filter: none !important;
-    -webkit-filter: none !important;
 }
 
 /* ==========================================================================
@@ -220,24 +201,7 @@ body[class*="mzd-theme-"] .SbnCtrl {
    9. Bottom Tabs (UMP)
    ========================================================================== */
 
-body[class*="mzd-theme-"] .Ump3Ctrl2Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl2Button_Ds.Ump3Ctrl2Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl2Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl3Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl3Button_Ds.Ump3Ctrl3Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl3Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl4Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl4Button_Ds.Ump3Ctrl4Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl4Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl5Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl5Button_Ds.Ump3Ctrl5Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl5Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl6Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl6Button_Ds.Ump3Ctrl6Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl6Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl7Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl7Button_Ds.Ump3Ctrl7Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl7Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl8Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl8Button_Ds.Ump3Ctrl8Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl8Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl9Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl9Button_Ds.Ump3Ctrl9Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl9Button_down,
-body[class*="mzd-theme-"] .Ump3Ctrl10Button_focused, body[class*="mzd-theme-"] .Ump3Ctrl10Button_Ds.Ump3Ctrl10Button_focused,
-body[class*="mzd-theme-"] .Ump3Ctrl10Button_down {
+body[class*="mzd-theme-"] [class*="Ump3Ctrl"][class*="Button_"] {
     border: none !important;
 }
 
@@ -279,5 +243,4 @@ body[class*="mzd-theme-"] .ScreenSettings2CtrlSwitchView,
 body[class*="mzd-theme-"] .ScreenSettings2CtrlSwitchViewDown {
     box-shadow: none !important;
     filter: none !important;
-    -webkit-filter: none !important;
 }

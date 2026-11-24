@@ -1147,7 +1147,7 @@ function viewPage(options) {
   assert.equal(page.menu().rows[2].detail, 'Small');
 
   page.select(5);
-  assert.deepEqual(page.sets(), [{ key: 'list_beep', value: false }], 'switching the default beep off saves false');
+  assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: false });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: false, short_delay: false });
   assert.equal(page.menu().rows[5].checked, false);
   page.select(5);

@@ -26,11 +26,7 @@ body.mzd-theme-purple .MainMenuCtrlSetFocus {
 }
 
 /* Main Menu Glow */
-body.mzd-theme-purple.mzd-coins-glow .MainMenuCtrlAppHighlight,
-body.mzd-theme-purple.mzd-coins-glow .MainMenuCtrlEntHighlight,
-body.mzd-theme-purple.mzd-coins-glow .MainMenuCtrlComHighlight,
-body.mzd-theme-purple.mzd-coins-glow .MainMenuCtrlNavHighlight,
-body.mzd-theme-purple.mzd-coins-glow .MainMenuCtrlSetHighlight {
+body.mzd-theme-purple.mzd-coins-glow .MainMenuCtrl [class*="Highlight"] {
     background-image: url(../images/highlights/Glow_purple.png) !important;
 }
 
@@ -97,11 +93,6 @@ body.mzd-theme-purple .Dialog3Ctrl_ButtonStyle04_down {
     background-image: linear-gradient(to bottom, #b020e0 0%, #5c0080 100%) !important;
     border: 1px solid #c840f0 !important;
     box-shadow: 0 0 8px rgba(176, 32, 224, 0.85) !important;
-    box-sizing: border-box !important;
-    -o-box-sizing: border-box !important;
-    height: 80px !important;
-    border-radius: 4px !important;
-    -o-border-radius: 4px !important;
 }
 
 /* Stepper Secondary Focus (180px x 48px centered background image) */
@@ -109,8 +100,6 @@ body.mzd-theme-purple .List2Ctrl .ListItem.styleStep.secondaryFocus .label2,
 body.mzd-theme-purple .List2Ctrl.normalItems .ListItem.styleStep.secondaryFocus .label2,
 body.mzd-theme-purple .List2Ctrl.thickItems .ListItem.styleStep.secondaryFocus .label2 {
     background: url(../images/stepper/ListItem_MaintSet_Bg_Focus_purple.png) 50% 50% no-repeat, url(/jci/gui/common/controls/List2/images/ListItem_MaintSet_Bg.png) 50% 50% no-repeat !important;
-    border: none !important;
-    box-shadow: none !important;
 }
 
 /* Sliders (Decision 2: Retained PNG Images) */
@@ -130,10 +119,7 @@ body.mzd-theme-purple .SliderCtrlFocusedHandle {
 }
 
 /* Notifications (SBN banner & Wink) */
-body.mzd-theme-purple .SbnCtrl {
-    border: 1px solid #b020e0 !important;
-    box-shadow: 0 0 10px rgba(176, 32, 224, 0.85) !important;
-}
+body.mzd-theme-purple .SbnCtrl,
 body.mzd-theme-purple .WinkCtrlBox {
     border: 1px solid #b020e0 !important;
     box-shadow: 0 0 10px rgba(176, 32, 224, 0.85) !important;
