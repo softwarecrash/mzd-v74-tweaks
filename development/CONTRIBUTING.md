@@ -13,7 +13,10 @@ Do not introduce a second legacy launcher or generated runtime tree.
    use the same shared lifecycle for all views.
 3. Supply an English manifest, README, entrypoint and assets. For mutable app data,
    use [the config example](examples/config-data/README.md) and declare
-   `config.<name>.path` directly in the manifest.
+   `config.<name>.path` directly in the manifest. Compress and quantize image assets
+   (PNGs) to conserve CMU storage and texture memory (e.g. using [Reduce PNG File Size Online](https://compresspng.com/)
+   or `pngquant` in the terminal; see [Asset optimization](Gui-extensions.md#asset-optimization-and-image-compression)
+   and [Menu styling](Gui-extensions.md#styling-custom-native-menus-mzd-custom-menu)).
 4. Declare firmware, dependencies, conflicts, lock group and reboot needs.
    Put these settings only in manifest.conf; the shared reader configures run.sh.
 5. Implement and test any hardware or component checks. With the shared runtime,

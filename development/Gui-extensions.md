@@ -475,3 +475,57 @@ Android Auto Settings (`usb/tweaks/android-auto/assets/view.js`) is the
 reference: its `dpi` type saves Resolution DPI only after the adjustment is
 finished, its `distance` type opens a radio sub-page and its `transport` type
 maps On/Off to `svcnavi`/`vbs`. MZD Tweaks uses only built-in rows.
+
+
+## Styling custom native menus (`.mzd-custom-menu`)
+
+When the shared GUI runtime creates a native list menu (via `context.createNativeMenu(options)` or through `MzdSettingsHost`), it wraps the OEM `List2Ctrl` control inside a container element with the class:
+
+```html
+<div class="TemplateWithStatusLeft List2Tmplt mzd-custom-menu ...">
+```
+
+### When to use `.mzd-custom-menu`
+
+The vehicle's Opera 12 Presto browser environment shares global stylesheets and global OEM control classes across the entire system. Native Mazda applications (such as vehicle settings, entertainment, navigation, and communications) instantiate the same `List2Ctrl` and `ListItem` classes.
+
+- **Scope custom CSS rules**: Whenever you style rows, labels, icons, or custom decorations (such as color swatches or custom line widths) in your tweak's stylesheet, always prefix the selector with `.mzd-custom-menu`:
+  ```css
+  /* Good: scoped to tweak menus only */
+  .mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row .line1 { ... }
+
+  /* Bad: bleeds into OEM Mazda vehicle and audio menus */
+  .List2Ctrl .ListItem.mzd-theme-row .line1 { ... }
+  ```
+- **Qualify runtime DOM hooks and monkey-patches**: If a resident script hooks `List2Ctrl.prototype` methods (such as `_getListItem` or `updateItems`), verify that the list control resides within a custom menu before modifying DOM elements:
+  ```js
+  function isCustomTweakMenu(ctrl) {
+      return !!(ctrl && ctrl.parentDiv && typeof ctrl.parentDiv.className === 'string' &&
+          ctrl.parentDiv.className.indexOf('mzd-custom-menu') !== -1);
+  }
+  ```
+This ensures custom styles and behaviors remain isolated to tweak menus without altering native OEM menus.
+
+
+## Asset optimization and image compression
+
+Vehicle CMU hardware operates under tight memory and storage constraints:
+- Persistent flash storage (`/tmp/mnt/data_persist` or `/data_persist`) has limited partition quotas.
+- The embedded Opera 12 browser has constrained RAM and GPU texture memory.
+- Large 24-bit or 32-bit RGBA images consume significant memory, slow down decode times, and can cause frame drops or UI latency during list scrolling.
+
+### Guidelines for PNG assets
+
+- **Prefer CSS styling over images**: Use CSS linear gradients (`-o-linear-gradient` alongside standard `linear-gradient`) and border radii instead of static raster image backgrounds where possible.
+- **Quantize to 8-bit palette**: Standard UI assets (buttons, icons, indicators, focus frames, swatches) should be quantized to 8-bit indexed palette (`color_type=3` with `PLTE` and `tRNS` chunks) rather than uncompressed 32-bit RGBA. This often reduces file sizes by 60%–80% without noticeable visual quality loss.
+- **Strip unneeded chunks**: Ancillary chunks (color profiles, text metadata, timestamps, gamma) increase file size and should be stripped.
+
+### Compression tools
+
+- **Online tools**:
+  - [Reduce PNG File Size Online](https://compresspng.com/) — Batch palette quantization and compression in the browser.
+  - [TinyPNG](https://tinypng.com/) — Web-based smart lossy compression.
+- **Terminal alternatives**:
+  - `pngquant --strip --ext .png --force <files>` — High-quality conversion from 24/32-bit RGBA to 8-bit indexed palette with full alpha transparency support, automatically stripping ancillary metadata.
+  - `optipng -o7 <files>` or `oxipng -o 4 --strip all <files>` — Lossless compression and chunk optimization.
+
