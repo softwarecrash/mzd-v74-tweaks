@@ -432,7 +432,7 @@ Built-in row types cover only common patterns:
 | Type | Behavior |
 | --- | --- |
 | `bool` | OEM On/Off row. `defaultValue` applies while the setting is absent. |
-| `step` | OEM stepper. Limits come from the service `limits[key]`, otherwise `min`, `max` and `increment`. Each value is saved. |
+| `step` | OEM stepper. Limits come from the service `limits[key]`, otherwise `min`, `max` and `increment`. Value is saved once the adjustment is finished, focus leaves the row or on flush. |
 | `action` | Sends `<prefix>-request {action}`. `confirm: {text, buttons}` asks first; the default buttons are No (focused) and Yes. |
 | `reboot` | Enabled only when the service reports `rebootRequired` and no save is running. Always confirmed. `fallback` text appears if the dialog fails. |
 
@@ -472,10 +472,9 @@ and `isFinalAdjustment(params)`. `MzdSettingsView.types` exposes the built-in
 types for reuse, for example `row: MzdSettingsView.types.step.row`.
 
 Android Auto Settings (`usb/tweaks/android-auto/assets/view.js`) is the
-reference: its `dpi` type saves Resolution DPI only after the adjustment is
-finished, its `distance` type opens a radio sub-page and its `transport` type
-maps On/Off to `svcnavi`/`vbs`. MZD Tweaks uses only built-in rows.
-
+reference for custom row types: its `distance` type opens a radio sub-page
+and its `transport` type maps On/Off to `svcnavi`/`vbs`. Resolution DPI and
+Fuel ending time in MZD Tweaks use the built-in deferred `step` type.
 
 ## Styling custom native menus (`.mzd-custom-menu`)
 
@@ -528,4 +527,3 @@ Vehicle CMU hardware operates under tight memory and storage constraints:
 - **Terminal alternatives**:
   - `pngquant --strip --ext .png --force <files>` — High-quality conversion from 24/32-bit RGBA to 8-bit indexed palette with full alpha transparency support, automatically stripping ancillary metadata.
   - `optipng -o7 <files>` or `oxipng -o 4 --strip all <files>` — Lossless compression and chunk optimization.
-

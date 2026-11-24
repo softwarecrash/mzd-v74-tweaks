@@ -49,19 +49,19 @@
         return (state && state[def.key] != null) ? state[def.key] : def.defaultValue;
     }
 
-    var TYPES = {
-        // On/Off row. defaultValue applies while the setting is absent.
-        bool: {
-            row: function (def, api) {
-                return { itemStyle: 'styleOnOff', checked: !!stateValue(def, api) };
-            },
-            activate: function (def, row, params, api) {
-                api.save(def.key, !row.checked);
-            }
-        },
-        // OEM stepper. Limits come from the service (limits[key]) or the row.
-        // Every value is saved; the resident coalesces rapid changes.
-        step: {
+    function createStepType() {
+        var committed = {}, pending = {}, secondary = {};
+
+        function commit(def, api) {
+            var value;
+            if (!has.call(pending, def.key)) { return; }
+            value = pending[def.key];
+            delete pending[def.key];
+            committed[def.key] = value;
+            api.save(def.key, value);
+        }
+
+        return {
             row: function (def, api) {
                 var limit = api.limits()[def.key] || {};
                 var min = typeof limit.min === 'number' ? limit.min : (typeof def.min === 'number' ? def.min : 0);
@@ -78,9 +78,45 @@
             },
             activate: function (def, row, params, api) {
                 var value = stepValue(row, params);
-                if (value !== null && value !== stateValue(def, api)) { api.save(def.key, value); }
+                secondary[def.key] = true;
+                if (value === null) { return; }
+                api.state()[def.key] = value;
+                if (value !== committed[def.key]) {
+                    pending[def.key] = value;
+                } else {
+                    delete pending[def.key];
+                }
+                if (isFinalAdjustment(params)) { commit(def, api); }
+            },
+            focus: function (def, info, api) {
+                var was = secondary[def.key];
+                secondary[def.key] = info.index === info.previous && info.secondary;
+                if (info.index !== info.previous || (was && !secondary[def.key])) { commit(def, api); }
+            },
+            flush: commit,
+            response: function (def, data, api) {
+                var state = api.state();
+                if (data.error) { delete pending[def.key]; }
+                if (typeof state[def.key] === 'number' && !api.pending(def.key) && !has.call(pending, def.key)) {
+                    committed[def.key] = state[def.key];
+                }
+            }
+        };
+    }
+
+    var TYPES = {
+        // On/Off row. defaultValue applies while the setting is absent.
+        bool: {
+            row: function (def, api) {
+                return { itemStyle: 'styleOnOff', checked: !!stateValue(def, api) };
+            },
+            activate: function (def, row, params, api) {
+                api.save(def.key, !row.checked);
             }
         },
+        // OEM stepper. Limits come from the service (limits[key]) or the row.
+        // Saved once adjustment is finished, focus leaves the row or on flush.
+        step: createStepType(),
         // Button row sending <prefix>-request {action}. confirm: {text, buttons}
         // asks first; the default buttons are No (focused) and Yes.
         action: {
@@ -115,7 +151,9 @@
         var token = sdk.token;
         var tr = sdk.t;
         var status = options.statusElement || document.getElementById('status');
-        var types = copy(copy({}, TYPES), options.types);
+        var builtInTypes = copy({}, TYPES);
+        builtInTypes.step = createStepType();
+        var types = copy(builtInTypes, options.types);
         var rowDefaults = options.rowDefaults || {};
         var ended = false, state = null, limits = {}, unavailable = {}, rebootRequired = false, saving = false;
         var pending = {}, notice = '', dialog = null;

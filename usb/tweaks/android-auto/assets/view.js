@@ -1,7 +1,7 @@
 /*
  * Android Auto Settings view. The shared settings view renders the OEM list;
- * this file declares the rows and the Android Auto row types: the deferred
- * Resolution DPI stepper, the HUD distance sub-page and the HUD transport.
+ * this file declares the rows and the Android Auto row types: the HUD
+ * distance sub-page and the HUD transport.
  */
 (function () {
     'use strict';
@@ -17,7 +17,6 @@
         return;
     }
     var tr = sdk.t;
-    var has = Object.prototype.hasOwnProperty;
     var DISTANCES = [0, 500, 1000, 1500, 2000, 3000, 5000, 7500, 10000, 20000];
 
     var SETTINGS = [
@@ -54,54 +53,7 @@
         return (state && typeof state[key] === 'number') ? state[key] : 0;
     }
 
-    // Resolution DPI is applied by rewriting a system file, so it is saved
-    // separately from the other options: the knob only changes the shown value,
-    // and the value is saved once the adjustment is finished, focus leaves the
-    // row or the view does anything else.
-    function dpiType() {
-        var committed = {}, pending = {}, secondary = {};
-
-        function commit(def, api) {
-            var value;
-            if (!has.call(pending, def.key)) { return; }
-            value = pending[def.key];
-            delete pending[def.key];
-            committed[def.key] = value;
-            api.save(def.key, value);
-        }
-
-        return {
-            row: View.types.step.row,
-            activate: function (def, row, params, api) {
-                var value = api.stepValue(row, params);
-                secondary[def.key] = true;
-                if (value === null) { return; }
-                api.state()[def.key] = value;
-                if (value !== committed[def.key]) {
-                    pending[def.key] = value;
-                } else {
-                    delete pending[def.key];
-                }
-                if (api.isFinalAdjustment(params)) { commit(def, api); }
-            },
-            focus: function (def, info, api) {
-                var was = secondary[def.key];
-                secondary[def.key] = info.index === info.previous && info.secondary;
-                if (info.index !== info.previous || (was && !secondary[def.key])) { commit(def, api); }
-            },
-            flush: commit,
-            response: function (def, data, api) {
-                var state = api.state();
-                if (data.error) { delete pending[def.key]; }
-                if (typeof state[def.key] === 'number' && !api.pending(def.key) && !has.call(pending, def.key)) {
-                    committed[def.key] = state[def.key];
-                }
-            }
-        };
-    }
-
     var TYPES = {
-        dpi: dpiType(),
         // HUD over SvcNavi (on) or VBS (off).
         transport: {
             row: function (def, api) {
@@ -160,7 +112,7 @@
         entries: function (state, t) {
             var list = [{
                 key: 'resolution_dpi',
-                type: 'dpi',
+                type: 'step',
                 label: t('resolution_dpi', 'Resolution DPI'),
                 defaultValue: 141,
                 min: 100,

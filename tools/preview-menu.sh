@@ -954,12 +954,15 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
             var act = data.action;
             var respType = (data.type === 'mzd-tweaks-request') ? 'mzd-tweaks-response' : 'aa-response';
             if (act === 'get' || act === 'sync') {
+                var limits = (tweakId === 'mzd-tweaks') ?
+                    { fuel_ending_delay: { min: 5, max: 30, step: 1 } } :
+                    { resolution_dpi: { min: 100, max: 160, step: 1 } };
                 sendToFrame({
                     type: respType,
                     token: data.token || token,
                     id: data.id,
                     state: settings,
-                    limits: { resolution_dpi: { min: 100, max: 160, step: 1 } },
+                    limits: limits,
                     unavailable: {},
                     error: ''
                 });
@@ -1027,7 +1030,12 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                         stepRow(curRow, focusedIndex, inputAct === 'right' ? 1 : -1);
                     }
                 } else if (inputAct === 'select') {
-                    sendSelect(focusedIndex);
+                    var curRow = currentMenu.rows && currentMenu.rows[focusedIndex];
+                    if (curRow && curRow.itemStyle === 'styleStep') {
+                        sendSelect(focusedIndex, { value: curRow.value, finalAdjustment: true });
+                    } else {
+                        sendSelect(focusedIndex);
+                    }
                 } else if (inputAct === 'back') {
                     sendBack();
                 }
