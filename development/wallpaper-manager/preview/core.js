@@ -3,7 +3,7 @@
     'use strict';
     function create(options) {
         var catalog = options.catalog, ids = [], i, listeners = [], timer = null, ended = false, generation = 0;
-        var config = {selected:null,enabled:false,interval:10,slides:[],removed:[]}, active = null, error = '';
+        var config = {selected:null,enabled:false,interval:10,slides:[],removed:[],offscreen:false}, active = null, error = '';
         var intervals = [5,10,30,60,120,300], stored;
         for (i = 0; i < catalog.length; i += 1) { ids.push(catalog[i].id); }
         config.slides = ids.slice(0);
@@ -21,17 +21,18 @@
                 config.selected = allowed(stored.selected) ? stored.selected : null;
                 config.interval = intervals.indexOf(stored.interval) >= 0 ? stored.interval : 10;
                 config.enabled = stored.enabled === true;
+                config.offscreen = stored.offscreen === true;
             }
         } catch (ignore) {}
         function candidates() { return config.slides.filter(allowed); }
         function snapshot() {
             return {images:catalog.filter(function (image) { return allowed(image.id); }),active:active,
                 selected:config.selected,
-                enabled:config.enabled,interval:config.interval,slides:candidates(),error:error,preview:true};
+                enabled:config.enabled,interval:config.interval,slides:candidates(),offscreen:config.offscreen,error:error,preview:true};
         }
         function notify() { var value = snapshot(), j; for (j = 0; j < listeners.length; j += 1) { listeners[j](value); } }
         function save() {
-            try { options.write(JSON.stringify({version:1,selected:config.selected,enabled:config.enabled,interval:config.interval,slides:config.slides,removed:config.removed})); }
+            try { options.write(JSON.stringify({version:1,selected:config.selected,enabled:config.enabled,interval:config.interval,slides:config.slides,offscreen:config.offscreen,removed:config.removed})); }
             catch (ignore) { error = 'Browser storage is unavailable; changes last for this session.'; }
         }
         function cancel() { if (timer !== null) { options.cancel(timer); timer = null; } }
@@ -79,6 +80,8 @@
                 save(); schedule(); notify();
             } else if (name === 'interval') {
                 config.interval = intervals.indexOf(value) >= 0 ? value : intervals[(intervals.indexOf(config.interval) + 1) % intervals.length]; save(); schedule(); notify();
+            } else if (name === 'offscreen') {
+                config.offscreen = (value === true); save(); notify();
             } else if (name === 'include' || name === 'delete') {
                 if (!allowed(value)) { throw new Error('Unknown gallery image.'); }
                 if (name === 'delete') { config.removed.push(value); }

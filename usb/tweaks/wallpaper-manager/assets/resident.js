@@ -3,7 +3,7 @@
     'use strict';
     function create(options) {
         var catalog = options.catalog, ids = [], i, listeners = [], timer = null, ended = false, generation = 0;
-        var config = {selected:null,enabled:false,interval:10,slides:[],removed:[]}, active = null, error = '';
+        var config = {selected:null,enabled:false,interval:10,slides:[],removed:[],offscreen:false}, active = null, error = '';
         var intervals = [5,10,30,60,120,300], stored;
         for (i = 0; i < catalog.length; i += 1) { ids.push(catalog[i].id); }
         config.slides = ids.slice(0);
@@ -21,17 +21,18 @@
                 config.selected = allowed(stored.selected) ? stored.selected : null;
                 config.interval = intervals.indexOf(stored.interval) >= 0 ? stored.interval : 10;
                 config.enabled = stored.enabled === true;
+                config.offscreen = stored.offscreen === true;
             }
         } catch (ignore) {}
         function candidates() { return config.slides.filter(allowed); }
         function snapshot() {
             return {images:catalog.filter(function (image) { return allowed(image.id); }),active:active,
                 selected:config.selected,
-                enabled:config.enabled,interval:config.interval,slides:candidates(),error:error,preview:true};
+                enabled:config.enabled,interval:config.interval,slides:candidates(),offscreen:config.offscreen,error:error,preview:true};
         }
         function notify() { var value = snapshot(), j; for (j = 0; j < listeners.length; j += 1) { listeners[j](value); } }
         function save() {
-            try { options.write(JSON.stringify({version:1,selected:config.selected,enabled:config.enabled,interval:config.interval,slides:config.slides,removed:config.removed})); }
+            try { options.write(JSON.stringify({version:1,selected:config.selected,enabled:config.enabled,interval:config.interval,slides:config.slides,offscreen:config.offscreen,removed:config.removed})); }
             catch (ignore) { error = 'Browser storage is unavailable; changes last for this session.'; }
         }
         function cancel() { if (timer !== null) { options.cancel(timer); timer = null; } }
@@ -79,6 +80,8 @@
                 save(); schedule(); notify();
             } else if (name === 'interval') {
                 config.interval = intervals.indexOf(value) >= 0 ? value : intervals[(intervals.indexOf(config.interval) + 1) % intervals.length]; save(); schedule(); notify();
+            } else if (name === 'offscreen') {
+                config.offscreen = (value === true); save(); notify();
             } else if (name === 'include' || name === 'delete') {
                 if (!allowed(value)) { throw new Error('Unknown gallery image.'); }
                 if (name === 'delete') { config.removed.push(value); }
@@ -207,6 +210,23 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
     var menuPreview = null, previewOwner = null, previewPath = null, previewRequest = 0;
     var catalog = [], savedSettings = null, stagedSettings = null, saving = false, retry = null, loadSequence = 0, mutation = 0;
     var bootRetry = null, menuTimer = null;
+    var offscreenStyle = null;
+    function updateOffScreen(visible) {
+        var isCustom = (visible && visible !== original && core && core.snapshot().offscreen === true);
+        if (!offscreenStyle && (document.head || document.body)) {
+            offscreenStyle = document.createElement('style');
+            offscreenStyle.id = 'mzd-wallpaper-offscreen';
+            (document.head || document.body).appendChild(offscreenStyle);
+        }
+        var css = isCustom ? '.OffScreenCtrl { background-image: url("' + visible + '") !important; background-size: 800px 480px !important; background-position: 0 0 !important; background-repeat: no-repeat !important; }' : '';
+        if (offscreenStyle && offscreenStyle.textContent !== css) {
+            offscreenStyle.textContent = css;
+        }
+        var elts = document.querySelectorAll ? document.querySelectorAll('.OffScreenCtrl') : [];
+        for (var i = 0; i < elts.length; i += 1) {
+            elts[i].style.backgroundImage = isCustom ? 'url("' + visible + '")' : '';
+        }
+    }
     function updateBackground() {
         var fw = window.framework, common = fw && fw.common, visible = desired;
         if (!common) {
@@ -218,15 +238,25 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
             }
             return;
         }
-        if (bootRetry) { window.clearTimeout(bootRetry); bootRetry = null; }
+        if (bootRetry) {
+            window.clearTimeout(bootRetry);
+            bootRetry = null;
+        }
         common._defaultBgPath = desired;
         if (previewPath && previewOwner && document.documentElement.contains(previewOwner) &&
-            fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') { visible = previewPath; }
+            fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
+            visible = previewPath;
+        }
         if (!common._customBgSet) {
             common._currentBgPath = visible;
-            if (common._bgDiv1 && common._bgDiv1.style.backgroundImage !== 'url("' + visible + '")') { common._bgDiv1.style.backgroundImage = 'url("' + visible + '")'; }
-            if (common._bgDiv2) { common._bgDiv2.style.backgroundImage = 'url("' + visible + '")'; }
+            if (common._bgDiv1 && common._bgDiv1.style.backgroundImage !== 'url("' + visible + '")') {
+                common._bgDiv1.style.backgroundImage = 'url("' + visible + '")';
+            }
+            if (common._bgDiv2) {
+                common._bgDiv2.style.backgroundImage = 'url("' + visible + '")';
+            }
         }
+        updateOffScreen(visible);
     }
     function setMenuPreview(id, frame) {
         var row = null, i, image, token;
@@ -274,7 +304,12 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
             read:function () { return JSON.stringify(savedSettings); },
             write:function (value) { stagedSettings = JSON.parse(value); },
             delay:function (fn,ms) { return window.setTimeout(fn,ms); },cancel:function (id) { window.clearTimeout(id); }});
-        loading = false; core.subscribe(broadcast); window.WallpaperManager = core;
+        loading = false;
+        core.subscribe(function () {
+            broadcast();
+            updateBackground();
+        });
+        window.WallpaperManager = core;
     }
     function replace(images) { catalog = images; core.replaceCatalog(images); }
     function frameToken(source) {
@@ -313,7 +348,7 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
                 var baseline = mutation;
                 client.gallery(function (failure, result) {
                     if (failure || hostEnded || baseline !== mutation || saving || importing) { return; }
-                    function configKey(v) { v = v || {}; return JSON.stringify([v.selected || null, v.enabled === true, v.interval, Array.isArray(v.slides) ? v.slides : []]); }
+                    function configKey(v) { v = v || {}; return JSON.stringify([v.selected || null, v.enabled === true, v.interval, Array.isArray(v.slides) ? v.slides : [], v.offscreen === true]); }
                     function catalogKey(images) { return JSON.stringify(images.map(function (row) { return [row.id, row.label, row.url, row.bytes]; })); }
                     if (configKey(savedSettings) !== configKey(result.settings)) { initialize(result.images, result.settings); }
                     else if (catalogKey(catalog) !== catalogKey(result.images)) { replace(result.images); }
@@ -359,7 +394,10 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
                 saving = false;
                 if (hostEnded) { return; }
                 if (failure) { initialize(catalog, savedSettings); }
-                else { savedSettings = result.settings; }
+                else {
+                    savedSettings = result.settings;
+                    updateBackground();
+                }
                 callback(failure || null, { state: snapshot() });
             });
         } else {
@@ -374,8 +412,30 @@ window.MzdGuiResidents.register("wallpaper-manager",function (context) {
         }
     }
     context.onMessage(receive);
-    context.onViewClose(function () { nativeMenu.close(); });
-    context.onDispose(function () { hostEnded = true; nativeMenu.close(); stopMenuCheck(); if (core) { core.dispose(); } window.clearTimeout(retry); if (bootRetry) { window.clearTimeout(bootRetry); bootRetry = null; } desired = original; previewPath = null; updateBackground(); delete window.WallpaperManager; });
+    context.onViewClose(function () {
+        nativeMenu.close();
+    });
+    context.onDispose(function () {
+        hostEnded = true;
+        nativeMenu.close();
+        stopMenuCheck();
+        if (core) {
+            core.dispose();
+        }
+        window.clearTimeout(retry);
+        if (bootRetry) {
+            window.clearTimeout(bootRetry);
+            bootRetry = null;
+        }
+        desired = original;
+        previewPath = null;
+        updateBackground();
+        if (offscreenStyle && offscreenStyle.parentNode) {
+            offscreenStyle.parentNode.removeChild(offscreenStyle);
+        }
+        offscreenStyle = null;
+        delete window.WallpaperManager;
+    });
     function loadGallery() {
         var sequence = ++loadSequence;
         client.gallery(function (failure, result) {

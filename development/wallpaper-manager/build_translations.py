@@ -150,6 +150,22 @@ stop_slideshow_confirm_dict = {
 }
 for alias,target in {'en_UK':'en_US','en_AU':'en_US','es_MX':'es_ES','fr_CN':'fr_FR','mn_TW':'zh_TW'}.items():stop_slideshow_confirm_dict[alias]=stop_slideshow_confirm_dict[target]
 
+offscreen_dict = {
+'en_US':'Apply background when screen is off','de_DE':'Bei Bildschirm-Aus anwenden','es_ES':'Aplicar fondo con pantalla apagada',
+'fr_FR':'Appliquer le fond à l’écran éteint','it_IT':'Applica sfondo a schermo spento','nl_NL':'Toepassen bij scherm uit',
+'pt_PT':'Aplicar fundo com o ecrã desligado','pt_BR':'Aplicar fundo com a tela desligada','ru_RU':'Применять при выключенном экране',
+'fi_FI':'Käytä näytön ollessa sammutettuna','sv_SE':'Använd bakgrund vid släckt skärm','da_DK':'Anvend baggrund ved slukket skærm',
+'no_NO':'Bruk bakgrunn ved avslått skjerm','cs_CS':'Použít pozadí při vypnuté obrazovce','hu_HU':'Alkalmazás kikapcsolt képernyőnél',
+'pl_PL':'Stosuj tło przy wyłączonym ekranie','sk_SK':'Použiť pri vypnutej obrazovke','tr_TR':'Ekran kapalıyken arka planı uygula',
+'et_EE':'Rakenda väljalülitatud ekraanile','lv_LV':'Lietot fonu izslēgtam ekrānam','lt_LT':'Taikyti foną išjungtam ekranui',
+'el_GR':'Εφαρμογή στην απενεργοποιημένη οθόνη','hr_HR':'Primijeni pri isključenom zaslonu','bg_BG':'Прилагане на фон при изключен екран',
+'ro_RO':'Aplică fundalul pe ecranul oprit','sr_RS':'Примени при искљученом екрану','uk_UA':'Застосовувати при вимкненому екрані',
+'ms_MY':'Guna latar belakang pada skrin mati','id_ID':'Terapkan saat layar mati','ja_JP':'画面オフ時にも背景を適用',
+'zh_CN':'在关闭屏幕时应用背景','zh_TW':'在關閉螢幕時套用背景','cn_HK':'在關閉螢幕時套用背景','ar_SA':'تطبيق عند إيقاف تشغيل الشاشة',
+'he_IL':'החל רקע כאשר המסך כבוי','th_TH':'ใช้ภาพพื้นหลังเมื่อหน้าจอดับ'
+}
+for alias,target in {'en_UK':'en_US','en_AU':'en_US','es_MX':'es_ES','fr_CN':'fr_FR','mn_TW':'zh_TW'}.items():offscreen_dict[alias]=offscreen_dict[target]
+
 
 languages={}
 for locale,line in rows.items():
@@ -166,6 +182,7 @@ for locale,d in languages.items():
  d['deleteConfirm']=delete_confirm_dict[locale]
  d['stopSlideshowConfirm']=stop_slideshow_confirm_dict[locale]
  d['useBackground']=use_static_bg_dict[locale]
+ d['offscreen']=offscreen_dict[locale]
  d['minutes']=minutes_dict[locale]
  d['seconds']=seconds_dict[locale]
 assert set(languages)==set(tetris)

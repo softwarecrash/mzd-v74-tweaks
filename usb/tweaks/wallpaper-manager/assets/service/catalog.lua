@@ -21,7 +21,8 @@ function M.settings(rows,value,strict)
     end
     local selected=type(value.selected)=="string" and value.selected or nil
     if strict and selected then need(ids[selected],"Unknown selected image.")end
-    return {version=1,selected=ids[selected] and selected or nil,enabled=value.enabled and #slides>0,interval=value.interval,slides=slides,removed={}}
+    local offscreen=(value.offscreen==true)
+    return {version=1,selected=ids[selected] and selected or nil,enabled=value.enabled and #slides>0,interval=value.interval,slides=slides,offscreen=offscreen,removed={}}
 end
 function M.encode(rows,settings)
     need(#rows<=50,"Gallery limit: 50 images.")
@@ -34,7 +35,7 @@ function M.encode(rows,settings)
     end
     if settings then
         local c=M.settings(rows,settings,false)
-        lines[#lines+1]="S\t"..(c.selected or "-").."\t"..(c.enabled and "1" or "0").."\t"..c.interval.."\t"..(#c.slides>0 and table.concat(c.slides,",") or "-")
+        lines[#lines+1]="S\t"..(c.selected or "-").."\t"..(c.enabled and "1" or "0").."\t"..c.interval.."\t"..(#c.slides>0 and table.concat(c.slides,",") or "-").."\t"..(c.offscreen and "1" or "0")
     end
     return table.concat(lines,"\n").."\n"
 end
@@ -46,10 +47,10 @@ function M.decode(s)
         if first then need(line=="MZD_WALLPAPER_GALLERY_V1","Unknown gallery version.");first=false
         elseif line:sub(1,2)=="S\t" then
             need(not settings,"Duplicate gallery settings.")
-            local selected,enabled,interval,slides=line:match("^S\t([a-z0-9-]+)\t([01])\t(%d+)\t([a-z0-9,-]+)$")
+            local selected,enabled,interval,slides,offscreen=line:match("^S\t([a-z0-9-]+)\t([01])\t(%d+)\t([a-z0-9,-]+)\t?([01]?)$")
             need(selected,"Invalid saved wallpaper settings.")
             local values={};if slides~="-" then for id in slides:gmatch("[^,]+")do values[#values+1]=id end end
-            settings={version=1,selected=selected~="-" and selected or nil,enabled=enabled=="1",interval=tonumber(interval),slides=values}
+            settings={version=1,selected=selected~="-" and selected or nil,enabled=enabled=="1",interval=tonumber(interval),slides=values,offscreen=offscreen=="1"}
         else need(not settings,"Gallery records after settings.");local id,format,label=line:match("^(img%-[0-9a-f]+)\t([a-z]+)\t([0-9a-f]+)$");need(id,"Invalid gallery entry.");rows[#rows+1]={id=id,format=format,label=unhex(label)} end
     end
     need(not first,"Missing gallery version.");M.encode(rows);return rows,M.settings(rows,settings,false)

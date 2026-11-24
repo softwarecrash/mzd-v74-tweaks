@@ -20,7 +20,10 @@ saved='{"version":1,"selected":"../../evil","enabled":true,"interval":-1,"slides
 saved='not json';core=fixture();assert.equal(core.snapshot().images.length,2);fail=true;core.command('select','a');assert.equal(core.snapshot().active,null);assert(core.snapshot().error.includes('could not be loaded'));core.dispose();
 fail=false;saved='';core=fixture();core.command('slideshow-mode',5);assert(core.snapshot().enabled);assert.equal(core.snapshot().interval,5);tick();const last=core.snapshot().active;
 core.command('slideshow-mode',0);assert.equal(core.snapshot().active,last,'Off retains current image');assert.equal(timers.size,0);core.dispose();core=fixture();assert.equal(core.snapshot().active,last);assert.equal(core.snapshot().enabled,false);
-core.command('include','a');core.command('include','b');const beforeInvalid=writes;assert.throws(()=>core.command('slideshow-mode',10));assert.equal(writes,beforeInvalid,'empty selection refusal does not save');core.command('slideshow-mode',0);assert.throws(()=>core.command('slideshow-mode',7));core.dispose();
+core.command('include','a');core.command('include','b');const beforeInvalid=writes;assert.throws(()=>core.command('slideshow-mode',10));assert.equal(writes,beforeInvalid,'empty selection refusal does not save');core.command('slideshow-mode',0);assert.throws(()=>core.command('slideshow-mode',7));
+core.command('offscreen',true);assert.equal(core.snapshot().offscreen,true);assert.equal(JSON.parse(saved).offscreen,true);
+core.command('offscreen',false);assert.equal(core.snapshot().offscreen,false);assert.equal(JSON.parse(saved).offscreen,false);
+core.dispose();
 // Parse every runtime file using the same ES5 grammar as the CMU check.
 const key=Object.keys(process.binding('natives')).find(k=>k.endsWith('acorn/dist/acorn'));const parser=new Module('preview-es5');parser._compile(process.binding('natives')[key],'preview-es5.js');
 for(const dir of ['assets','preview'])for(const name of fs.readdirSync(fixturePath(dir)))if(name.endsWith('.js'))parser.exports.parse(fs.readFileSync(fixturePath(dir,name),'utf8'),{ecmaVersion:5});

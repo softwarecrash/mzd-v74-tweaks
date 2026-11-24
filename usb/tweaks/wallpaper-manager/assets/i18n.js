@@ -37,6 +37,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Background",
       "deleteConfirm": "Do you want to delete this image?",
       "stopSlideshowConfirm": "The slideshow is running. Do you want to stop the slideshow and use this image as the background?",
+      "offscreen": "Apply background when screen is off",
       "minutes": "{minutes} min"
     },
     "de_DE": {
@@ -74,6 +75,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Hintergrund",
       "deleteConfirm": "Möchten Sie dieses Bild löschen?",
       "stopSlideshowConfirm": "Die Diashow läuft. Möchten Sie die Diashow beenden und dieses Bild als Hintergrund verwenden?",
+      "offscreen": "Bei Bildschirm-Aus anwenden",
       "minutes": "{minutes} Min."
     },
     "es_ES": {
@@ -111,6 +113,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fondo",
       "deleteConfirm": "¿Deseas eliminar esta imagen?",
       "stopSlideshowConfirm": "La presentación está en curso. ¿Deseas detenerla y usar esta imagen como fondo?",
+      "offscreen": "Aplicar fondo con pantalla apagada",
       "minutes": "{minutes} min"
     },
     "fr_FR": {
@@ -148,6 +151,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fond",
       "deleteConfirm": "Voulez-vous supprimer cette image ?",
       "stopSlideshowConfirm": "Le diaporama est en cours. Voulez-vous l’arrêter et utiliser cette image comme fond ?",
+      "offscreen": "Appliquer le fond à l’écran éteint",
       "minutes": "{minutes} min"
     },
     "it_IT": {
@@ -185,6 +189,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Sfondo",
       "deleteConfirm": "Vuoi eliminare questa immagine?",
       "stopSlideshowConfirm": "La presentazione è attiva. Vuoi interromperla e usare questa immagine come sfondo?",
+      "offscreen": "Applica sfondo a schermo spento",
       "minutes": "{minutes} min"
     },
     "nl_NL": {
@@ -222,6 +227,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Achtergrond",
       "deleteConfirm": "Wil je deze afbeelding verwijderen?",
       "stopSlideshowConfirm": "De diavoorstelling is actief. Wil je deze stoppen en deze afbeelding als achtergrond gebruiken?",
+      "offscreen": "Toepassen bij scherm uit",
       "minutes": "{minutes} min"
     },
     "pt_PT": {
@@ -259,6 +265,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fundo",
       "deleteConfirm": "Deseja eliminar esta imagem?",
       "stopSlideshowConfirm": "A apresentação está ativa. Deseja pará-la e usar esta imagem como fundo?",
+      "offscreen": "Aplicar fundo com o ecrã desligado",
       "minutes": "{minutes} min"
     },
     "pt_BR": {
@@ -296,6 +303,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Plano de fundo",
       "deleteConfirm": "Deseja excluir esta imagem?",
       "stopSlideshowConfirm": "A apresentação está ativa. Deseja pará-la e usar esta imagem como plano de fundo?",
+      "offscreen": "Aplicar fundo com a tela desligada",
       "minutes": "{minutes} min"
     },
     "ru_RU": {
@@ -333,6 +341,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Фон",
       "deleteConfirm": "Удалить это изображение?",
       "stopSlideshowConfirm": "Слайд-шоу запущено. Остановить его и использовать это изображение как фон?",
+      "offscreen": "Применять при выключенном экране",
       "minutes": "{minutes} мин"
     },
     "fi_FI": {
@@ -370,6 +379,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Tausta",
       "deleteConfirm": "Haluatko poistaa tämän kuvan?",
       "stopSlideshowConfirm": "Diaesitys on käynnissä. Haluatko pysäyttää sen ja käyttää tätä kuvaa taustana?",
+      "offscreen": "Käytä näytön ollessa sammutettuna",
       "minutes": "{minutes} min"
     },
     "sv_SE": {
@@ -407,6 +417,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Bakgrund",
       "deleteConfirm": "Vill du ta bort den här bilden?",
       "stopSlideshowConfirm": "Bildspelet körs. Vill du stoppa bildspelet och använda den här bilden som bakgrund?",
+      "offscreen": "Använd bakgrund vid släckt skärm",
       "minutes": "{minutes} min"
     },
     "da_DK": {
@@ -444,6 +455,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Baggrund",
       "deleteConfirm": "Vil du slette dette billede?",
       "stopSlideshowConfirm": "Diasshowet kører. Vil du stoppe det og bruge dette billede som baggrund?",
+      "offscreen": "Anvend baggrund ved slukket skærm",
       "minutes": "{minutes} min"
     },
     "no_NO": {
@@ -481,6 +493,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Bakgrunn",
       "deleteConfirm": "Vil du slette dette bildet?",
       "stopSlideshowConfirm": "Lysbildeserien kører. Vil du stoppe den og bruke dette bildet som bakgrunn?",
+      "offscreen": "Bruk bakgrunn ved avslått skjerm",
       "minutes": "{minutes} min"
     },
     "cs_CS": {
@@ -518,6 +531,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Pozadí",
       "deleteConfirm": "Chcete smazat tento obrázek?",
       "stopSlideshowConfirm": "Prezentace běží. Chcete ji zastavit a použít tento obrázek jako pozadí?",
+      "offscreen": "Použít pozadí při vypnuté obrazovce",
       "minutes": "{minutes} min"
     },
     "hu_HU": {
@@ -555,6 +569,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Háttér",
       "deleteConfirm": "Biztosan törlöd ezt a képet?",
       "stopSlideshowConfirm": "A diavetítés fut. Leállítod, és ezt a képet használod háttérként?",
+      "offscreen": "Alkalmazás kikapcsolt képernyőnél",
       "minutes": "{minutes} perc"
     },
     "pl_PL": {
@@ -592,6 +607,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Tło",
       "deleteConfirm": "Czy chcesz usunąć ten obraz?",
       "stopSlideshowConfirm": "Pokaz slajdów jest aktywny. Czy chcesz go zatrzymać i użyć tego obrazu jako tła?",
+      "offscreen": "Stosuj tło przy wyłączonym ekranie",
       "minutes": "{minutes} min"
     },
     "sk_SK": {
@@ -629,6 +645,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Pozadie",
       "deleteConfirm": "Chcete odstrániť tento obrázok?",
       "stopSlideshowConfirm": "Prezentácia beží. Chcete ju zastaviť a použiť tento obrázok ako pozadie?",
+      "offscreen": "Použiť pri vypnutej obrazovke",
       "minutes": "{minutes} min"
     },
     "tr_TR": {
@@ -666,6 +683,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Arka plan",
       "deleteConfirm": "Bu görüntüyü silmek istiyor musunuz?",
       "stopSlideshowConfirm": "Slayt gösterisi çalışıyor. Durdurup bu görüntüyü arka plan olarak kullanmak istiyor musunuz?",
+      "offscreen": "Ekran kapalıyken arka planı uygula",
       "minutes": "{minutes} dk."
     },
     "et_EE": {
@@ -703,6 +721,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Taust",
       "deleteConfirm": "Kas soovid selle pildi kustutada?",
       "stopSlideshowConfirm": "Slaidiesitus töötab. Kas soovid selle peatada ja kasutada seda pilti taustana?",
+      "offscreen": "Rakenda väljalülitatud ekraanile",
       "minutes": "{minutes} min"
     },
     "lv_LV": {
@@ -740,6 +759,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fons",
       "deleteConfirm": "Vai vēlaties dzēst šo attēlu?",
       "stopSlideshowConfirm": "Slaidrāde darbojas. Vai vēlaties to apturēt un izmantot šo attēlu kā fonu?",
+      "offscreen": "Lietot fonu izslēgtam ekrānam",
       "minutes": "{minutes} min"
     },
     "lt_LT": {
@@ -777,6 +797,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fonas",
       "deleteConfirm": "Ar norite ištrinti šį paveikslėlį?",
       "stopSlideshowConfirm": "Skaidrių peržiūra veikia. Ar norite ją sustabdyti ir naudoti šį paveikslėlį kaip foną?",
+      "offscreen": "Taikyti foną išjungtam ekranui",
       "minutes": "{minutes} min"
     },
     "el_GR": {
@@ -814,6 +835,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Φόντο",
       "deleteConfirm": "Θέλετε να διαγράψετε αυτή την εικόνα;",
       "stopSlideshowConfirm": "Η προβολή διαφανειών εκτελείται. Θέλετε να τη διακόψετε και να ορίσετε αυτή την εικόνα ως φόντο;",
+      "offscreen": "Εφαρμογή στην απενεργοποιημένη οθόνη",
       "minutes": "{minutes} λεπ."
     },
     "hr_HR": {
@@ -851,6 +873,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Pozadina",
       "deleteConfirm": "Želite li izbrisati ovu sliku?",
       "stopSlideshowConfirm": "Dijaprojekcija je pokrenuta. Želite li je zaustaviti i postaviti ovu sliku kao pozadinu?",
+      "offscreen": "Primijeni pri isključenom zaslonu",
       "minutes": "{minutes} min"
     },
     "bg_BG": {
@@ -888,6 +911,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Фон",
       "deleteConfirm": "Искате ли да изтриете това изображение?",
       "stopSlideshowConfirm": "Слайдшоуто се изпълнява. Искате ли да го спрете и да използвате това изображение за фон?",
+      "offscreen": "Прилагане на фон при изключен екран",
       "minutes": "{minutes} мин"
     },
     "ro_RO": {
@@ -925,6 +949,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fundal",
       "deleteConfirm": "Doriți să ștergeți această imagine?",
       "stopSlideshowConfirm": "Diaporama rulează. Doriți să o opriți și să folosiți această imagine ca fundal?",
+      "offscreen": "Aplică fundalul pe ecranul oprit",
       "minutes": "{minutes} min"
     },
     "sr_RS": {
@@ -962,6 +987,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Позадина",
       "deleteConfirm": "Желите ли да избришете ову слику?",
       "stopSlideshowConfirm": "Пројекција слајдова је активна. Желите ли да је зауставите и користите ову слику као позадину?",
+      "offscreen": "Примени при искљученом екрану",
       "minutes": "{minutes} мин"
     },
     "uk_UA": {
@@ -999,6 +1025,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Фон",
       "deleteConfirm": "Видалити це зображення?",
       "stopSlideshowConfirm": "Слайд-шоу запущено. Зупинити його та використати це зображення як фон?",
+      "offscreen": "Застосовувати при вимкненому екрані",
       "minutes": "{minutes} хв"
     },
     "ms_MY": {
@@ -1036,6 +1063,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Latar",
       "deleteConfirm": "Adakah anda mahu memadamkan imej ini?",
       "stopSlideshowConfirm": "Tayangan slaid sedang berjalan. Adakah anda mahu menghentikannya dan menggunakan imej ini sebagai latar?",
+      "offscreen": "Guna latar belakang pada skrin mati",
       "minutes": "{minutes} min"
     },
     "id_ID": {
@@ -1073,6 +1101,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Latar belakang",
       "deleteConfirm": "Apakah Anda ingin menghapus gambar ini?",
       "stopSlideshowConfirm": "Tayangan slide sedang berjalan. Apakah Anda ingin menghentikannya dan menggunakan gambar ini sebagai latar?",
+      "offscreen": "Terapkan saat layar mati",
       "minutes": "{minutes} mnt"
     },
     "ja_JP": {
@@ -1110,6 +1139,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "背景",
       "deleteConfirm": "この画像を削除しますか？",
       "stopSlideshowConfirm": "スライドショーが実行中です。停止してこの画像を背景に設定しますか？",
+      "offscreen": "画面オフ時にも背景を適用",
       "minutes": "{minutes} 分"
     },
     "zh_CN": {
@@ -1147,6 +1177,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "背景",
       "deleteConfirm": "要删除此图片吗？",
       "stopSlideshowConfirm": "幻灯片正在运行。要停止幻灯片并将此图片设为背景吗？",
+      "offscreen": "在关闭屏幕时应用背景",
       "minutes": "{minutes} 分钟"
     },
     "zh_TW": {
@@ -1184,6 +1215,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "背景",
       "deleteConfirm": "要刪除此圖片嗎？",
       "stopSlideshowConfirm": "幻燈片正在執行。要停止幻燈片並將此圖片設為背景嗎？",
+      "offscreen": "在關閉螢幕時套用背景",
       "minutes": "{minutes} 分鐘"
     },
     "cn_HK": {
@@ -1221,6 +1253,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "背景",
       "deleteConfirm": "要刪除此圖片嗎？",
       "stopSlideshowConfirm": "幻燈片正在執行。要停止幻燈片並將此圖片設為背景嗎？",
+      "offscreen": "在關閉螢幕時套用背景",
       "minutes": "{minutes} 分鐘"
     },
     "ar_SA": {
@@ -1258,6 +1291,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "خلفية",
       "deleteConfirm": "هل تريد حذف هذه الصورة؟",
       "stopSlideshowConfirm": "عرض الشرائح قيد التشغيل. هل تريد إيقافه واستخدام هذه الصورة كخلفية؟",
+      "offscreen": "تطبيق عند إيقاف تشغيل الشاشة",
       "minutes": "{minutes} دقيقة"
     },
     "he_IL": {
@@ -1295,6 +1329,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "רקע",
       "deleteConfirm": "האם ברצונך למחוק תמונה זו?",
       "stopSlideshowConfirm": "המצגת פועלת. האם ברצונך לעצור אותה ולהשתמש בתמונה זו כרקע?",
+      "offscreen": "החל רקע כאשר המסך כבוי",
       "minutes": "{minutes} דק׳"
     },
     "th_TH": {
@@ -1332,6 +1367,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "พื้นหลัง",
       "deleteConfirm": "คุณต้องการลบภาพนี้หรือไม่?",
       "stopSlideshowConfirm": "สไลด์โชว์กำลังทำงาน คุณต้องการหยุดสไลด์โชว์และใช้ภาพนี้เป็นพื้นหลังหรือไม่?",
+      "offscreen": "ใช้ภาพพื้นหลังเมื่อหน้าจอดับ",
       "minutes": "{minutes} นาที"
     },
     "en_UK": {
@@ -1369,6 +1405,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Background",
       "deleteConfirm": "Do you want to delete this image?",
       "stopSlideshowConfirm": "The slideshow is running. Do you want to stop the slideshow and use this image as the background?",
+      "offscreen": "Apply background when screen is off",
       "minutes": "{minutes} min"
     },
     "en_AU": {
@@ -1406,6 +1443,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Background",
       "deleteConfirm": "Do you want to delete this image?",
       "stopSlideshowConfirm": "The slideshow is running. Do you want to stop the slideshow and use this image as the background?",
+      "offscreen": "Apply background when screen is off",
       "minutes": "{minutes} min"
     },
     "es_MX": {
@@ -1443,6 +1481,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fondo",
       "deleteConfirm": "¿Deseas eliminar esta imagen?",
       "stopSlideshowConfirm": "La presentación está en curso. ¿Deseas detenerla y usar esta imagen como fondo?",
+      "offscreen": "Aplicar fondo con pantalla apagada",
       "minutes": "{minutes} min"
     },
     "fr_CN": {
@@ -1480,6 +1519,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "Fond",
       "deleteConfirm": "Voulez-vous supprimer cette image ?",
       "stopSlideshowConfirm": "Le diaporama est en cours. Voulez-vous l’arrêter et utiliser cette image comme fond ?",
+      "offscreen": "Appliquer le fond à l’écran éteint",
       "minutes": "{minutes} min"
     },
     "mn_TW": {
@@ -1517,6 +1557,7 @@ window.MzdGuiI18n.register("wallpaper-manager", {
       "background": "背景",
       "deleteConfirm": "要刪除此圖片嗎？",
       "stopSlideshowConfirm": "幻燈片正在執行。要停止幻燈片並將此圖片設為背景嗎？",
+      "offscreen": "在關閉螢幕時套用背景",
       "minutes": "{minutes} 分鐘"
     }
   }

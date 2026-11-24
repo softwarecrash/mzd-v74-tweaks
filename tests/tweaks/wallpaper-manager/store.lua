@@ -73,8 +73,10 @@ local foreign='/gallery/img-'..string.format('%032x',counter+1)..'.png';files[fo
 fails(function()s.prepare('sda1','car.png')end,'already exists');check(files[foreign]==sample and not files['/gallery/transaction'],'collision preserves unknown file');files[foreign]=nil
 -- Settings and gallery membership are published in the same index.
 local remaining=s.gallery()[1].id
-s.settings({version=1,selected=remaining,enabled=true,interval=30,slides={remaining}})
-local rebooted=store.create(fs,'/gallery');assert(rebooted.settings().selected==remaining and rebooted.settings().enabled)
+s.settings({version=1,selected=remaining,enabled=true,interval=30,slides={remaining},offscreen=true})
+local rebooted=store.create(fs,'/gallery');assert(rebooted.settings().selected==remaining and rebooted.settings().enabled and rebooted.settings().offscreen)
+local rows_4,settings_4=catalog.decode("MZD_WALLPAPER_GALLERY_V1\n"..remaining.."\tpng\t6361722e706e67\nS\t"..remaining.."\t1\t30\t"..remaining.."\n")
+check(settings_4.offscreen==false,'4-field backward compatibility defaults offscreen to false')
 fails(function()rebooted.settings({version=1,enabled=true,interval=7,slides={remaining}})end,'Invalid wallpaper settings')
 -- Crash after prepare: only that transaction's staging file is removed.
 t=s.prepare('sda1','car.png');s=store.create(fs,'/gallery');check(not files['/gallery/transaction'],'prepared crash journal recovered')

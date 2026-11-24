@@ -44,7 +44,7 @@ test('emulated Wallpaper Manager service',async t=>{
         assert(gallery.images.every(image=>image.url.indexOf('data:image/png;base64,')===0));
     });
 
-    await request(env.services,'save',{version:1,selected:gallery.images[0].id,enabled:false,interval:30,slides:[gallery.images[0].id]});
+    await request(env.services,'save',{version:1,selected:gallery.images[0].id,enabled:false,interval:30,slides:[gallery.images[0].id],offscreen:true});
     const usb=await request(env.services,'usb',{});
     await t.test('lists synthetic USB wallpaper files',()=>{
         assert.equal(usb.status,'ready');
@@ -55,10 +55,11 @@ test('emulated Wallpaper Manager service',async t=>{
         assert(prepared.url.indexOf('data:image/png;base64,')===0);
     });
     const imported=await request(env.services,'commit',{ticket:prepared.ticket,width:800,height:480});
-    await t.test('commits imports into the gallery',()=>{
+    await t.test('commits imports into the gallery and preserves offscreen',()=>{
         assert.equal(imported.images.length,4);
         assert.equal(imported.images[3].label,usb.items[0].label);
         assert.equal(imported.settings.selected,gallery.images[0].id);
+        assert.equal(imported.settings.offscreen,true);
     });
 
     await request(env.services,'delete',{id:imported.images[3].id});
@@ -67,6 +68,7 @@ test('emulated Wallpaper Manager service',async t=>{
         assert.equal(persisted.images.length,3);
         assert.equal(persisted.settings.interval,30);
         assert.equal(persisted.settings.selected,gallery.images[0].id);
+        assert.equal(persisted.settings.offscreen,true);
         assert(!persisted.images.some(image=>image.id===imported.images[3].id));
     });
 });

@@ -136,7 +136,8 @@
                 }
             }
             if ([5,10,30,60,120,300].indexOf(interval) < 0) { interval = 10; }
-            return {version:1,selected:selected,enabled:!!(value && value.enabled && slides.length),interval:interval,slides:slides};
+            var offscreen = !!(value && value.offscreen === true);
+            return {version:1,selected:selected,enabled:!!(value && value.enabled && slides.length),interval:interval,slides:slides,offscreen:offscreen};
         }
         function persist() {
             try {

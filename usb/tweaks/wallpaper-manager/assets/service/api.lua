@@ -11,7 +11,7 @@ function M.create(store,urls)
     return function(operation,args)
         args=args or {}
         need(type(operation)=="string" and type(args)=="table","Invalid wallpaper request.")
-        local allowed={save={version=true,selected=true,enabled=true,interval=true,slides=true,removed=true},gallery={},usb={},prepare={source=true,name=true},commit={ticket=true,width=true,height=true},abort={ticket=true},delete={id=true}}
+        local allowed={save={version=true,selected=true,enabled=true,interval=true,slides=true,offscreen=true,removed=true},gallery={},usb={},prepare={source=true,name=true},commit={ticket=true,width=true,height=true},abort={ticket=true},delete={id=true}}
         need(allowed[operation],"Unknown wallpaper operation.")
         for k,v in pairs(args) do
             need(allowed[operation][k],"Unknown wallpaper argument.")

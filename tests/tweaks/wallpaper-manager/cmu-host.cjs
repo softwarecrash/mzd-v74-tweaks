@@ -4,7 +4,7 @@ const root=path.resolve(__dirname,'../../../usb/tweaks/wallpaper-manager'),repo=
 function element(){return {children:[],style:{cssText:''},className:'',attributes:{},textContent:'',appendChild(e){e.parentNode=this;this.children.push(e);},removeChild(e){this.children.splice(this.children.indexOf(e),1);e.parentNode=null;},get firstChild(){return this.children[0]||null;},set innerHTML(v){this.children=[];},setAttribute(k,v){this.attributes[k]=v;}};}
 const status=element(),rootNode=element(),frame=element();rootNode.style.cssText='old-style';rootNode.appendChild(frame);
 const head=element(),body=element();
-const document={head,body,getElementById:()=>status,createElement:element,getElementsByTagName:n=>n==='head'?[head]:frames,documentElement:{contains:()=>attached}};
+const document={head,body,getElementById:()=>status,createElement:element,getElementsByTagName:n=>n==='head'?[head]:frames,querySelectorAll:()=>[],documentElement:{contains:()=>attached}};
 const common={_customBgSet:false,_defaultBgPath:'common/images/background.png',_currentBgPath:'common/images/background.png',_bgDiv1:element(),_bgDiv2:null,setSbName:v=>sb=v,setSbNameId:()=>sb='Applications'};
 const mmuiCalls=[],originalSend=(app,event)=>mmuiCalls.push({app,event}),fw={common,getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=>({_currentContextTemplate:{list2Ctrl:{setLineNumbers(){}}}}),sendEventToMmui:originalSend,
  _templatesLoaded:{Dialog3Tmplt:{isLoaded:true}},
@@ -33,7 +33,7 @@ const frames=[frame];
 function MockImage(){this.width=800;this.height=480;Object.defineProperty(this,'src',{set:()=>queue.push(()=>this.onload())});}
 const context={window:host,Image:MockImage,document,Dialog3Tmplt:function(){}};host.Dialog3Tmplt=context.Dialog3Tmplt;
 
-let saved={version:1,selected:null,enabled:false,interval:10,slides:[],removed:[]},failSave=false,prepareImport=null;
+let saved={version:1,selected:null,enabled:false,interval:10,slides:[],removed:[],offscreen:false},failSave=false,prepareImport=null,usbResult={status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]};
 const imageID='img-'+ 'a'.repeat(32),imageID2='img-'+ 'b'.repeat(32);
 const records=[{id:imageID,label:'User image.png',url:'/image.png'},{id:imageID2,label:'Second.png',url:'/second.png'}];
 const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:view,frame,token:'fixture-token'}),onMessage:fn=>hostEvents.message=fn,onViewClose:fn=>resident.closed=fn,onDispose:fn=>hostEvents.unload=fn,onServiceRequest:fn=>resident.serviceRequest=fn,
@@ -41,7 +41,7 @@ const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:vie
   if(op==='gallery')cb(null,{images:records.slice(),settings:saved});
   else if(op==='save'){writes++;if(failSave){failSave=false;cb('Disk full.');}else{saved=JSON.parse(JSON.stringify(args));cb(null,{settings:saved});}}
   else if(op==='delete'){writes++;const id=args.id||args.value;const idx=records.findIndex(r=>r.id===id);if(idx>=0)records.splice(idx,1);saved.slides=saved.slides.filter(x=>x!==id);if(saved.selected===id)saved.selected=null;cb(null,{images:records.slice(),settings:saved});}
-  else if(op==='usb')cb(null,{status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]});
+  else if(op==='usb')cb(null,usbResult);
   else if(op==='prepare'){assert.equal(args.source,'sda1');assert.equal(args.name,'photo.png');prepareImport=cb;}
   else if(op==='commit'){assert.equal(args.ticket,'import-ticket');assert.equal(args.width,800);assert.equal(args.height,480);records.push({id:'img-'+'c'.repeat(32),label:'photo.png',url:'/photo.png'});cb(null,{images:records.slice(),settings:saved});}
   else throw Error('Unexpected request '+op);
@@ -59,6 +59,13 @@ function input(action,phase='step'){for(const f of viewEvents.message.slice())f(
 assert.equal(layoutMessages.length,1);assert.equal(layoutMessages[0].message,'with-status-bar');
 assert(fs.readFileSync(fixturePath('assets/style.css'),'utf8').includes('height:416px'));
 flush();assert.equal(sb,'Wallpaper Manager');assert.equal(host.WallpaperManager.snapshot().images.length,2);assert.deepEqual(Array.from(host.WallpaperManager.snapshot().slides),[]);
+assert.equal(control.dataList.items[4].text1,'Apply background when screen is off');
+assert.equal(control.dataList.items[4].checked,false);
+assert.equal(control.dataList.items[4].disabled,true);
+const offscreenStyle=head.children.find(e=>e.id==='mzd-wallpaper-offscreen');
+assert(offscreenStyle);
+assert.equal(offscreenStyle.textContent,'');
+click(4);assert.equal(saved.offscreen,false,'disabled row does not toggle');
 // 1. Gallery list items strip extension, no 'Active' detail
 click(0);assert.equal(sb,'Gallery');
 assert.equal(control.dataList.items[0].text1,'User image','extension stripped in list');
@@ -78,6 +85,14 @@ input('back');
 // When slideshow is disabled and one picture is selected for background, show 'Background' and keep 'Slideshow' for other
 assert.equal(control.dataList.items[0].label1,'Background','shows Background detail when selected');
 assert.equal(control.dataList.items[1].label1,'Slideshow','shows Slideshow detail when in slideshow');
+input('back');assert.equal(sb,'Wallpaper Manager');
+assert.equal(control.dataList.items[4].disabled,false);
+click(4);assert.equal(saved.offscreen,true);
+assert(offscreenStyle.textContent.includes('.OffScreenCtrl'));
+assert(offscreenStyle.textContent.includes('/image.png'));
+click(4);assert.equal(saved.offscreen,false);
+assert.equal(offscreenStyle.textContent,'');
+click(0);assert.equal(sb,'Gallery');
 // 4. Failed save rolls back
 click(0);failSave=true;parent.postMessage({type:'mzd-gui-service-request',token:'fixture-token',id:999,operation:'select',args:{value:null}});flush();assert.equal(saved.selected,imageID);assert.equal(host.WallpaperManager.snapshot().active,imageID,'failed save rolls UI back to durable settings');
 // 5. Add User image to slideshow and enable slideshow
@@ -142,7 +157,14 @@ click(2);assert(dialogConfig);
 dialogConfig.defaultSelectCallback(null,'yes');flush();
 assert.equal(dialogConfig,null);assert.equal(records.length,1);assert.equal(sb,'Gallery');
 // 9. Import from USB view and preview screen
+usbResult={status:'disconnected',items:[]};
 input('back');click(2);assert.equal(sb,'Import from USB');
+assert.equal(control.dataList.items[0].disabled,true,'first row is disabled hint');
+assert.equal(control.dataList.items[1].disabled,true,'second row is disabled limit');
+assert.equal(control.dataList.items[2].text1,'Refresh USB');
+assert.equal(control.focus,2,'focus on Refresh USB when disconnected');
+usbResult={status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]};
+click(2);assert.equal(control.focus,0,'focus on first image after refresh');
 const refreshRow=control.dataList.items.find(x=>x.text1==='Refresh USB');
 assert(refreshRow);assert.equal(refreshRow.image1,'common/images/icons/IcnListSynchronize_En.png');
 click(0);assert.equal(sb,'Import image');

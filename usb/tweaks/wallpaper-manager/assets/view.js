@@ -37,6 +37,13 @@
         }
         return tr('seconds', '{seconds} s', {seconds: seconds});
     }
+    function firstActiveIndex(list) {
+        var k;
+        for (k = 0; k < list.length; k += 1) {
+            if (!list[k].disabled) { return k; }
+        }
+        return 0;
+    }
     function entries() {
         var result = [], i, row;
         if (page === 'gallery') {
@@ -91,7 +98,8 @@
         return [{id:'gallery',label:tr('gallery','Gallery'),detail:tr('images','{count} images',{count:state.images.length}),caret:true},
             {id:'slideshow',label:tr('slideshow','Slideshow'),detail:state.enabled ? formatInterval(state.interval) : tr('off','Off'),caret:true},
             {id:'import',label:tr('import','Import from USB'),disabled:!state.importAvailable,caret:true},
-            {id:'original',label:tr('restore','Use original background'),checkable:true,checked:state.active === null}];
+            {id:'original',label:tr('restore','Use original background'),checkable:true,checked:state.active === null},
+            {id:'offscreen',label:tr('offscreen','Apply background when screen is off'),checkable:true,checked:state.offscreen === true,disabled:state.active === null}];
     }
     function execute(command, value) {
         if (ended || pending) { return; }
@@ -102,6 +110,7 @@
             if (ended) { return; }
             if (command === 'import-one' && !error) { page = 'gallery'; index = 0; positions.gallery = 0; }
             if (command === 'slideshow-mode' && !error && !(result && result.state && result.state.error)) { page = 'home'; index = positions.home || 0; }
+            if (command === 'usb-list' && !error && result && result.state && result.state.usb && result.state.usb.status === 'ready') { index = 0; positions['import'] = 0; }
             if (result && result.state) {
                 state = result.state;
                 var raw = error || result.notice || state.error || '';
@@ -136,7 +145,9 @@
         if (!row || row.disabled) { return; }
         positions[page] = index;
         if (row.id === 'original') { execute('select', null); return; }
-        if (row.id === 'import' || row.id === 'retry') { open('import'); execute('usb-list'); return; }
+        if (row.id === 'offscreen') { execute('offscreen', !state.offscreen); return; }
+        if (row.id === 'import') { positions['import'] = undefined; open('import'); execute('usb-list'); return; }
+        if (row.id === 'retry') { open('import'); execute('usb-list'); return; }
         if (row.id === 'usb-file') { usbChosen = state.usb.items[index]; open('import-image'); return; }
         if (row.id === 'import-one') { execute('import-one', { source: usbChosen.source || 'sda1', name: usbChosen.name }); return; }
         if (page === 'gallery') { chosen = row.id; positions.image = 0; open('image'); return; }
@@ -182,7 +193,7 @@
     function render() {
         if (ended || !state) { return; }
         var list = entries(), row = image(chosen), heading;
-        if (index >= list.length) { index = 0; }
+        if (index >= list.length || (list[index] && list[index].disabled)) { index = firstActiveIndex(list); }
         heading = {home:tr('gui.label','Wallpaper Manager'),gallery:tr('gallery','Gallery'),image:row ? stripExt(row.label) : tr('wallpaper','Wallpaper'),slideshow:tr('slideshow','Slideshow'),import:tr('import','Import from USB'),'import-image':tr('importImage','Import image')}[page];
         var right = page === 'import-image' ? usbChosen : page === 'import' && state.usb && state.usb.items ? state.usb.items[index] : null;
         if (right && right.error) { right = {url:right.url,label:stripExt(right.label),error:message(right.error)}; }
