@@ -126,24 +126,14 @@ body.mzd-theme-purple .WinkCtrlBox {
 }
 
 /* Bottom Tabs (UMP) */
-body.mzd-theme-purple .Ump3Ctrl2Button_focused, body.mzd-theme-purple .Ump3Ctrl2Button_Ds.Ump3Ctrl2Button_focused { background-image: url(../images/ump/UMP_Focus_2_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl2Button_down { background-image: url(../images/ump/UMP_Hit_2_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl3Button_focused, body.mzd-theme-purple .Ump3Ctrl3Button_Ds.Ump3Ctrl3Button_focused { background-image: url(../images/ump/UMP_Focus_3_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl3Button_down { background-image: url(../images/ump/UMP_Hit_3_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl4Button_focused, body.mzd-theme-purple .Ump3Ctrl4Button_Ds.Ump3Ctrl4Button_focused { background-image: url(../images/ump/UMP_Focus_4_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl4Button_down { background-image: url(../images/ump/UMP_Hit_4_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl5Button_focused, body.mzd-theme-purple .Ump3Ctrl5Button_Ds.Ump3Ctrl5Button_focused { background-image: url(../images/ump/UMP_Focus_5_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl5Button_down { background-image: url(../images/ump/UMP_Hit_5_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl6Button_focused, body.mzd-theme-purple .Ump3Ctrl6Button_Ds.Ump3Ctrl6Button_focused { background-image: url(../images/ump/UMP_Focus_6_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl6Button_down { background-image: url(../images/ump/UMP_Hit_6_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl7Button_focused, body.mzd-theme-purple .Ump3Ctrl7Button_Ds.Ump3Ctrl7Button_focused { background-image: url(../images/ump/UMP_Focus_7_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl7Button_down { background-image: url(../images/ump/UMP_Hit_7_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl8Button_focused, body.mzd-theme-purple .Ump3Ctrl8Button_Ds.Ump3Ctrl8Button_focused { background-image: url(../images/ump/UMP_Focus_8_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl8Button_down { background-image: url(../images/ump/UMP_Hit_8_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl9Button_focused, body.mzd-theme-purple .Ump3Ctrl9Button_Ds.Ump3Ctrl9Button_focused { background-image: url(../images/ump/UMP_Focus_9_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl9Button_down { background-image: url(../images/ump/UMP_Hit_9_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl10Button_focused, body.mzd-theme-purple .Ump3Ctrl10Button_Ds.Ump3Ctrl10Button_focused { background-image: url(../images/ump/UMP_Focus_10_purple.png) !important; }
-body.mzd-theme-purple .Ump3Ctrl10Button_down { background-image: url(../images/ump/UMP_Hit_10_purple.png) !important; }
+body.mzd-theme-purple [class*="Ump3Ctrl"][class*="Button_focused"] {
+    background-image: -o-linear-gradient(top, #b020e0 0%, #5c0080 100%) !important;
+    background-image: linear-gradient(to bottom, #b020e0 0%, #5c0080 100%) !important;
+}
+body.mzd-theme-purple [class*="Ump3Ctrl"][class*="Button_down"] {
+    background-image: -o-linear-gradient(top, #9918c4 0%, #43005c 100%) !important;
+    background-image: linear-gradient(to bottom, #9918c4 0%, #43005c 100%) !important;
+}
 
 body.mzd-theme-purple .UmpScrubberFocusedFillStyle06,
 body.mzd-theme-purple .UMP_Scrubber_Fill_Focus {

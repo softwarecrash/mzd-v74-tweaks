@@ -203,6 +203,9 @@ body[class*="mzd-theme-"] .SbnCtrl {
 
 body[class*="mzd-theme-"] [class*="Ump3Ctrl"][class*="Button_"] {
     border: none !important;
+    background-position: center bottom !important;
+    background-repeat: no-repeat !important;
+    background-size: 100% 92px !important;
 }
 
 body[class*="mzd-theme-"] .UmpScrubberFocusedFillStyle06,
