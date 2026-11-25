@@ -8,6 +8,7 @@ local BOOL_DEFAULTS = {
     list_beep = true,
     short_delay = false,
     statusbar_date = false,
+    bluetooth_notification = true,
     audio_order_custom = false
 }
 
@@ -18,6 +19,7 @@ local BOOL_KEYS = {
     'list_beep',
     'short_delay',
     'statusbar_date',
+    'bluetooth_notification',
     'audio_order_custom'
 }
 

@@ -51,6 +51,7 @@ const DEFAULTS = {
   list_beep: true,
   short_delay: false,
   statusbar_date: false,
+  bluetooth_notification: true,
   theme: 'red',
   audio_order_custom: false,
   audio_order: DEFAULT_AUDIO_ORDER
@@ -62,6 +63,7 @@ function residentPage(boot, options) {
   options = options || {};
   const win = { setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {} };
   if (options.framework) { win.framework = options.framework; }
+  if (options.Common) { win.Common = options.Common; }
   if (options.StatusBarCtrl) { win.StatusBarCtrl = options.StatusBarCtrl; }
   if (options.Intl) { win.Intl = options.Intl; }
   if (options.utility) { win.utility = options.utility; }
@@ -277,7 +279,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, theme: 'red', audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, bluetooth_notification: true, theme: 'red', audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -294,9 +296,9 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
@@ -1105,18 +1107,27 @@ function viewPage(options) {
 
 {
   const page = viewPage();
+  page.respond({ bluetooth_notification: true });
+  assert.equal(page.menu().rows[8].label, 'Bluetooth connection notification');
+  assert.equal(page.menu().rows[8].checked, true, 'the bluetooth notification is on by default');
+  page.select(8);
+  assert.deepEqual(page.sets(), [{ key: 'bluetooth_notification', value: false }], 'switching bluetooth notification off saves false');
+}
+
+{
+  const page = viewPage();
   assert.deepEqual(page.posts.map(m => m.type + ':' + m.action), ['mzd-tweaks-request:get'], 'the view asks the resident for the settings');
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_size_menu', 'main_menu_coins_glow', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'theme_menu', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons size', 'Main menu icons glow', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Theme', 'Entertainment menu order']);
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_size_menu', 'main_menu_coins_glow', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'bluetooth_notification', 'theme_menu', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons size', 'Main menu icons glow', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Bluetooth connection notification', 'Theme', 'Entertainment menu order']);
   assert.equal(menu.rows[2].detail, 'Default');
   assert.equal(menu.rows[2].caret, true);
-  assert.equal(menu.rows[8].detail, 'Red');
-  assert.equal(menu.rows[8].caret, true);
-  assert.equal(menu.rows[9].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[9].detail, 'Red');
   assert.equal(menu.rows[9].caret, true);
+  assert.equal(menu.rows[10].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[10].caret, true);
 
   // Toggle flat layout
   page.select(1);
@@ -1163,7 +1174,7 @@ function viewPage(options) {
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
   // Open the Theme subpage
-  page.select(8);
+  page.select(9);
   const themeMenu = page.menu();
   assert.equal(themeMenu.title, 'Theme');
   assert.equal(themeMenu.rows.length, 9);
@@ -1176,10 +1187,10 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'theme', value: 'blue' });
   page.respond({ theme: 'blue' });
-  assert.equal(page.menu().rows[8].detail, 'Blue');
+  assert.equal(page.menu().rows[9].detail, 'Blue');
 
   // Open the Entertainment menu order subpage
-  page.select(9);
+  page.select(10);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1293,7 +1304,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(9);
+  page.select(10);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1301,7 +1312,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(9);
+  page.select(10);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1373,6 +1384,7 @@ function viewPage(options) {
       assert(dict['theme_' + color] && dict['theme_' + color].length > 0, 'theme_' + color + ' present in ' + lang);
       assert(dict['color_' + color] && dict['color_' + color].length > 0, 'color_' + color + ' present in ' + lang);
     }
+    assert(dict.bluetooth_notification && dict.bluetooth_notification.length > 0, 'bluetooth_notification present in ' + lang);
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
     }
@@ -1716,6 +1728,140 @@ function viewPage(options) {
       );
     }
   }
+  // Test Common.prototype.startTimedSbn hook for bluetooth_notification
+  const calls = [];
+  function MockCommon() {}
+  MockCommon.prototype.startTimedSbn = function (uiaId, sbnId, type, props) {
+    calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+  };
+  const mockFw = { common: new MockCommon() };
+  const page = residentPage({ bluetooth_notification: false }, { framework: mockFw, Common: MockCommon });
+
+  // When bluetooth_notification is false, PhoneConnectionStatus and AudioConnectionStatus are suppressed:
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneDisconnected' });
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioDisconnected' });
+  assert.equal(calls.length, 0, 'Phone and Audio connection SBNs are suppressed when bluetooth_notification is false');
+
+  // PairingSuccessStatus is NOT suppressed:
+  mockFw.common.startTimedSbn('btpairing', 'PairingSuccessStatus', 'btConnecting', { text1Id: 'PairingSuccess' });
+  assert.equal(calls.length, 1, 'PairingSuccessStatus is not suppressed');
+  assert.equal(calls[0].sbnId, 'PairingSuccessStatus');
+
+  // Non-Bluetooth SBN is NOT suppressed:
+  mockFw.common.startTimedSbn('system', 'SomeSbn', 'typeE', {});
+  assert.equal(calls.length, 2, 'Non-bluetooth SBN is not suppressed');
+
+  // When bluetooth_notification is true, Phone and Audio connection SBNs pass through:
+  page.win.mzdTweaks.bluetooth_notification = true;
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  assert.equal(calls.length, 4, 'Phone and Audio connection SBNs pass through when bluetooth_notification is true');
+  assert.equal(calls[2].sbnId, 'PhoneConnectionStatus');
+  assert.equal(calls[3].sbnId, 'AudioConnectionStatus');
+}
+
+{
+  // Test Object.getPrototypeOf(framework.common) fallback when Common is absent
+  const calls = [];
+  const commonProto = {
+    startTimedSbn(uiaId, sbnId, type, props) {
+      calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+    }
+  };
+  const mockFw = { common: Object.create(commonProto) };
+  const page = residentPage({ bluetooth_notification: false }, { framework: mockFw });
+
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  assert.equal(calls.length, 0, 'fallback prototype hook suppresses BT connection SBNs when Common is absent');
+
+  mockFw.common.startTimedSbn('btpairing', 'PairingSuccessStatus', 'btConnecting', { text1Id: 'PairingSuccess' });
+  assert.equal(calls.length, 1, 'fallback prototype hook passes non-connection SBNs');
+
+  page.win.mzdTweaks.bluetooth_notification = true;
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  assert.equal(calls.length, 2, 'fallback prototype hook passes BT connection SBNs when enabled');
+}
+
+{
+  // Test Object.getPrototypeOf(framework.common) fallback when Common.prototype exists without startTimedSbn
+  const calls = [];
+  function EmptyCommon() {}
+  const actualProto = {
+    startTimedSbn(uiaId, sbnId, type, props) {
+      calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+    }
+  };
+  const mockFw = { common: Object.create(actualProto) };
+  const page = residentPage({ bluetooth_notification: false }, { framework: mockFw, Common: EmptyCommon });
+
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  assert.equal(calls.length, 0, 'falls back to Object.getPrototypeOf(framework.common) when Common.prototype lacks startTimedSbn');
+  assert.equal(actualProto._mzdTweaksBtHooked, true, 'actual prototype is marked hooked');
+  assert.equal(EmptyCommon.prototype._mzdTweaksBtHooked, undefined, 'EmptyCommon.prototype is not marked hooked');
+
+  page.win.mzdTweaks.bluetooth_notification = true;
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  assert.equal(calls.length, 1, 'fallback prototype hook passes BT connection SBNs when enabled');
+}
+
+{
+  // Test framework.common own-property startTimedSbn when Common is absent
+  const calls = [];
+  const mockFw = {
+    common: {
+      startTimedSbn(uiaId, sbnId, type, props) {
+        calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+      }
+    }
+  };
+  const page = residentPage({ bluetooth_notification: false }, { framework: mockFw });
+
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  assert.equal(calls.length, 0, 'own-property framework.common.startTimedSbn suppresses BT connection SBNs');
+
+  mockFw.common.startTimedSbn('system', 'SomeSbn', 'typeE', {});
+  assert.equal(calls.length, 1, 'own-property hook passes non-BT SBNs');
+
+  page.win.mzdTweaks.bluetooth_notification = true;
+  mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  assert.equal(calls.length, 2, 'own-property hook passes BT connection SBNs when enabled');
+}
+
+{
+  // Test framework.common own-property startTimedSbn when Common.prototype is ALSO hooked (no prototype shadowing bug)
+  const protoCalls = [];
+  const ownCalls = [];
+  function ShadowCommon() {}
+  ShadowCommon.prototype.startTimedSbn = function (uiaId, sbnId, type, props) {
+    protoCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+  };
+  const fwCommon = new ShadowCommon();
+  fwCommon.startTimedSbn = function (uiaId, sbnId, type, props) {
+    ownCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+  };
+  const mockFw = { common: fwCommon };
+  const page = residentPage({ bluetooth_notification: false }, { framework: mockFw, Common: ShadowCommon });
+
+  assert.equal(ShadowCommon.prototype._mzdTweaksBtHooked, true, 'Common.prototype is hooked');
+  assert.equal(Object.prototype.hasOwnProperty.call(fwCommon, '_mzdTweaksBtHooked'), true,
+    'framework.common receives own _mzdTweaksBtHooked even when Common.prototype._mzdTweaksBtHooked is true');
+
+  fwCommon.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  fwCommon.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
+  assert.equal(ownCalls.length, 0, 'own-property startTimedSbn suppresses BT connection SBNs even when Common.prototype is hooked');
+  assert.equal(protoCalls.length, 0, 'prototype startTimedSbn is not called by own-property method');
+
+  fwCommon.startTimedSbn('btpairing', 'PairingSuccessStatus', 'btConnecting', { text1Id: 'PairingSuccess' });
+  assert.equal(ownCalls.length, 1, 'own-property hook passes non-connection SBNs');
+
+  page.win.mzdTweaks.bluetooth_notification = true;
+  fwCommon.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  assert.equal(ownCalls.length, 2, 'own-property hook passes BT connection SBNs when enabled');
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

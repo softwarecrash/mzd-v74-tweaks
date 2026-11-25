@@ -425,6 +425,7 @@
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'List menu shorter delay') },
                 { key: 'statusbar_date', type: 'bool', label: tr('statusbar_date', 'Date in status bar') },
+                { key: 'bluetooth_notification', type: 'bool', label: tr('bluetooth_notification', 'Bluetooth connection notification'), defaultValue: true },
                 {
                     key: 'theme_menu',
                     label: tr('theme', 'Theme'),

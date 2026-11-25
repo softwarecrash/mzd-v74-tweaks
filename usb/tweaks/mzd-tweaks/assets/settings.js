@@ -5,6 +5,7 @@ window.mzdTweaks = {
     "list_beep": true,
     "short_delay": false,
     "statusbar_date": false,
+    "bluetooth_notification": true,
     "audio_order_custom": false,
     "main_menu_coins_layout": "ellipse",
     "main_menu_coins_size": 100,

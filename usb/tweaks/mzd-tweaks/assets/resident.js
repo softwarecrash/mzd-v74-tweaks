@@ -1,7 +1,7 @@
 /*
  * MZD Tweaks resident. The shared settings host owns the native menu and the
  * save queue; this file keeps window.mzdTweaks in sync and hooks MainMenuCtrl,
- * List2Ctrl, StatusBarCtrl and systemApp at runtime without modifying OEM files.
+ * List2Ctrl, StatusBarCtrl, Common and systemApp at runtime without modifying OEM files.
  *
  * Sources that populate window.mzdTweaks:
  * - Inline defaults below, so OEM code and hooks always find the object.
@@ -64,6 +64,7 @@
         list_beep: true,
         short_delay: false,
         statusbar_date: false,
+        bluetooth_notification: true,
         theme: 'red',
         audio_order_custom: false,
         audio_order: DEFAULT_AUDIO_ORDER
@@ -897,6 +898,44 @@
         }
     };
 
+    function bluetoothNotificationEnabled() {
+        return !global.mzdTweaks || global.mzdTweaks.bluetooth_notification !== false;
+    }
+
+    function isBtConnectionSbn(uiaId, sbnId) {
+        return uiaId === 'btpairing' && (sbnId === 'PhoneConnectionStatus' || sbnId === 'AudioConnectionStatus');
+    }
+
+    function hookCommon() {
+        var proto = (global.Common && global.Common.prototype && typeof global.Common.prototype.startTimedSbn === 'function')
+            ? global.Common.prototype
+            : (global.framework && global.framework.common && Object.getPrototypeOf(global.framework.common));
+
+        function wrapStartTimedSbn(target) {
+            var origStartTimedSbn = target.startTimedSbn;
+            target._mzdTweaksBtHooked = true;
+            target.startTimedSbn = function (uiaId, sbnId, type, properties) {
+                if (!bluetoothNotificationEnabled() && isBtConnectionSbn(uiaId, sbnId)) {
+                    if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Suppressed Bluetooth connection SBN: ' + uiaId + ' ' + sbnId);
+                    }
+                    return;
+                }
+                return origStartTimedSbn.apply(this, arguments);
+            };
+        }
+
+        if (proto && !proto._mzdTweaksBtHooked && typeof proto.startTimedSbn === 'function') {
+            wrapStartTimedSbn(proto);
+        }
+
+        if (global.framework && global.framework.common && typeof global.framework.common.startTimedSbn === 'function' &&
+            !Object.prototype.hasOwnProperty.call(global.framework.common, '_mzdTweaksBtHooked') &&
+            Object.prototype.hasOwnProperty.call(global.framework.common, 'startTimedSbn')) {
+            wrapStartTimedSbn(global.framework.common);
+        }
+    }
+
     function hookStatusbar() {
         var proto = global.StatusBarCtrl && global.StatusBarCtrl.prototype;
         if (!proto || proto._mzdTweaksDateHooked) { return; }
@@ -951,6 +990,7 @@
         hookList2();
         hookSystemApp();
         hookStatusbar();
+        hookCommon();
         hookFramework();
 
         // Also poll during initial boot until both controls are hooked or limit reached
@@ -960,7 +1000,9 @@
             return global.MainMenuCtrl && global.MainMenuCtrl.prototype && global.MainMenuCtrl.prototype._mzdTweaksHooked &&
                 global.List2Ctrl && global.List2Ctrl.prototype && global.List2Ctrl.prototype._mzdTweaksHooked &&
                 global.systemApp && global.systemApp.prototype && global.systemApp.prototype._mzdTweaksHooked &&
-                global.StatusBarCtrl && global.StatusBarCtrl.prototype && global.StatusBarCtrl.prototype._mzdTweaksDateHooked;
+                global.StatusBarCtrl && global.StatusBarCtrl.prototype && global.StatusBarCtrl.prototype._mzdTweaksDateHooked &&
+                ((global.Common && global.Common.prototype && global.Common.prototype._mzdTweaksBtHooked) ||
+                 (global.framework && global.framework.common && global.framework.common._mzdTweaksBtHooked));
         };
         if (pollTimer && !isHooked()) {
             var attempts = 0;
@@ -972,6 +1014,7 @@
                 hookList2();
                 hookSystemApp();
                 hookStatusbar();
+                hookCommon();
                 hookFramework();
                 if (isHooked() || attempts >= maxAttempts) {
                     if (clearTimer && poll !== null) { clearTimer(poll); }

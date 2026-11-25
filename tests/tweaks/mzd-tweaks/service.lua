@@ -82,6 +82,7 @@ local DEFAULTS = {
     list_beep = true,
     short_delay = false,
     statusbar_date = false,
+    bluetooth_notification = true,
     theme = 'red',
     audio_order_custom = false
 }
@@ -92,12 +93,13 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification)
     main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
     theme = theme or 'red'
     coins_size = coins_size or 100
     coins_layout = coins_layout or 'ellipse'
+    bluetooth_notification = bluetooth_notification or 'true'
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
@@ -106,6 +108,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
         '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
+        '    "bluetooth_notification": ' .. bluetooth_notification .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
         '    "main_menu_coins_layout": "' .. coins_layout .. '",',
         '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
@@ -146,6 +149,7 @@ do
         list_beep = false,
         short_delay = true,
         statusbar_date = false,
+        bluetooth_notification = true,
         theme = 'red',
         audio_order_custom = true,
         audio_order = custom_audio
@@ -218,6 +222,15 @@ do
     local res = svc.request('set', { key = 'audio_order_custom', value = true })
     assert(res.settings.audio_order_custom == true)
     assert(fs.content:match('"audio_order_custom"%s*:%s*true'))
+end
+
+-- set bluetooth_notification toggles bluetooth connection notification.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'bluetooth_notification', value = false })
+    assert(res.settings.bluetooth_notification == false)
+    assert(fs.content:match('"bluetooth_notification"%s*:%s*false'))
 end
 
 -- set audio_order updates the reordered items.
