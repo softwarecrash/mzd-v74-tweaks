@@ -1433,7 +1433,7 @@ function viewPage(options) {
   for (const lang of langs) {
     const dict = registeredI18n.languages[lang];
     assert(dict.settings_saved && dict.settings_saved.length > 0, 'settings_saved present in ' + lang);
-    assert(dict.enable_cusom_order && dict.enable_cusom_order.length > 0, 'enable_cusom_order present in ' + lang);
+    assert(dict.enable_custom_order && dict.enable_custom_order.length > 0, 'enable_custom_order present in ' + lang);
     assert(dict.custom_order_hint && dict.custom_order_hint.length > 0, 'custom_order_hint present in ' + lang);
     assert(dict.default && dict.default.length > 0, 'default present in ' + lang);
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
@@ -2212,6 +2212,32 @@ function viewPage(options) {
     ]
   );
 
+  // applyTheme recomputes hit areas AND restores focus/highlight state on live MainMenuCtrl
+  {
+    let setFocusCalls = 0;
+    let setHighlightCalls = 0;
+    const origSetFocus = ctrl._setFocus;
+    const origSetHighlight = ctrl._setHighlight;
+    ctrl._setFocus = function (idx) {
+      setFocusCalls++;
+      return origSetFocus.call(this, idx);
+    };
+    ctrl._setHighlight = function (idx) {
+      setHighlightCalls++;
+      return origSetHighlight.call(this, idx);
+    };
+    const computesBeforeTheme = ctrl._hitAreaComputes;
+    page.ctx.handlers.ready();
+    page.ctx.requests[0].cb(null, { settings: { main_menu_coins_layout: 'flat' } });
+    assert.equal(mockBody.className.indexOf('mzd-layout-flat') !== -1, true, 'mzd-layout-flat applied');
+    assert(ctrl._hitAreaComputes > computesBeforeTheme, 'applyTheme recomputed hit areas');
+    assert.equal(setFocusCalls, 1, 'applyTheme restored focus');
+    assert.equal(setHighlightCalls, 1, 'applyTheme re-applied highlight');
+    assert.equal(ctrl._coins[0].currentHitArea, ctrl._coins[0].focusHitArea, 'applyTheme restored focusHitArea');
+    ctrl._setFocus = origSetFocus;
+    ctrl._setHighlight = origSetHighlight;
+  }
+
   // Rebound OTransitionEnd fires with updated slot index and cleanUp removes all listeners
   ctrl._coins[0].div._listeners.OTransitionEnd[0]();
   assert.equal(ctrl._fullyHighlightedIndex, 0);
@@ -2244,6 +2270,38 @@ function viewPage(options) {
     assert(css.includes('.MainMenuCtrl .mzd-coin > div[class$="Focus"]'),
       'theme-' + theme + '.css styles focused coins generically');
   }
+
+  // CSS specificity & decoupling checks
+  assert(!/body\.mzd-main-menu-custom\s+\.MainMenuCtrl\s+\.mzd-coin-/.test(mzdCss),
+    'mzd-tweaks.css scopes custom-order slot overrides with :not(.mzd-layout-flat)');
+  assert(mzdCss.includes('body.mzd-layout-flat .MainMenuCtrl .mzd-coin.MainMenuCtrlCoinFocus'),
+    'flat layout focus selector includes .MainMenuCtrl .mzd-coin');
+  assert(mzdCss.includes('body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrl .mzd-coin.MainMenuCtrlCoinFocus'),
+    'flat + 80% focus selector outranks .mzd-coin');
+  assert(mzdCss.includes('body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrl .mzd-coin.MainMenuCtrlCoinFocus'),
+    'flat + 60% focus selector outranks .mzd-coin');
+}
+
+// initCurrentOrder deterministic tie-breaker when duplicate order values exist
+{
+  const page = viewPage();
+  page.respond({
+    main_menu_order_custom: true,
+    'main_menu_order.main_menu_app': 1,
+    'main_menu_order.main_menu_ent': 1,
+    'main_menu_order.main_menu_com': 0,
+    'main_menu_order.main_menu_nav': 2,
+    'main_menu_order.main_menu_set': 3
+  });
+  page.select(4);
+  const rows = page.menu().rows.slice(2).map(r => r.key);
+  assert.deepEqual(rows, [
+    'mm_main_menu_com',
+    'mm_main_menu_app',
+    'mm_main_menu_ent',
+    'mm_main_menu_nav',
+    'mm_main_menu_set'
+  ], 'initCurrentOrder breaks ties deterministically by allItems index');
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

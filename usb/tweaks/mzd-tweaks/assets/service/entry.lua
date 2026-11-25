@@ -307,7 +307,7 @@ return function(context)
                         error('Invalid setting value.', 0)
                     end
                     local order_map = {}
-        for _, k in ipairs(AUDIO_KEYS) do
+                    for _, k in ipairs(AUDIO_KEYS) do
                         local v = args.value[k]
                         if v == nil then v = args.value['audio_order.' .. k] end
                         if type(v) ~= 'number' or v ~= v or v < 0 or v > (#AUDIO_KEYS - 1) or math.floor(v) ~= v or v == math.huge or v == -math.huge then
@@ -317,7 +317,7 @@ return function(context)
                     end
                     local settings, valid = read_settings()
                     if not valid then error('Cannot read saved settings.', 0) end
-        for _, k in ipairs(AUDIO_KEYS) do
+                    for _, k in ipairs(AUDIO_KEYS) do
                         settings['audio_order.' .. k] = order_map[k]
                         settings.audio_order[k] = order_map[k]
                     end

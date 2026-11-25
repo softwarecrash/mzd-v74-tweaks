@@ -206,7 +206,10 @@
                     (orderMap && typeof orderMap[a.id] === 'number' ? orderMap[a.id] : allItems.indexOf(a));
                 var valB = (state && typeof state[opts.orderKey + '.' + b.id] === 'number') ? state[opts.orderKey + '.' + b.id] :
                     (orderMap && typeof orderMap[b.id] === 'number' ? orderMap[b.id] : allItems.indexOf(b));
-                return valA - valB;
+                if (valA !== valB) {
+                    return valA - valB;
+                }
+                return allItems.indexOf(a) - allItems.indexOf(b);
             });
             currentOrder = available;
             savedOrder = [];
@@ -233,7 +236,7 @@
                     {
                         key: opts.customKey,
                         type: 'bool',
-                        label: tr('enable_cusom_order', 'Enable custom order'),
+                        label: tr('enable_custom_order', 'Enable custom order'),
                         defaultValue: false
                     },
                     {

@@ -368,7 +368,12 @@
 
         if (body.className !== cls) {
             body.className = cls;
-            recomputeMainMenuHitAreas(findLiveMainMenuCtrl());
+            var liveCtrl = findLiveMainMenuCtrl();
+            if (liveCtrl) {
+                var focusState = captureMainMenuFocusState(liveCtrl);
+                recomputeMainMenuHitAreas(liveCtrl);
+                restoreMainMenuFocusState(liveCtrl, focusState);
+            }
         }
     }
 
@@ -443,6 +448,38 @@
         if (!ctrl || !ctrl._coins || typeof ctrl._computeHitAreas !== 'function') { return; }
         for (i = 0; i < ctrl._coins.length; i++) {
             ctrl._computeHitAreas(ctrl._coins[i]);
+        }
+    }
+
+    function captureMainMenuFocusState(ctrl) {
+        var prevFocus = -1, hadHighlight = false, i, coin;
+        if (!ctrl || !ctrl._coins) {
+            return { prevFocus: -1, hadHighlight: false };
+        }
+        if (typeof ctrl._getFocus === 'function') {
+            prevFocus = ctrl._getFocus();
+        }
+        for (i = 0; i < ctrl._coins.length; i++) {
+            coin = ctrl._coins[i];
+            if (coin && coin.div && typeof coin.div.className === 'string' &&
+                coin.div.className.indexOf('MainMenuCtrlCoinFocus') !== -1) {
+                hadHighlight = true;
+                if (prevFocus < 0) { prevFocus = i; }
+            }
+        }
+        return { prevFocus: prevFocus, hadHighlight: hadHighlight };
+    }
+
+    function restoreMainMenuFocusState(ctrl, state) {
+        if (!ctrl || !ctrl._coins || !state) { return; }
+        if (state.prevFocus >= 0 && state.prevFocus < ctrl._coins.length) {
+            if (typeof ctrl._setFocus === 'function') {
+                ctrl._setFocus(state.prevFocus);
+            }
+            if (state.hadHighlight && typeof ctrl._setHighlight === 'function') {
+                ctrl._fullyHighlightedIndex = null;
+                ctrl._setHighlight(state.prevFocus);
+            }
         }
     }
 
@@ -524,17 +561,18 @@
                 coin = ctrl._coins[MAIN_MENU_Z_ORDER[i]];
                 if (coin && coin.div) { root.appendChild(coin.div); }
             }
-            if (ctrl._coins[4] && ctrl._coins[4].highlight) { root.appendChild(ctrl._coins[4].highlight); }
-            if (ctrl._coins[4] && ctrl._coins[4].div) { root.appendChild(ctrl._coins[4].div); }
-            if (ctrl._coins[0] && ctrl._coins[0].highlight) { root.appendChild(ctrl._coins[0].highlight); }
-            if (ctrl._coins[0] && ctrl._coins[0].div) { root.appendChild(ctrl._coins[0].div); }
+            for (i = 3; i < MAIN_MENU_Z_ORDER.length; i++) {
+                coin = ctrl._coins[MAIN_MENU_Z_ORDER[i]];
+                if (coin && coin.highlight) { root.appendChild(coin.highlight); }
+                if (coin && coin.div) { root.appendChild(coin.div); }
+            }
             if (ctrl._iconNameDiv) { root.appendChild(ctrl._iconNameDiv); }
         }
         recomputeMainMenuHitAreas(ctrl);
     }
 
     function applyMainMenuOrder(ctrl) {
-        var doc = global.document, body, cls, isCustom, targetCtrl, prevFocus = -1, hadHighlight = false, i, coin;
+        var doc = global.document, body, cls, isCustom, targetCtrl, focusState;
         if (!doc) { return; }
         isCustom = !!(global.mzdTweaks && global.mzdTweaks.main_menu_order_custom);
         body = doc.body;
@@ -551,30 +589,12 @@
         if (!targetCtrl || !targetCtrl._coins || targetCtrl._coins.length !== MAIN_MENU_ITEMS.length) {
             return;
         }
-        if (typeof targetCtrl._getFocus === 'function') {
-            prevFocus = targetCtrl._getFocus();
-        }
-        for (i = 0; i < targetCtrl._coins.length; i++) {
-            coin = targetCtrl._coins[i];
-            if (coin && coin.div && typeof coin.div.className === 'string' &&
-                coin.div.className.indexOf('MainMenuCtrlCoinFocus') !== -1) {
-                hadHighlight = true;
-                if (prevFocus < 0) { prevFocus = i; }
-            }
-        }
+        focusState = captureMainMenuFocusState(targetCtrl);
         if (!reorderMainMenuCoins(targetCtrl)) {
             return;
         }
         syncMainMenuDomOrder(targetCtrl, true);
-        if (prevFocus >= 0 && prevFocus < targetCtrl._coins.length) {
-            if (typeof targetCtrl._setFocus === 'function') {
-                targetCtrl._setFocus(prevFocus);
-            }
-            if (hadHighlight && typeof targetCtrl._setHighlight === 'function') {
-                targetCtrl._fullyHighlightedIndex = null;
-                targetCtrl._setHighlight(prevFocus);
-            }
-        }
+        restoreMainMenuFocusState(targetCtrl, focusState);
     }
 
     global.mzdTweaksApplyMainMenuOrder = function () {
