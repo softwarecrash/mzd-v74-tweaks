@@ -89,7 +89,7 @@ local DEFAULTS = {
     list_loop = false,
     list_beep = true,
     short_delay = false,
-    statusbar_date = false,
+    statusbar_date = 'off',
     bluetooth_notification = true,
     theme = 'red',
     main_menu_order_custom = false,
@@ -123,10 +123,10 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "list_loop": ' .. b .. ',',
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
-        '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
         '    "bluetooth_notification": ' .. bluetooth_notification .. ',',
         '    "main_menu_order_custom": ' .. main_menu_custom .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
+        '    "statusbar_date": "' .. (statusbar_date or 'off') .. '",',
         '    "main_menu_coins_layout": "' .. coins_layout .. '",',
         '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
         '    "theme": "' .. theme .. '",',
@@ -172,7 +172,7 @@ do
         list_loop = false,
         list_beep = false,
         short_delay = true,
-        statusbar_date = false,
+        statusbar_date = 'off',
         bluetooth_notification = true,
         theme = 'red',
         main_menu_order_custom = false,
@@ -338,7 +338,7 @@ do
     for k, v in pairs(DEFAULTS) do expected[k] = v end
     expected.theme = 'blue'
     same(svc.request('set', { key = 'theme', value = 'blue' }).settings, expected, 'theme set to blue')
-    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'blue'), 'theme blue written')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, nil, 'blue'), 'theme blue written')
 
     -- Invalid theme string refused
     local ok, err = pcall(svc.request, 'set', { key = 'theme', value = 'neon' })
@@ -357,11 +357,11 @@ do
     for k, v in pairs(DEFAULTS) do expected[k] = v end
     expected.main_menu_coins_size = 80
     same(svc.request('set', { key = 'main_menu_coins_size', value = 80 }).settings, expected, 'coins size set to 80')
-    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'red', 'true', 80), 'coins size 80 written')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, nil, 'red', 'true', 80), 'coins size 80 written')
 
     expected.main_menu_coins_size = 60
     same(svc.request('set', { key = 'main_menu_coins_size', value = 60 }).settings, expected, 'coins size set to 60')
-    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'red', 'true', 60), 'coins size 60 written')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, nil, 'red', 'true', 60), 'coins size 60 written')
 
     -- Invalid coins size refused
     local ok, err = pcall(svc.request, 'set', { key = 'main_menu_coins_size', value = 25 })
@@ -380,7 +380,7 @@ do
     for k, v in pairs(DEFAULTS) do expected[k] = v end
     expected.main_menu_coins_layout = 'flat'
     same(svc.request('set', { key = 'main_menu_coins_layout', value = 'flat' }).settings, expected, 'coins layout set to flat')
-    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, 'false', 'red', 'true', 100, 'flat'), 'coins layout flat written')
+    assert(fs.content == js('false', 'false', 'true', 'false', 'false', nil, nil, 'red', 'true', 100, 'flat'), 'coins layout flat written')
 
     -- Invalid layout refused
     local ok, err = pcall(svc.request, 'set', { key = 'main_menu_coins_layout', value = 'round' })
@@ -422,7 +422,8 @@ do
         { key = 'main_menu_loop', value = true },
         { key = 'theme', value = 'blue' },
         { key = 'main_menu_coins_size', value = 80 },
-        { key = 'main_menu_coins_layout', value = 'flat' }
+        { key = 'main_menu_coins_layout', value = 'flat' },
+        { key = 'statusbar_date', value = 'weekday' }
     }) do
         local ok, err = pcall(svc.request, 'set', req)
         assert(not ok and tostring(err):match('Cannot read saved settings'), 'malformed file refuses set for ' .. req.key)
@@ -442,4 +443,39 @@ do
     assert(fs_io.content == saved_js, 'unreadable file left untouched by set')
 end
 
-print('MZD_TWEAKS_SERVICE_PASSED: defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')
+-- Status bar date: four modes; true/false from older files read as weekday/off.
+do
+    local function read(content)
+        return service(fake_files(content)).request('get').settings.statusbar_date
+    end
+    for _, mode in ipairs({ 'off', 'weekday', 'month_text', 'month_numeric' }) do
+        assert(read(js('false', 'false', 'true', 'false', nil, nil, mode)) == mode, 'reads ' .. mode)
+    end
+    local plain = js('false', 'false', 'true', 'false')
+    local old_true = plain:gsub('"statusbar_date": "off"', '"statusbar_date": true')
+    local old_false = plain:gsub('"statusbar_date": "off"', '"statusbar_date": false')
+    local unknown = plain:gsub('"statusbar_date": "off"', '"statusbar_date": "stacked"')
+    local missing = plain:gsub('    "statusbar_date": "off",\n', '')
+    assert(read(old_true) == 'weekday', 'old true reads weekday')
+    assert(read(old_false) == 'off', 'old false reads off')
+    assert(read(unknown) == 'off', 'unknown mode reads off')
+    assert(not missing:find('statusbar_date') and read(missing) == 'off', 'missing key reads off')
+
+    local fs = fake_files(old_true)
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'statusbar_date', value = 'month_text' })
+    assert(res.settings.statusbar_date == 'month_text' and res.settings.list_beep == true, 'set month_text keeps other values')
+    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, 'month_text'), 'js written with month_text')
+    svc.request('set', { key = 'statusbar_date', value = 'month_numeric' })
+    assert(service(fs).request('get').settings.statusbar_date == 'month_numeric', 'a fresh service reads month_numeric back')
+    local saved = fs.content
+    for _, bad in ipairs({ true, false, 'on', 'month', 'Weekday', 1 }) do
+        local ok, err = pcall(svc.request, 'set', { key = 'statusbar_date', value = bad })
+        assert(not ok and tostring(err):match('Invalid setting value'), 'refused ' .. tostring(bad) .. ': ' .. tostring(err))
+    end
+    assert(fs.content == saved, 'refused values change nothing')
+    svc.request('set', { key = 'list_loop', value = true })
+    assert(fs.content == js('false', 'true', 'true', 'false', nil, nil, 'month_numeric'), 'mode kept on other saves')
+end
+
+print('MZD_TWEAKS_SERVICE_PASSED: status bar date modes and old true/false, defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')

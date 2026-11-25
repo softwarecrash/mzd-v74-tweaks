@@ -89,7 +89,7 @@
         list_loop: false,
         list_beep: true,
         short_delay: false,
-        statusbar_date: false,
+        statusbar_date: 'off',
         bluetooth_notification: true,
         theme: 'red',
         main_menu_order_custom: false,
@@ -99,19 +99,51 @@
     };
 
     var EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var DATE_MODES = { off: true, weekday: true, month_text: true, month_numeric: true };
 
-    function statusbarDateEnabled() {
-        return !!global.mzdTweaks && global.mzdTweaks.statusbar_date === true;
+    // statusbar_date is off, weekday, month_text or month_numeric. true and false
+    // from older settings.js files read as weekday and off.
+    function statusbarDateMode() {
+        var value = global.mzdTweaks && global.mzdTweaks.statusbar_date;
+        if (value === true) { return 'weekday'; }
+        return (typeof value === 'string' && Object.prototype.hasOwnProperty.call(DATE_MODES, value)) ? value : 'off';
     }
 
-    // Short date such as "Wed 18". Weekday names come from the mzd-tweaks translations
+    function statusbarDateEnabled() {
+        return statusbarDateMode() !== 'off';
+    }
+
+    function twoDigits(value) {
+        return (value < 10 ? '0' : '') + value;
+    }
+
+    // Short date for the status bar: "Wed 18" (weekday), "Nov 18" (month_text) or
+    // "11/18" (month_numeric). Names and the order come from the mzd-tweaks translations
     // (Opera on the head unit has no Intl); English is used until they are loaded.
-    function statusbarDateText(date) {
-        var index = date.getDay(), day = EN_DAYS[index], i18n = global.MzdGuiI18n;
-        if (i18n && typeof i18n.text === 'function') {
-            day = i18n.text('mzd-tweaks', 'weekday_' + day.toLowerCase(), day);
+    // The same rules are in view.js for the examples in the menu.
+    function statusbarDateText(date, mode) {
+        var i18n = global.MzdGuiI18n, month = date.getMonth(), day = date.getDate(), pattern;
+        function t(key, fallback) {
+            return (i18n && typeof i18n.text === 'function') ? i18n.text('mzd-tweaks', key, fallback) : fallback;
         }
-        return day + ' ' + date.getDate();
+        if (mode === 'month_numeric') {
+            pattern = t('date_numeric_format', '{m}/{d}');
+            if (typeof pattern !== 'string' || pattern.indexOf('{m}') < 0 || pattern.indexOf('{d}') < 0) {
+                pattern = '{m}/{d}';
+            }
+            return pattern.replace('{m}', twoDigits(month + 1)).replace('{d}', twoDigits(day));
+        }
+        if (mode === 'month_text') {
+            pattern = t('date_text_format', '{M} {d}');
+            if (typeof pattern !== 'string' || pattern.indexOf('{d}') < 0 ||
+                (pattern.indexOf('{M}') < 0 && pattern.indexOf('{n}') < 0)) {
+                pattern = '{M} {d}';
+            }
+            return pattern.replace('{M}', t('month_' + EN_MONTHS[month].toLowerCase(), EN_MONTHS[month]))
+                .replace('{n}', String(month + 1)).replace('{d}', String(day));
+        }
+        return t('weekday_' + EN_DAYS[date.getDay()].toLowerCase(), EN_DAYS[date.getDay()]) + ' ' + day;
     }
 
     function clockText(clock) {
@@ -174,7 +206,7 @@
         dateLine = global.document.createElement('div');
         dateLine.style.fontSize = '22px';
         dateLine.style.lineHeight = '22px';
-        dateLine.textContent = statusbarDateText(date);
+        dateLine.textContent = statusbarDateText(date, statusbarDateMode());
         clock.innerText = '';
         clock.appendChild(timeLine);
         clock.appendChild(dateLine);

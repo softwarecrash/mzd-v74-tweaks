@@ -37,7 +37,7 @@ test('emulated MZD Tweaks service', async t => {
             list_loop: false,
             list_beep: true,
             short_delay: false,
-            statusbar_date: false,
+            statusbar_date: 'off',
             bluetooth_notification: true,
             theme: 'red'
         }
@@ -51,7 +51,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(env.window.mzdTweaks.list_loop, false);
         assert.equal(env.window.mzdTweaks.list_beep, true);
         assert.equal(env.window.mzdTweaks.short_delay, false);
-        assert.equal(env.window.mzdTweaks.statusbar_date, false);
+        assert.equal(env.window.mzdTweaks.statusbar_date, 'off');
         assert.equal(env.window.mzdTweaks.bluetooth_notification, true);
         assert.equal(env.window.mzdTweaks.theme, 'red');
 
@@ -63,7 +63,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(res.settings.list_loop, false);
         assert.equal(res.settings.list_beep, true);
         assert.equal(res.settings.short_delay, false);
-        assert.equal(res.settings.statusbar_date, false);
+        assert.equal(res.settings.statusbar_date, 'off');
         assert.equal(res.settings.bluetooth_notification, true);
         assert.equal(res.settings.theme, 'red');
     });
@@ -82,6 +82,17 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(reloaded.window.mzdTweaks.main_menu_loop, true);
         const fetched = await request(reloaded.services, 'get', {});
         assert.equal(fetched.settings.main_menu_loop, true);
+    });
+
+    await t.test('status bar date is one of four modes', async () => {
+        for (const mode of ['weekday', 'month_text', 'month_numeric', 'off']) {
+            const updated = await request(env.services, 'set', { key: 'statusbar_date', value: mode });
+            assert.equal(updated.settings.statusbar_date, mode);
+            assert.equal(env.window.mzdTweaks.statusbar_date, mode);
+        }
+        for (const bad of [true, false, 'on', 'stacked']) {
+            await assert.rejects(() => request(env.services, 'set', { key: 'statusbar_date', value: bad }), /Invalid setting/);
+        }
     });
 
     await t.test('rejects invalid key, type, and out-of-allowlist values', async () => {

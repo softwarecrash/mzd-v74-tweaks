@@ -7,7 +7,6 @@ local BOOL_DEFAULTS = {
     list_loop = false,
     list_beep = true,
     short_delay = false,
-    statusbar_date = false,
     bluetooth_notification = true,
     main_menu_order_custom = false,
     audio_order_custom = false
@@ -19,10 +18,18 @@ local BOOL_KEYS = {
     'list_loop',
     'list_beep',
     'short_delay',
-    'statusbar_date',
     'bluetooth_notification',
     'main_menu_order_custom',
     'audio_order_custom'
+}
+
+-- Status bar date: off, weekday (Mon 15), month_text (Nov 15) or month_numeric
+-- (11/15). true and false from older settings.js files read as weekday and off.
+local VALID_DATE_MODES = {
+    off = true,
+    weekday = true,
+    month_text = true,
+    month_numeric = true
 }
 
 local VALID_THEMES = {
@@ -100,6 +107,7 @@ return function(context)
         for _, k in ipairs(BOOL_KEYS) do
             settings[k] = BOOL_DEFAULTS[k]
         end
+        settings.statusbar_date = 'off'
         settings.theme = 'red'
         settings.main_menu_coins_size = 100
         settings.main_menu_coins_layout = 'ellipse'
@@ -132,6 +140,16 @@ return function(context)
                 settings[k] = true
             elseif val == 'false' then
                 settings[k] = false
+            end
+        end
+
+        local date_val = content:match('"statusbar_date"%s*:%s*"([a-z_]+)"')
+        if date_val and VALID_DATE_MODES[date_val] then
+            settings.statusbar_date = date_val
+        else
+            local date_bool = content:match('"statusbar_date"%s*:%s*([a-z]+)')
+            if date_bool == 'true' then
+                settings.statusbar_date = 'weekday'
             end
         end
 
@@ -181,6 +199,10 @@ return function(context)
             if val == nil then val = BOOL_DEFAULTS[k] end
             lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. ','
         end
+
+        local date_mode = settings.statusbar_date
+        if not VALID_DATE_MODES[date_mode] then date_mode = 'off' end
+        lines[#lines + 1] = '    "statusbar_date": "' .. date_mode .. '",'
 
         local coins_layout = settings.main_menu_coins_layout
         if not VALID_COINS_LAYOUTS[coins_layout] then coins_layout = 'ellipse' end
@@ -254,7 +276,16 @@ return function(context)
                 if type(args.key) ~= 'string' then
                     error('Unknown setting: ' .. tostring(args.key), 0)
                 end
-                if args.key == 'theme' then
+                if args.key == 'statusbar_date' then
+                    if type(args.value) ~= 'string' or not VALID_DATE_MODES[args.value] then
+                        error('Invalid setting value.', 0)
+                    end
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
+                    settings.statusbar_date = args.value
+                    write_settings(settings)
+                    return { settings = settings }
+                elseif args.key == 'theme' then
                     if type(args.value) ~= 'string' or not VALID_THEMES[args.value] then
                         error('Invalid setting value.', 0)
                     end

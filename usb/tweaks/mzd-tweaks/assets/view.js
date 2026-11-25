@@ -8,6 +8,75 @@
         return;
     }
 
+    // Status bar date: the options are shown as today's date in that format.
+    // The formatting rules are the same as in resident.js.
+    var DATE_MODES = ['off', 'weekday', 'month_text', 'month_numeric'];
+    var EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    function dateMode(state) {
+        var value = state && state.statusbar_date;
+        if (value === true) { return 'weekday'; }
+        return DATE_MODES.indexOf(value) >= 0 ? value : 'off';
+    }
+
+    function twoDigits(value) {
+        return (value < 10 ? '0' : '') + value;
+    }
+
+    // Today's date from the framework, like the status bar clock; the browser
+    // clock is only used while the framework has no time yet.
+    function today() {
+        var ms = 0, value;
+        try {
+            var fw = (window.parent && window.parent.framework) || window.framework;
+            value = fw && fw.common && typeof fw.common.getCurrentTime === 'function' ? fw.common.getCurrentTime() : null;
+            ms = typeof value === 'number' ? value : (value && typeof value.getTime === 'function' ? value.getTime() : 0);
+        } catch (ignore) {}
+        return ms > 0 ? new Date(ms) : new Date();
+    }
+
+    function dateExample(mode, tr) {
+        var date = today(), month = date.getMonth(), day = date.getDate(), pattern;
+        if (mode === 'month_numeric') {
+            pattern = tr('date_numeric_format', '{m}/{d}');
+            if (typeof pattern !== 'string' || pattern.indexOf('{m}') < 0 || pattern.indexOf('{d}') < 0) {
+                pattern = '{m}/{d}';
+            }
+            return pattern.replace('{m}', twoDigits(month + 1)).replace('{d}', twoDigits(day));
+        }
+        if (mode === 'month_text') {
+            pattern = tr('date_text_format', '{M} {d}');
+            if (typeof pattern !== 'string' || pattern.indexOf('{d}') < 0 ||
+                (pattern.indexOf('{M}') < 0 && pattern.indexOf('{n}') < 0)) {
+                pattern = '{M} {d}';
+            }
+            return pattern.replace('{M}', tr('month_' + EN_MONTHS[month].toLowerCase(), EN_MONTHS[month]))
+                .replace('{n}', String(month + 1)).replace('{d}', String(day));
+        }
+        if (mode === 'weekday') {
+            return tr('weekday_' + EN_DAYS[date.getDay()].toLowerCase(), EN_DAYS[date.getDay()]) + ' ' + day;
+        }
+        return tr('statusbar_date_off', 'Off');
+    }
+
+    function dateOption(mode, current, tr) {
+        return {
+            id: 'date-' + mode,
+            label: dateExample(mode, tr),
+            checkable: true,
+            checked: current === mode,
+            select: function (api) {
+                api.back(true);
+                if (dateMode(api.state()) !== mode) {
+                    api.save('statusbar_date', mode);
+                } else {
+                    api.render();
+                }
+            }
+        };
+    }
+
     var THEMES = [
         { id: 'red', defaultLabel: 'Stock Red (default)', defaultShortLabel: 'Red' },
         { id: 'blue', defaultLabel: 'Cobalt Blue', defaultShortLabel: 'Blue' },
@@ -488,7 +557,26 @@
                 { key: 'list_loop', type: 'bool', label: tr('list_loop', 'List menu loop') },
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'List menu shorter delay') },
-                { key: 'statusbar_date', type: 'bool', label: tr('statusbar_date', 'Date in status bar') },
+                {
+                    key: 'statusbar_date_menu',
+                    label: tr('statusbar_date', 'Date in status bar'),
+                    detail: dateExample(dateMode(state), tr),
+                    caret: true,
+                    select: function (api) {
+                        api.openPage({
+                            id: 'statusbar_date',
+                            title: api.t('statusbar_date', 'Date in status bar'),
+                            index: DATE_MODES.indexOf(dateMode(api.state())),
+                            entries: function (pageApi) {
+                                var pageCurrent = dateMode(pageApi.state()), list = [], i;
+                                for (i = 0; i < DATE_MODES.length; i++) {
+                                    list.push(dateOption(DATE_MODES[i], pageCurrent, pageApi.t));
+                                }
+                                return list;
+                            }
+                        });
+                    }
+                },
                 { key: 'bluetooth_notification', type: 'bool', label: tr('bluetooth_notification', 'Bluetooth connection notification'), defaultValue: true },
                 {
                     key: 'theme_menu',

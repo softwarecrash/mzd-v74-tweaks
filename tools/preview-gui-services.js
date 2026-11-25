@@ -251,7 +251,7 @@
             list_loop: false,
             list_beep: true,
             short_delay: false,
-            statusbar_date: false,
+            statusbar_date: 'off',
             bluetooth_notification: true,
             main_menu_order_custom: false,
             main_menu_order: defaultMainMenuOrder,
@@ -269,6 +269,8 @@
         function isValidTheme(v) { return typeof v === 'string' && validThemes.indexOf(v) >= 0; }
         function isValidCoinsLayout(v) { return typeof v === 'string' && validCoinsLayouts.indexOf(v) >= 0; }
         function isValidCoinsSize(v) { return typeof v === 'number' && validCoinsSizes.indexOf(v) >= 0; }
+        var validDateModes = ['off', 'weekday', 'month_text', 'month_numeric'];
+        function isValidDateMode(v) { return typeof v === 'string' && validDateModes.indexOf(v) >= 0; }
 
         for (name in schemaDefaults) {
             if (Object.prototype.hasOwnProperty.call(schemaDefaults, name)) {
@@ -285,6 +287,11 @@
                     }
                     for (var orderProp in settings[name]) {
                         settings[name + '.' + orderProp] = settings[name][orderProp];
+                    }
+                } else if (name === 'statusbar_date') {
+                    if (settings[name] === true) { settings[name] = 'weekday'; }
+                    if (!isValidDateMode(settings[name])) {
+                        settings[name] = (initial && isValidDateMode(initial[name])) ? initial[name] : schemaDefaults[name];
                     }
                 } else if (name === 'theme') {
                     if (!isValidTheme(settings[name])) {
@@ -355,6 +362,11 @@
                             settings[args.key + '.' + orderKey] = args.value[orderKey];
                         }
                     }
+                } else if (args.key === 'statusbar_date') {
+                    if (!isValidDateMode(args.value)) {
+                        throw new Error('Invalid setting value');
+                    }
+                    settings[args.key] = args.value;
                 } else if (args.key === 'theme') {
                     if (!isValidTheme(args.value)) {
                         throw new Error('Invalid setting value');

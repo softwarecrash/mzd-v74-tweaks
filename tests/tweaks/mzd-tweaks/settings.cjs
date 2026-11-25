@@ -58,7 +58,7 @@ const DEFAULTS = {
   list_loop: false,
   list_beep: true,
   short_delay: false,
-  statusbar_date: false,
+  statusbar_date: 'off',
   bluetooth_notification: true,
   theme: 'red',
   main_menu_order_custom: false,
@@ -198,10 +198,14 @@ function lastResponse(source) {
   assert.equal(on.clock.children[1].style.fontSize, '22px', 'the date is smaller than the time');
   assert.equal(on.clock.style.top, '0', 'the factory clock box is reused, so the bar does not grow');
 
-  for (const value of [false, 'long', 'on', undefined]) {
+  for (const value of ['off', false, 'long', 'on', 'stacked', undefined]) {
     const stock = statusbarFixture(value).control;
-    assert.equal(stock.clock.innerText, '08:26', 'only true changes the clock: ' + String(value));
+    assert.equal(stock.clock.innerText, '08:26', 'only a known mode changes the clock: ' + String(value));
     assert(!stock.clock.style.top, 'other values keep stock styling');
+  }
+  // 18 November 2026, Wednesday. true from an older settings.js reads as weekday.
+  for (const [mode, text] of [['weekday', 'Wed 18'], ['month_text', 'Nov 18'], ['month_numeric', '11/18'], [true, 'Wed 18']]) {
+    assert.equal(statusbarFixture(mode).control.clock.innerText, '08:26\n' + text, 'mode ' + String(mode));
   }
 
   const missing = statusbarFixture(true);
@@ -259,12 +263,15 @@ function lastResponse(source) {
   for (const existingBeforeHook of [false, true]) {
     const live = statusbarFixture(false, null, true, existingBeforeHook);
     complete(live.page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
-    request(live.page.ctx, 'set', { key: 'statusbar_date', value: true });
+    request(live.page.ctx, 'set', { key: 'statusbar_date', value: 'weekday' });
     assert.equal(live.control.clock.innerText, '08:26', 'unsaved changes do not affect the status bar');
-    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: true }) });
+    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: 'weekday' }) });
     assert.equal(live.control.clock.innerText, '08:26\nWed 18', 'a confirmed setting refreshes the clock');
-    request(live.page.ctx, 'set', { key: 'statusbar_date', value: false });
-    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: false }) });
+    request(live.page.ctx, 'set', { key: 'statusbar_date', value: 'month_numeric' });
+    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: 'month_numeric' }) });
+    assert.equal(live.control.clock.innerText, '08:26\n11/18', 'changing the format refreshes the clock');
+    request(live.page.ctx, 'set', { key: 'statusbar_date', value: 'off' });
+    complete(live.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: 'off' }) });
     assert.equal(live.control.clock.innerText, '08:26', 'switching to Off restores the stock clock');
     assert(!live.control.clock.style.top, 'switching to Off restores stock styling');
   }
@@ -291,7 +298,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: false, bluetooth_notification: true, theme: 'red', audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: 'off', bluetooth_notification: true, theme: 'red', audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -308,9 +315,9 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
@@ -1110,11 +1117,28 @@ function viewPage(options) {
 
 {
   const page = viewPage();
-  page.respond({ statusbar_date: false });
-  assert.equal(page.menu().rows[8].label, 'Date in status bar');
-  assert.equal(page.menu().rows[8].checked, false, 'the date is off by default');
+  page.respond({ statusbar_date: 'off' });
+  let row = page.menu().rows[8];
+  assert.deepEqual([row.label, row.detail, row.caret], ['Date in status bar', 'Off', true], 'the date row shows Off and opens a page');
   page.select(8);
-  assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: true }], 'switching the date on saves true');
+  let sub = page.menu();
+  assert.equal(sub.title, 'Date in status bar');
+  // The view uses the framework time (18 November 2026 in this fixture), like the status bar.
+  assert.deepEqual(sub.rows.map(r => r.label), ['Off', 'Wed 18', 'Nov 18', '11/18'], 'the options are examples of today');
+  assert.deepEqual(sub.rows.map(r => r.checked), [true, false, false, false], 'Off is checked');
+  page.select(2);
+  assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: 'month_text' }], 'choosing an example saves its mode');
+  assert.notEqual(page.menu().title, 'Date in status bar', 'choosing returns to the main page');
+  page.respond({ statusbar_date: 'month_text' });
+  assert.equal(page.menu().rows[8].detail, 'Nov 18', 'the row shows the chosen format');
+  page.respond({ statusbar_date: true });
+  assert.equal(page.menu().rows[8].detail, 'Wed 18', 'true from an older settings.js shows as weekday');
+  page.select(8);
+  assert.deepEqual(page.menu().rows.map(r => r.checked), [false, true, false, false], 'weekday is checked for true');
+  page.select(1);
+  assert.equal(page.sets().length, 1, 'choosing the current mode saves nothing');
+  page.respond({ statusbar_date: 'stacked' });
+  assert.equal(page.menu().rows[8].detail, 'Off', 'an unknown value shows Off');
 }
 
 {
@@ -1132,7 +1156,7 @@ function viewPage(options) {
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, main_menu_order_custom: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'bluetooth_notification', 'theme_menu', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date_menu', 'bluetooth_notification', 'theme_menu', 'audio_order_menu']);
   assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Bluetooth connection notification', 'Theme', 'Entertainment menu order']);
   assert.equal(menu.rows[3].detail, 'Default');
   assert.equal(menu.rows[3].caret, true);
@@ -1455,6 +1479,12 @@ function viewPage(options) {
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
     }
+    for (const month of ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']) {
+      assert(dict['month_' + month] && dict['month_' + month].length > 0, 'month_' + month + ' present in ' + lang);
+    }
+    assert(dict.statusbar_date_off && dict.statusbar_date_off.length > 0, 'statusbar_date_off present in ' + lang);
+    assert(/\{m\}/.test(dict.date_numeric_format) && /\{d\}/.test(dict.date_numeric_format), 'date_numeric_format in ' + lang);
+    assert(/\{d\}/.test(dict.date_text_format) && /\{[Mn]\}/.test(dict.date_text_format), 'date_text_format in ' + lang);
     assert.equal(dict.title, 'MZD Tweaks', 'title not translated in ' + lang);
     assert.equal(dict['gui.label'], 'MZD Tweaks', 'gui.label not translated in ' + lang);
   }
@@ -1480,6 +1510,27 @@ function viewPage(options) {
   assert.equal(regional.clock.children[1].textContent, 'Mi 18', 'a regional variant uses the base language weekdays');
   const unknown = statusbarFixture(true, null, false, false, null, true, 'sw_KE').control;
   assert.equal(unknown.clock.children[1].textContent, 'Wed 18', 'an unsupported language falls back to English');
+
+  // Month formats: two-digit numbers in the language order, and the short month name.
+  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  for (const lang of Object.keys(registered.languages)) {
+    const dict = registered.languages[lang];
+    for (const [mode, date] of [['month_numeric', new Date(2026, 0, 5, 8, 26)], ['month_numeric', new Date(2026, 10, 18, 8, 26)],
+      ['month_text', new Date(2026, 0, 5, 8, 26)], ['month_text', new Date(2026, 8, 28, 8, 26)]]) {
+      const control = statusbarFixture(mode, null, false, false, null, true, lang).control;
+      control.updateClock(date);
+      const m = date.getMonth(), d = date.getDate();
+      const expected = mode === 'month_numeric' ?
+        dict.date_numeric_format.replace('{m}', String(m + 1).padStart(2, '0')).replace('{d}', String(d).padStart(2, '0')) :
+        dict.date_text_format.replace('{M}', dict['month_' + months[m]]).replace('{n}', String(m + 1)).replace('{d}', String(d));
+      assert.equal(control.clock.children[1].textContent, expected, mode + ' in ' + lang + ' for ' + date.toDateString());
+    }
+  }
+  for (const [lang, numeric, text] of [['en_US', '11/18', 'Nov 18'], ['en_UK', '18/11', '18 Nov'], ['de_DE', '18.11', '18. Nov.'],
+    ['hu_HU', '11.18', 'nov. 18.'], ['ja_JP', '11/18', '11月18日'], ['sw_KE', '11/18', 'Nov 18']]) {
+    assert.equal(statusbarFixture('month_numeric', null, false, false, null, true, lang).control.clock.children[1].textContent, numeric, 'numeric ' + lang);
+    assert.equal(statusbarFixture('month_text', null, false, false, null, true, lang).control.clock.children[1].textContent, text, 'text ' + lang);
+  }
 }
 
 {
@@ -2304,4 +2355,4 @@ function viewPage(options) {
   ], 'initCurrentOrder breaks ties deterministically by allItems index');
 }
 
-console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');
+console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date modes and sub-page, month names and orders, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');
