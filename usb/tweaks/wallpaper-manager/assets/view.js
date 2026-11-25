@@ -110,7 +110,10 @@
             if (ended) { return; }
             if (command === 'import-one' && !error) { page = 'gallery'; index = 0; positions.gallery = 0; }
             if (command === 'slideshow-mode' && !error && !(result && result.state && result.state.error)) { page = 'home'; index = positions.home || 0; }
-            if (command === 'usb-list' && !error && result && result.state && result.state.usb && result.state.usb.status === 'ready') { index = 0; positions['import'] = 0; }
+            if (command === 'usb-list' && !error && result && result.state && result.state.usb && result.state.usb.status === 'ready') {
+                positions['import'] = 0;
+                if (page === 'import') { index = 0; }
+            }
             if (result && result.state) {
                 state = result.state;
                 var raw = error || result.notice || state.error || '';
@@ -131,6 +134,7 @@
     function open(next) { positions[page] = index; page = next; index = positions[page] || 0; render(); }
     function back() {
         notice = '';
+        if (status) { status.textContent = ''; }
         if (!state || page === 'home') { return false; }
         if (page === 'import-image') { page = 'import'; }
         else if (page === 'import') { page = 'home'; }
@@ -140,7 +144,7 @@
     }
     function activate(position) {
         if (ended || !state || pending) { return; }
-        notice = ''; index = position;
+        notice = ''; if (status) { status.textContent = ''; } index = position;
         var row = entries()[index];
         if (!row || row.disabled) { return; }
         positions[page] = index;

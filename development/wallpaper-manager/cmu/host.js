@@ -9,40 +9,142 @@
     var original = 'common/images/background.png', desired = original, request = 0;
     var menuPreview = null, previewOwner = null, previewPath = null, previewRequest = 0;
     var catalog = [], savedSettings = null, stagedSettings = null, saving = false, retry = null, loadSequence = 0, mutation = 0;
-    var bootRetry = null, menuTimer = null;
-    var offscreenStyle = null;
-    function updateOffScreen(visible) {
-        var isCustom = (visible && visible !== original && core && core.snapshot().offscreen === true);
-        if (!offscreenStyle && (document.head || document.body)) {
+    var bootRetry = null, menuTimer = null, transitionTimer = null;
+    var DISPLAY_OFF_CLASS = 'mzd-wallpaper-display-off';
+    var offscreenStyle = null, fwHook = null, displayOffTargets = [];
+    function addClass(elt, name) {
+        if (!elt || typeof elt.className !== 'string') { return; }
+        var parts = elt.className ? elt.className.split(/\s+/) : [];
+        if (parts.indexOf(name) < 0) {
+            parts.push(name);
+            elt.className = parts.join(' ').replace(/^\s+|\s+$/g, '');
+        }
+    }
+    function removeClass(elt, name) {
+        if (!elt || typeof elt.className !== 'string' || !elt.className) { return; }
+        var parts = elt.className.split(/\s+/), out = [], i;
+        for (i = 0; i < parts.length; i += 1) {
+            if (parts[i] && parts[i] !== name) { out.push(parts[i]); }
+        }
+        elt.className = out.join(' ');
+    }
+    function clearDisplayOffTarget(ctrl) {
+        var i;
+        for (i = displayOffTargets.length - 1; i >= 0; i -= 1) {
+            if (!ctrl || displayOffTargets[i].ctrl === ctrl) {
+                removeClass(displayOffTargets[i].divElt, DISPLAY_OFF_CLASS);
+                removeClass(displayOffTargets[i].parent, DISPLAY_OFF_CLASS);
+                displayOffTargets.splice(i, 1);
+            }
+        }
+    }
+    function scheduleTransitionRefresh() {
+        if (hostEnded || transitionTimer) { return; }
+        transitionTimer = window.setTimeout(function () {
+            transitionTimer = null;
+            if (!hostEnded) { updateBackground(); }
+        }, 0);
+    }
+    function hookFramework(fw) {
+        if (!fw || fwHook || hostEnded) { return; }
+        var origControl = typeof fw.instantiateControl === 'function' ? fw.instantiateControl : null;
+        var origDestroy = typeof fw.destroyControl === 'function' ? fw.destroyControl : null;
+        var origTemplate = typeof fw.instantiateTemplate === 'function' ? fw.instantiateTemplate : null;
+        if (!origControl && !origDestroy && !origTemplate) { return; }
+        fwHook = {
+            fw: fw,
+            origControl: origControl, wrappedControl: null,
+            origDestroy: origDestroy, wrappedDestroy: null,
+            origTemplate: origTemplate, wrappedTemplate: null
+        };
+        if (origControl) {
+            fwHook.wrappedControl = function (uia, parent, type, props) {
+                var ctrl = origControl.apply(this, arguments);
+                if (!hostEnded && type === 'OffScreenCtrl') {
+                    var hasClock = !!(props && typeof props.showClock === 'boolean');
+                    var isDisplayOff = uia === 'system' && (hasClock ? props.showClock === true :
+                        !!(fw.getCurrentApp && fw.getCurrCtxtId && fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'DisplayOff'));
+                    var parentTarget = parent && parent !== document.body && parent !== document.documentElement ? parent : null;
+                    var ctrlTarget = ctrl && ctrl.divElt ? ctrl.divElt : null;
+                    if (isDisplayOff) {
+                        if (ctrlTarget) { addClass(ctrlTarget, DISPLAY_OFF_CLASS); }
+                        if (parentTarget && parentTarget !== ctrlTarget) { addClass(parentTarget, DISPLAY_OFF_CLASS); }
+                        if (ctrlTarget || parentTarget) {
+                            displayOffTargets.push({ ctrl: ctrl, divElt: ctrlTarget, parent: parentTarget });
+                        }
+                    } else {
+                        if (ctrlTarget) { removeClass(ctrlTarget, DISPLAY_OFF_CLASS); }
+                        if (parentTarget) { removeClass(parentTarget, DISPLAY_OFF_CLASS); }
+                    }
+                }
+                return ctrl;
+            };
+            fw.instantiateControl = fwHook.wrappedControl;
+        }
+        if (origDestroy) {
+            fwHook.wrappedDestroy = function (ctrl) {
+                if (!hostEnded && ctrl) { clearDisplayOffTarget(ctrl); }
+                return origDestroy.apply(this, arguments);
+            };
+            fw.destroyControl = fwHook.wrappedDestroy;
+        }
+        if (origTemplate) {
+            fwHook.wrappedTemplate = function () {
+                var tmplt = origTemplate.apply(this, arguments);
+                if (!hostEnded) {
+                    updateBackground();
+                    scheduleTransitionRefresh();
+                }
+                return tmplt;
+            };
+            fw.instantiateTemplate = fwHook.wrappedTemplate;
+        }
+    }
+    function unhookFramework() {
+        if (!fwHook) { return; }
+        var fw = fwHook.fw;
+        if (fwHook.wrappedControl && fw.instantiateControl === fwHook.wrappedControl) {
+            fw.instantiateControl = fwHook.origControl;
+        }
+        if (fwHook.wrappedDestroy && fw.destroyControl === fwHook.wrappedDestroy) {
+            fw.destroyControl = fwHook.origDestroy;
+        }
+        if (fwHook.wrappedTemplate && fw.instantiateTemplate === fwHook.wrappedTemplate) {
+            fw.instantiateTemplate = fwHook.origTemplate;
+        }
+        fwHook = null;
+    }
+    function updateOffScreen(target) {
+        var isCustom = (target && target !== original && core && core.snapshot().offscreen === true);
+        var head = document.getElementsByTagName('head')[0] || document.head || document.body || document.documentElement;
+        if (!offscreenStyle && head) {
             offscreenStyle = document.createElement('style');
             offscreenStyle.id = 'mzd-wallpaper-offscreen';
-            (document.head || document.body).appendChild(offscreenStyle);
+            head.appendChild(offscreenStyle);
         }
-        var css = isCustom ? '.OffScreenCtrl { background-image: url("' + visible + '") !important; background-size: 800px 480px !important; background-position: 0 0 !important; background-repeat: no-repeat !important; }' : '';
+        var css = isCustom ? '.OffScreenCtrl.' + DISPLAY_OFF_CLASS + ', .' + DISPLAY_OFF_CLASS + ' .OffScreenCtrl { background-image: url("' + target + '") !important; background-size: 800px 480px !important; background-position: 0 0 !important; background-repeat: no-repeat !important; }' : '';
         if (offscreenStyle && offscreenStyle.textContent !== css) {
             offscreenStyle.textContent = css;
-        }
-        var elts = document.querySelectorAll ? document.querySelectorAll('.OffScreenCtrl') : [];
-        for (var i = 0; i < elts.length; i += 1) {
-            elts[i].style.backgroundImage = isCustom ? 'url("' + visible + '")' : '';
         }
     }
     function updateBackground() {
         var fw = window.framework, common = fw && fw.common, visible = desired;
-        if (!common) {
+        if (fw && !hostEnded) { hookFramework(fw); }
+        if (common) { common._defaultBgPath = desired; }
+        if (!common || !common._bgDiv1) {
             if (!bootRetry && !hostEnded) {
                 bootRetry = window.setTimeout(function () {
                     bootRetry = null;
                     updateBackground();
                 }, 500);
             }
+            updateOffScreen(desired);
             return;
         }
         if (bootRetry) {
             window.clearTimeout(bootRetry);
             bootRetry = null;
         }
-        common._defaultBgPath = desired;
         if (previewPath && previewOwner && document.documentElement.contains(previewOwner) &&
             fw.getCurrentApp() === 'system' && fw.getCurrCtxtId() === 'Applications') {
             visible = previewPath;
@@ -56,7 +158,7 @@
                 common._bgDiv2.style.backgroundImage = 'url("' + visible + '")';
             }
         }
-        updateOffScreen(visible);
+        updateOffScreen(desired);
     }
     function setMenuPreview(id, frame) {
         var row = null, i, image, token;
@@ -92,7 +194,7 @@
     var core = null, client = window.WallpaperCmuImportClient.create(context.service), loading = true, backendError = '', hostEnded = false;
     var usb = {status:'idle',items:[]}, importing = false;
     function snapshot() {
-        var value = core ? core.snapshot() : {images:[],active:null,selected:null,enabled:false,interval:10,slides:[],error:'',preview:true};
+        var value = core ? core.snapshot() : {images:[],active:null,selected:null,enabled:false,interval:10,slides:[],offscreen:false,error:'',preview:true};
         value.loading = loading; value.importAvailable = !!client; value.usb = usb; value.importing = importing;
         value.error = value.error || backendError; return value;
     }
@@ -143,6 +245,7 @@
         var value = args && Object.prototype.hasOwnProperty.call(args, 'value') ? args.value : args;
         var error = '';
         if (command === 'state') {
+            if (core) { updateBackground(); }
             callback(null, { state: snapshot() });
             if (core && !saving && !importing) {
                 var baseline = mutation;
@@ -219,6 +322,8 @@
         hostEnded = true;
         nativeMenu.close();
         stopMenuCheck();
+        clearDisplayOffTarget(null);
+        unhookFramework();
         if (core) {
             core.dispose();
         }
@@ -226,6 +331,10 @@
         if (bootRetry) {
             window.clearTimeout(bootRetry);
             bootRetry = null;
+        }
+        if (transitionTimer) {
+            window.clearTimeout(transitionTimer);
+            transitionTimer = null;
         }
         desired = original;
         previewPath = null;

@@ -77,7 +77,9 @@ s.settings({version=1,selected=remaining,enabled=true,interval=30,slides={remain
 local rebooted=store.create(fs,'/gallery');assert(rebooted.settings().selected==remaining and rebooted.settings().enabled and rebooted.settings().offscreen)
 local rows_4,settings_4=catalog.decode("MZD_WALLPAPER_GALLERY_V1\n"..remaining.."\tpng\t6361722e706e67\nS\t"..remaining.."\t1\t30\t"..remaining.."\n")
 check(settings_4.offscreen==false,'4-field backward compatibility defaults offscreen to false')
+fails(function()catalog.decode("MZD_WALLPAPER_GALLERY_V1\nS\t-\t0\t10\t-\t\n")end,'Invalid saved wallpaper settings')
 fails(function()rebooted.settings({version=1,enabled=true,interval=7,slides={remaining}})end,'Invalid wallpaper settings')
+fails(function()rebooted.settings({version=1,enabled=true,interval=10,slides={remaining},offscreen='yes'})end,'Invalid wallpaper settings')
 -- Crash after prepare: only that transaction's staging file is removed.
 t=s.prepare('sda1','car.png');s=store.create(fs,'/gallery');check(not files['/gallery/transaction'],'prepared crash journal recovered')
 -- Crash after image rename, before index publication: remove the unindexed image.

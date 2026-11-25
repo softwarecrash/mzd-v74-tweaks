@@ -9,8 +9,8 @@ const common={_customBgSet:false,_defaultBgPath:'common/images/background.png',_
 const mmuiCalls=[],originalSend=(app,event)=>mmuiCalls.push({app,event}),fw={common,getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'Applications',getAppInstance:()=>({_currentContextTemplate:{list2Ctrl:{setLineNumbers(){}}}}),sendEventToMmui:originalSend,
  _templatesLoaded:{Dialog3Tmplt:{isLoaded:true}},
  _controlsLoaded:{Dialog3Ctrl:{isLoaded:true},ButtonCtrl:{isLoaded:true}},
- instantiateTemplate(app,parent,type,props){dialogConfig=props.Dialog3Ctrl;return {dialog3Ctrl:props.Dialog3Ctrl,cleanUp(){dialogConfig=null;}};},
- instantiateControl(app,parent,type,props){assert.equal(type,'List2Ctrl');assert.equal(props.titleConfiguration,'noTitle');assert(parent.className.indexOf('TemplateWithStatusLeft List2Tmplt')===0);created++;
+ instantiateTemplate(app,parent,type,props){if(props&&props.Dialog3Ctrl){dialogConfig=props.Dialog3Ctrl;return {dialog3Ctrl:props.Dialog3Ctrl,cleanUp(){dialogConfig=null;}};}return {divElt:parent,cleanUp(){}};},
+ instantiateControl(app,parent,type,props){if(type==='OffScreenCtrl'){return {divElt:parent};}assert.equal(type,'List2Ctrl');assert.equal(props.titleConfiguration,'noTitle');assert(parent.className.indexOf('TemplateWithStatusLeft List2Tmplt')===0);created++;
   control={props,rendered:true,focus:props.focussedItem||0,dataList:props.dataList,handleControllerEvent(event){if(event==='cw'||event==='down'){this.focus=(this.focus+1)%this.dataList.items.length;}if(event==='ccw'||event==='up'){this.focus=(this.focus+this.dataList.items.length-1)%this.dataList.items.length;}if(event==='select')props.selectCallback(this,this.dataList.items[this.focus].appData);},getContextCapture(){return{hasFocus:true,focussedItem:this.focus,topItem:0};},restoreContext(c){this.focus=c.focussedItem;},setDataList(d){this.dataList=d;this.rendered=false;},setDataListAndUpdateItems(d){this.dataList=d;this.rendered=true;}};return control;},destroyControl(c){destroyed++;if(control===c)control=null;}};
 const intervals=new Set();let intervalsStarted=0,intervalsCleared=0;
 const host={location:{hostname:'localhost',origin:undefined},framework:fw,localStorage:{getItem:()=>null,setItem:()=>writes++},addEventListener:(n,f)=>hostEvents[n]=f,removeEventListener:n=>delete hostEvents[n],setTimeout:(f,ms)=>{timers.set(++timer,{f,ms});return timer;},clearTimeout:n=>timers.delete(n),setInterval:f=>{intervalsStarted++;const id=++timer;intervals.add(id);host.refresh=f;return id;},clearInterval:id=>{intervalsCleared++;intervals.delete(id);delete host.refresh;}};
@@ -33,7 +33,7 @@ const frames=[frame];
 function MockImage(){this.width=800;this.height=480;Object.defineProperty(this,'src',{set:()=>queue.push(()=>this.onload())});}
 const context={window:host,Image:MockImage,document,Dialog3Tmplt:function(){}};host.Dialog3Tmplt=context.Dialog3Tmplt;
 
-let saved={version:1,selected:null,enabled:false,interval:10,slides:[],removed:[],offscreen:false},failSave=false,prepareImport=null,usbResult={status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]};
+let saved={version:1,selected:null,enabled:false,interval:10,slides:[],removed:[],offscreen:false},failSave=false,prepareImport=null,holdUsb=false,pendingUsb=null,usbResult={status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]};
 const imageID='img-'+ 'a'.repeat(32),imageID2='img-'+ 'b'.repeat(32);
 const records=[{id:imageID,label:'User image.png',url:'/image.png'},{id:imageID2,label:'Second.png',url:'/second.png'}];
 const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:view,frame,token:'fixture-token'}),onMessage:fn=>hostEvents.message=fn,onViewClose:fn=>resident.closed=fn,onDispose:fn=>hostEvents.unload=fn,onServiceRequest:fn=>resident.serviceRequest=fn,
@@ -41,7 +41,7 @@ const resident={onServiceReady:fn=>resident.reconnected=fn,view:()=>({source:vie
   if(op==='gallery')cb(null,{images:records.slice(),settings:saved});
   else if(op==='save'){writes++;if(failSave){failSave=false;cb('Disk full.');}else{saved=JSON.parse(JSON.stringify(args));cb(null,{settings:saved});}}
   else if(op==='delete'){writes++;const id=args.id||args.value;const idx=records.findIndex(r=>r.id===id);if(idx>=0)records.splice(idx,1);saved.slides=saved.slides.filter(x=>x!==id);if(saved.selected===id)saved.selected=null;cb(null,{images:records.slice(),settings:saved});}
-  else if(op==='usb')cb(null,usbResult);
+  else if(op==='usb'){if(holdUsb)pendingUsb=()=>cb(null,usbResult);else cb(null,usbResult);}
   else if(op==='prepare'){assert.equal(args.source,'sda1');assert.equal(args.name,'photo.png');prepareImport=cb;}
   else if(op==='commit'){assert.equal(args.ticket,'import-ticket');assert.equal(args.width,800);assert.equal(args.height,480);records.push({id:'img-'+'c'.repeat(32),label:'photo.png',url:'/photo.png'});cb(null,{images:records.slice(),settings:saved});}
   else throw Error('Unexpected request '+op);
@@ -59,6 +59,7 @@ function input(action,phase='step'){for(const f of viewEvents.message.slice())f(
 assert.equal(layoutMessages.length,1);assert.equal(layoutMessages[0].message,'with-status-bar');
 assert(fs.readFileSync(fixturePath('assets/style.css'),'utf8').includes('height:416px'));
 flush();assert.equal(sb,'Wallpaper Manager');assert.equal(host.WallpaperManager.snapshot().images.length,2);assert.deepEqual(Array.from(host.WallpaperManager.snapshot().slides),[]);
+assert.equal(intervals.size,1,'one menu check interval while view is open');assert.equal(intervalsStarted,1);assert.equal(intervalsCleared,0);
 assert.equal(control.dataList.items[4].text1,'Apply background when screen is off');
 assert.equal(control.dataList.items[4].checked,false);
 assert.equal(control.dataList.items[4].disabled,true);
@@ -87,9 +88,29 @@ assert.equal(control.dataList.items[0].label1,'Background','shows Background det
 assert.equal(control.dataList.items[1].label1,'Slideshow','shows Slideshow detail when in slideshow');
 input('back');assert.equal(sb,'Wallpaper Manager');
 assert.equal(control.dataList.items[4].disabled,false);
+// Failed offscreen save rolls back UI and offscreen style
+failSave=true;click(4);assert.equal(saved.offscreen,false);assert.equal(host.WallpaperManager.snapshot().offscreen,false);assert.equal(offscreenStyle.textContent,'');
 click(4);assert.equal(saved.offscreen,true);
-assert(offscreenStyle.textContent.includes('.OffScreenCtrl'));
+assert(offscreenStyle.textContent.includes('.OffScreenCtrl.mzd-wallpaper-display-off'));
+assert(offscreenStyle.textContent.includes('.mzd-wallpaper-display-off .OffScreenCtrl'));
 assert(offscreenStyle.textContent.includes('/image.png'));
+// Only DisplayOff (showClock: true) gets marker class, not IdleStandby/WaitForEnding
+const displayOffEl=element(),idleStandbyEl=element();
+const displayOffCtrl=fw.instantiateControl('system',displayOffEl,'OffScreenCtrl',{showClock:true});
+const idleStandbyCtrl=fw.instantiateControl('system',idleStandbyEl,'OffScreenCtrl',{showClock:false});
+assert(displayOffEl.className.split(/\s+/).includes('mzd-wallpaper-display-off'),'DisplayOff gets marker class');
+assert(!idleStandbyEl.className.split(/\s+/).includes('mzd-wallpaper-display-off'),'IdleStandby does not get marker class');
+fw.destroyControl(idleStandbyCtrl);fw.destroyControl(displayOffCtrl);
+assert(!displayOffEl.className.split(/\s+/).includes('mzd-wallpaper-display-off'),'destroyControl clears marker class');
+// Template transition restores _bgDiv1 if OEM reset it
+common._bgDiv1.style.backgroundImage='url("common/images/background.png")';
+fw.instantiateTemplate('system',rootNode,'HomeScreenTmplt',{});flush();
+assert.equal(common._bgDiv1.style.backgroundImage,'url("/image.png")');
+// Hover preview updates _bgDiv1 without mutating #mzd-wallpaper-offscreen
+click(0);assert.equal(sb,'Gallery');click(1);assert.equal(sb,'Second');
+assert.equal(common._bgDiv1.style.backgroundImage,'url("/second.png")','menu preview updates _bgDiv1');
+assert(offscreenStyle.textContent.includes('/image.png')&&!offscreenStyle.textContent.includes('/second.png'),'menu preview does not mutate offscreen style');
+input('back');input('back');assert.equal(sb,'Wallpaper Manager');
 click(4);assert.equal(saved.offscreen,false);
 assert.equal(offscreenStyle.textContent,'');
 click(0);assert.equal(sb,'Gallery');
@@ -157,8 +178,17 @@ click(2);assert(dialogConfig);
 dialogConfig.defaultSelectCallback(null,'yes');flush();
 assert.equal(dialogConfig,null);assert.equal(records.length,1);assert.equal(sb,'Gallery');
 // 9. Import from USB view and preview screen
+usbResult={status:'ready',items:[{source:'sda1',name:'photo.png',label:'photo.png'}]};
+input('back');
+// Pressing Back while usb-list is in flight must not reset Home focus to Gallery on completion
+holdUsb=true;
+click(2);
+assert.equal(sb,'Import from USB');
+assert(pendingUsb,'usb-list is in flight');
+input('back');assert.equal(sb,'Wallpaper Manager');assert.equal(control.focus,2);
+holdUsb=false;pendingUsb();pendingUsb=null;flush();assert.equal(sb,'Wallpaper Manager');assert.equal(control.focus,2,'usb-list completion on home preserves home focus');
 usbResult={status:'disconnected',items:[]};
-input('back');click(2);assert.equal(sb,'Import from USB');
+click(2);assert.equal(sb,'Import from USB');
 assert.equal(control.dataList.items[0].disabled,true,'first row is disabled hint');
 assert.equal(control.dataList.items[1].disabled,true,'second row is disabled limit');
 assert.equal(control.dataList.items[2].text1,'Refresh USB');
@@ -185,14 +215,45 @@ assert.equal(control.dataList.items[2].disabled,true);
 assert.equal(typeof prepareImport,'function');
 prepareImport(null,{ticket:'import-ticket',url:'/staged-photo.png'});flush();
 assert.equal(sb,'Gallery');assert.equal(control.dataList.items[1].text1,'photo');
-// 10. Re-enable slideshow for resident tests
-input('back');input('back');click(1);click(1);assert(saved.enabled);
+// 10. Re-enable slideshow and offscreen for resident tests
+click(1);click(1);assert.equal(saved.slides.length,2,'two slideshow images enable rotation');
+input('back');input('back');click(4);assert.equal(saved.offscreen,true);click(1);click(1);assert(saved.enabled);
 mmuiCalls.length=0;const queuedBefore=queue.length;input('home');assert.equal(queue.length,queuedBefore,'input home returns false and emits no native-input message');
 fw.sendEventToMmui('common','Global.IntentHome');assert.deepEqual(mmuiCalls,[{app:'common',event:'Global.IntentHome'}],'touching Home delegates to OEM sendEventToMmui');
 resident.closed();assert.equal(host.WallpaperManager.snapshot().enabled,true,'closing the manager retains resident slideshow');
-assert.equal(intervals.size,0,'no active intervals while view is closed');
+assert.equal(intervals.size,0,'no active intervals while view is closed');assert.equal(intervalsCleared,intervalsStarted);
 resident.reconnected();flush();assert.equal(host.WallpaperManager.snapshot().active,imageID);
-const before=writes;const rotation=[...timers.values()].find(t=>t.ms===5000);if(rotation){rotation.f();flush();}assert.equal(writes,before,'no flash writes per slideshow tick');
+assert(offscreenStyle.textContent.includes('/image.png'));
+const before=writes;const rotation=[...timers.entries()].find(([,t])=>t.ms===5000);assert(rotation,'slideshow rotation timer scheduled');timers.delete(rotation[0]);rotation[1].f();flush();assert.equal(writes,before,'no flash writes per slideshow tick');
+assert(offscreenStyle.textContent.includes('/photo.png'),'slideshow rotation updates offscreen style');
 resident.closed();hostEvents.unload();flush();assert.equal(host.WallpaperManager,undefined);assert.equal(fw.sendEventToMmui,originalSend);assert.equal(common._defaultBgPath,'common/images/background.png');
+assert(!head.children.some(e=>e.id==='mzd-wallpaper-offscreen')&&offscreenStyle.parentNode===null,'onDispose removes #mzd-wallpaper-offscreen');
 assert.equal(intervals.size,0,'no active intervals after unload');
+// 11. bootRetry retries while fw.common or fw.common._bgDiv1 is missing
+{
+ const bTimers=new Map(),bQueue=[];let bTimerId=0;const bHead=element(),bBody=element();
+ function BMockImage(){this.width=800;this.height=480;Object.defineProperty(this,'src',{set:()=>bQueue.push(()=>this.onload())});}
+ function bFlush(){while(bQueue.length){bQueue.shift()();}}
+ const bDoc={head:bHead,body:bBody,getElementById:()=>null,createElement:element,getElementsByTagName:n=>n==='head'?[bHead]:[],documentElement:{contains:()=>true}};
+ const bFw={common:null,getCurrentApp:()=> 'system',getCurrCtxtId:()=> 'HomeScreen'};
+ const bHost={location:{hostname:'localhost',origin:undefined},framework:bFw,addEventListener:(n,f)=>{if(n==='unload')bHost.unload=f;},removeEventListener:()=>{},setTimeout:(f,ms)=>{bTimers.set(++bTimerId,{f,ms});return bTimerId;},clearTimeout:n=>bTimers.delete(n),setInterval:()=>0,clearInterval:()=>{}};
+ const bRes={onServiceReady:()=>{},view:()=>null,onMessage:()=>{},onViewClose:()=>{},onDispose:fn=>bHost.unload=fn,onServiceRequest:()=>{},
+  service:{request(op,args,cb){if(op==='gallery')cb(null,{images:records.slice(),settings:{version:1,selected:imageID,enabled:false,interval:10,slides:[],offscreen:false}});}}};
+ const bCtx={window:bHost,Image:BMockImage,document:bDoc};
+ vm.runInNewContext(fs.readFileSync(path.join(repo,'usb/lib/gui-runtime/residents.js'),'utf8'),bCtx);
+ vm.runInNewContext(fs.readFileSync(path.join(repo,'usb/lib/gui-runtime/settings-host.js'),'utf8'),bCtx);
+ bRes.createNativeMenu=opts=>bHost.MzdGuiResidents.createNativeMenu(opts);bCtx.context=bRes;
+ for(const name of ['preview/core.js','preview/native-menu.js','cmu/import-client.js','cmu/host.js'])vm.runInNewContext(fs.readFileSync(fixturePath(name),'utf8'),bCtx);
+ bFlush();
+ assert.equal([...bTimers.values()].filter(t=>t.ms===500).length,1,'bootRetry scheduled when common is missing');
+ bFw.common={_customBgSet:false,_defaultBgPath:'common/images/background.png',_currentBgPath:'common/images/background.png',_bgDiv1:null,_bgDiv2:null};
+ const step1=[...bTimers.entries()].find(([,t])=>t.ms===500);bTimers.delete(step1[0]);step1[1].f();
+ assert.equal(bFw.common._defaultBgPath,'/image.png');
+ assert.equal([...bTimers.values()].filter(t=>t.ms===500).length,1,'bootRetry continues while _bgDiv1 is missing');
+ bFw.common._bgDiv1=element();
+ const step2=[...bTimers.entries()].find(([,t])=>t.ms===500);bTimers.delete(step2[0]);step2[1].f();
+ assert.equal(bFw.common._bgDiv1.style.backgroundImage,'url("/image.png")');
+ assert.equal([...bTimers.values()].filter(t=>t.ms===500).length,0,'bootRetry stops once common and _bgDiv1 exist');
+ bHost.unload();
+}
 console.log('WALLPAPER_CMU_HOST_PASSED: service-backed gallery, empty default membership, durable settings, save-failure rollback, view-independent lifetime and stock-background disposal.');
