@@ -139,6 +139,24 @@ test('emulated MZD Tweaks service', async t => {
         const restoredLayout = await request(env.services, 'set', { key: 'main_menu_coins_layout', value: 'ellipse' });
         assert.equal(restoredLayout.settings.main_menu_coins_layout, 'ellipse');
         assert.equal(env.window.mzdTweaks.main_menu_coins_layout, 'ellipse');
+
+        const updatedMainMenuCustom = await request(env.services, 'set', { key: 'main_menu_order_custom', value: true });
+        assert.equal(updatedMainMenuCustom.settings.main_menu_order_custom, true);
+        assert.equal(env.window.mzdTweaks.main_menu_order_custom, true);
+
+        const updatedMainMenuOrder = await request(env.services, 'set', {
+            key: 'main_menu_order',
+            value: {
+                main_menu_set: 0,
+                main_menu_nav: 1,
+                main_menu_com: 2,
+                main_menu_ent: 3,
+                main_menu_app: 4
+            }
+        });
+        assert.equal(updatedMainMenuOrder.settings.main_menu_order.main_menu_set, 0);
+        assert.equal(updatedMainMenuOrder.settings['main_menu_order.main_menu_set'], 0);
+        assert.equal(env.window.mzdTweaks.main_menu_order.main_menu_app, 4);
     });
 
     await t.test('sanitizes invalid stored or initial values against allowlists', async () => {

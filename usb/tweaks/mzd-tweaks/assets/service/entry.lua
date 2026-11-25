@@ -9,6 +9,7 @@ local BOOL_DEFAULTS = {
     short_delay = false,
     statusbar_date = false,
     bluetooth_notification = true,
+    main_menu_order_custom = false,
     audio_order_custom = false
 }
 
@@ -20,6 +21,7 @@ local BOOL_KEYS = {
     'short_delay',
     'statusbar_date',
     'bluetooth_notification',
+    'main_menu_order_custom',
     'audio_order_custom'
 }
 
@@ -73,6 +75,19 @@ for i, k in ipairs(AUDIO_KEYS) do
     AUDIO_DEFAULTS[k] = i - 1
 end
 
+local MAIN_MENU_KEYS = {
+    'main_menu_app',
+    'main_menu_ent',
+    'main_menu_com',
+    'main_menu_nav',
+    'main_menu_set'
+}
+
+local MAIN_MENU_DEFAULTS = {}
+for i, k in ipairs(MAIN_MENU_KEYS) do
+    MAIN_MENU_DEFAULTS[k] = i - 1
+end
+
 return function(context)
     local fs = context.files
     local settings_path = assert(type(context.config) == 'table' and context.config.settings or context.config, 'settings config path is not configured')
@@ -81,12 +96,20 @@ return function(context)
     local function read_settings()
         local settings = {}
         local audio_order = {}
+        local main_menu_order = {}
         for _, k in ipairs(BOOL_KEYS) do
             settings[k] = BOOL_DEFAULTS[k]
         end
         settings.theme = 'red'
         settings.main_menu_coins_size = 100
         settings.main_menu_coins_layout = 'ellipse'
+        for _, k in ipairs(MAIN_MENU_KEYS) do
+            local default_val = MAIN_MENU_DEFAULTS[k]
+            settings['main_menu_order.' .. k] = default_val
+            main_menu_order[k] = default_val
+        end
+        settings.main_menu_order = main_menu_order
+
         for _, k in ipairs(AUDIO_KEYS) do
             local default_val = AUDIO_DEFAULTS[k]
             settings['audio_order.' .. k] = default_val
@@ -130,6 +153,15 @@ return function(context)
             settings.main_menu_coins_layout = coins_layout_val
         end
 
+        for _, k in ipairs(MAIN_MENU_KEYS) do
+            local val = content:match('"' .. k .. '"%s*:%s*(%d+)')
+            if val then
+                local num = tonumber(val)
+                settings['main_menu_order.' .. k] = num
+                main_menu_order[k] = num
+            end
+        end
+
         for _, k in ipairs(AUDIO_KEYS) do
             local val = content:match('"' .. k .. '"%s*:%s*(%d+)')
             if val then
@@ -161,6 +193,18 @@ return function(context)
         local theme = settings.theme
         if not VALID_THEMES[theme] then theme = 'red' end
         lines[#lines + 1] = '    "theme": "' .. theme .. '",'
+        lines[#lines + 1] = '    "main_menu_order": {'
+        for i, k in ipairs(MAIN_MENU_KEYS) do
+            local dot_k = 'main_menu_order.' .. k
+            local val = settings[dot_k]
+            if val == nil and type(settings.main_menu_order) == 'table' then
+                val = settings.main_menu_order[k]
+            end
+            if val == nil then val = MAIN_MENU_DEFAULTS[k] end
+            local comma = (i < #MAIN_MENU_KEYS) and ',' or ''
+            lines[#lines + 1] = '        "' .. k .. '": ' .. tostring(val) .. comma
+        end
+        lines[#lines + 1] = '    },'
         lines[#lines + 1] = '    "audio_order": {'
         for i, k in ipairs(AUDIO_KEYS) do
             local dot_k = 'audio_order.' .. k
@@ -237,12 +281,33 @@ return function(context)
                     settings.main_menu_coins_layout = args.value
                     write_settings(settings)
                     return { settings = settings }
+                elseif args.key == 'main_menu_order' then
+                    if type(args.value) ~= 'table' then
+                        error('Invalid setting value.', 0)
+                    end
+                    local order_map = {}
+                    for _, k in ipairs(MAIN_MENU_KEYS) do
+                        local v = args.value[k]
+                        if v == nil then v = args.value['main_menu_order.' .. k] end
+                        if type(v) ~= 'number' or v ~= v or v < 0 or v > (#MAIN_MENU_KEYS - 1) or math.floor(v) ~= v or v == math.huge or v == -math.huge then
+                            error('Invalid setting value.', 0)
+                        end
+                        order_map[k] = v
+                    end
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
+                    for _, k in ipairs(MAIN_MENU_KEYS) do
+                        settings['main_menu_order.' .. k] = order_map[k]
+                        settings.main_menu_order[k] = order_map[k]
+                    end
+                    write_settings(settings)
+                    return { settings = settings }
                 elseif args.key == 'audio_order' then
                     if type(args.value) ~= 'table' then
                         error('Invalid setting value.', 0)
                     end
                     local order_map = {}
-                    for _, k in ipairs(AUDIO_KEYS) do
+        for _, k in ipairs(AUDIO_KEYS) do
                         local v = args.value[k]
                         if v == nil then v = args.value['audio_order.' .. k] end
                         if type(v) ~= 'number' or v ~= v or v < 0 or v > (#AUDIO_KEYS - 1) or math.floor(v) ~= v or v == math.huge or v == -math.huge then
@@ -252,7 +317,7 @@ return function(context)
                     end
                     local settings, valid = read_settings()
                     if not valid then error('Cannot read saved settings.', 0) end
-                    for _, k in ipairs(AUDIO_KEYS) do
+        for _, k in ipairs(AUDIO_KEYS) do
                         settings['audio_order.' .. k] = order_map[k]
                         settings.audio_order[k] = order_map[k]
                     end

@@ -236,6 +236,13 @@
             audio_dvd: 17,
             audio_tv: 18
         };
+        var defaultMainMenuOrder = {
+            main_menu_app: 0,
+            main_menu_ent: 1,
+            main_menu_com: 2,
+            main_menu_nav: 3,
+            main_menu_set: 4
+        };
         var schemaDefaults = {
             main_menu_loop: false,
             main_menu_coins_layout: 'ellipse',
@@ -246,6 +253,8 @@
             short_delay: false,
             statusbar_date: false,
             bluetooth_notification: true,
+            main_menu_order_custom: false,
+            main_menu_order: defaultMainMenuOrder,
             audio_order_custom: false,
             audio_order: defaultAudioOrder,
             theme: 'red'
@@ -263,18 +272,19 @@
 
         for (name in schemaDefaults) {
             if (Object.prototype.hasOwnProperty.call(schemaDefaults, name)) {
-                if (name === 'audio_order') {
+                if (name === 'audio_order' || name === 'main_menu_order') {
+                    var defaultMap = (name === 'main_menu_order') ? defaultMainMenuOrder : defaultAudioOrder;
                     if (typeof settings[name] !== 'object' || settings[name] === null) {
-                        settings[name] = copy(defaultAudioOrder);
+                        settings[name] = copy(defaultMap);
                     } else {
-                        for (var aoKey in defaultAudioOrder) {
-                            if (settings[name][aoKey] === undefined) {
-                                settings[name][aoKey] = defaultAudioOrder[aoKey];
+                        for (var orderKey in defaultMap) {
+                            if (settings[name][orderKey] === undefined) {
+                                settings[name][orderKey] = defaultMap[orderKey];
                             }
                         }
                     }
-                    for (var aoProp in settings[name]) {
-                        settings['audio_order.' + aoProp] = settings[name][aoProp];
+                    for (var orderProp in settings[name]) {
+                        settings[name + '.' + orderProp] = settings[name][orderProp];
                     }
                 } else if (name === 'theme') {
                     if (!isValidTheme(settings[name])) {
@@ -297,12 +307,13 @@
         function applyGlobals() {
             if (!window.mzdTweaks) { window.mzdTweaks = {}; }
             if (!window.mzdTweaks.audio_order) { window.mzdTweaks.audio_order = {}; }
+            if (!window.mzdTweaks.main_menu_order) { window.mzdTweaks.main_menu_order = {}; }
             for (var k in settings) {
                 if (Object.prototype.hasOwnProperty.call(settings, k)) {
-                    if (k === 'audio_order' && typeof settings[k] === 'object' && settings[k] !== null) {
+                    if ((k === 'audio_order' || k === 'main_menu_order') && typeof settings[k] === 'object' && settings[k] !== null) {
                         for (var sub in settings[k]) {
                             if (Object.prototype.hasOwnProperty.call(settings[k], sub)) {
-                                window.mzdTweaks.audio_order[sub] = settings[k][sub];
+                                window.mzdTweaks[k][sub] = settings[k][sub];
                             }
                         }
                     } else {
@@ -312,6 +323,9 @@
             }
             if (typeof window.mzdTweaksResortEntertainment === 'function') {
                 try { window.mzdTweaksResortEntertainment(); } catch (ignore) {}
+            }
+            if (typeof window.mzdTweaksApplyMainMenuOrder === 'function') {
+                try { window.mzdTweaksApplyMainMenuOrder(); } catch (ignore) {}
             }
         }
 
@@ -331,14 +345,14 @@
                 if (typeof args.key !== 'string') {
                     throw new Error('Invalid setting: ' + String(args.key));
                 }
-                if (args.key === 'audio_order') {
+                if (args.key === 'audio_order' || args.key === 'main_menu_order') {
                     if (typeof args.value !== 'object' || args.value === null) {
                         throw new Error('Invalid setting value');
                     }
-                    settings.audio_order = copy(args.value);
-                    for (var audioKey in args.value) {
-                        if (Object.prototype.hasOwnProperty.call(args.value, audioKey)) {
-                            settings['audio_order.' + audioKey] = args.value[audioKey];
+                    settings[args.key] = copy(args.value);
+                    for (var orderKey in args.value) {
+                        if (Object.prototype.hasOwnProperty.call(args.value, orderKey)) {
+                            settings[args.key + '.' + orderKey] = args.value[orderKey];
                         }
                     }
                 } else if (args.key === 'theme') {
@@ -380,7 +394,7 @@
                 ((args && args.key === 'resolution_dpi') || (args && args.settings && args.settings.resolution_dpi !== undefined))) {
                 delay = 2000;
             }
-            if (module === 'mzd-tweaks' && operation === 'set' && args && args.key === 'audio_order') {
+            if (module === 'mzd-tweaks' && operation === 'set' && args && (args.key === 'audio_order' || args.key === 'main_menu_order')) {
                 delay = 1000;
             }
             window.setTimeout(function () {

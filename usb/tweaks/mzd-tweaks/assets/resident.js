@@ -55,6 +55,22 @@
         audio_tv: 18
     };
 
+    var MAIN_MENU_ITEMS = [
+        { key: 'main_menu_app', prefix: 'App', locKey: 'Applications', eventId: 'SelectApplications', defaultLabel: 'Applications', defaultIdx: 0 },
+        { key: 'main_menu_ent', prefix: 'Ent', locKey: 'Entertainment', eventId: 'SelectEntertainment', defaultLabel: 'Entertainment', defaultIdx: 1 },
+        { key: 'main_menu_com', prefix: 'Com', locKey: 'Communication', eventId: 'SelectCommunication', defaultLabel: 'Communication', defaultIdx: 2 },
+        { key: 'main_menu_nav', prefix: 'Nav', locKey: 'NavigationTitle', eventId: 'SelectNavigation', defaultLabel: 'Navigation', defaultIdx: 3 },
+        { key: 'main_menu_set', prefix: 'Set', locKey: 'Settings', eventId: 'SelectSettings', defaultLabel: 'Settings', defaultIdx: 4 }
+    ];
+
+    var DEFAULT_MAIN_MENU_ORDER = {
+        main_menu_app: 0,
+        main_menu_ent: 1,
+        main_menu_com: 2,
+        main_menu_nav: 3,
+        main_menu_set: 4
+    };
+
     var DEFAULTS = {
         main_menu_loop: false,
         main_menu_coins_layout: 'ellipse',
@@ -66,6 +82,8 @@
         statusbar_date: false,
         bluetooth_notification: true,
         theme: 'red',
+        main_menu_order_custom: false,
+        main_menu_order: DEFAULT_MAIN_MENU_ORDER,
         audio_order_custom: false,
         audio_order: DEFAULT_AUDIO_ORDER
     };
@@ -182,30 +200,35 @@
         }
     }
 
+    function backfillOrderDefaults(obj, propName, defaultsObj) {
+        var subKey;
+        if (!obj[propName]) {
+            obj[propName] = {};
+        }
+        for (subKey in defaultsObj) {
+            if (Object.prototype.hasOwnProperty.call(defaultsObj, subKey) && obj[propName][subKey] === undefined) {
+                obj[propName][subKey] = defaultsObj[subKey];
+            }
+        }
+    }
+
     function backfillDefaults(obj) {
         if (!obj) { return; }
         for (var k in DEFAULTS) {
             if (Object.prototype.hasOwnProperty.call(DEFAULTS, k) && obj[k] === undefined) {
                 if (k === 'audio_order') {
                     obj[k] = {};
-                    for (var subKey in DEFAULT_AUDIO_ORDER) {
-                        if (Object.prototype.hasOwnProperty.call(DEFAULT_AUDIO_ORDER, subKey)) {
-                            obj[k][subKey] = DEFAULT_AUDIO_ORDER[subKey];
-                        }
-                    }
+                    backfillOrderDefaults(obj, 'audio_order', DEFAULT_AUDIO_ORDER);
+                } else if (k === 'main_menu_order') {
+                    obj[k] = {};
+                    backfillOrderDefaults(obj, 'main_menu_order', DEFAULT_MAIN_MENU_ORDER);
                 } else {
                     obj[k] = DEFAULTS[k];
                 }
             }
         }
-        if (!obj.audio_order) {
-            obj.audio_order = {};
-        }
-        for (var ak in DEFAULT_AUDIO_ORDER) {
-            if (Object.prototype.hasOwnProperty.call(DEFAULT_AUDIO_ORDER, ak) && obj.audio_order[ak] === undefined) {
-                obj.audio_order[ak] = DEFAULT_AUDIO_ORDER[ak];
-            }
-        }
+        backfillOrderDefaults(obj, 'audio_order', DEFAULT_AUDIO_ORDER);
+        backfillOrderDefaults(obj, 'main_menu_order', DEFAULT_MAIN_MENU_ORDER);
     }
 
     if (!global.mzdTweaks) {
@@ -357,11 +380,13 @@
             bootScript.onload = function () {
                 backfillDefaults(global.mzdTweaks);
                 applyTheme(global.mzdTweaks.theme);
+                applyMainMenuOrder(null);
             };
             bootScript.onerror = function (event) {
                 if (event && event.preventDefault) { event.preventDefault(); }
                 backfillDefaults(global.mzdTweaks);
                 applyTheme(global.mzdTweaks.theme);
+                applyMainMenuOrder(null);
                 if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
                     global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be loaded; using defaults until the service answers.');
                 }
@@ -378,15 +403,180 @@
 
     // --- Runtime hooks for OEM controls ---
 
-    // 1. Main Menu Loop
+    // 1. Main Menu Loop & Order
+    function getOrderedMainMenuItems() {
+        var list = MAIN_MENU_ITEMS.slice();
+        var isCustom = global.mzdTweaks && global.mzdTweaks.main_menu_order_custom;
+        var order = isCustom && global.mzdTweaks && global.mzdTweaks.main_menu_order;
+        if (!isCustom || !order) {
+            return list;
+        }
+        list.sort(function (a, b) {
+            var va = (typeof order[a.key] === 'number') ? order[a.key] : a.defaultIdx;
+            var vb = (typeof order[b.key] === 'number') ? order[b.key] : b.defaultIdx;
+            if (va !== vb) { return va - vb; }
+            return a.defaultIdx - b.defaultIdx;
+        });
+        return list;
+    }
+
+    function getMainMenuLabel(item) {
+        try {
+            var fw = global.framework || (global.parent && global.parent.framework);
+            if (fw && fw.localize && typeof fw.localize.getLocStr === 'function') {
+                var localized = fw.localize.getLocStr('system', item.locKey);
+                if (localized && typeof localized === 'string' && localized !== item.locKey) {
+                    return localized;
+                }
+            }
+        } catch (ignoreLoc) {}
+        return item.defaultLabel;
+    }
+
+    var MAIN_MENU_SELECT_EVENTS = {
+        SelectApplications: 0,
+        SelectEntertainment: 1,
+        SelectCommunication: 2,
+        SelectNavigation: 3,
+        SelectSettings: 4
+    };
+
+    function remapMainMenuEvent(uiaId, eventId) {
+        var fw, currApp, currCtxt, slotIdx, ordered;
+        if (!global.mzdTweaks || !global.mzdTweaks.main_menu_order_custom) {
+            return eventId;
+        }
+        if (uiaId !== 'system' || !Object.prototype.hasOwnProperty.call(MAIN_MENU_SELECT_EVENTS, eventId)) {
+            return eventId;
+        }
+        fw = global.framework || (global.parent && global.parent.framework);
+        currApp = fw && typeof fw.getCurrentApp === 'function' ? fw.getCurrentApp() : '';
+        currCtxt = fw && typeof fw.getCurrCtxtId === 'function' ? fw.getCurrCtxtId() : '';
+        if (currApp !== 'system' || currCtxt !== 'HomeScreen') {
+            return eventId;
+        }
+        slotIdx = MAIN_MENU_SELECT_EVENTS[eventId];
+        ordered = getOrderedMainMenuItems();
+        if (slotIdx >= 0 && slotIdx < ordered.length) {
+            return ordered[slotIdx].eventId;
+        }
+        return eventId;
+    }
+
+    function updateMainMenuIconLabel(root, focusIdx, ordered) {
+        var labelEl, text;
+        if (!root || typeof root.getElementsByClassName !== 'function') { return; }
+        if (typeof focusIdx !== 'number' || focusIdx < 0 || focusIdx >= ordered.length) { return; }
+        labelEl = root.getElementsByClassName('MainMenuCtrlIconName')[0];
+        if (labelEl) {
+            text = getMainMenuLabel(ordered[focusIdx]);
+            if ('textContent' in labelEl) {
+                labelEl.textContent = text;
+            } else {
+                labelEl.innerText = text;
+            }
+        }
+    }
+
+    function syncMainMenuLabel(ctrl, index) {
+        var doc = global.document, root, idx;
+        if (!global.mzdTweaks || !global.mzdTweaks.main_menu_order_custom) { return; }
+        root = (ctrl && ctrl.divElt) || (doc && typeof doc.getElementsByClassName === 'function' ? doc.getElementsByClassName('MainMenuCtrl')[0] : null);
+        if (!root) { return; }
+        idx = (typeof index === 'number') ? index : (ctrl && typeof ctrl._getFocus === 'function' ? ctrl._getFocus() : -1);
+        updateMainMenuIconLabel(root, idx, getOrderedMainMenuItems());
+    }
+
+    function applyMainMenuOrder(ctrl) {
+        var doc = global.document, body, cls, isCustom, root, ordered, s, slotDiv, children, c, child, childCls, targetPrefix, focusIdx = -1;
+        if (!doc) { return; }
+        isCustom = !!(global.mzdTweaks && global.mzdTweaks.main_menu_order_custom);
+        body = doc.body;
+        if (body) {
+            cls = (body.className || '').replace(/\bmzd-main-menu-custom\b/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+            if (isCustom) {
+                cls = cls ? (cls + ' mzd-main-menu-custom') : 'mzd-main-menu-custom';
+            }
+            if (body.className !== cls) {
+                body.className = cls;
+            }
+        }
+        root = (ctrl && ctrl.divElt) || (typeof doc.getElementsByClassName === 'function' ? doc.getElementsByClassName('MainMenuCtrl')[0] : null);
+        if (!root || typeof root.getElementsByClassName !== 'function') { return; }
+
+        ordered = getOrderedMainMenuItems();
+        for (s = 0; s < MAIN_MENU_ITEMS.length; s++) {
+            slotDiv = root.getElementsByClassName('MainMenuCtrl' + MAIN_MENU_ITEMS[s].prefix + 'Div')[0];
+            if (!slotDiv) { continue; }
+            if (typeof slotDiv.className === 'string' && slotDiv.className.indexOf('MainMenuCtrlCoinFocus') !== -1) {
+                focusIdx = s;
+            }
+            targetPrefix = ordered[s].prefix;
+            children = slotDiv.children || slotDiv.childNodes;
+            if (!children) { continue; }
+            for (c = 0; c < children.length; c++) {
+                child = children[c];
+                if (!child || typeof child.className !== 'string') { continue; }
+                childCls = child.className.replace(/\bMainMenuCtrl(App|Ent|Com|Nav|Set)(Normal|Focus)\b/g, 'MainMenuCtrl' + targetPrefix + '$2');
+                if (child.className !== childCls) {
+                    child.className = childCls;
+                }
+            }
+        }
+
+        if (isCustom) {
+            if (ctrl && typeof ctrl._getFocus === 'function') {
+                focusIdx = ctrl._getFocus();
+            }
+            if (focusIdx >= 0) {
+                updateMainMenuIconLabel(root, focusIdx, ordered);
+            }
+        }
+    }
+
+    global.mzdTweaksApplyMainMenuOrder = function () {
+        applyMainMenuOrder(null);
+    };
+
     function hookMainMenu() {
-        if (!global.MainMenuCtrl || !global.MainMenuCtrl.prototype || global.MainMenuCtrl.prototype._mzdTweaksHooked) {
+        var proto, origInit, origSetFocus, origSetHighlight, origOffsetFocus, fw, sysApp, liveCtrl;
+        if (!global.MainMenuCtrl || !global.MainMenuCtrl.prototype) {
             return;
         }
-        global.MainMenuCtrl.prototype._mzdTweaksHooked = true;
-        var origOffsetFocus = global.MainMenuCtrl.prototype._offsetFocus;
-        if (typeof origOffsetFocus === 'function') {
-            global.MainMenuCtrl.prototype._offsetFocus = function (direction) {
+        proto = global.MainMenuCtrl.prototype;
+        if (!proto._mzdTweaksHooked) {
+            proto._mzdTweaksHooked = true;
+
+            origInit = proto.init;
+            if (typeof origInit === 'function') {
+                proto.init = function () {
+                    var res = origInit.apply(this, arguments);
+                    applyMainMenuOrder(this);
+                    return res;
+                };
+            }
+
+            origSetFocus = proto._setFocus;
+            if (typeof origSetFocus === 'function') {
+                proto._setFocus = function (index) {
+                    var res = origSetFocus.apply(this, arguments);
+                    syncMainMenuLabel(this, index);
+                    return res;
+                };
+            }
+
+            origSetHighlight = proto._setHighlight;
+            if (typeof origSetHighlight === 'function') {
+                proto._setHighlight = function (index) {
+                    var res = origSetHighlight.apply(this, arguments);
+                    syncMainMenuLabel(this, index);
+                    return res;
+                };
+            }
+
+            origOffsetFocus = proto._offsetFocus;
+            if (typeof origOffsetFocus === 'function') {
+                proto._offsetFocus = function (direction) {
                 if (!global.mzdTweaks || !global.mzdTweaks.main_menu_loop) {
                     return origOffsetFocus.apply(this, arguments);
                 }
@@ -414,6 +604,14 @@
                     }
                 }
             };
+        }
+        }
+
+        fw = global.framework || (global.parent && global.parent.framework);
+        sysApp = fw && typeof fw.getAppInstance === 'function' ? fw.getAppInstance('system') : null;
+        liveCtrl = sysApp && sysApp._currentContextTemplate && sysApp._currentContextTemplate.mainMenuCtrl;
+        if (liveCtrl) {
+            applyMainMenuOrder(liveCtrl);
         }
     }
 
@@ -983,6 +1181,19 @@
                 return origInstantiate.apply(this, arguments);
             };
         }
+        if (global.framework && typeof global.framework.sendEventToMmui === 'function' && !global.framework._mzdTweaksSendHooked) {
+            global.framework._mzdTweaksSendHooked = true;
+            var origSendEvent = global.framework.sendEventToMmui;
+            global.framework.sendEventToMmui = function (uiaId, eventId, params) {
+                var mappedEvent = remapMainMenuEvent(uiaId, eventId);
+                if (mappedEvent !== eventId) {
+                    var args = Array.prototype.slice.call(arguments);
+                    args[1] = mappedEvent;
+                    return origSendEvent.apply(this, args);
+                }
+                return origSendEvent.apply(this, arguments);
+            };
+        }
     }
 
     function initHooks() {
@@ -1038,6 +1249,7 @@
             var k, subKey;
             if (!global.mzdTweaks) { global.mzdTweaks = {}; }
             if (!global.mzdTweaks.audio_order) { global.mzdTweaks.audio_order = {}; }
+            if (!global.mzdTweaks.main_menu_order) { global.mzdTweaks.main_menu_order = {}; }
             for (k in settings) {
                 if (Object.prototype.hasOwnProperty.call(settings, k)) {
                     if (k.indexOf('audio_order.') === 0) {
@@ -1047,6 +1259,15 @@
                         for (subKey in settings[k]) {
                             if (Object.prototype.hasOwnProperty.call(settings[k], subKey)) {
                                 global.mzdTweaks.audio_order[subKey] = settings[k][subKey];
+                            }
+                        }
+                    } else if (k.indexOf('main_menu_order.') === 0) {
+                        subKey = k.substring(16);
+                        global.mzdTweaks.main_menu_order[subKey] = settings[k];
+                    } else if (k === 'main_menu_order' && typeof settings[k] === 'object' && settings[k] !== null) {
+                        for (subKey in settings[k]) {
+                            if (Object.prototype.hasOwnProperty.call(settings[k], subKey)) {
+                                global.mzdTweaks.main_menu_order[subKey] = settings[k][subKey];
                             }
                         }
                     } else {
@@ -1060,6 +1281,11 @@
                 Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_size') ||
                 Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_layout')) {
                 applyTheme(global.mzdTweaks.theme);
+            }
+            if (Object.prototype.hasOwnProperty.call(settings, 'main_menu_order_custom') ||
+                Object.prototype.hasOwnProperty.call(settings, 'main_menu_order') ||
+                Object.keys(settings).some(function (key) { return key.indexOf('main_menu_order.') === 0; })) {
+                applyMainMenuOrder(null);
             }
             if (Object.prototype.hasOwnProperty.call(settings, 'statusbar_date')) {
                 refreshStatusbarDisplays(context.log);

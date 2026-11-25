@@ -7,6 +7,7 @@ Features included:
 - **Main menu flat layout**: Arrange main menu icons in a horizontal dock across the lower screen and hide the background ellipse arc.
 - **Main menu icons size**: Customize the size of main menu icons (Default (100), Small (80), Mini (60)).
 - **Main menu icons glow**: Toggle highlight glow behind focused main menu icons. Off hides both factory red glow and custom colored theme glows.
+- **Main Menu icons order**: Customize the display order of the 5 main menu icons while preserving left-to-right navigation.
 - **List Loop**: Wrap between the first and last selectable items in scrollable lists.
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **List menu shorter delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.

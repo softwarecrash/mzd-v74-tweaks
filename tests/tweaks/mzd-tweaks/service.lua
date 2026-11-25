@@ -73,6 +73,14 @@ local AUDIO_KEYS = {
     'audio_tv'
 }
 
+local MAIN_MENU_KEYS = {
+    'main_menu_app',
+    'main_menu_ent',
+    'main_menu_com',
+    'main_menu_nav',
+    'main_menu_set'
+}
+
 local DEFAULTS = {
     main_menu_loop = false,
     main_menu_coins_layout = 'ellipse',
@@ -84,8 +92,15 @@ local DEFAULTS = {
     statusbar_date = false,
     bluetooth_notification = true,
     theme = 'red',
+    main_menu_order_custom = false,
     audio_order_custom = false
 }
+local DEFAULT_MAIN_MENU_ORDER = {}
+for i, k in ipairs(MAIN_MENU_KEYS) do
+    DEFAULTS['main_menu_order.' .. k] = i - 1
+    DEFAULT_MAIN_MENU_ORDER[k] = i - 1
+end
+DEFAULTS.main_menu_order = DEFAULT_MAIN_MENU_ORDER
 local DEFAULT_AUDIO_ORDER = {}
 for i, k in ipairs(AUDIO_KEYS) do
     DEFAULTS['audio_order.' .. k] = i - 1
@@ -93,9 +108,10 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table)
     main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
+    main_menu_custom = main_menu_custom or 'false'
     theme = theme or 'red'
     coins_size = coins_size or 100
     coins_layout = coins_layout or 'ellipse'
@@ -109,12 +125,20 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "short_delay": ' .. d .. ',',
         '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
         '    "bluetooth_notification": ' .. bluetooth_notification .. ',',
+        '    "main_menu_order_custom": ' .. main_menu_custom .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
         '    "main_menu_coins_layout": "' .. coins_layout .. '",',
         '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
         '    "theme": "' .. theme .. '",',
-        '    "audio_order": {'
+        '    "main_menu_order": {'
     }
+    for i, k in ipairs(MAIN_MENU_KEYS) do
+        local val = (main_menu_table and main_menu_table[k] ~= nil) and main_menu_table[k] or (i - 1)
+        local comma = (i < #MAIN_MENU_KEYS) and ',' or ''
+        lines[#lines + 1] = '        "' .. k .. '": ' .. tostring(val) .. comma
+    end
+    lines[#lines + 1] = '    },'
+    lines[#lines + 1] = '    "audio_order": {'
     for i, k in ipairs(AUDIO_KEYS) do
         local val = (audio_table and audio_table[k] ~= nil) and audio_table[k] or (i - 1)
         local comma = (i < #AUDIO_KEYS) and ',' or ''
@@ -151,9 +175,14 @@ do
         statusbar_date = false,
         bluetooth_notification = true,
         theme = 'red',
+        main_menu_order_custom = false,
+        main_menu_order = DEFAULT_MAIN_MENU_ORDER,
         audio_order_custom = true,
         audio_order = custom_audio
     }
+    for i, k in ipairs(MAIN_MENU_KEYS) do
+        expected['main_menu_order.' .. k] = i - 1
+    end
     for _, k in ipairs(AUDIO_KEYS) do
         expected['audio_order.' .. k] = custom_audio[k]
     end
@@ -252,6 +281,33 @@ do
     -- Partial order missing required keys is refused
     local ok, err = pcall(svc.request, 'set', { key = 'audio_order', value = { audio_fm_radio = 5 } })
     assert(not ok and tostring(err):match('Invalid setting value'), 'partial order refused: ' .. tostring(err))
+end
+
+-- set main_menu_order saves and rejects invalid/partial orders.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'main_menu_order_custom', value = true })
+    assert(res.settings.main_menu_order_custom == true)
+
+    local new_order = {
+        main_menu_app = 4,
+        main_menu_ent = 3,
+        main_menu_com = 2,
+        main_menu_nav = 1,
+        main_menu_set = 0
+    }
+    res = svc.request('set', { key = 'main_menu_order', value = new_order })
+    assert(res.settings.main_menu_order.main_menu_set == 0)
+    assert(res.settings['main_menu_order.main_menu_app'] == 4)
+
+    local ok, err = pcall(svc.request, 'set', { key = 'main_menu_order', value = { main_menu_app = 0 } })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'partial main_menu_order refused: ' .. tostring(err))
+
+    ok, err = pcall(svc.request, 'set', { key = 'main_menu_order', value = {
+        main_menu_app = 5, main_menu_ent = 1, main_menu_com = 2, main_menu_nav = 3, main_menu_set = 4
+    } })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'out-of-range main_menu_order refused: ' .. tostring(err))
 end
 
 -- Unknown keys, bad values and unknown operations are refused; nothing changes.

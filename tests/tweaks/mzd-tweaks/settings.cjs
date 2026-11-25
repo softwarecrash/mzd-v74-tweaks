@@ -42,6 +42,14 @@ const DEFAULT_AUDIO_ORDER = {
   audio_tv: 18
 };
 
+const DEFAULT_MAIN_MENU_ORDER = {
+  main_menu_app: 0,
+  main_menu_ent: 1,
+  main_menu_com: 2,
+  main_menu_nav: 3,
+  main_menu_set: 4
+};
+
 const DEFAULTS = {
   main_menu_loop: false,
   main_menu_coins_layout: 'ellipse',
@@ -53,6 +61,8 @@ const DEFAULTS = {
   statusbar_date: false,
   bluetooth_notification: true,
   theme: 'red',
+  main_menu_order_custom: false,
+  main_menu_order: DEFAULT_MAIN_MENU_ORDER,
   audio_order_custom: false,
   audio_order: DEFAULT_AUDIO_ORDER
 };
@@ -63,6 +73,7 @@ function residentPage(boot, options) {
   options = options || {};
   const win = { setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {} };
   if (options.framework) { win.framework = options.framework; }
+  if (options.MainMenuCtrl) { win.MainMenuCtrl = options.MainMenuCtrl; }
   if (options.Common) { win.Common = options.Common; }
   if (options.StatusBarCtrl) { win.StatusBarCtrl = options.StatusBarCtrl; }
   if (options.Intl) { win.Intl = options.Intl; }
@@ -296,9 +307,9 @@ function lastResponse(source) {
 }
 
 {
-  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
+  const page = residentPage({ main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: false, bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept');
 }
 
@@ -1093,41 +1104,43 @@ function viewPage(options) {
   };
   const menu = () => posts.filter(m => m.type === 'mzd-tweaks-native-render').pop().menu;
   const sets = () => posts.filter(m => m.type === 'mzd-tweaks-request' && m.action === 'set').map(m => m.payload);
-  return { posts, status, respond, select, dialogSelect, lastDialog, notes, input, menu, sets, readyCalls: () => readyCalls };
+  return { win, posts, status, respond, select, dialogSelect, lastDialog, notes, input, menu, sets, readyCalls: () => readyCalls };
 }
 
 {
   const page = viewPage();
   page.respond({ statusbar_date: false });
-  assert.equal(page.menu().rows[7].label, 'Date in status bar');
-  assert.equal(page.menu().rows[7].checked, false, 'the date is off by default');
-  page.select(7);
+  assert.equal(page.menu().rows[8].label, 'Date in status bar');
+  assert.equal(page.menu().rows[8].checked, false, 'the date is off by default');
+  page.select(8);
   assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: true }], 'switching the date on saves true');
 }
 
 {
   const page = viewPage();
   page.respond({ bluetooth_notification: true });
-  assert.equal(page.menu().rows[8].label, 'Bluetooth connection notification');
-  assert.equal(page.menu().rows[8].checked, true, 'the bluetooth notification is on by default');
-  page.select(8);
+  assert.equal(page.menu().rows[9].label, 'Bluetooth connection notification');
+  assert.equal(page.menu().rows[9].checked, true, 'the bluetooth notification is on by default');
+  page.select(9);
   assert.deepEqual(page.sets(), [{ key: 'bluetooth_notification', value: false }], 'switching bluetooth notification off saves false');
 }
 
 {
   const page = viewPage();
   assert.deepEqual(page.posts.map(m => m.type + ':' + m.action), ['mzd-tweaks-request:get'], 'the view asks the resident for the settings');
-  page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, audio_order_custom: false });
+  page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, main_menu_order_custom: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_size_menu', 'main_menu_coins_glow', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'bluetooth_notification', 'theme_menu', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons size', 'Main menu icons glow', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Bluetooth connection notification', 'Theme', 'Entertainment menu order']);
-  assert.equal(menu.rows[2].detail, 'Default');
-  assert.equal(menu.rows[2].caret, true);
-  assert.equal(menu.rows[9].detail, 'Red');
-  assert.equal(menu.rows[9].caret, true);
-  assert.equal(menu.rows[10].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date', 'bluetooth_notification', 'theme_menu', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Bluetooth connection notification', 'Theme', 'Entertainment menu order']);
+  assert.equal(menu.rows[3].detail, 'Default');
+  assert.equal(menu.rows[3].caret, true);
+  assert.equal(menu.rows[4].detail, 'Default', 'main menu order detail shows Default when off');
+  assert.equal(menu.rows[4].caret, true);
+  assert.equal(menu.rows[10].detail, 'Red');
   assert.equal(menu.rows[10].caret, true);
+  assert.equal(menu.rows[11].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[11].caret, true);
 
   // Toggle flat layout
   page.select(1);
@@ -1140,7 +1153,7 @@ function viewPage(options) {
   assert.equal(page.menu().rows[1].checked, false);
 
   // Open the Coin size subpage
-  page.select(2);
+  page.select(3);
   const sizeMenu = page.menu();
   assert.equal(sizeMenu.title, 'Main menu icons size');
   assert.equal(sizeMenu.rows.length, 3);
@@ -1155,26 +1168,78 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_size', value: 80 });
   page.respond({ main_menu_coins_size: 80 });
-  assert.equal(page.menu().rows[2].detail, 'Small');
+  assert.equal(page.menu().rows[3].detail, 'Small');
 
-  page.select(5);
+  page.select(6);
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: false });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: false, short_delay: false });
-  assert.equal(page.menu().rows[5].checked, false);
-  page.select(5);
+  assert.equal(page.menu().rows[6].checked, false);
+  page.select(6);
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
-  page.select(3);
+  page.select(2);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_glow', value: false });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: false, list_loop: false, list_beep: true, short_delay: false });
-  assert.equal(page.menu().rows[3].checked, false);
-  page.select(3);
+  assert.equal(page.menu().rows[2].checked, false);
+  page.select(2);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_glow', value: true });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: true, short_delay: false });
   page.select(0);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
+  // Open the Main menu order subpage
+  page.win.parent.framework = {
+    localize: {
+      getLocStr(app, id) {
+        const dict = {
+          Applications: 'Aplikacje',
+          Entertainment: 'Rozrywka',
+          Communication: 'Komunikacja',
+          NavigationTitle: 'Nawigacja',
+          Settings: 'Ustawienia'
+        };
+        return dict[id] || id;
+      }
+    }
+  };
+  page.select(4);
+  const mmMenu = page.menu();
+  assert.equal(mmMenu.title, 'Main Menu icons order');
+  assert.equal(mmMenu.rows.length, 7);
+  assert.equal(mmMenu.rows[0].key, 'main_menu_order_custom');
+  assert.equal(mmMenu.rows[0].itemStyle, 'styleOnOff');
+  assert.equal(mmMenu.rows[0].checked, false);
+  assert.equal(mmMenu.rows[1].key, 'main_menu_reorder_hint');
+  assert.equal(mmMenu.rows[1].disabled, true);
+  assert.deepEqual(mmMenu.rows.slice(2).map(r => r.label), ['Aplikacje', 'Rozrywka', 'Komunikacja', 'Nawigacja', 'Ustawienia'], 'main menu labels use JCI system translations');
+  assert(mmMenu.rows.slice(2).every(r => r.disabled === true), 'main menu items disabled when custom is off');
+
+  // Enable custom main menu order, reorder Applications down, and leave to auto-save
+  page.select(0);
+  assert.deepEqual(page.sets().pop(), { key: 'main_menu_order_custom', value: true });
+  page.respond({ main_menu_order_custom: true });
+  assert(page.menu().rows.slice(2).every(r => r.disabled === false), 'main menu items enabled');
+  page.select(2);
+  assert.equal(page.menu().rows[2].checked, true);
+  page.input('rotateRight', 'step');
+  assert.equal(page.menu().rows[3].key, 'mm_main_menu_app', 'Applications moved to second slot');
+  page.input('back', 'release');
+  page.input('back', 'release');
+  const mmOrderSaves = page.sets().filter(s => s.key === 'main_menu_order');
+  assert.equal(mmOrderSaves.length, 1, 'leaving main_menu_order subpage auto-saved order');
+  assert.deepEqual(mmOrderSaves[0].value, {
+    main_menu_ent: 0,
+    main_menu_app: 1,
+    main_menu_com: 2,
+    main_menu_nav: 3,
+    main_menu_set: 4
+  });
+  page.respond({ main_menu_order_custom: true, main_menu_order: mmOrderSaves[0].value });
+  assert.equal(page.menu().rows[4].detail, 'Custom', 'main menu order detail shows Custom');
+  page.notes.length = 0;
+  delete page.win.parent.framework;
+
   // Open the Theme subpage
-  page.select(9);
+  page.select(10);
   const themeMenu = page.menu();
   assert.equal(themeMenu.title, 'Theme');
   assert.equal(themeMenu.rows.length, 9);
@@ -1187,10 +1252,10 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'theme', value: 'blue' });
   page.respond({ theme: 'blue' });
-  assert.equal(page.menu().rows[9].detail, 'Blue');
+  assert.equal(page.menu().rows[10].detail, 'Blue');
 
   // Open the Entertainment menu order subpage
-  page.select(10);
+  page.select(11);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1304,7 +1369,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(10);
+  page.select(11);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1312,7 +1377,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(10);
+  page.select(11);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1367,11 +1432,12 @@ function viewPage(options) {
   for (const lang of langs) {
     const dict = registeredI18n.languages[lang];
     assert(dict.settings_saved && dict.settings_saved.length > 0, 'settings_saved present in ' + lang);
-    assert(dict.audio_order_custom && dict.audio_order_custom.length > 0, 'audio_order_custom present in ' + lang);
-    assert(dict.audio_order_hint && dict.audio_order_hint.length > 0, 'audio_order_hint present in ' + lang);
+    assert(dict.enable_cusom_order && dict.enable_cusom_order.length > 0, 'enable_cusom_order present in ' + lang);
+    assert(dict.custom_order_hint && dict.custom_order_hint.length > 0, 'custom_order_hint present in ' + lang);
     assert(dict.default && dict.default.length > 0, 'default present in ' + lang);
     assert(dict.custom && dict.custom.length > 0, 'custom present in ' + lang);
     assert(dict.audio_order_title && dict.audio_order_title.length > 0, 'audio_order_title present in ' + lang);
+    assert(dict.main_menu_order_title && dict.main_menu_order_title.length > 0, 'main_menu_order_title present in ' + lang);
     assert(dict.main_menu_coins_glow && dict.main_menu_coins_glow.length > 0, 'main_menu_coins_glow present in ' + lang);
     assert(dict.main_menu_flat_layout && dict.main_menu_flat_layout.length > 0, 'main_menu_flat_layout present in ' + lang);
     assert(dict.main_menu_coins_size && dict.main_menu_coins_size.length > 0, 'main_menu_coins_size present in ' + lang);
@@ -1862,6 +1928,107 @@ function viewPage(options) {
   page.win.mzdTweaks.bluetooth_notification = true;
   fwCommon.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
   assert.equal(ownCalls.length, 2, 'own-property hook passes BT connection SBNs when enabled');
+}
+
+// MainMenuCtrl custom order runtime test: slot class swapping, icon label, selectCallback remapping, and left-to-right navigation
+{
+  const slots = ['App', 'Ent', 'Com', 'Nav', 'Set'].map(p => ({
+    prefix: p,
+    className: 'MainMenuCtrl' + p + 'Div',
+    children: [
+      { className: 'MainMenuCtrl' + p + 'Normal' },
+      { className: 'MainMenuCtrl' + p + 'Focus' }
+    ]
+  }));
+  const iconNameEl = { textContent: 'Applications' };
+  const rootEl = {
+    getElementsByClassName(cls) {
+      if (cls === 'MainMenuCtrlIconName') return [iconNameEl];
+      const m = cls.match(/^MainMenuCtrl(App|Ent|Com|Nav|Set)Div$/);
+      if (m) return slots.filter(s => s.prefix === m[1]);
+      return [];
+    }
+  };
+  const sentEvents = [];
+  let currentApp = 'system';
+  let currentCtxt = 'HomeScreen';
+  function FakeMainMenuCtrl() {
+    this._focus = 0;
+    this.divElt = rootEl;
+  }
+  FakeMainMenuCtrl.prototype.init = function () {};
+  FakeMainMenuCtrl.prototype._getFocus = function () { return this._focus; };
+  FakeMainMenuCtrl.prototype._setFocus = function (idx) {
+    this._focus = idx;
+    iconNameEl.textContent = ['Applications', 'Entertainment', 'Communication', 'Navigation', 'Settings'][idx];
+  };
+  FakeMainMenuCtrl.prototype._setHighlight = function (idx) {
+    // Simulate OEM _setHighlight overwriting .MainMenuCtrlIconName after _setFocus
+    iconNameEl.textContent = ['Applications', 'Entertainment', 'Communication', 'Navigation', 'Settings'][idx];
+  };
+  FakeMainMenuCtrl.prototype._offsetFocus = function (dir) {
+    const d = (dir === -1 || dir === 'left') ? -1 : (dir === 1 || dir === 'right') ? 1 : 0;
+    const next = Math.max(0, Math.min(4, this._focus + d));
+    this._setFocus(next);
+    this._setHighlight(next);
+  };
+
+  const mockFw = {
+    getCurrentApp() { return currentApp; },
+    getCurrCtxtId() { return currentCtxt; },
+    sendEventToMmui(uiaId, eventId, params) {
+      sentEvents.push({ uiaId, eventId, params });
+    },
+    localize: {
+      getLocStr(app, id) {
+        return { Applications: 'Aplikacje', Entertainment: 'Rozrywka', Communication: 'Komunikacja', NavigationTitle: 'Nawigacja', Settings: 'Ustawienia' }[id] || id;
+      }
+    }
+  };
+  const page = residentPage({
+    main_menu_order_custom: true,
+    main_menu_order: {
+      main_menu_set: 0,
+      main_menu_nav: 1,
+      main_menu_com: 2,
+      main_menu_ent: 3,
+      main_menu_app: 4
+    }
+  }, {
+    MainMenuCtrl: FakeMainMenuCtrl,
+    framework: mockFw
+  });
+
+  // Override document.getElementsByClassName for MainMenuCtrl root lookup
+  const ctrl = new page.win.MainMenuCtrl();
+  ctrl.init();
+
+  // Slot 0 (AppDiv) now holds Set icons; Slot 4 (SetDiv) holds App icons
+  assert.equal(slots[0].children[0].className, 'MainMenuCtrlSetNormal', 'slot 0 normal icon swapped to Set');
+  assert.equal(slots[0].children[1].className, 'MainMenuCtrlSetFocus', 'slot 0 focus icon swapped to Set');
+  assert.equal(slots[4].children[0].className, 'MainMenuCtrlAppNormal', 'slot 4 normal icon swapped to App');
+  assert.equal(iconNameEl.textContent, 'Ustawienia', 'focused slot 0 shows localized Settings label');
+
+  // Arrow navigation moves left-to-right in visual order (0 -> 1 -> 2)
+  ctrl._offsetFocus(1);
+  assert.equal(ctrl._getFocus(), 1);
+  assert.equal(iconNameEl.textContent, 'Nawigacja', 'slot 1 shows localized Navigation label');
+
+  // sendEventToMmui on HomeScreen remaps SelectApplications (slot 0) -> SelectSettings, SelectEntertainment (slot 1) -> SelectNavigation
+  page.win.framework.sendEventToMmui('system', 'SelectApplications', { from: 'touch' });
+  assert.deepEqual(sentEvents[0], { uiaId: 'system', eventId: 'SelectSettings', params: { from: 'touch' } });
+  page.win.framework.sendEventToMmui('system', 'SelectEntertainment');
+  assert.deepEqual(sentEvents[1], { uiaId: 'system', eventId: 'SelectNavigation', params: undefined });
+
+  // Outside HomeScreen, SelectApplications is not remapped
+  currentCtxt = 'Applications';
+  page.win.framework.sendEventToMmui('system', 'SelectApplications');
+  assert.deepEqual(sentEvents[2], { uiaId: 'system', eventId: 'SelectApplications', params: undefined });
+
+  // _setHighlight restores localized label even after OEM overwrite
+  currentCtxt = 'HomeScreen';
+  ctrl._setHighlight(0);
+  assert.equal(iconNameEl.textContent, 'Ustawienia', '_setHighlight restores localized label after OEM overwrite');
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

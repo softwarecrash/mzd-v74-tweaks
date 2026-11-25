@@ -124,17 +124,25 @@
         { id: 'audio_tv', audioSourceId: 'TV', text1Id: 'TVItem', defaultLabel: 'TV', hardwareDependent: true }
     ];
 
-    function getAudioSourceLabel(source) {
+    var MAIN_MENU_ITEMS = [
+        { id: 'main_menu_app', text1Id: 'Applications', defaultLabel: 'Applications' },
+        { id: 'main_menu_ent', text1Id: 'Entertainment', defaultLabel: 'Entertainment' },
+        { id: 'main_menu_com', text1Id: 'Communication', defaultLabel: 'Communication' },
+        { id: 'main_menu_nav', text1Id: 'NavigationTitle', defaultLabel: 'Navigation' },
+        { id: 'main_menu_set', text1Id: 'Settings', defaultLabel: 'Settings' }
+    ];
+
+    function getJciSystemLabel(item) {
         try {
             var fw = (window.parent && window.parent.framework) || window.framework;
             if (fw && fw.localize && typeof fw.localize.getLocStr === 'function') {
-                var localized = fw.localize.getLocStr('system', source.text1Id);
-                if (localized && typeof localized === 'string' && localized !== source.text1Id) {
+                var localized = fw.localize.getLocStr('system', item.text1Id);
+                if (localized && typeof localized === 'string' && localized !== item.text1Id) {
                     return localized;
                 }
             }
         } catch (ignore) {}
-        return source.defaultLabel;
+        return item.defaultLabel;
     }
 
     function isAudioSourceAvailable(source) {
@@ -165,179 +173,237 @@
         return true;
     }
 
-    var currentOrder = null;
-    var savedOrder = null;
-    var pendingOrderSave = null;
-    var activeReorderId = null;
+    function createOrderPage(opts) {
+        var currentOrder = null;
+        var savedOrder = null;
+        var pendingOrderSave = null;
+        var activeReorderId = null;
+        var allItems = opts.allItems;
 
-    function hasOrderChanged() {
-        if (!currentOrder || !savedOrder || currentOrder.length !== savedOrder.length) {
-            return false;
-        }
-        for (var i = 0; i < currentOrder.length; i++) {
-            if (currentOrder[i].id !== savedOrder[i]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function initCurrentOrder(state) {
-        var available = [], i, src;
-        for (i = 0; i < AUDIO_SOURCES.length; i++) {
-            src = AUDIO_SOURCES[i];
-            if (isAudioSourceAvailable(src)) {
-                available.push(src);
-            }
-        }
-        available.sort(function (a, b) {
-            var valA = (state && typeof state['audio_order.' + a.id] === 'number') ? state['audio_order.' + a.id] :
-                (state && state.audio_order && typeof state.audio_order[a.id] === 'number' ? state.audio_order[a.id] : AUDIO_SOURCES.indexOf(a));
-            var valB = (state && typeof state['audio_order.' + b.id] === 'number') ? state['audio_order.' + b.id] :
-                (state && state.audio_order && typeof state.audio_order[b.id] === 'number' ? state.audio_order[b.id] : AUDIO_SOURCES.indexOf(b));
-            return valA - valB;
-        });
-        currentOrder = available;
-        savedOrder = [];
-        for (i = 0; i < available.length; i++) {
-            savedOrder.push(available[i].id);
-        }
-    }
-
-    var audioOrderPage = {
-        id: 'audio_order',
-        title: function (tr) { return tr('audio_order_title', 'Entertainment menu order'); },
-        entries: function (api) {
-            var state = api.state() || {};
-            var tr = api.t;
-            var isCustom = !!state.audio_order_custom;
-            if (!isCustom) {
-                activeReorderId = null;
-            }
-            if (!currentOrder) {
-                initCurrentOrder(state);
-            }
-
-            var rows = [
-                {
-                    key: 'audio_order_custom',
-                    type: 'bool',
-                    label: tr('audio_order_custom', 'Enable custom order'),
-                    defaultValue: false
-                },
-                {
-                    key: 'reorder_hint',
-                    disabled: true,
-                    image1: 'common/images/icons/IcnUmpInfo_Ds.png',
-                    label: tr('audio_order_hint', 'Press knob and rotate to change order')
-                }
-            ];
-
-            function makeSelect(srcId) {
-                return function (a) {
-                    if (!isCustom) { return; }
-                    if (activeReorderId === srcId) {
-                        activeReorderId = null;
-                    } else {
-                        activeReorderId = srcId;
-                    }
-                    a.render();
-                };
-            }
-
-            for (var j = 0; j < currentOrder.length; j++) {
-                var item = currentOrder[j];
-                rows.push({
-                    key: 'src_' + item.id,
-                    label: getAudioSourceLabel(item),
-                    checkable: true,
-                    checked: (activeReorderId === item.id),
-                    disabled: !isCustom,
-                    select: makeSelect(item.id)
-                });
-            }
-
-            return rows;
-        },
-        onLeave: function (api) {
-            activeReorderId = null;
-            var state = api.state() || {};
-            var isCustom = !!state.audio_order_custom;
-            if (isCustom && hasOrderChanged()) {
-                var orderMap = {};
-                var assigned = {};
-                var nextIdx = 0;
-                for (var k = 0; k < currentOrder.length; k++) {
-                    orderMap[currentOrder[k].id] = nextIdx++;
-                    assigned[currentOrder[k].id] = true;
-                }
-                for (var j = 0; j < AUDIO_SOURCES.length; j++) {
-                    var remainingSrc = AUDIO_SOURCES[j];
-                    if (!assigned[remainingSrc.id]) {
-                        orderMap[remainingSrc.id] = nextIdx++;
-                    }
-                }
-                var newSavedOrder = [];
-                for (var i = 0; i < currentOrder.length; i++) {
-                    newSavedOrder.push(currentOrder[i].id);
-                }
-                pendingOrderSave = newSavedOrder;
-                api.save('audio_order', orderMap);
-            }
-        },
-        onInput: function (action, phase, api) {
-            var state = api.state() || {};
-            var isCustom = !!state.audio_order_custom;
-            if (!isCustom) {
-                activeReorderId = null;
+        function hasOrderChanged() {
+            if (!currentOrder || !savedOrder || currentOrder.length !== savedOrder.length) {
                 return false;
             }
-            if (activeReorderId && currentOrder) {
-                var idx = -1;
-                for (var k = 0; k < currentOrder.length; k++) {
-                    if (currentOrder[k].id === activeReorderId) {
-                        idx = k;
-                        break;
-                    }
+            for (var i = 0; i < currentOrder.length; i++) {
+                if (currentOrder[i].id !== savedOrder[i]) {
+                    return true;
                 }
-                if (idx < 0) {
+            }
+            return false;
+        }
+
+        function initCurrentOrder(state) {
+            var available = [], i, item;
+            for (i = 0; i < allItems.length; i++) {
+                item = allItems[i];
+                if (!opts.isAvailable || opts.isAvailable(item)) {
+                    available.push(item);
+                }
+            }
+            available.sort(function (a, b) {
+                var orderMap = state && state[opts.orderKey];
+                var valA = (state && typeof state[opts.orderKey + '.' + a.id] === 'number') ? state[opts.orderKey + '.' + a.id] :
+                    (orderMap && typeof orderMap[a.id] === 'number' ? orderMap[a.id] : allItems.indexOf(a));
+                var valB = (state && typeof state[opts.orderKey + '.' + b.id] === 'number') ? state[opts.orderKey + '.' + b.id] :
+                    (orderMap && typeof orderMap[b.id] === 'number' ? orderMap[b.id] : allItems.indexOf(b));
+                return valA - valB;
+            });
+            currentOrder = available;
+            savedOrder = [];
+            for (i = 0; i < available.length; i++) {
+                savedOrder.push(available[i].id);
+            }
+        }
+
+        var page = {
+            id: opts.pageId,
+            title: function (tr) { return tr(opts.titleKey, opts.defaultTitle); },
+            entries: function (api) {
+                var state = api.state() || {};
+                var tr = api.t;
+                var isCustom = !!state[opts.customKey];
+                if (!isCustom) {
+                    activeReorderId = null;
+                }
+                if (!currentOrder) {
+                    initCurrentOrder(state);
+                }
+
+                var rows = [
+                    {
+                        key: opts.customKey,
+                        type: 'bool',
+                        label: tr('enable_cusom_order', 'Enable custom order'),
+                        defaultValue: false
+                    },
+                    {
+                        key: opts.hintKey || 'reorder_hint',
+                        disabled: true,
+                        image1: 'common/images/icons/IcnUmpInfo_Ds.png',
+                        label: tr('custom_order_hint', 'Press knob and rotate to change order')
+                    }
+                ];
+
+                function makeSelect(itemId) {
+                    return function (a) {
+                        if (!isCustom) { return; }
+                        if (activeReorderId === itemId) {
+                            activeReorderId = null;
+                        } else {
+                            activeReorderId = itemId;
+                        }
+                        a.render();
+                    };
+                }
+
+                for (var j = 0; j < currentOrder.length; j++) {
+                    var item = currentOrder[j];
+                    rows.push({
+                        key: (opts.rowPrefix || 'src_') + item.id,
+                        label: getJciSystemLabel(item),
+                        checkable: true,
+                        checked: (activeReorderId === item.id),
+                        disabled: !isCustom,
+                        select: makeSelect(item.id)
+                    });
+                }
+
+                return rows;
+            },
+            onLeave: function (api) {
+                activeReorderId = null;
+                var state = api.state() || {};
+                var isCustom = !!state[opts.customKey];
+                if (isCustom && hasOrderChanged()) {
+                    var orderMap = {};
+                    var assigned = {};
+                    var nextIdx = 0;
+                    for (var k = 0; k < currentOrder.length; k++) {
+                        orderMap[currentOrder[k].id] = nextIdx++;
+                        assigned[currentOrder[k].id] = true;
+                    }
+                    for (var j = 0; j < allItems.length; j++) {
+                        var remaining = allItems[j];
+                        if (!assigned[remaining.id]) {
+                            orderMap[remaining.id] = nextIdx++;
+                        }
+                    }
+                    var newSavedOrder = [];
+                    for (var i = 0; i < currentOrder.length; i++) {
+                        newSavedOrder.push(currentOrder[i].id);
+                    }
+                    pendingOrderSave = newSavedOrder;
+                    api.save(opts.orderKey, orderMap);
+                }
+            },
+            onInput: function (action, phase, api) {
+                var state = api.state() || {};
+                var isCustom = !!state[opts.customKey];
+                if (!isCustom) {
                     activeReorderId = null;
                     return false;
                 }
-                var isDown = (action === 'rotateRight' || action === 'down');
-                var isUp = (action === 'rotateLeft' || action === 'up');
-                if (isDown || isUp) {
-                    if (phase === 'step' || phase === 'press') {
-                        var newIdx = idx;
-                        if (isDown) {
-                            if (idx < currentOrder.length - 1) {
-                                newIdx = idx + 1;
-                            }
-                        } else if (isUp) {
-                            if (idx > 0) {
-                                newIdx = idx - 1;
-                            }
-                        }
-                        if (newIdx !== idx) {
-                            var moved = currentOrder.splice(idx, 1)[0];
-                            currentOrder.splice(newIdx, 0, moved);
-                            api.render(2 + newIdx);
+                if (activeReorderId && currentOrder) {
+                    var idx = -1;
+                    for (var k = 0; k < currentOrder.length; k++) {
+                        if (currentOrder[k].id === activeReorderId) {
+                            idx = k;
+                            break;
                         }
                     }
-                    return true;
-                }
-                if (action === 'back') {
-                    if (phase === 'step' || phase === 'release') {
+                    if (idx < 0) {
                         activeReorderId = null;
-                        api.render();
+                        return false;
                     }
-                    return true;
+                    var isDown = (action === 'rotateRight' || action === 'down');
+                    var isUp = (action === 'rotateLeft' || action === 'up');
+                    if (isDown || isUp) {
+                        if (phase === 'step' || phase === 'press') {
+                            var newIdx = idx;
+                            if (isDown) {
+                                if (idx < currentOrder.length - 1) {
+                                    newIdx = idx + 1;
+                                }
+                            } else if (isUp) {
+                                if (idx > 0) {
+                                    newIdx = idx - 1;
+                                }
+                            }
+                            if (newIdx !== idx) {
+                                var moved = currentOrder.splice(idx, 1)[0];
+                                currentOrder.splice(newIdx, 0, moved);
+                                api.render(2 + newIdx);
+                            }
+                        }
+                        return true;
+                    }
+                    if (action === 'back') {
+                        if (phase === 'step' || phase === 'release') {
+                            activeReorderId = null;
+                            api.render();
+                        }
+                        return true;
+                    }
+                    return false;
                 }
                 return false;
             }
-            return false;
-        }
-    };
+        };
+
+        return {
+            page: page,
+            reset: function () {
+                currentOrder = null;
+                savedOrder = null;
+                activeReorderId = null;
+            },
+            onState: function (state, data, api) {
+                if (state && !state[opts.customKey]) {
+                    activeReorderId = null;
+                }
+                if (pendingOrderSave && data) {
+                    var isPending = data.pending && data.pending.indexOf(opts.orderKey) >= 0;
+                    if (!data.saving && !isPending) {
+                        if (!data.error) {
+                            savedOrder = pendingOrderSave;
+                            if (sdk && typeof sdk.notify === 'function') {
+                                sdk.notify(api.t('settings_saved', 'Settings saved'), false);
+                            }
+                        }
+                        pendingOrderSave = null;
+                    }
+                } else if (data && data.state && data.state[opts.orderKey] && currentOrder && !activeReorderId) {
+                    savedOrder = [];
+                    for (var i = 0; i < currentOrder.length; i++) {
+                        savedOrder.push(currentOrder[i].id);
+                    }
+                }
+            }
+        };
+    }
+
+    var audioOrderCtrl = createOrderPage({
+        pageId: 'audio_order',
+        titleKey: 'audio_order_title',
+        defaultTitle: 'Entertainment menu order',
+        customKey: 'audio_order_custom',
+        orderKey: 'audio_order',
+        hintKey: 'reorder_hint',
+        rowPrefix: 'src_',
+        allItems: AUDIO_SOURCES,
+        isAvailable: isAudioSourceAvailable
+    });
+
+    var mainMenuOrderCtrl = createOrderPage({
+        pageId: 'main_menu_order',
+        titleKey: 'main_menu_order_title',
+        defaultTitle: 'Main Menu icons order',
+        customKey: 'main_menu_order_custom',
+        orderKey: 'main_menu_order',
+        hintKey: 'main_menu_reorder_hint',
+        rowPrefix: 'mm_',
+        allItems: MAIN_MENU_ITEMS
+    });
 
     View.create(sdk, {
         prefix: 'mzd-tweaks',
@@ -360,30 +426,15 @@
         },
         title: function (tr) { return tr('title', 'MZD Tweaks'); },
         onState: function (state, data, api) {
-            if (state && !state.audio_order_custom) {
-                activeReorderId = null;
-            }
-            if (pendingOrderSave && data) {
-                var isPending = data.pending && data.pending.indexOf('audio_order') >= 0;
-                if (!data.saving && !isPending) {
-                    if (!data.error) {
-                        savedOrder = pendingOrderSave;
-                        if (sdk && typeof sdk.notify === 'function') {
-                            sdk.notify(api.t('settings_saved', 'Settings saved'), false);
-                        }
-                    }
-                    pendingOrderSave = null;
-                }
-            } else if (data && data.state && data.state.audio_order && currentOrder && !activeReorderId) {
-                savedOrder = [];
-                for (var i = 0; i < currentOrder.length; i++) {
-                    savedOrder.push(currentOrder[i].id);
-                }
-            }
+            audioOrderCtrl.onState(state, data, api);
+            mainMenuOrderCtrl.onState(state, data, api);
         },
         entries: function (state, tr) {
             state = state || {};
             var customLabel = state.audio_order_custom ?
+                tr('custom', 'Custom') :
+                tr('default', 'Default');
+            var mainMenuCustomLabel = state.main_menu_order_custom ?
                 tr('custom', 'Custom') :
                 tr('default', 'Default');
             return [
@@ -396,6 +447,7 @@
                     defaultValue: 'ellipse',
                     label: tr('main_menu_flat_layout', 'Main menu flat layout')
                 },
+                { key: 'main_menu_coins_glow', type: 'bool', label: tr('main_menu_coins_glow', 'Main menu icons glow'), defaultValue: true },
                 {
                     key: 'main_menu_coins_size_menu',
                     label: tr('main_menu_coins_size', 'Main menu icons size'),
@@ -420,7 +472,16 @@
                         });
                     }
                 },
-                { key: 'main_menu_coins_glow', type: 'bool', label: tr('main_menu_coins_glow', 'Main menu icons glow'), defaultValue: true },
+                {
+                    key: 'main_menu_order_menu',
+                    label: tr('main_menu_order_title', 'Main Menu icons order'),
+                    detail: mainMenuCustomLabel,
+                    caret: true,
+                    select: function (api) {
+                        mainMenuOrderCtrl.reset();
+                        api.openPage(mainMenuOrderCtrl.page);
+                    }
+                },
                 { key: 'list_loop', type: 'bool', label: tr('list_loop', 'List menu loop') },
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'List menu shorter delay') },
@@ -456,10 +517,8 @@
                     detail: customLabel,
                     caret: true,
                     select: function (api) {
-                        currentOrder = null;
-                        savedOrder = null;
-                        activeReorderId = null;
-                        api.openPage(audioOrderPage);
+                        audioOrderCtrl.reset();
+                        api.openPage(audioOrderCtrl.page);
                     }
                 }
             ];

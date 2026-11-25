@@ -6,10 +6,18 @@ window.mzdTweaks = {
     "short_delay": false,
     "statusbar_date": false,
     "bluetooth_notification": true,
+    "main_menu_order_custom": false,
     "audio_order_custom": false,
     "main_menu_coins_layout": "ellipse",
     "main_menu_coins_size": 100,
     "theme": "red",
+    "main_menu_order": {
+        "main_menu_app": 0,
+        "main_menu_ent": 1,
+        "main_menu_com": 2,
+        "main_menu_nav": 3,
+        "main_menu_set": 4
+    },
     "audio_order": {
         "audio_traffic_info": 0,
         "audio_fm_radio": 1,

@@ -981,10 +981,10 @@ cat << 'FOOTER_END' >> "$PREVIEW_HTML"
                     } else {
                         if (data.payload && data.payload.key !== undefined) {
                             settings[data.payload.key] = data.payload.value;
-                            if (data.payload.key === 'audio_order' && typeof data.payload.value === 'object' && data.payload.value !== null) {
+                            if ((data.payload.key === 'audio_order' || data.payload.key === 'main_menu_order') && typeof data.payload.value === 'object' && data.payload.value !== null) {
                                 for (var aok in data.payload.value) {
                                     if (Object.prototype.hasOwnProperty.call(data.payload.value, aok)) {
-                                        settings['audio_order.' + aok] = data.payload.value[aok];
+                                        settings[data.payload.key + '.' + aok] = data.payload.value[aok];
                                     }
                                 }
                             }

@@ -485,3 +485,31 @@ body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlSetHighlight {
     left: 498.5px !important;
 }
 
+/* ==========================================================================
+   5. Main Menu Custom Order (Slot-agnostic inner icon sizing)
+   ========================================================================== */
+
+body.mzd-main-menu-custom .MainMenuCtrlAppDiv > div,
+body.mzd-main-menu-custom .MainMenuCtrlEntDiv > div,
+body.mzd-main-menu-custom .MainMenuCtrlComDiv > div,
+body.mzd-main-menu-custom .MainMenuCtrlNavDiv > div,
+body.mzd-main-menu-custom .MainMenuCtrlSetDiv > div {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+body.mzd-main-menu-custom .MainMenuCtrlAppDiv > div[class*="Normal"],
+body.mzd-main-menu-custom .MainMenuCtrlEntDiv > div[class*="Normal"],
+body.mzd-main-menu-custom .MainMenuCtrlComDiv > div[class*="Normal"],
+body.mzd-main-menu-custom .MainMenuCtrlNavDiv > div[class*="Normal"],
+body.mzd-main-menu-custom .MainMenuCtrlSetDiv > div[class*="Normal"],
+body.mzd-main-menu-custom:not([class*="mzd-theme-"]) .MainMenuCtrlAppDiv > div,
+body.mzd-main-menu-custom:not([class*="mzd-theme-"]) .MainMenuCtrlEntDiv > div,
+body.mzd-main-menu-custom:not([class*="mzd-theme-"]) .MainMenuCtrlComDiv > div,
+body.mzd-main-menu-custom:not([class*="mzd-theme-"]) .MainMenuCtrlNavDiv > div,
+body.mzd-main-menu-custom:not([class*="mzd-theme-"]) .MainMenuCtrlSetDiv > div {
+    background-size: contain !important;
+    background-position: center bottom !important;
+    background-repeat: no-repeat !important;
+}
+
