@@ -1126,7 +1126,7 @@
         el("dialog-body").className="";
         text("dialog-title","Restart recommended");el("dialog-dot").className="dot installed";
         text("dialog-state","Changes were made during this session.");
-        text("dialog-description","Restart the CMU to activate all changes.\nSelect Restart now, or Exit to restart later.");
+        text("dialog-description","Restart the CMU to apply all changes.\nChoose Restart to reboot now, or Exit to restart later by holding NAV + MUTE.");
         clear(el("dialog-meta"));text("dialog-output","");
         text("back","Exit");text("action","Restart");
         show("back",true);show("action",true);show("result-ok",false);show("overlay",true);
