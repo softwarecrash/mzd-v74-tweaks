@@ -56,12 +56,22 @@
     };
 
     var MAIN_MENU_ITEMS = [
-        { key: 'main_menu_app', prefix: 'App', locKey: 'Applications', eventId: 'SelectApplications', defaultLabel: 'Applications', defaultIdx: 0 },
-        { key: 'main_menu_ent', prefix: 'Ent', locKey: 'Entertainment', eventId: 'SelectEntertainment', defaultLabel: 'Entertainment', defaultIdx: 1 },
-        { key: 'main_menu_com', prefix: 'Com', locKey: 'Communication', eventId: 'SelectCommunication', defaultLabel: 'Communication', defaultIdx: 2 },
-        { key: 'main_menu_nav', prefix: 'Nav', locKey: 'NavigationTitle', eventId: 'SelectNavigation', defaultLabel: 'Navigation', defaultIdx: 3 },
-        { key: 'main_menu_set', prefix: 'Set', locKey: 'Settings', eventId: 'SelectSettings', defaultLabel: 'Settings', defaultIdx: 4 }
+        { key: 'main_menu_app', prefix: 'App', defaultIdx: 0 },
+        { key: 'main_menu_ent', prefix: 'Ent', defaultIdx: 1 },
+        { key: 'main_menu_com', prefix: 'Com', defaultIdx: 2 },
+        { key: 'main_menu_nav', prefix: 'Nav', defaultIdx: 3 },
+        { key: 'main_menu_set', prefix: 'Set', defaultIdx: 4 }
     ];
+
+    var MAIN_MENU_SLOTS = [
+        { slot: 1, focusTranslateX: 30,  focusTranslateY: -53 },
+        { slot: 2, focusTranslateX: -15, focusTranslateY: -30 },
+        { slot: 3, focusTranslateX: -15, focusTranslateY: -30 },
+        { slot: 4, focusTranslateX: -15, focusTranslateY: -30 },
+        { slot: 5, focusTranslateX: -58, focusTranslateY: -53 }
+    ];
+
+    var MAIN_MENU_Z_ORDER = [1, 2, 3, 4, 0];
 
     var DEFAULT_MAIN_MENU_ORDER = {
         main_menu_app: 0,
@@ -358,6 +368,7 @@
 
         if (body.className !== cls) {
             body.className = cls;
+            recomputeMainMenuHitAreas(findLiveMainMenuCtrl());
         }
     }
 
@@ -420,75 +431,110 @@
         return list;
     }
 
-    function getMainMenuLabel(item) {
-        try {
-            var fw = global.framework || (global.parent && global.parent.framework);
-            if (fw && fw.localize && typeof fw.localize.getLocStr === 'function') {
-                var localized = fw.localize.getLocStr('system', item.locKey);
-                if (localized && typeof localized === 'string' && localized !== item.locKey) {
-                    return localized;
+    function findLiveMainMenuCtrl() {
+        var fw = global.framework || (global.parent && global.parent.framework);
+        var sysApp = fw && typeof fw.getAppInstance === 'function' ? fw.getAppInstance('system') : null;
+        var tmplt = sysApp && sysApp._currentContextTemplate;
+        return (tmplt && (tmplt.mainMenuControl || tmplt.mainMenuCtrl)) || null;
+    }
+
+    function recomputeMainMenuHitAreas(ctrl) {
+        var i;
+        if (!ctrl || !ctrl._coins || typeof ctrl._computeHitAreas !== 'function') { return; }
+        for (i = 0; i < ctrl._coins.length; i++) {
+            ctrl._computeHitAreas(ctrl._coins[i]);
+        }
+    }
+
+    function reorderMainMenuCoins(ctrl) {
+        var ordered, byKey, i, coin, newCoins, slotMeta;
+        if (!ctrl || !ctrl._coins || ctrl._coins.length !== MAIN_MENU_ITEMS.length) {
+            return false;
+        }
+        ordered = getOrderedMainMenuItems();
+        byKey = {};
+        for (i = 0; i < ctrl._coins.length; i++) {
+            coin = ctrl._coins[i];
+            if (coin && coin.key) {
+                byKey[coin.key] = coin;
+            }
+        }
+        newCoins = [];
+        for (i = 0; i < ordered.length; i++) {
+            coin = byKey[ordered[i].prefix];
+            if (!coin) {
+                return false;
+            }
+            slotMeta = MAIN_MENU_SLOTS[i];
+            coin.focusTranslateX = slotMeta.focusTranslateX;
+            coin.focusTranslateY = slotMeta.focusTranslateY;
+            newCoins.push(coin);
+        }
+        for (i = 0; i < newCoins.length; i++) {
+            ctrl._coins[i] = newCoins[i];
+        }
+        return true;
+    }
+
+    function setCoinSlotClass(el, baseCls, numberedPrefix, slotNum) {
+        var cls;
+        if (!el || typeof el.className !== 'string') { return; }
+        cls = el.className
+            .replace(new RegExp('\\b' + baseCls + '\\b', 'g'), '')
+            .replace(new RegExp('\\b' + numberedPrefix + '\\d+\\b', 'g'), '')
+            .replace(/\s+/g, ' ')
+            .replace(/^\s+|\s+$/g, '');
+        cls = cls ? (cls + ' ' + baseCls + ' ' + numberedPrefix + slotNum) : (baseCls + ' ' + numberedPrefix + slotNum);
+        if (el.className !== cls) {
+            el.className = cls;
+        }
+    }
+
+    function syncMainMenuDomOrder(ctrl, reorderDom) {
+        var i, coin, root;
+        if (!ctrl || !ctrl._coins || ctrl._coins.length !== MAIN_MENU_ITEMS.length) { return; }
+        for (i = 0; i < ctrl._coins.length; i++) {
+            coin = ctrl._coins[i];
+            if (!coin) { continue; }
+            setCoinSlotClass(coin.div, 'mzd-coin', 'mzd-coin-', i + 1);
+            setCoinSlotClass(coin.highlight, 'mzd-coin-highlight', 'mzd-coin-highlight-', i + 1);
+        }
+        if (!reorderDom) { return; }
+        root = ctrl.divElt;
+        if (root && typeof root.appendChild === 'function') {
+            for (i = 0; i < ctrl._coins.length; i++) {
+                coin = ctrl._coins[i];
+                if (coin && coin.div) {
+                    if (coin.setHighlightEndBinder && typeof coin.div.removeEventListener === 'function') {
+                        coin.div.removeEventListener('OTransitionEnd', coin.setHighlightEndBinder, false);
+                    }
+                    if (typeof ctrl._setHighlightEnd === 'function') {
+                        coin.setHighlightEndBinder = ctrl._setHighlightEnd.bind(ctrl, i);
+                        if (typeof coin.div.addEventListener === 'function') {
+                            coin.div.addEventListener('OTransitionEnd', coin.setHighlightEndBinder, false);
+                        }
+                    }
                 }
             }
-        } catch (ignoreLoc) {}
-        return item.defaultLabel;
-    }
-
-    var MAIN_MENU_SELECT_EVENTS = {
-        SelectApplications: 0,
-        SelectEntertainment: 1,
-        SelectCommunication: 2,
-        SelectNavigation: 3,
-        SelectSettings: 4
-    };
-
-    function remapMainMenuEvent(uiaId, eventId) {
-        var fw, currApp, currCtxt, slotIdx, ordered;
-        if (!global.mzdTweaks || !global.mzdTweaks.main_menu_order_custom) {
-            return eventId;
-        }
-        if (uiaId !== 'system' || !Object.prototype.hasOwnProperty.call(MAIN_MENU_SELECT_EVENTS, eventId)) {
-            return eventId;
-        }
-        fw = global.framework || (global.parent && global.parent.framework);
-        currApp = fw && typeof fw.getCurrentApp === 'function' ? fw.getCurrentApp() : '';
-        currCtxt = fw && typeof fw.getCurrCtxtId === 'function' ? fw.getCurrCtxtId() : '';
-        if (currApp !== 'system' || currCtxt !== 'HomeScreen') {
-            return eventId;
-        }
-        slotIdx = MAIN_MENU_SELECT_EVENTS[eventId];
-        ordered = getOrderedMainMenuItems();
-        if (slotIdx >= 0 && slotIdx < ordered.length) {
-            return ordered[slotIdx].eventId;
-        }
-        return eventId;
-    }
-
-    function updateMainMenuIconLabel(root, focusIdx, ordered) {
-        var labelEl, text;
-        if (!root || typeof root.getElementsByClassName !== 'function') { return; }
-        if (typeof focusIdx !== 'number' || focusIdx < 0 || focusIdx >= ordered.length) { return; }
-        labelEl = root.getElementsByClassName('MainMenuCtrlIconName')[0];
-        if (labelEl) {
-            text = getMainMenuLabel(ordered[focusIdx]);
-            if ('textContent' in labelEl) {
-                labelEl.textContent = text;
-            } else {
-                labelEl.innerText = text;
+            for (i = 0; i < 3; i++) {
+                coin = ctrl._coins[MAIN_MENU_Z_ORDER[i]];
+                if (coin && coin.highlight) { root.appendChild(coin.highlight); }
             }
+            for (i = 0; i < 3; i++) {
+                coin = ctrl._coins[MAIN_MENU_Z_ORDER[i]];
+                if (coin && coin.div) { root.appendChild(coin.div); }
+            }
+            if (ctrl._coins[4] && ctrl._coins[4].highlight) { root.appendChild(ctrl._coins[4].highlight); }
+            if (ctrl._coins[4] && ctrl._coins[4].div) { root.appendChild(ctrl._coins[4].div); }
+            if (ctrl._coins[0] && ctrl._coins[0].highlight) { root.appendChild(ctrl._coins[0].highlight); }
+            if (ctrl._coins[0] && ctrl._coins[0].div) { root.appendChild(ctrl._coins[0].div); }
+            if (ctrl._iconNameDiv) { root.appendChild(ctrl._iconNameDiv); }
         }
-    }
-
-    function syncMainMenuLabel(ctrl, index) {
-        var doc = global.document, root, idx;
-        if (!global.mzdTweaks || !global.mzdTweaks.main_menu_order_custom) { return; }
-        root = (ctrl && ctrl.divElt) || (doc && typeof doc.getElementsByClassName === 'function' ? doc.getElementsByClassName('MainMenuCtrl')[0] : null);
-        if (!root) { return; }
-        idx = (typeof index === 'number') ? index : (ctrl && typeof ctrl._getFocus === 'function' ? ctrl._getFocus() : -1);
-        updateMainMenuIconLabel(root, idx, getOrderedMainMenuItems());
+        recomputeMainMenuHitAreas(ctrl);
     }
 
     function applyMainMenuOrder(ctrl) {
-        var doc = global.document, body, cls, isCustom, root, ordered, s, slotDiv, children, c, child, childCls, targetPrefix, focusIdx = -1;
+        var doc = global.document, body, cls, isCustom, targetCtrl, prevFocus = -1, hadHighlight = false, i, coin;
         if (!doc) { return; }
         isCustom = !!(global.mzdTweaks && global.mzdTweaks.main_menu_order_custom);
         body = doc.body;
@@ -501,35 +547,32 @@
                 body.className = cls;
             }
         }
-        root = (ctrl && ctrl.divElt) || (typeof doc.getElementsByClassName === 'function' ? doc.getElementsByClassName('MainMenuCtrl')[0] : null);
-        if (!root || typeof root.getElementsByClassName !== 'function') { return; }
-
-        ordered = getOrderedMainMenuItems();
-        for (s = 0; s < MAIN_MENU_ITEMS.length; s++) {
-            slotDiv = root.getElementsByClassName('MainMenuCtrl' + MAIN_MENU_ITEMS[s].prefix + 'Div')[0];
-            if (!slotDiv) { continue; }
-            if (typeof slotDiv.className === 'string' && slotDiv.className.indexOf('MainMenuCtrlCoinFocus') !== -1) {
-                focusIdx = s;
-            }
-            targetPrefix = ordered[s].prefix;
-            children = slotDiv.children || slotDiv.childNodes;
-            if (!children) { continue; }
-            for (c = 0; c < children.length; c++) {
-                child = children[c];
-                if (!child || typeof child.className !== 'string') { continue; }
-                childCls = child.className.replace(/\bMainMenuCtrl(App|Ent|Com|Nav|Set)(Normal|Focus)\b/g, 'MainMenuCtrl' + targetPrefix + '$2');
-                if (child.className !== childCls) {
-                    child.className = childCls;
-                }
+        targetCtrl = ctrl || findLiveMainMenuCtrl();
+        if (!targetCtrl || !targetCtrl._coins || targetCtrl._coins.length !== MAIN_MENU_ITEMS.length) {
+            return;
+        }
+        if (typeof targetCtrl._getFocus === 'function') {
+            prevFocus = targetCtrl._getFocus();
+        }
+        for (i = 0; i < targetCtrl._coins.length; i++) {
+            coin = targetCtrl._coins[i];
+            if (coin && coin.div && typeof coin.div.className === 'string' &&
+                coin.div.className.indexOf('MainMenuCtrlCoinFocus') !== -1) {
+                hadHighlight = true;
+                if (prevFocus < 0) { prevFocus = i; }
             }
         }
-
-        if (isCustom) {
-            if (ctrl && typeof ctrl._getFocus === 'function') {
-                focusIdx = ctrl._getFocus();
+        if (!reorderMainMenuCoins(targetCtrl)) {
+            return;
+        }
+        syncMainMenuDomOrder(targetCtrl, true);
+        if (prevFocus >= 0 && prevFocus < targetCtrl._coins.length) {
+            if (typeof targetCtrl._setFocus === 'function') {
+                targetCtrl._setFocus(prevFocus);
             }
-            if (focusIdx >= 0) {
-                updateMainMenuIconLabel(root, focusIdx, ordered);
+            if (hadHighlight && typeof targetCtrl._setHighlight === 'function') {
+                targetCtrl._fullyHighlightedIndex = null;
+                targetCtrl._setHighlight(prevFocus);
             }
         }
     }
@@ -539,7 +582,7 @@
     };
 
     function hookMainMenu() {
-        var proto, origInit, origSetFocus, origSetHighlight, origOffsetFocus, fw, sysApp, liveCtrl;
+        var proto, origCreateStructure, origOffsetFocus, liveCtrl;
         if (!global.MainMenuCtrl || !global.MainMenuCtrl.prototype) {
             return;
         }
@@ -547,29 +590,12 @@
         if (!proto._mzdTweaksHooked) {
             proto._mzdTweaksHooked = true;
 
-            origInit = proto.init;
-            if (typeof origInit === 'function') {
-                proto.init = function () {
-                    var res = origInit.apply(this, arguments);
-                    applyMainMenuOrder(this);
-                    return res;
-                };
-            }
-
-            origSetFocus = proto._setFocus;
-            if (typeof origSetFocus === 'function') {
-                proto._setFocus = function (index) {
-                    var res = origSetFocus.apply(this, arguments);
-                    syncMainMenuLabel(this, index);
-                    return res;
-                };
-            }
-
-            origSetHighlight = proto._setHighlight;
-            if (typeof origSetHighlight === 'function') {
-                proto._setHighlight = function (index) {
-                    var res = origSetHighlight.apply(this, arguments);
-                    syncMainMenuLabel(this, index);
+            origCreateStructure = proto.createStructure;
+            if (typeof origCreateStructure === 'function') {
+                proto.createStructure = function () {
+                    reorderMainMenuCoins(this);
+                    var res = origCreateStructure.apply(this, arguments);
+                    syncMainMenuDomOrder(this, false);
                     return res;
                 };
             }
@@ -607,12 +633,8 @@
         }
         }
 
-        fw = global.framework || (global.parent && global.parent.framework);
-        sysApp = fw && typeof fw.getAppInstance === 'function' ? fw.getAppInstance('system') : null;
-        liveCtrl = sysApp && sysApp._currentContextTemplate && sysApp._currentContextTemplate.mainMenuCtrl;
-        if (liveCtrl) {
-            applyMainMenuOrder(liveCtrl);
-        }
+        liveCtrl = findLiveMainMenuCtrl();
+        applyMainMenuOrder(liveCtrl);
     }
 
     // 2. List Loop, List Beep, Shorter Delay
@@ -1179,19 +1201,6 @@
                     hookStatusbar();
                 }
                 return origInstantiate.apply(this, arguments);
-            };
-        }
-        if (global.framework && typeof global.framework.sendEventToMmui === 'function' && !global.framework._mzdTweaksSendHooked) {
-            global.framework._mzdTweaksSendHooked = true;
-            var origSendEvent = global.framework.sendEventToMmui;
-            global.framework.sendEventToMmui = function (uiaId, eventId, params) {
-                var mappedEvent = remapMainMenuEvent(uiaId, eventId);
-                if (mappedEvent !== eventId) {
-                    var args = Array.prototype.slice.call(arguments);
-                    args[1] = mappedEvent;
-                    return origSendEvent.apply(this, args);
-                }
-                return origSendEvent.apply(this, arguments);
             };
         }
     }

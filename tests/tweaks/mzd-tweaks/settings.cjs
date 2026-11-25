@@ -86,6 +86,7 @@ function residentPage(boot, options) {
   const document = {
     head: head,
     documentElement: head,
+    body: options.body || null,
     createElement: options.createElement || (() => ({})),
     getElementsByClassName(name) {
       if (name === 'StatusBarCtrlClock') { return options.statusbarElements || []; }
@@ -1930,61 +1931,200 @@ function viewPage(options) {
   assert.equal(ownCalls.length, 2, 'own-property hook passes BT connection SBNs when enabled');
 }
 
-// MainMenuCtrl custom order runtime test: slot class swapping, icon label, selectCallback remapping, and left-to-right navigation
+// MainMenuCtrl custom order runtime test: _coins & DOM reordering, positional classes, native label/selectCallback, and live reset
 {
-  const slots = ['App', 'Ent', 'Com', 'Nav', 'Set'].map(p => ({
-    prefix: p,
-    className: 'MainMenuCtrl' + p + 'Div',
-    children: [
-      { className: 'MainMenuCtrl' + p + 'Normal' },
-      { className: 'MainMenuCtrl' + p + 'Focus' }
-    ]
-  }));
-  const iconNameEl = { textContent: 'Applications' };
-  const rootEl = {
-    getElementsByClassName(cls) {
-      if (cls === 'MainMenuCtrlIconName') return [iconNameEl];
-      const m = cls.match(/^MainMenuCtrl(App|Ent|Com|Nav|Set)Div$/);
-      if (m) return slots.filter(s => s.prefix === m[1]);
-      return [];
-    }
-  };
-  const sentEvents = [];
-  let currentApp = 'system';
-  let currentCtxt = 'HomeScreen';
-  function FakeMainMenuCtrl() {
-    this._focus = 0;
-    this.divElt = rootEl;
+  function makeTestEl(cls) {
+    const el = {
+      className: cls || '',
+      children: [],
+      style: {},
+      offsetLeft: 0,
+      offsetTop: 0,
+      offsetWidth: 142,
+      offsetHeight: 152,
+      _listeners: {},
+      appendChild(child) {
+        const idx = this.children.indexOf(child);
+        if (idx !== -1) this.children.splice(idx, 1);
+        this.children.push(child);
+        return child;
+      },
+      addEventListener(type, fn) {
+        if (!this._listeners[type]) this._listeners[type] = [];
+        this._listeners[type].push(fn);
+      },
+      removeEventListener(type, fn) {
+        if (!this._listeners[type]) return;
+        this._listeners[type] = this._listeners[type].filter(f => f !== fn);
+      }
+    };
+    el.classList = {
+      add(c) {
+        const parts = el.className ? el.className.split(/\s+/) : [];
+        if (parts.indexOf(c) === -1) {
+          parts.push(c);
+          el.className = parts.join(' ');
+        }
+      },
+      remove(c) {
+        const parts = el.className ? el.className.split(/\s+/) : [];
+        el.className = parts.filter(p => p !== c).join(' ');
+      },
+      contains(c) {
+        const parts = el.className ? el.className.split(/\s+/) : [];
+        return parts.indexOf(c) !== -1;
+      }
+    };
+    return el;
   }
-  FakeMainMenuCtrl.prototype.init = function () {};
-  FakeMainMenuCtrl.prototype._getFocus = function () { return this._focus; };
-  FakeMainMenuCtrl.prototype._setFocus = function (idx) {
-    this._focus = idx;
-    iconNameEl.textContent = ['Applications', 'Entertainment', 'Communication', 'Navigation', 'Settings'][idx];
-  };
-  FakeMainMenuCtrl.prototype._setHighlight = function (idx) {
-    // Simulate OEM _setHighlight overwriting .MainMenuCtrlIconName after _setFocus
-    iconNameEl.textContent = ['Applications', 'Entertainment', 'Communication', 'Navigation', 'Settings'][idx];
-  };
-  FakeMainMenuCtrl.prototype._offsetFocus = function (dir) {
-    const d = (dir === -1 || dir === 'left') ? -1 : (dir === 1 || dir === 'right') ? 1 : 0;
-    const next = Math.max(0, Math.min(4, this._focus + d));
-    this._setFocus(next);
-    this._setHighlight(next);
-  };
 
+  const sentEvents = [];
+  const locStrings = {
+    Applications: 'Aplikacje',
+    Entertainment: 'Rozrywka',
+    Communication: 'Komunikacja',
+    NavigationTitle: 'Nawigacja',
+    Settings: 'Ustawienia'
+  };
+  let liveCtrl = null;
   const mockFw = {
-    getCurrentApp() { return currentApp; },
-    getCurrCtxtId() { return currentCtxt; },
     sendEventToMmui(uiaId, eventId, params) {
       sentEvents.push({ uiaId, eventId, params });
     },
+    getAppInstance(id) {
+      if (id === 'system') {
+        return { _currentContextTemplate: { mainMenuControl: liveCtrl } };
+      }
+      return null;
+    },
     localize: {
       getLocStr(app, id) {
-        return { Applications: 'Aplikacje', Entertainment: 'Rozrywka', Communication: 'Komunikacja', NavigationTitle: 'Nawigacja', Settings: 'Ustawienia' }[id] || id;
+        return locStrings[id] || id;
       }
     }
   };
+
+  function FakeMainMenuCtrl(uiaId, parentDiv, controlId, properties) {
+    this.uiaId = uiaId || 'system';
+    this.controlId = controlId || 'MainMenuCtrl';
+    this.properties = properties || {};
+    this._coins = [
+      { key: 'App', focusTranslateX: 30,  focusTranslateY: -53, hasFocus: false, nameId: 'Applications' },
+      { key: 'Ent', focusTranslateX: -15, focusTranslateY: -30, hasFocus: false, nameId: 'Entertainment' },
+      { key: 'Com', focusTranslateX: -15, focusTranslateY: -30, hasFocus: false, nameId: 'Communication' },
+      { key: 'Nav', focusTranslateX: -15, focusTranslateY: -30, hasFocus: false, nameId: 'NavigationTitle' },
+      { key: 'Set', focusTranslateX: -58, focusTranslateY: -53, hasFocus: false, nameId: 'Settings' }
+    ];
+    this._fullyHighlightedIndex = null;
+    this._hitAreaComputes = 0;
+    this.createStructure();
+    if (parentDiv && parentDiv.appendChild) parentDiv.appendChild(this.divElt);
+    this.init();
+  }
+  FakeMainMenuCtrl.prototype.createStructure = function () {
+    this.divElt = makeTestEl('MainMenuCtrl');
+    const ellipse = makeTestEl('MainMenuCtrlEllipse');
+    this.divElt.appendChild(ellipse);
+    for (let i = 0; i < this._coins.length; i++) {
+      const key = this._coins[i].key;
+      const coinDiv = makeTestEl('MainMenuCtrl' + key + 'Div');
+      coinDiv.appendChild(makeTestEl('MainMenuCtrl' + key + 'Focus'));
+      coinDiv.appendChild(makeTestEl('MainMenuCtrl' + key + 'Normal'));
+      this._coins[i].div = coinDiv;
+      this._coins[i].highlight = makeTestEl('MainMenuCtrl' + key + 'Highlight');
+      this._coins[i].setHighlightEndBinder = this._setHighlightEnd.bind(this, i);
+      coinDiv.addEventListener('OTransitionEnd', this._coins[i].setHighlightEndBinder, false);
+    }
+    this.divElt.appendChild(this._coins[1].highlight);
+    this.divElt.appendChild(this._coins[2].highlight);
+    this.divElt.appendChild(this._coins[3].highlight);
+    this.divElt.appendChild(this._coins[1].div);
+    this.divElt.appendChild(this._coins[2].div);
+    this.divElt.appendChild(this._coins[3].div);
+    this.divElt.appendChild(this._coins[4].highlight);
+    this.divElt.appendChild(this._coins[4].div);
+    this.divElt.appendChild(this._coins[0].highlight);
+    this.divElt.appendChild(this._coins[0].div);
+    this._iconNameDiv = makeTestEl('MainMenuCtrlIconName');
+    this.divElt.appendChild(this._iconNameDiv);
+  };
+  FakeMainMenuCtrl.prototype.init = function () {
+    for (let i = 0; i < this._coins.length; i++) {
+      this._computeHitAreas(this._coins[i]);
+    }
+    this._setFocus(2);
+  };
+  FakeMainMenuCtrl.prototype._computeHitAreas = function (coin) {
+    this._hitAreaComputes++;
+    const slotMatch = coin.div.className.match(/\bmzd-coin-(\d)\b/);
+    const slot = slotMatch ? Number(slotMatch[1]) : 1;
+    const lefts = [-35, 105, 330, 549, 721];
+    coin.div.offsetLeft = lefts[slot - 1];
+    coin.normalHitArea = { x: coin.div.offsetLeft + 71, y: 200, r2: 4900 };
+    coin.focusHitArea = { x: coin.div.offsetLeft + 71 + coin.focusTranslateX, y: 200 + coin.focusTranslateY, r2: 7056 };
+    coin.currentHitArea = coin.normalHitArea;
+  };
+  FakeMainMenuCtrl.prototype._getFocus = function () {
+    for (let i = 0; i < this._coins.length; i++) {
+      if (this._coins[i].hasFocus) return i;
+    }
+    return -1;
+  };
+  FakeMainMenuCtrl.prototype._setFocus = function (idx) {
+    for (let i = 0; i < this._coins.length; i++) {
+      this._coins[i].hasFocus = (i === idx);
+    }
+  };
+  FakeMainMenuCtrl.prototype._setHighlight = function (idx) {
+    if (this._fullyHighlightedIndex !== idx) {
+      this._fullyHighlightedIndex = null;
+      let name = '';
+      for (let i = 0; i < this._coins.length; i++) {
+        if (i === idx) {
+          this._coins[i].div.classList.add('MainMenuCtrlCoinFocus');
+          this._coins[i].highlight.classList.add('Visible');
+          this._coins[i].currentHitArea = this._coins[i].focusHitArea;
+          name = mockFw.localize.getLocStr(this.uiaId, this._coins[i].nameId);
+        } else if (this._coins[i].highlight.style.opacity !== '0') {
+          this._coins[i].div.classList.remove('MainMenuCtrlCoinFocus');
+          this._coins[i].highlight.classList.remove('Visible');
+          this._coins[i].currentHitArea = this._coins[i].normalHitArea;
+        }
+      }
+      if (name !== '') {
+        this._iconNameDiv.innerHTML = name;
+      }
+    }
+  };
+  FakeMainMenuCtrl.prototype._setHighlightEnd = function (index) {
+    this._fullyHighlightedIndex = index;
+  };
+  FakeMainMenuCtrl.prototype._offsetFocus = function (dir) {
+    const d = (dir === -1 || dir === 'left') ? -1 : (dir === 1 || dir === 'right') ? 1 : 0;
+    const next = Math.max(0, Math.min(4, this._getFocus() + d));
+    if (next !== this._getFocus()) {
+      this._setFocus(next);
+      this._setHighlight(next);
+    }
+  };
+  FakeMainMenuCtrl.prototype._invokeSelectCallback = function (index) {
+    const icon = this._coins[index].key.toLowerCase();
+    const eventMap = {
+      app: 'SelectApplications',
+      ent: 'SelectEntertainment',
+      com: 'SelectCommunication',
+      nav: 'SelectNavigation',
+      set: 'SelectSettings'
+    };
+    mockFw.sendEventToMmui('system', eventMap[icon]);
+  };
+  FakeMainMenuCtrl.prototype.cleanUp = function () {
+    for (let i = 0; i < this._coins.length; i++) {
+      this._coins[i].div.removeEventListener('OTransitionEnd', this._coins[i].setHighlightEndBinder, false);
+    }
+  };
+
+  const mockBody = { className: '' };
   const page = residentPage({
     main_menu_order_custom: true,
     main_menu_order: {
@@ -1996,39 +2136,114 @@ function viewPage(options) {
     }
   }, {
     MainMenuCtrl: FakeMainMenuCtrl,
-    framework: mockFw
+    framework: mockFw,
+    body: mockBody
   });
 
-  // Override document.getElementsByClassName for MainMenuCtrl root lookup
-  const ctrl = new page.win.MainMenuCtrl();
-  ctrl.init();
+  // sendEventToMmui is NOT wrapped for main menu order
+  assert.equal(page.win.framework._mzdTweaksSendHooked, undefined, 'framework.sendEventToMmui is not wrapped');
+  assert.equal(mockBody.className.indexOf('mzd-main-menu-custom') !== -1, true, 'body has mzd-main-menu-custom');
 
-  // Slot 0 (AppDiv) now holds Set icons; Slot 4 (SetDiv) holds App icons
-  assert.equal(slots[0].children[0].className, 'MainMenuCtrlSetNormal', 'slot 0 normal icon swapped to Set');
-  assert.equal(slots[0].children[1].className, 'MainMenuCtrlSetFocus', 'slot 0 focus icon swapped to Set');
-  assert.equal(slots[4].children[0].className, 'MainMenuCtrlAppNormal', 'slot 4 normal icon swapped to App');
-  assert.equal(iconNameEl.textContent, 'Ustawienia', 'focused slot 0 shows localized Settings label');
+  const ctrl = new page.win.MainMenuCtrl('system', makeTestEl('MainMenuTmplt'), 'MainMenuCtrl', {});
+  liveCtrl = ctrl;
 
-  // Arrow navigation moves left-to-right in visual order (0 -> 1 -> 2)
-  ctrl._offsetFocus(1);
+  // _coins reordered to [Set, Nav, Com, Ent, App] with slot focusTranslate values
+  assert.deepEqual(ctrl._coins.map(c => c.key), ['Set', 'Nav', 'Com', 'Ent', 'App']);
+  assert.equal(ctrl._coins[0].focusTranslateX, 30);
+  assert.equal(ctrl._coins[0].focusTranslateY, -53);
+  assert.equal(ctrl._coins[4].focusTranslateX, -58);
+  assert.equal(ctrl._coins[4].focusTranslateY, -53);
+
+  // Positional classes applied to coin divs and highlights
+  for (let s = 0; s < 5; s++) {
+    assert(ctrl._coins[s].div.classList.contains('mzd-coin'), 'coin ' + s + ' has mzd-coin');
+    assert(ctrl._coins[s].div.classList.contains('mzd-coin-' + (s + 1)), 'coin ' + s + ' has mzd-coin-' + (s + 1));
+    assert(ctrl._coins[s].highlight.classList.contains('mzd-coin-highlight'), 'highlight ' + s + ' has mzd-coin-highlight');
+    assert(ctrl._coins[s].highlight.classList.contains('mzd-coin-highlight-' + (s + 1)), 'highlight ' + s + ' has mzd-coin-highlight-' + (s + 1));
+  }
+
+  // DOM children really reordered in OEM z-order [1, 2, 3] highlights, [1, 2, 3] divs, [4], [0], IconName
+  assert.deepEqual(
+    ctrl.divElt.children.map(el => el.className.split(' ')[0]),
+    [
+      'MainMenuCtrlEllipse',
+      'MainMenuCtrlNavHighlight', 'MainMenuCtrlComHighlight', 'MainMenuCtrlEntHighlight',
+      'MainMenuCtrlNavDiv', 'MainMenuCtrlComDiv', 'MainMenuCtrlEntDiv',
+      'MainMenuCtrlAppHighlight', 'MainMenuCtrlAppDiv',
+      'MainMenuCtrlSetHighlight', 'MainMenuCtrlSetDiv',
+      'MainMenuCtrlIconName'
+    ]
+  );
+
+  // Initial focus is slot 2 (Com), navigating left to slot 0 highlights Set natively
+  ctrl._setHighlight(2);
+  assert.equal(ctrl._iconNameDiv.innerHTML, 'Komunikacja');
+  ctrl._offsetFocus(-1);
   assert.equal(ctrl._getFocus(), 1);
-  assert.equal(iconNameEl.textContent, 'Nawigacja', 'slot 1 shows localized Navigation label');
+  assert.equal(ctrl._iconNameDiv.innerHTML, 'Nawigacja');
+  ctrl._offsetFocus(-1);
+  assert.equal(ctrl._getFocus(), 0);
+  assert.equal(ctrl._iconNameDiv.innerHTML, 'Ustawienia');
+  assert(ctrl._coins[0].div.classList.contains('MainMenuCtrlCoinFocus'));
 
-  // sendEventToMmui on HomeScreen remaps SelectApplications (slot 0) -> SelectSettings, SelectEntertainment (slot 1) -> SelectNavigation
-  page.win.framework.sendEventToMmui('system', 'SelectApplications', { from: 'touch' });
-  assert.deepEqual(sentEvents[0], { uiaId: 'system', eventId: 'SelectSettings', params: { from: 'touch' } });
-  page.win.framework.sendEventToMmui('system', 'SelectEntertainment');
-  assert.deepEqual(sentEvents[1], { uiaId: 'system', eventId: 'SelectNavigation', params: undefined });
+  // Selecting slot 0 invokes SelectSettings natively via _coins[0].key
+  ctrl._invokeSelectCallback(0);
+  assert.deepEqual(sentEvents[0], { uiaId: 'system', eventId: 'SelectSettings', params: undefined });
 
-  // Outside HomeScreen, SelectApplications is not remapped
-  currentCtxt = 'Applications';
-  page.win.framework.sendEventToMmui('system', 'SelectApplications');
-  assert.deepEqual(sentEvents[2], { uiaId: 'system', eventId: 'SelectApplications', params: undefined });
+  // Live toggle back to default order reorders _coins, DOM, classes, hit areas, and OTransitionEnd binders
+  page.win.mzdTweaks.main_menu_order_custom = false;
+  const computesBefore = ctrl._hitAreaComputes;
+  page.win.mzdTweaksApplyMainMenuOrder();
+  assert.equal(mockBody.className.indexOf('mzd-main-menu-custom'), -1, 'mzd-main-menu-custom removed');
+  assert.deepEqual(ctrl._coins.map(c => c.key), ['App', 'Ent', 'Com', 'Nav', 'Set']);
+  assert.equal(ctrl._iconNameDiv.innerHTML, 'Aplikacje', 'slot 0 now shows Applications natively');
+  assert(ctrl._coins[0].div.classList.contains('mzd-coin-1'));
+  assert(ctrl._coins[4].div.classList.contains('mzd-coin-5'));
+  assert(ctrl._hitAreaComputes > computesBefore, 'hit areas recomputed on live reorder');
+  assert.deepEqual(
+    ctrl.divElt.children.map(el => el.className.split(' ')[0]),
+    [
+      'MainMenuCtrlEllipse',
+      'MainMenuCtrlEntHighlight', 'MainMenuCtrlComHighlight', 'MainMenuCtrlNavHighlight',
+      'MainMenuCtrlEntDiv', 'MainMenuCtrlComDiv', 'MainMenuCtrlNavDiv',
+      'MainMenuCtrlSetHighlight', 'MainMenuCtrlSetDiv',
+      'MainMenuCtrlAppHighlight', 'MainMenuCtrlAppDiv',
+      'MainMenuCtrlIconName'
+    ]
+  );
 
-  // _setHighlight restores localized label even after OEM overwrite
-  currentCtxt = 'HomeScreen';
-  ctrl._setHighlight(0);
-  assert.equal(iconNameEl.textContent, 'Ustawienia', '_setHighlight restores localized label after OEM overwrite');
+  // Rebound OTransitionEnd fires with updated slot index and cleanUp removes all listeners
+  ctrl._coins[0].div._listeners.OTransitionEnd[0]();
+  assert.equal(ctrl._fullyHighlightedIndex, 0);
+  ctrl.cleanUp();
+  for (let s = 0; s < 5; s++) {
+    assert.equal(ctrl._coins[s].div._listeners.OTransitionEnd.length, 0, 'OTransitionEnd listener cleaned up for slot ' + s);
+  }
+}
+
+// CSS positional contract: mzd-tweaks.css, theme-common.css, and themes/*.css do not couple placement/themes to icon names
+{
+  const mzdCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/mzd-tweaks.css'), 'utf8');
+  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/theme-common.css'), 'utf8');
+  assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)(Div|Highlight)\b/.test(mzdCss),
+    'mzd-tweaks.css uses slot classes (.mzd-coin-1..5) instead of icon-named Div/Highlight selectors');
+  assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)(Div|Highlight|Normal)\b/.test(themeCommonCss),
+    'theme-common.css uses positional classes instead of icon-named Div/Highlight/Normal selectors');
+  for (let i = 1; i <= 5; i++) {
+    assert(mzdCss.includes('.mzd-coin-' + i), 'mzd-tweaks.css styles .mzd-coin-' + i);
+    assert(mzdCss.includes('.mzd-coin-highlight-' + i), 'mzd-tweaks.css styles .mzd-coin-highlight-' + i);
+  }
+  for (const baseImg of ['HomeApps_Focus_base.png', 'HomeAudio_Focus_base.png', 'HomeCom_Focus_base.png', 'HomeNav_Focus_base.png', 'HomeSet_Focus_base.png']) {
+    assert(themeCommonCss.includes(baseImg), 'theme-common.css includes :after overlay for ' + baseImg);
+  }
+  const themes = ['blue', 'cyan', 'gold', 'green', 'orange', 'pink', 'purple', 'silver'];
+  for (const theme of themes) {
+    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/themes/theme-' + theme + '.css'), 'utf8');
+    assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)/.test(css),
+      'theme-' + theme + '.css contains no icon-name coin selectors');
+    assert(css.includes('.MainMenuCtrl .mzd-coin > div[class$="Focus"]'),
+      'theme-' + theme + '.css styles focused coins generically');
+  }
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

@@ -4,25 +4,9 @@
  */
 
 /* Main Menu Coins */
-body.mzd-theme-orange .MainMenuCtrlAppFocus {
-    background-image: url(../images/coins/HomeApps_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-    background-image: url(../images/coins/HomeApps_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-}
-body.mzd-theme-orange .MainMenuCtrlEntFocus {
-    background-image: url(../images/coins/HomeAudio_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-    background-image: url(../images/coins/HomeAudio_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-}
-body.mzd-theme-orange .MainMenuCtrlComFocus {
-    background-image: url(../images/coins/HomeCom_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-    background-image: url(../images/coins/HomeCom_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-}
-body.mzd-theme-orange .MainMenuCtrlNavFocus {
-    background-image: url(../images/coins/HomeNav_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-    background-image: url(../images/coins/HomeNav_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-}
-body.mzd-theme-orange .MainMenuCtrlSetFocus {
-    background-image: url(../images/coins/HomeSet_Focus_base.png), -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
-    background-image: url(../images/coins/HomeSet_Focus_base.png), radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+body.mzd-theme-orange .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
+    background-image: -o-radial-gradient(center, ellipse cover, #ff9500 0%, #b35300 56%, transparent 63%) !important;
+    background-image: radial-gradient(ellipse at center, #ff9500 0%, #b35300 56%, transparent 63%) !important;
 }
 
 /* Main Menu Glow */

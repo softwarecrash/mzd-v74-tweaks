@@ -26,25 +26,45 @@ body[class*="mzd-theme-"] .Dialog3Ctrl_Buttons > div {
    ========================================================================== */
 
 /* Unfocused coin elements remain hidden to eliminate load flicker */
-body[class*="mzd-theme-"] .MainMenuCtrlAppFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlEntFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlComFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlNavFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlSetFocus {
+body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
     opacity: 0 !important;
-    background-size: 100% 100%, 82% 82% !important;
-    background-position: center center, center center !important;
-    background-repeat: no-repeat, no-repeat !important;
+    background-size: 82% 82% !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
     -o-transition: opacity 0.2s linear;
     transition: opacity 0.2s linear;
 }
 
+/* Icon glyph overlay independent of slot position */
+body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Focus"]:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: 100% 100%;
+    background-position: center center;
+    background-repeat: no-repeat;
+}
+body[class*="mzd-theme-"] .MainMenuCtrlAppFocus:after {
+    background-image: url(images/coins/HomeApps_Focus_base.png);
+}
+body[class*="mzd-theme-"] .MainMenuCtrlEntFocus:after {
+    background-image: url(images/coins/HomeAudio_Focus_base.png);
+}
+body[class*="mzd-theme-"] .MainMenuCtrlComFocus:after {
+    background-image: url(images/coins/HomeCom_Focus_base.png);
+}
+body[class*="mzd-theme-"] .MainMenuCtrlNavFocus:after {
+    background-image: url(images/coins/HomeNav_Focus_base.png);
+}
+body[class*="mzd-theme-"] .MainMenuCtrlSetFocus:after {
+    background-image: url(images/coins/HomeSet_Focus_base.png);
+}
+
 /* Base sizing and full opacity when coin is focused */
-body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlAppFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlEntFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlComFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlNavFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlSetFocus {
+body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin.MainMenuCtrlCoinFocus > div[class$="Focus"] {
     opacity: 1 !important;
     -o-transition: opacity 0.2s linear;
     transition: opacity 0.2s linear;
@@ -54,42 +74,30 @@ body[class*="mzd-theme-"] .MainMenuCtrlCoinFocus .MainMenuCtrlSetFocus {
  * Standard and vendor-prefixed transitions for Main Menu highlight glow,
  * coin scaling/translation, and normal coin crossfading under custom themes.
  */
-body[class*="mzd-theme-"] .MainMenuCtrlAppHighlight,
-body[class*="mzd-theme-"] .MainMenuCtrlEntHighlight,
-body[class*="mzd-theme-"] .MainMenuCtrlComHighlight,
-body[class*="mzd-theme-"] .MainMenuCtrlNavHighlight,
-body[class*="mzd-theme-"] .MainMenuCtrlSetHighlight,
-body[class*="mzd-theme-"] .MainMenuCtrlAppNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlEntNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlComNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlNavNormal,
-body[class*="mzd-theme-"] .MainMenuCtrlSetNormal {
+body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin-highlight,
+body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Normal"] {
     -o-transition: opacity 0.2s linear;
     transition: opacity 0.2s linear;
 }
 
-body[class*="mzd-theme-"] .MainMenuCtrlAppDiv,
-body[class*="mzd-theme-"] .MainMenuCtrlEntDiv,
-body[class*="mzd-theme-"] .MainMenuCtrlComDiv,
-body[class*="mzd-theme-"] .MainMenuCtrlNavDiv,
-body[class*="mzd-theme-"] .MainMenuCtrlSetDiv {
+body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin {
     -o-transition: 0.2s linear;
     transition: transform 0.2s linear, -o-transform 0.2s linear;
 }
 
-body[class*="mzd-theme-"] .MainMenuCtrlAppDiv.MainMenuCtrlCoinFocus {
+body[class*="mzd-theme-"] .mzd-coin-1.MainMenuCtrlCoinFocus {
     -o-transform: scale(1.2, 1.2) translate(36px, -33px);
     transform: scale(1.2, 1.2) translate(36px, -33px);
 }
 
-body[class*="mzd-theme-"] .MainMenuCtrlEntDiv.MainMenuCtrlCoinFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlComDiv.MainMenuCtrlCoinFocus,
-body[class*="mzd-theme-"] .MainMenuCtrlNavDiv.MainMenuCtrlCoinFocus {
+body[class*="mzd-theme-"] .mzd-coin-2.MainMenuCtrlCoinFocus,
+body[class*="mzd-theme-"] .mzd-coin-3.MainMenuCtrlCoinFocus,
+body[class*="mzd-theme-"] .mzd-coin-4.MainMenuCtrlCoinFocus {
     -o-transform: scale(1.2, 1.2) translate(0px, -10px);
     transform: scale(1.2, 1.2) translate(0px, -10px);
 }
 
-body[class*="mzd-theme-"] .MainMenuCtrlSetDiv.MainMenuCtrlCoinFocus {
+body[class*="mzd-theme-"] .mzd-coin-5.MainMenuCtrlCoinFocus {
     -o-transform: scale(1.2, 1.2) translate(-36px, -33px);
     transform: scale(1.2, 1.2) translate(-36px, -33px);
 }
