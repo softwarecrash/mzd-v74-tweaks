@@ -142,9 +142,11 @@ return function(context)
 
     local function serialize_js(settings)
         local lines = { 'window.mzdTweaks = {' }
-        local val_loop = settings.main_menu_loop
-        if val_loop == nil then val_loop = BOOL_DEFAULTS.main_menu_loop end
-        lines[#lines + 1] = '    "main_menu_loop": ' .. (val_loop and 'true' or 'false') .. ','
+        for _, k in ipairs(BOOL_KEYS) do
+            local val = settings[k]
+            if val == nil then val = BOOL_DEFAULTS[k] end
+            lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. ','
+        end
 
         local coins_layout = settings.main_menu_coins_layout
         if not VALID_COINS_LAYOUTS[coins_layout] then coins_layout = 'ellipse' end
@@ -153,20 +155,6 @@ return function(context)
         local coins_size = settings.main_menu_coins_size
         if not VALID_COINS_SIZES[coins_size] then coins_size = 100 end
         lines[#lines + 1] = '    "main_menu_coins_size": ' .. tostring(coins_size) .. ','
-
-        local other_bools = {
-            'main_menu_coins_glow',
-            'list_loop',
-            'list_beep',
-            'short_delay',
-            'statusbar_date',
-            'audio_order_custom'
-        }
-        for _, k in ipairs(other_bools) do
-            local val = settings[k]
-            if val == nil then val = BOOL_DEFAULTS[k] end
-            lines[#lines + 1] = '    "' .. k .. '": ' .. (val and 'true' or 'false') .. ','
-        end
 
         local theme = settings.theme
         if not VALID_THEMES[theme] then theme = 'red' end
@@ -224,7 +212,8 @@ return function(context)
                     if type(args.value) ~= 'string' or not VALID_THEMES[args.value] then
                         error('Invalid setting value.', 0)
                     end
-                    local settings = read_settings()
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
                     settings.theme = args.value
                     write_settings(settings)
                     return { settings = settings }
@@ -232,7 +221,8 @@ return function(context)
                     if type(args.value) ~= 'number' or not VALID_COINS_SIZES[args.value] then
                         error('Invalid setting value.', 0)
                     end
-                    local settings = read_settings()
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
                     settings.main_menu_coins_size = args.value
                     write_settings(settings)
                     return { settings = settings }
@@ -240,7 +230,8 @@ return function(context)
                     if type(args.value) ~= 'string' or not VALID_COINS_LAYOUTS[args.value] then
                         error('Invalid setting value.', 0)
                     end
-                    local settings = read_settings()
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
                     settings.main_menu_coins_layout = args.value
                     write_settings(settings)
                     return { settings = settings }
@@ -257,7 +248,8 @@ return function(context)
                         end
                         order_map[k] = v
                     end
-                    local settings = read_settings()
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
                     for _, k in ipairs(AUDIO_KEYS) do
                         settings['audio_order.' .. k] = order_map[k]
                         settings.audio_order[k] = order_map[k]
@@ -268,7 +260,8 @@ return function(context)
                     if type(args.value) ~= 'boolean' then
                         error('Invalid setting value.', 0)
                     end
-                    local settings = read_settings()
+                    local settings, valid = read_settings()
+                    if not valid then error('Cannot read saved settings.', 0) end
                     settings[args.key] = args.value
                     write_settings(settings)
                     return { settings = settings }

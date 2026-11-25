@@ -783,6 +783,63 @@ test('step rows take their range from the service limits and save valid values o
   assert.equal(page.row(0).value, 7);
 });
 
+test('step rows defer saving until final adjustment, focus exit, row switch, flush, or error clear', () => {
+  const page = viewPage({
+    entries: () => [
+      { key: 'lvl', type: 'step', label: 'Level', defaultValue: 3, min: 1, max: 10, increment: 1 },
+      { key: 'other', type: 'bool', label: 'Other' }
+    ]
+  });
+  page.respond({ state: { lvl: 3, other: false } });
+
+  // Non-final adjustments update local state without sending set
+  page.select(0, { value: 5 });
+  assert.equal(page.api.state().lvl, 5);
+  assert.equal(page.requests('set').length, 0, 'non-final step does not save immediately');
+  page.select(0, { value: 6, final: false });
+  assert.equal(page.api.state().lvl, 6);
+  assert.equal(page.requests('set').length, 0);
+
+  // Returning to the committed value cancels the pending save
+  page.select(0, { value: 3, final: false });
+  page.send({ type: 'p-native-focus', index: 0, secondary: false });
+  assert.equal(page.requests('set').length, 0, 'returning to committed value does not save');
+
+  // Exiting secondary focus commits pending adjustment
+  page.select(0, { value: 5, final: false });
+  page.send({ type: 'p-native-focus', index: 0, secondary: false });
+  assert.deepEqual(page.requests('set').map(r => r.payload), [{ key: 'lvl', value: 5 }]);
+  page.respond({ state: { lvl: 5, other: false } });
+
+  // Moving focus away from the step row commits pending adjustment
+  page.select(0, { value: 8 });
+  assert.equal(page.requests('set').length, 1);
+  page.send({ type: 'p-native-focus', index: 1 });
+  assert.deepEqual(page.requests('set').map(r => r.payload), [{ key: 'lvl', value: 5 }, { key: 'lvl', value: 8 }]);
+  page.respond({ state: { lvl: 8, other: false } });
+
+  // Activating another row flushes pending adjustment before toggling the other row
+  page.select(0, { value: 9 });
+  assert.equal(page.requests('set').length, 2);
+  page.select(1);
+  assert.deepEqual(page.requests('set').slice(2).map(r => r.payload), [
+    { key: 'lvl', value: 9 },
+    { key: 'other', value: true }
+  ]);
+  page.respond({ state: { lvl: 9, other: true } });
+
+  // Error response clears pending state so it is not re-committed on later flush
+  page.select(0, { value: 4 });
+  page.respond({ state: { lvl: 9, other: true }, error: 'Disk full' });
+  page.api.flush();
+  assert.equal(page.requests('set').length, 4, 'error clears pending step change');
+
+  // Disposing the view flushes any pending adjustment
+  page.select(0, { value: 2 });
+  page.sdk.dispose();
+  assert.deepEqual(page.requests('set').pop().payload, { key: 'lvl', value: 2 });
+});
+
 test('action rows send their request, optionally after a Yes/No confirmation', () => {
   const page = viewPage({
     entries: () => [

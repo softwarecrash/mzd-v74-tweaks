@@ -186,28 +186,28 @@ body.mzd-layout-flat .MainMenuCtrlCoinFocus {
 
 /* Flat layout highlight positions */
 body.mzd-layout-flat .MainMenuCtrlAppHighlight {
-    top: 50px;
-    left: -121.5px;
+    top: 50px !important;
+    left: -121.5px !important;
 }
 
 body.mzd-layout-flat .MainMenuCtrlEntHighlight {
-    top: 50px;
-    left: 48.5px;
+    top: 50px !important;
+    left: 48.5px !important;
 }
 
 body.mzd-layout-flat .MainMenuCtrlComHighlight {
-    top: 50px;
-    left: 218.5px;
+    top: 50px !important;
+    left: 218.5px !important;
 }
 
 body.mzd-layout-flat .MainMenuCtrlNavHighlight {
-    top: 50px;
-    left: 388.5px;
+    top: 50px !important;
+    left: 388.5px !important;
 }
 
 body.mzd-layout-flat .MainMenuCtrlSetHighlight {
-    top: 50px;
-    left: 558.5px;
+    top: 50px !important;
+    left: 558.5px !important;
 }
 
 /* ==========================================================================
@@ -265,28 +265,28 @@ body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrl [class*="Highlight"] {
 }
 
 body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlAppHighlight {
-    top: 86px;
-    left: -120px;
+    top: 86px !important;
+    left: -120px !important;
 }
 
 body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlEntHighlight {
-    top: 28px;
-    left: 18.5px;
+    top: 28px !important;
+    left: 18.5px !important;
 }
 
 body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlComHighlight {
-    top: 2px;
-    left: 218.5px;
+    top: 2px !important;
+    left: 218.5px !important;
 }
 
 body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlNavHighlight {
-    top: 28px;
-    left: 418.5px;
+    top: 28px !important;
+    left: 418.5px !important;
 }
 
 body.mzd-coins-80:not(.mzd-layout-flat) .MainMenuCtrlSetHighlight {
-    top: 86px;
-    left: 557px;
+    top: 86px !important;
+    left: 557px !important;
 }
 
 /* --- 60% Mini Coins (Stock Elliptical Layout) --- */
@@ -340,28 +340,28 @@ body.mzd-coins-60 .MainMenuCtrl [class*="Highlight"] {
 }
 
 body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlAppHighlight {
-    top: 92px;
-    left: -99.5px;
+    top: 92px !important;
+    left: -99.5px !important;
 }
 
 body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlEntHighlight {
-    top: 38px;
-    left: 38.5px;
+    top: 38px !important;
+    left: 38.5px !important;
 }
 
 body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlComHighlight {
-    top: 17px;
-    left: 218.5px;
+    top: 17px !important;
+    left: 218.5px !important;
 }
 
 body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlNavHighlight {
-    top: 38px;
-    left: 398.5px;
+    top: 38px !important;
+    left: 398.5px !important;
 }
 
 body.mzd-coins-60:not(.mzd-layout-flat) .MainMenuCtrlSetHighlight {
-    top: 92px;
-    left: 536.5px;
+    top: 92px !important;
+    left: 536.5px !important;
 }
 
 /* --- Combined: Flat Layout + Scaled Coins --- */
@@ -404,28 +404,28 @@ body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrl [class*="Highlight"] {
 }
 
 body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlAppHighlight {
-    top: 100px;
-    left: -112.5px;
+    top: 100px !important;
+    left: -112.5px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlEntHighlight {
-    top: 100px;
-    left: 53px;
+    top: 100px !important;
+    left: 53px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlComHighlight {
-    top: 100px;
-    left: 218.5px;
+    top: 100px !important;
+    left: 218.5px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlNavHighlight {
-    top: 100px;
-    left: 384px;
+    top: 100px !important;
+    left: 384px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-80 .MainMenuCtrlSetHighlight {
-    top: 100px;
-    left: 549.5px;
+    top: 100px !important;
+    left: 549.5px !important;
 }
 
 /* Flat + Mini (60%) */
@@ -461,27 +461,27 @@ body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlCoinFocus {
 }
 
 body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlAppHighlight {
-    top: 115px;
-    left: -61.5px;
+    top: 115px !important;
+    left: -61.5px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlEntHighlight {
-    top: 115px;
-    left: 78.5px;
+    top: 115px !important;
+    left: 78.5px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlComHighlight {
-    top: 115px;
-    left: 218.5px;
+    top: 115px !important;
+    left: 218.5px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlNavHighlight {
-    top: 115px;
-    left: 358.5px;
+    top: 115px !important;
+    left: 358.5px !important;
 }
 
 body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrlSetHighlight {
-    top: 115px;
-    left: 498.5px;
+    top: 115px !important;
+    left: 498.5px !important;
 }
 

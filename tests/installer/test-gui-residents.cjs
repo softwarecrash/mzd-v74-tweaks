@@ -719,8 +719,8 @@ test("createNativeMenu full features", async (t) => {
       page: "main",
       index: 1,
       rows: [
-        { label: "Option 1" },
-        { label: "Option 2", checkable: true, checked: true, radio: true },
+        { id: "opt-1", label: "Option 1" },
+        { id: "opt-2", label: "Option 2", checkable: true, checked: true, radio: true },
         { label: "Option 3", detail: "Subtitle detail", caret: true },
         { label: "Option 4", disabled: true },
         { label: "Resolution DPI", itemStyle: "styleStep", value: 141, min: 100, max: 160, increment: 1, spinner: true }
@@ -735,6 +735,10 @@ test("createNativeMenu full features", async (t) => {
 
     const items = instantiatedControl.config.dataList.items;
     assert.equal(items.length, 5);
+    assert.equal(items[0].appData.id, "opt-1");
+    assert.equal(items[0].appData.page, "main");
+    assert.equal(items[2].appData.id, "");
+    assert.equal(items[2].appData.page, "main");
     assert.equal(items[0].text1, "Option 1");
     assert.equal(items[0].itemStyle, "style01");
 

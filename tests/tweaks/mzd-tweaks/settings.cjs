@@ -1368,6 +1368,11 @@ function viewPage(options) {
     assert(dict.coins_size_80 && dict.coins_size_80.length > 0, 'coins_size_80 present in ' + lang);
     assert(dict.coins_size_60 && dict.coins_size_60.length > 0, 'coins_size_60 present in ' + lang);
     assert(dict.statusbar_date && dict.statusbar_date.length > 0, 'statusbar_date present in ' + lang);
+    assert(dict.theme && dict.theme.length > 0, 'theme present in ' + lang);
+    for (const color of ['red', 'blue', 'green', 'orange', 'purple', 'pink', 'silver', 'gold', 'cyan']) {
+      assert(dict['theme_' + color] && dict['theme_' + color].length > 0, 'theme_' + color + ' present in ' + lang);
+      assert(dict['color_' + color] && dict['color_' + color].length > 0, 'color_' + color + ' present in ' + lang);
+    }
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
     }
@@ -1482,6 +1487,24 @@ function viewPage(options) {
   assert.equal(mockBody.className.indexOf('mzd-theme-blue') !== -1, true, 'mzd-theme-blue is on body');
   assert.equal(mockBody.className.indexOf('mzd-coins-glow') !== -1, true, 'mzd-coins-glow remains on body');
 
+  // Switch between two non-red themes (blue -> green)
+  hostOptions.onConfirmed({ theme: 'green' });
+  assert.equal(byId['mzd-tweaks-theme-common-css'] !== undefined, true, 'theme-common.css remains loaded');
+  assert.equal(byId['mzd-tweaks-theme-color-css'].getAttribute('data-theme'), 'green', 'data-theme updated to green');
+  assert.equal(byId['mzd-tweaks-theme-color-css'].href, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/themes/theme-green.css', 'href updated to theme-green.css');
+  assert.equal(mockBody.className.indexOf('mzd-theme-blue'), -1, 'old mzd-theme-blue class removed');
+  assert.equal(mockBody.className.indexOf('mzd-theme-green') !== -1, true, 'new mzd-theme-green class added');
+
+  // Unrecognized theme falls back to factory red
+  hostOptions.onConfirmed({ theme: 'bogus-theme' });
+  assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'unrecognized theme removes theme-common.css');
+  assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'unrecognized theme removes theme-color.css');
+  assert.equal(mockBody.className.indexOf('mzd-theme-'), -1, 'unrecognized theme adds no theme class');
+
+  // Re-apply blue before testing glow and red fallback
+  hostOptions.onConfirmed({ theme: 'blue' });
+  assert.equal(mockBody.className.indexOf('mzd-theme-blue') !== -1, true);
+
   // Disable main_menu_coins_glow
   hostOptions.onConfirmed({ main_menu_coins_glow: false });
   assert.equal(mockBody.className.indexOf('mzd-coins-glow'), -1, 'mzd-coins-glow is removed from body');
@@ -1510,6 +1533,189 @@ function viewPage(options) {
   hostOptions.onConfirmed({ main_menu_coins_size: 100 });
   assert.equal(mockBody.className.indexOf('mzd-coins-80'), -1, 'mzd-coins-80 is removed when reset to 100%');
   assert.equal(mockBody.className.indexOf('mzd-coins-60'), -1, 'mzd-coins-60 is removed when reset to 100%');
+}
+
+{
+  // Deferred applyTheme when document.body is initially null attaches only one DOMContentLoaded listener
+  const byId = {};
+  const mockHead = {
+    appendChild(el) {
+      if (el.id) byId[el.id] = el;
+      el.parentNode = mockHead;
+      return el;
+    },
+    removeChild(el) {
+      if (el.id) delete byId[el.id];
+      el.parentNode = null;
+      return el;
+    }
+  };
+  const domListeners = [];
+  const deferDoc = {
+    head: mockHead,
+    documentElement: mockHead,
+    body: null,
+    addEventListener(name, fn) {
+      if (name === 'DOMContentLoaded') domListeners.push(fn);
+    },
+    createElement(tag) {
+      return { tagName: tag, setAttribute(k, v) { this[k] = v; }, getAttribute(k) { return this[k]; } };
+    },
+    getElementById(id) { return byId[id] || null; },
+    getElementsByClassName() { return []; }
+  };
+  const deferWin = {
+    setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {},
+    document: deferDoc,
+    mzdTweaks: { theme: 'purple' },
+    MzdGuiResidents: { register(id, factory) { deferWin.factory = factory; }, log() {} }
+  };
+  let deferHostOptions = null;
+  vm.runInNewContext(settingsHostSource, { window: deferWin });
+  const origCreate = deferWin.MzdSettingsHost.create;
+  deferWin.MzdSettingsHost.create = (c, opts) => { deferHostOptions = opts; return origCreate(c, opts); };
+  vm.runInNewContext(residentSource, { window: deferWin, document: deferDoc });
+
+  // Trigger another applyTheme before DOMContentLoaded while body is still null
+  deferWin.factory({
+    view: () => null, onMessage() {}, onViewClose() {}, onDispose() {}, loadLanguage() {},
+    onServiceReady() {}, createNativeMenu() { return { close() {}, check() {}, owns: () => false }; },
+    log() {}, notify() {}, service: { request() {} }
+  });
+  deferHostOptions.onConfirmed({ theme: 'cyan' });
+  assert.equal(domListeners.length, 1, 'attaches only a single DOMContentLoaded listener when body is null');
+
+  deferDoc.body = { className: '' };
+  domListeners[0]();
+  assert.equal(deferDoc.body.className.indexOf('mzd-theme-cyan') !== -1, true, 'deferred DOMContentLoaded applies latest theme');
+  assert.equal(byId['mzd-tweaks-theme-color-css'].getAttribute('data-theme'), 'cyan');
+}
+
+{
+  // Theme swatch classes in _getListItem and updateItems use appData.page/appData.id, strip unconditionally, and log errors
+  function SwatchList2Ctrl() {
+    this.parentDiv = { className: 'TemplateWithStatusLeft List2Tmplt mzd-custom-menu' };
+    this.dataList = { itemCount: 0, items: [] };
+    this.items = [];
+    this.init();
+  }
+  SwatchList2Ctrl.prototype.init = function () { this.properties = {}; };
+  SwatchList2Ctrl.prototype._getListItem = function (listItem, dataListIndex) {
+    return listItem;
+  };
+  SwatchList2Ctrl.prototype.updateItems = function () {
+    return 'updated';
+  };
+
+  const swatchLogs = [];
+  const swatchDoc = { head: { appendChild() {} }, documentElement: {}, createElement() { return {}; }, getElementsByClassName() { return []; } };
+  const swatchWin = {
+    List2Ctrl: SwatchList2Ctrl,
+    setInterval: () => 1, clearInterval() {}, setTimeout: () => 1, clearTimeout() {}, addEventListener() {},
+    MzdGuiResidents: { register() {}, log(id, msg) { swatchLogs.push([id, msg]); } }
+  };
+  vm.runInNewContext(settingsHostSource, { window: swatchWin });
+  vm.runInNewContext(residentSource, { window: swatchWin, document: swatchDoc });
+
+  const ctrl = new swatchWin.List2Ctrl();
+  // Reordered 2-item theme subpage (not 9 items, not positional)
+  ctrl.dataList = {
+    itemCount: 2,
+    items: [
+      { appData: { page: 'theme', id: 'theme-cyan' } },
+      { appData: { page: 'theme', id: 'theme-blue' } }
+    ]
+  };
+  const li0 = ctrl._getListItem({ className: 'ListItem style03' }, 0);
+  const li1 = ctrl._getListItem({ className: 'ListItem style03' }, 1);
+  assert.equal(li0.className, 'ListItem style03 mzd-theme-row mzd-theme-row-cyan', '_getListItem applies cyan swatch by appData.id');
+  assert.equal(li1.className, 'ListItem style03 mzd-theme-row mzd-theme-row-blue', '_getListItem applies blue swatch by appData.id');
+
+  // Unrecognized theme id does not add swatch class and strips stale class
+  ctrl.dataList = {
+    itemCount: 1,
+    items: [{ appData: { page: 'theme', id: 'theme-neon' } }]
+  };
+  const liInvalid = ctrl._getListItem(li0, 0);
+  assert.equal(liInvalid.className, 'ListItem style03', '_getListItem strips stale swatch class on invalid theme id');
+
+  // updateItems applies swatch classes and then strips them unconditionally when leaving theme page
+  ctrl.dataList = {
+    itemCount: 2,
+    items: [
+      { appData: { page: 'theme', id: 'theme-gold' } },
+      { appData: { page: 'theme', id: 'theme-pink' } }
+    ]
+  };
+  ctrl.items = [
+    { ref: 0, domElt: { className: 'ListItem style03' } },
+    { ref: 1, domElt: { className: 'ListItem style03' } }
+  ];
+  assert.equal(ctrl.updateItems(), 'updated');
+  assert.equal(ctrl.items[0].domElt.className, 'ListItem style03 mzd-theme-row mzd-theme-row-gold');
+  assert.equal(ctrl.items[1].domElt.className, 'ListItem style03 mzd-theme-row mzd-theme-row-pink');
+
+  // Switching to non-theme page strips swatch classes via updateItems
+  ctrl.dataList = {
+    itemCount: 2,
+    items: [
+      { appData: { page: 'home', id: 'list_loop' } },
+      { appData: { page: 'home', id: 'theme_menu' } }
+    ]
+  };
+  ctrl.updateItems();
+  assert.equal(ctrl.items[0].domElt.className, 'ListItem style03', 'updateItems strips swatch class when not on theme page');
+  assert.equal(ctrl.items[1].domElt.className, 'ListItem style03', 'updateItems strips swatch class on all rows');
+
+  // Non-custom menu does not receive swatch classes even if appData matches
+  ctrl.parentDiv.className = 'TemplateWithStatusLeft List2Tmplt';
+  ctrl.dataList = { itemCount: 1, items: [{ appData: { page: 'theme', id: 'theme-red' } }] };
+  ctrl.items = [{ ref: 0, domElt: { className: 'ListItem style03 mzd-theme-row mzd-theme-row-red' } }];
+  ctrl.updateItems();
+  assert.equal(ctrl.items[0].domElt.className, 'ListItem style03', 'non-custom menu strips and never adds swatch classes');
+
+  // Exceptions in _getListItem and updateItems are logged via MzdGuiResidents.log
+  const throwingElt = {
+    get className() { throw new Error('DOM class error'); },
+    set className(_) {}
+  };
+  ctrl.parentDiv.className = 'TemplateWithStatusLeft List2Tmplt mzd-custom-menu';
+  ctrl._getListItem(throwingElt, 0);
+  ctrl.items = [{ ref: 0, domElt: throwingElt }];
+  ctrl.updateItems();
+  assert.equal(swatchLogs.length, 2, 'exceptions in _getListItem and updateItems are logged');
+  assert.equal(swatchLogs[0][0], 'mzd-tweaks');
+  assert(swatchLogs[0][1].indexOf('DOM class error') !== -1);
+  assert.equal(swatchLogs[1][0], 'mzd-tweaks');
+  assert(swatchLogs[1][1].indexOf('DOM class error') !== -1);
+}
+
+{
+  // DialPad2 call button keeps DialPad_CallIcon.png in both focused and active states across all themes
+  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/theme-common.css'), 'utf8');
+  assert(
+    /body\[class\*="mzd-theme-"\]\s+\.DialPad2Ctrl\.DialpadStyle02\s+\.callBtn\.focused,\s*body\[class\*="mzd-theme-"\]\s+\.DialPad2Ctrl\.DialpadStyle02\s+\.callBtn\.active\s*\{[^}]*background-position:\s*center center,\s*center center\s*!important;[^}]*background-repeat:\s*no-repeat,\s*no-repeat\s*!important;/s.test(themeCommonCss),
+    'theme-common.css keeps centered no-repeat layers on callBtn.focused and callBtn.active'
+  );
+
+  const themes = ['blue', 'cyan', 'gold', 'green', 'orange', 'pink', 'purple', 'silver'];
+  for (const theme of themes) {
+    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/themes/theme-' + theme + '.css'), 'utf8');
+    for (const state of ['focused', 'active']) {
+      const ruleRe = new RegExp('body\\.mzd-theme-' + theme + '\\s+\\.DialPad2Ctrl\\.DialpadStyle02\\s+\\.callBtn\\.' + state + '\\s*\\{([^}]*)\\}');
+      const match = css.match(ruleRe);
+      assert(match, 'theme-' + theme + '.css defines .callBtn.' + state);
+      const body = match[1];
+      assert(
+        body.includes('background-image: url(/jci/gui/common/controls/DialPad2/images/DialPad_CallIcon.png), -o-linear-gradient('),
+        'theme-' + theme + '.css .callBtn.' + state + ' keeps DialPad_CallIcon.png with -o-linear-gradient'
+      );
+      assert(
+        body.includes('background-image: url(/jci/gui/common/controls/DialPad2/images/DialPad_CallIcon.png), linear-gradient('),
+        'theme-' + theme + '.css .callBtn.' + state + ' keeps DialPad_CallIcon.png with linear-gradient'
+      );
+    }
+  }
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date toggle, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

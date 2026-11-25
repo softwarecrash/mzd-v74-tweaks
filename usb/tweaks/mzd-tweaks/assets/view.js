@@ -29,15 +29,6 @@
         return (typeof tr === 'function') ? tr('color_red', 'Red') : 'Red';
     }
 
-    function getThemeLabel(id, tr) {
-        for (var i = 0; i < THEMES.length; i++) {
-            if (THEMES[i].id === id) {
-                return (typeof tr === 'function') ? tr('theme_' + id, THEMES[i].defaultLabel) : THEMES[i].defaultLabel;
-            }
-        }
-        return (typeof tr === 'function') ? tr('theme_red', 'Stock Red (default)') : 'Stock Red (default)';
-    }
-
     function themeIndex(current) {
         for (var i = 0; i < THEMES.length; i++) {
             if (THEMES[i].id === current) {

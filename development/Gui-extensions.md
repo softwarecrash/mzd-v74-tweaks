@@ -89,7 +89,7 @@ required to be backward compatible across levels.
 | 1 | Plain views, or any provider deployed before the integer level existed (its capabilities are unknown). |
 | 2 | Resident, service, translations, config data, view and parking lifecycle, original state, native menu, service request and the settings view (`settings-host.js`, `settings-view.js`). |
 | 3 | Shared settings enhancements, Home intent delegation, entertainment audio order support, and the List Loop fix for stepper rows (shared `text1` fallback in `residents.js` plus the matching `mzd-tweaks` resident). |
-| 4 | Dialog template stylesheet preloading (`Dialog3Tmplt.css`) ensuring full-screen modal z-index and layering parity across OEM contexts. |
+| 4 | Dialog template stylesheet preloading (`Dialog3Tmplt.css`) ensuring full-screen modal z-index and layering parity across OEM contexts, shared `settings-view.js` deferred `step` row consolidation, and `row.id`/`menu.page` metadata in `createNativeMenu` `appData`. |
 
 Rules for maintainers: a level is additive only and never reused for different content. Bump
 `api` in `api.conf` whenever the runtime, registry format or shell library gains something a

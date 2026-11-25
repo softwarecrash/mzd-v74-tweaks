@@ -471,7 +471,13 @@
                 var spinnerImg = (row.spinner || row.saving) ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : '';
                 var rightSpinnerImg = row.rightSpinner ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : (row.image2 || '');
                 items.push({
-                    appData: { itemIndex: i, aaIndex: i, wallpaperIndex: i },
+                    appData: {
+                        itemIndex: i,
+                        aaIndex: i,
+                        wallpaperIndex: i,
+                        id: row.id || '',
+                        page: menu.page || ''
+                    },
                     text1Id: null,
                     // OEM List2 treats an empty text1 as a row that is not loaded yet and
                     // locks focus and scrolling for 3 s. The styleStep line1 is hidden above.

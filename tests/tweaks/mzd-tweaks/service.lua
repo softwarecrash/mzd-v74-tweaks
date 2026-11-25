@@ -101,14 +101,14 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
-        '    "main_menu_coins_layout": "' .. coins_layout .. '",',
-        '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
         '    "main_menu_coins_glow": ' .. main_menu_coins_glow .. ',',
         '    "list_loop": ' .. b .. ',',
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
         '    "statusbar_date": ' .. (statusbar_date or 'false') .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
+        '    "main_menu_coins_layout": "' .. coins_layout .. '",',
+        '    "main_menu_coins_size": ' .. tostring(coins_size) .. ',',
         '    "theme": "' .. theme .. '",',
         '    "audio_order": {'
     }
@@ -342,6 +342,35 @@ do
     assert(not ok and tostring(err):match('Injected rename failure'), 'the original error is raised: ' .. tostring(err))
     assert(fs.content == initial, 'js untouched')
     assert(fs.temp == nil, 'the temp file is removed')
+end
+
+-- set refuses when existing settings.js is unreadable or malformed, leaving it untouched.
+do
+    local corrupt_js = 'window.mzdTweaks = { corrupt syntax ...'
+    local fs = fake_files(corrupt_js)
+    local svc = service(fs)
+    for _, req in ipairs({
+        { key = 'main_menu_loop', value = true },
+        { key = 'theme', value = 'blue' },
+        { key = 'main_menu_coins_size', value = 80 },
+        { key = 'main_menu_coins_layout', value = 'flat' }
+    }) do
+        local ok, err = pcall(svc.request, 'set', req)
+        assert(not ok and tostring(err):match('Cannot read saved settings'), 'malformed file refuses set for ' .. req.key)
+    end
+    local valid_order = {}
+    for i, k in ipairs(AUDIO_KEYS) do valid_order[k] = i - 1 end
+    local ok_audio, err_audio = pcall(svc.request, 'set', { key = 'audio_order', value = valid_order })
+    assert(not ok_audio and tostring(err_audio):match('Cannot read saved settings'), 'malformed file refuses set for audio_order')
+    assert(fs.content == corrupt_js, 'malformed file left untouched by set')
+
+    local saved_js = js('true', 'false', 'true', 'false')
+    local fs_io = fake_files(saved_js)
+    fs_io.read = function() error('Injected I/O read failure', 0) end
+    local svc_io = service(fs_io)
+    local ok, err = pcall(svc_io.request, 'set', { key = 'theme', value = 'blue' })
+    assert(not ok and tostring(err):match('Cannot read saved settings'), 'unreadable file refuses set')
+    assert(fs_io.content == saved_js, 'unreadable file left untouched by set')
 end
 
 print('MZD_TWEAKS_SERVICE_PASSED: defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')

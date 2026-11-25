@@ -252,6 +252,13 @@
         var settings = stored(key, initial);
         var name;
 
+        var validThemes = ['red', 'blue', 'green', 'orange', 'purple', 'pink', 'silver', 'gold', 'cyan'];
+        var validCoinsLayouts = ['ellipse', 'flat'];
+        var validCoinsSizes = [100, 80, 60];
+        function isValidTheme(v) { return typeof v === 'string' && validThemes.indexOf(v) >= 0; }
+        function isValidCoinsLayout(v) { return typeof v === 'string' && validCoinsLayouts.indexOf(v) >= 0; }
+        function isValidCoinsSize(v) { return typeof v === 'number' && validCoinsSizes.indexOf(v) >= 0; }
+
         for (name in schemaDefaults) {
             if (Object.prototype.hasOwnProperty.call(schemaDefaults, name)) {
                 if (name === 'audio_order') {
@@ -267,13 +274,17 @@
                     for (var aoProp in settings[name]) {
                         settings['audio_order.' + aoProp] = settings[name][aoProp];
                     }
-                } else if (name === 'theme' || name === 'main_menu_coins_layout') {
-                    if (typeof settings[name] !== 'string') {
-                        settings[name] = (initial && typeof initial[name] === 'string') ? initial[name] : schemaDefaults[name];
+                } else if (name === 'theme') {
+                    if (!isValidTheme(settings[name])) {
+                        settings[name] = (initial && isValidTheme(initial[name])) ? initial[name] : schemaDefaults[name];
+                    }
+                } else if (name === 'main_menu_coins_layout') {
+                    if (!isValidCoinsLayout(settings[name])) {
+                        settings[name] = (initial && isValidCoinsLayout(initial[name])) ? initial[name] : schemaDefaults[name];
                     }
                 } else if (name === 'main_menu_coins_size') {
-                    if (typeof settings[name] !== 'number') {
-                        settings[name] = (initial && typeof initial[name] === 'number') ? initial[name] : schemaDefaults[name];
+                    if (!isValidCoinsSize(settings[name])) {
+                        settings[name] = (initial && isValidCoinsSize(initial[name])) ? initial[name] : schemaDefaults[name];
                     }
                 } else if (typeof settings[name] !== 'boolean') {
                     settings[name] = (initial && typeof initial[name] === 'boolean') ? initial[name] : schemaDefaults[name];
@@ -328,13 +339,18 @@
                             settings['audio_order.' + audioKey] = args.value[audioKey];
                         }
                     }
-                } else if (args.key === 'theme' || args.key === 'main_menu_coins_layout') {
-                    if (typeof args.value !== 'string') {
+                } else if (args.key === 'theme') {
+                    if (!isValidTheme(args.value)) {
+                        throw new Error('Invalid setting value');
+                    }
+                    settings[args.key] = args.value;
+                } else if (args.key === 'main_menu_coins_layout') {
+                    if (!isValidCoinsLayout(args.value)) {
                         throw new Error('Invalid setting value');
                     }
                     settings[args.key] = args.value;
                 } else if (args.key === 'main_menu_coins_size') {
-                    if (typeof args.value !== 'number') {
+                    if (!isValidCoinsSize(args.value)) {
                         throw new Error('Invalid setting value');
                     }
                     settings[args.key] = args.value;

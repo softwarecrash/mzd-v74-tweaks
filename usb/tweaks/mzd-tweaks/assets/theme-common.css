@@ -13,7 +13,7 @@
  * border-box sizing, and 4px rounded corners on ALL four corners exactly like
  * the stock OEM button images (Dialog_1Btn, Dialog_2Btn, Dialog_3Btn, Dialog_4Btn).
  */
-.Dialog3Ctrl_Buttons > div {
+body[class*="mzd-theme-"] .Dialog3Ctrl_Buttons > div {
     box-sizing: border-box !important;
     -o-box-sizing: border-box !important;
     height: 80px !important;
@@ -257,6 +257,11 @@ body[class*="mzd-theme-"] .DialPad2Ctrl .btn.active {
     -o-box-sizing: border-box !important;
     border-radius: 4px !important;
     -o-border-radius: 4px !important;
+}
+body[class*="mzd-theme-"] .DialPad2Ctrl.DialpadStyle02 .callBtn.focused,
+body[class*="mzd-theme-"] .DialPad2Ctrl.DialpadStyle02 .callBtn.active {
+    background-position: center center, center center !important;
+    background-repeat: no-repeat, no-repeat !important;
 }
 
 /* ==========================================================================

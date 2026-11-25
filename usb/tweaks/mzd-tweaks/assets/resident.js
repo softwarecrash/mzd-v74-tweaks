@@ -212,10 +212,22 @@
     }
     backfillDefaults(global.mzdTweaks);
 
+    var VALID_THEMES = {
+        red: true,
+        blue: true,
+        green: true,
+        orange: true,
+        purple: true,
+        pink: true,
+        silver: true,
+        gold: true,
+        cyan: true
+    };
     var THEME_CLASSES = ['mzd-theme-blue', 'mzd-theme-green', 'mzd-theme-orange', 'mzd-theme-purple', 'mzd-theme-pink', 'mzd-theme-silver', 'mzd-theme-gold', 'mzd-theme-cyan'];
     var GLOW_CLASSES = ['mzd-coins-glow', 'mzd-no-coins-glow'];
     var LAYOUT_CLASSES = ['mzd-layout-flat'];
     var SIZE_CLASSES = ['mzd-coins-80', 'mzd-coins-60'];
+    var themeDomListenerAttached = false;
 
     function ensureBaseStylesheet() {
         var doc = global.document;
@@ -237,12 +249,17 @@
         if (!doc) { return; }
         body = doc.body;
         if (!body) {
-            if (doc.addEventListener) {
+            if (doc.addEventListener && !themeDomListenerAttached) {
+                themeDomListenerAttached = true;
                 doc.addEventListener('DOMContentLoaded', function () {
+                    themeDomListenerAttached = false;
                     applyTheme(global.mzdTweaks && global.mzdTweaks.theme);
                 }, false);
             }
             return;
+        }
+        if (typeof themeName !== 'string' || !Object.prototype.hasOwnProperty.call(VALID_THEMES, themeName)) {
+            themeName = 'red';
         }
         ensureBaseStylesheet();
         cls = body.className || '';
@@ -290,11 +307,6 @@
                 (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(colorLink);
             } else if (colorLink.getAttribute('data-theme') !== themeName) {
                 colorLink.setAttribute('data-theme', themeName);
-                if (colorLink.dataset) {
-                    delete colorLink.dataset.oTransitionPatched;
-                } else if (typeof colorLink.removeAttribute === 'function') {
-                    colorLink.removeAttribute('data-o-transition-patched');
-                }
                 colorLink.href = targetHref;
             }
         } else {
@@ -621,9 +633,6 @@
             if (typeof origListInit === 'function') {
                 res = origListInit.apply(this, arguments);
             }
-            if (this.divElt) {
-                this.divElt._control = this;
-            }
             if (this.properties) {
                 defineDelayProps(this.properties);
             }
@@ -733,13 +742,38 @@
         }
 
         // Swatch previews in Theme selection subpage
-        var THEME_SWATCH_IDS = ['red', 'blue', 'green', 'orange', 'purple', 'pink', 'silver', 'gold', 'cyan'];
-        function isThemeSubpage(ctrl) {
+        function isCustomTweakMenu(ctrl) {
             return !!(ctrl && ctrl.parentDiv && typeof ctrl.parentDiv.className === 'string' &&
-                ctrl.parentDiv.className.indexOf('mzd-custom-menu') !== -1 &&
-                ctrl.dataList && ctrl.dataList.items && ctrl.dataList.itemCount === 9 &&
-                ctrl.dataList.items[0] && ctrl.dataList.items[1] &&
-                ctrl.dataList.items[0].image1 === 'tick' && ctrl.dataList.items[1].image1 === 'tick');
+                ctrl.parentDiv.className.indexOf('mzd-custom-menu') !== -1);
+        }
+        function themeSwatchId(ctrl, idx) {
+            var items, item, appData, themeId;
+            if (!isCustomTweakMenu(ctrl)) { return null; }
+            if (!ctrl.dataList || !ctrl.dataList.items || typeof idx !== 'number' || idx < 0) { return null; }
+            items = ctrl.dataList.items;
+            if (idx >= items.length) { return null; }
+            item = items[idx];
+            appData = item && item.appData;
+            if (!appData || appData.page !== 'theme' || typeof appData.id !== 'string' || appData.id.indexOf('theme-') !== 0) {
+                return null;
+            }
+            themeId = appData.id.substring(6);
+            return Object.prototype.hasOwnProperty.call(VALID_THEMES, themeId) ? themeId : null;
+        }
+        function stripThemeRowClasses(el) {
+            if (!el || typeof el.className !== 'string' || el.className.indexOf('mzd-theme-row') === -1) {
+                return;
+            }
+            el.className = el.className.replace(/\bmzd-theme-row\S*/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
+        }
+        function applyThemeSwatchClass(el, themeId) {
+            var cls;
+            if (!el) { return; }
+            stripThemeRowClasses(el);
+            if (themeId) {
+                cls = typeof el.className === 'string' ? el.className : '';
+                el.className = cls ? (cls + ' mzd-theme-row mzd-theme-row-' + themeId) : ('mzd-theme-row mzd-theme-row-' + themeId);
+            }
         }
         var origGetListItem = proto._getListItem;
         if (typeof origGetListItem === 'function') {
@@ -747,12 +781,13 @@
                 var li = origGetListItem.apply(this, arguments);
                 try {
                     if (li) {
-                        li.className = (li.className || '').replace(/\bmzd-theme-row\S*/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
-                        if (isThemeSubpage(this) && typeof dataListIndex === 'number' && dataListIndex >= 0 && dataListIndex < THEME_SWATCH_IDS.length) {
-                            li.className += ' mzd-theme-row mzd-theme-row-' + THEME_SWATCH_IDS[dataListIndex];
-                        }
+                        applyThemeSwatchClass(li, themeSwatchId(this, dataListIndex));
                     }
-                } catch (ignoreGetItem) {}
+                } catch (errGetItem) {
+                    if (global.MzdGuiResidents && typeof global.MzdGuiResidents.log === 'function') {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Theme swatch update in _getListItem failed: ' + (errGetItem && errGetItem.message ? errGetItem.message : errGetItem));
+                    }
+                }
                 return li;
             };
         }
@@ -761,16 +796,19 @@
             proto.updateItems = function () {
                 var res = origUpdateItems.apply(this, arguments);
                 try {
-                    if (isThemeSubpage(this) && this.items) {
+                    if (this.items) {
                         for (var k = 0; k < this.items.length; k++) {
                             var it = this.items[k];
-                            if (it && it.domElt && typeof it.ref === 'number' && it.ref >= 0 && it.ref < THEME_SWATCH_IDS.length) {
-                                it.domElt.className = (it.domElt.className || '').replace(/\bmzd-theme-row\S*/g, '').replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
-                                it.domElt.className += ' mzd-theme-row mzd-theme-row-' + THEME_SWATCH_IDS[it.ref];
+                            if (it && it.domElt) {
+                                applyThemeSwatchClass(it.domElt, themeSwatchId(this, it.ref));
                             }
                         }
                     }
-                } catch (ignoreSwatch) {}
+                } catch (errUpdateItems) {
+                    if (global.MzdGuiResidents && typeof global.MzdGuiResidents.log === 'function') {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Theme swatch update in updateItems failed: ' + (errUpdateItems && errUpdateItems.message ? errUpdateItems.message : errUpdateItems));
+                    }
+                }
                 return res;
             };
         }

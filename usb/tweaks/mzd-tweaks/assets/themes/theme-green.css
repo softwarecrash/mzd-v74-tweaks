@@ -181,7 +181,13 @@ body.mzd-theme-green .DialPad2Ctrl .btn.active {
     background-image: linear-gradient(to bottom, #1fc25e 0%, #006629 100%) !important;
 }
 body.mzd-theme-green .DialPad2Ctrl.DialpadStyle02 .callBtn.focused {
+    background-image: url(/jci/gui/common/controls/DialPad2/images/DialPad_CallIcon.png), -o-linear-gradient(top, #28e070 0%, #008f3a 100%) !important;
+    background-image: url(/jci/gui/common/controls/DialPad2/images/DialPad_CallIcon.png), linear-gradient(to bottom, #28e070 0%, #008f3a 100%) !important;
     box-shadow: 0 0 10px rgba(16, 220, 96, 0.85) !important;
+}
+body.mzd-theme-green .DialPad2Ctrl.DialpadStyle02 .callBtn.active {
+    background-image: url(/jci/gui/common/controls/DialPad2/images/DialPad_CallIcon.png), -o-linear-gradient(top, #1fc25e 0%, #006629 100%) !important;
+    background-image: url(/jci/gui/common/controls/DialPad2/images/DialPad_CallIcon.png), linear-gradient(to bottom, #1fc25e 0%, #006629 100%) !important;
 }
 
 /* Keyboard Keys, Spacebar & Controls Focus */

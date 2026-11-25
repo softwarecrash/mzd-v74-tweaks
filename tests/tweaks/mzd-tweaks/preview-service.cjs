@@ -76,7 +76,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(fetched.settings.main_menu_loop, true);
     });
 
-    await t.test('rejects invalid key and non-boolean value', async () => {
+    await t.test('rejects invalid key, type, and out-of-allowlist values', async () => {
         await assert.rejects(
             () => request(env.services, 'set', { key: 'nonexistent', value: true }),
             /Invalid setting/
@@ -89,11 +89,73 @@ test('emulated MZD Tweaks service', async t => {
             () => request(env.services, 'set', { key: 'theme', value: 123 }),
             /Invalid setting/
         );
+        await assert.rejects(
+            () => request(env.services, 'set', { key: 'theme', value: 'neon' }),
+            /Invalid setting/
+        );
+        await assert.rejects(
+            () => request(env.services, 'set', { key: 'main_menu_coins_layout', value: 'round' }),
+            /Invalid setting/
+        );
+        await assert.rejects(
+            () => request(env.services, 'set', { key: 'main_menu_coins_layout', value: true }),
+            /Invalid setting/
+        );
+        await assert.rejects(
+            () => request(env.services, 'set', { key: 'main_menu_coins_size', value: 25 }),
+            /Invalid setting/
+        );
+        await assert.rejects(
+            () => request(env.services, 'set', { key: 'main_menu_coins_size', value: '80' }),
+            /Invalid setting/
+        );
     });
 
-    await t.test('updates theme setting and applies global', async () => {
-        const updated = await request(env.services, 'set', { key: 'theme', value: 'blue' });
-        assert.equal(updated.settings.theme, 'blue');
+    await t.test('updates theme, coins layout, and coins size settings and applies globals', async () => {
+        const updatedTheme = await request(env.services, 'set', { key: 'theme', value: 'blue' });
+        assert.equal(updatedTheme.settings.theme, 'blue');
         assert.equal(env.window.mzdTweaks.theme, 'blue');
+
+        const updatedLayout = await request(env.services, 'set', { key: 'main_menu_coins_layout', value: 'flat' });
+        assert.equal(updatedLayout.settings.main_menu_coins_layout, 'flat');
+        assert.equal(env.window.mzdTweaks.main_menu_coins_layout, 'flat');
+
+        const updatedSize80 = await request(env.services, 'set', { key: 'main_menu_coins_size', value: 80 });
+        assert.equal(updatedSize80.settings.main_menu_coins_size, 80);
+        assert.equal(env.window.mzdTweaks.main_menu_coins_size, 80);
+
+        const updatedSize60 = await request(env.services, 'set', { key: 'main_menu_coins_size', value: 60 });
+        assert.equal(updatedSize60.settings.main_menu_coins_size, 60);
+        assert.equal(env.window.mzdTweaks.main_menu_coins_size, 60);
+
+        const restoredLayout = await request(env.services, 'set', { key: 'main_menu_coins_layout', value: 'ellipse' });
+        assert.equal(restoredLayout.settings.main_menu_coins_layout, 'ellipse');
+        assert.equal(env.window.mzdTweaks.main_menu_coins_layout, 'ellipse');
+    });
+
+    await t.test('sanitizes invalid stored or initial values against allowlists', async () => {
+        const badStorage = {
+            'mzd-preview-mzd-tweaks': JSON.stringify({
+                theme: 'neon',
+                main_menu_coins_layout: 'round',
+                main_menu_coins_size: 25,
+                main_menu_loop: 'invalid'
+            })
+        };
+        const sanitized = fixture(badStorage, {
+            'mzd-tweaks': {
+                theme: 'bogus',
+                main_menu_coins_layout: 'circle',
+                main_menu_coins_size: 50
+            }
+        });
+        assert.equal(sanitized.window.mzdTweaks.theme, 'red');
+        assert.equal(sanitized.window.mzdTweaks.main_menu_coins_layout, 'ellipse');
+        assert.equal(sanitized.window.mzdTweaks.main_menu_coins_size, 100);
+        assert.equal(sanitized.window.mzdTweaks.main_menu_loop, false);
+        const res = await request(sanitized.services, 'get', {});
+        assert.equal(res.settings.theme, 'red');
+        assert.equal(res.settings.main_menu_coins_layout, 'ellipse');
+        assert.equal(res.settings.main_menu_coins_size, 100);
     });
 });
