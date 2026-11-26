@@ -367,6 +367,7 @@ function lastResponse(source) {
 }
 
 {
+  const page = residentPage({ list_loop: true, theme: 'blue' });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
   assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, fuel_ending_delay: 7, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept; a settings.js without the fuel ending time gets 7 s');

@@ -437,7 +437,7 @@ do
         { key = 'theme', value = 'blue' },
         { key = 'main_menu_coins_size', value = 80 },
         { key = 'main_menu_coins_layout', value = 'flat' },
-        { key = 'statusbar_date', value = 'weekday' }
+        { key = 'statusbar_date', value = 'weekday' },
         { key = 'fuel_ending_delay', value = 10 }
     }) do
         local ok, err = pcall(svc.request, 'set', req)
