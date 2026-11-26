@@ -103,6 +103,8 @@
     var EN_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     var EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     var DATE_MODES = { off: true, weekday: true, month_text: true, month_numeric: true };
+    var lastRenderedDateMode = null;
+    var statusbarControls = [];
 
     // statusbar_date is off, weekday, month_text or month_numeric. true and false
     // from older settings.js files read as weekday and off.
@@ -217,15 +219,50 @@
         clock._mzdTweaksOut = clockText(clock);
     }
 
+    function trackStatusbarControl(ctrl) {
+        var i;
+        if (!ctrl || typeof ctrl !== 'object') { return; }
+        for (i = 0; i < statusbarControls.length; i++) {
+            if (statusbarControls[i] === ctrl) { return; }
+        }
+        statusbarControls.push(ctrl);
+    }
+
+    function rememberClockTime(target, currentTime) {
+        if (target && statusbarDate(currentTime)) {
+            target._mzdTweaksLastTime = currentTime;
+        }
+    }
+
     // Each clock is isolated: a failure restores that clock and the others still refresh.
     function refreshStatusbarDisplays(log) {
-        var fw = global.framework, doc = global.document, currentTime = null, clocks, i;
-        if (!doc || typeof doc.getElementsByClassName !== 'function') { return; }
+        var fw = global.framework, doc = global.document, currentTime = null, clocks = [], domClocks, i;
+        function addClock(clock) {
+            var j;
+            if (!clock) { return; }
+            for (j = 0; j < clocks.length; j++) {
+                if (clocks[j] === clock) { return; }
+            }
+            clocks.push(clock);
+        }
+        lastRenderedDateMode = statusbarDateMode();
         try {
             if (fw && fw.common && typeof fw.common.getCurrentTime === 'function') {
                 currentTime = fw.common.getCurrentTime();
             }
-            clocks = doc.getElementsByClassName('StatusBarCtrlClock');
+            for (i = 0; i < statusbarControls.length; i++) {
+                addClock(statusbarControls[i] && statusbarControls[i].clock);
+            }
+            if (fw && fw.common) {
+                addClock(fw.common.statusBar && fw.common.statusBar.clock);
+                addClock(fw.common._statusBar && fw.common._statusBar.clock);
+            }
+            if (doc && typeof doc.getElementsByClassName === 'function') {
+                domClocks = doc.getElementsByClassName('StatusBarCtrlClock');
+                for (i = 0; i < domClocks.length; i++) {
+                    addClock(domClocks[i]);
+                }
+            }
         } catch (error) {
             if (typeof log === 'function') {
                 log('Status bar refresh failed: ' + (error && error.message ? error.message : error));
@@ -234,7 +271,8 @@
         }
         for (i = 0; i < clocks.length; i++) {
             try {
-                renderClock(clocks[i], currentTime);
+                var clockTime = (currentTime === null || currentTime === undefined) ? clocks[i]._mzdTweaksLastTime : currentTime;
+                renderClock(clocks[i], clockTime);
             } catch (error) {
                 try { restoreClock(clocks[i]); } catch (ignoreRestore) { /* element unusable */ }
                 if (typeof log === 'function') {
@@ -448,12 +486,14 @@
                 backfillDefaults(global.mzdTweaks);
                 applyTheme(global.mzdTweaks.theme);
                 applyMainMenuOrder(null);
+                refreshStatusbarDisplays(null);
             };
             bootScript.onerror = function (event) {
                 if (event && event.preventDefault) { event.preventDefault(); }
                 backfillDefaults(global.mzdTweaks);
                 applyTheme(global.mzdTweaks.theme);
                 applyMainMenuOrder(null);
+                refreshStatusbarDisplays(null);
                 if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
                     global.MzdGuiResidents.log('mzd-tweaks', 'settings.js could not be loaded; using defaults until the service answers.');
                 }
@@ -1279,8 +1319,14 @@
             if (typeof original !== 'function') { return; }
             proto[name] = function () {
                 var result = original.apply(this, arguments);
+                var timeArg = arguments.length ? arguments[0] : null;
+                trackStatusbarControl(this);
+                rememberClockTime(this, timeArg);
                 try {
-                    if (this.clock) { renderClock(this.clock, arguments.length ? arguments[0] : null); }
+                    if (this.clock) {
+                        rememberClockTime(this.clock, timeArg);
+                        renderClock(this.clock, timeArg);
+                    }
                 } catch (error) {
                     if (this.clock) { restoreClock(this.clock); }
                     if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
@@ -1308,7 +1354,11 @@
                 } else if (type === 'StatusBarCtrl') {
                     hookStatusbar();
                 }
-                return origInstantiate.apply(this, arguments);
+                var result = origInstantiate.apply(this, arguments);
+                if (type === 'StatusBarCtrl') {
+                    trackStatusbarControl(result);
+                }
+                return result;
             };
         }
     }
@@ -1400,8 +1450,7 @@
             before = {
                 theme: themeState(),
                 menuOrder: menuOrderState(),
-                audioOrder: audioOrderState(),
-                date: String(global.mzdTweaks.statusbar_date)
+                audioOrder: audioOrderState()
             };
             for (k in settings) {
                 if (Object.prototype.hasOwnProperty.call(settings, k)) {
@@ -1435,7 +1484,7 @@
             if (before.menuOrder !== menuOrderState()) {
                 applyMainMenuOrder(null);
             }
-            if (before.date !== String(global.mzdTweaks.statusbar_date)) {
+            if (lastRenderedDateMode !== statusbarDateMode()) {
                 refreshStatusbarDisplays(context.log);
             }
             if (before.audioOrder !== audioOrderState() && typeof global.mzdTweaksResortEntertainment === 'function') {

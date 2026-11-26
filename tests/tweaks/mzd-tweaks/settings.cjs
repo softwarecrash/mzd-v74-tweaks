@@ -276,6 +276,57 @@ function lastResponse(source) {
     assert.equal(live.control.clock.innerText, '08:26', 'switching to Off restores the stock clock');
     assert(!live.control.clock.style.top, 'switching to Off restores stock styling');
   }
+
+  // Preview services and boot settings.js can update window.mzdTweaks before onConfirmed runs.
+  {
+    const preUpdated = statusbarFixture('off', null, false, false);
+    complete(preUpdated.page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
+    request(preUpdated.page.ctx, 'set', { key: 'statusbar_date', value: 'month_text' });
+    preUpdated.page.win.mzdTweaks.statusbar_date = 'month_text';
+    complete(preUpdated.page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: 'month_text' }) });
+    assert.equal(preUpdated.control.clock.innerText, '08:26\nNov 18',
+      'refresh runs even when window.mzdTweaks was updated before onConfirmed');
+  }
+
+  // Clock elements not returned by getElementsByClassName('StatusBarCtrlClock') are still refreshed
+  // via tracked StatusBarCtrl instances, even if framework.common.getCurrentTime is unavailable.
+  {
+    const currentTime = new Date(2026, 10, 18, 8, 26);
+    const framework = {
+      localize: { getCurrentLanguage: () => 'en_US', getTimeFormat: () => '24hrs' },
+      common: {},
+      getCurrCtxtId: () => 'Home',
+      getCurrentApp: () => 'system',
+      instantiateControl(uia, parent, type) {
+        if (type === 'StatusBarCtrl') { return new this._StatusBarCtrl(); }
+        return null;
+      }
+    };
+    function StatusBarCtrl() {
+      this.clock = fakeElement();
+      this.updateClock(currentTime);
+    }
+    StatusBarCtrl.prototype.updateClock = function () {
+      this.clock.innerText = '08:26';
+    };
+    framework._StatusBarCtrl = StatusBarCtrl;
+    const page = residentPage(Object.assign({}, DEFAULTS, { statusbar_date: 'off' }), {
+      framework,
+      StatusBarCtrl,
+      statusbarElements: [],
+      createElement: () => fakeElement()
+    });
+    const control = page.win.framework.instantiateControl(null, null, 'StatusBarCtrl', {});
+    complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
+    request(page.ctx, 'set', { key: 'statusbar_date', value: 'weekday' });
+    complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: 'weekday' }) });
+    assert.equal(control.clock.innerText, '08:26\nWed 18',
+      'tracked StatusBarCtrl refreshes immediately without DOM class match or getCurrentTime');
+    request(page.ctx, 'set', { key: 'statusbar_date', value: 'month_numeric' });
+    complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { statusbar_date: 'month_numeric' }) });
+    assert.equal(control.clock.innerText, '08:26\n11/18',
+      'tracked StatusBarCtrl updates format immediately without DOM class match or getCurrentTime');
+  }
 }
 
 {
