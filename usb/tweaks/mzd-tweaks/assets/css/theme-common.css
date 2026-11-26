@@ -48,19 +48,19 @@ body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Focus"]:after {
     background-repeat: no-repeat;
 }
 body[class*="mzd-theme-"] .MainMenuCtrlAppFocus:after {
-    background-image: url(images/coins/HomeApps_Focus_base.png);
+    background-image: url(../images/coins/HomeApps_Focus_base.png);
 }
 body[class*="mzd-theme-"] .MainMenuCtrlEntFocus:after {
-    background-image: url(images/coins/HomeAudio_Focus_base.png);
+    background-image: url(../images/coins/HomeAudio_Focus_base.png);
 }
 body[class*="mzd-theme-"] .MainMenuCtrlComFocus:after {
-    background-image: url(images/coins/HomeCom_Focus_base.png);
+    background-image: url(../images/coins/HomeCom_Focus_base.png);
 }
 body[class*="mzd-theme-"] .MainMenuCtrlNavFocus:after {
-    background-image: url(images/coins/HomeNav_Focus_base.png);
+    background-image: url(../images/coins/HomeNav_Focus_base.png);
 }
 body[class*="mzd-theme-"] .MainMenuCtrlSetFocus:after {
-    background-image: url(images/coins/HomeSet_Focus_base.png);
+    background-image: url(../images/coins/HomeSet_Focus_base.png);
 }
 
 /* Base sizing and full opacity when coin is focused */

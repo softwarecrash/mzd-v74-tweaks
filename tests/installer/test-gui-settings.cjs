@@ -670,6 +670,25 @@ test('bool rows honour defaultValue and save the opposite value', () => {
   assert.deepEqual(page.requests('set').pop().payload, { key: 'beep', value: true });
 });
 
+test('hint rows are disabled with OEM hint styling and ignore selection', () => {
+  const page = viewPage({ entries: [{ key: 'info', type: 'hint', label: 'Press knob' }] });
+  page.respond({ state: {} });
+  assert.deepEqual(page.row(0), {
+    id: 'info',
+    key: 'info',
+    type: 'hint',
+    label: 'Press knob',
+    styleMod: 'hint',
+    background: 'lightGrey',
+    disabledStyleMod: 'white',
+    spinner: false,
+    disabled: true
+  });
+  const countBefore = page.requests('set').length;
+  page.select(0);
+  assert.equal(page.requests('set').length, countBefore);
+});
+
 test('every row can show a spinner and be disabled while it saves, configured by properties', () => {
   const page = viewPage({
     entries: () => [
@@ -1054,7 +1073,7 @@ test('view ignores other windows and tokens and stops after dispose', () => {
 test('view helpers expose the built-in types and the step helpers', () => {
   const win = loadView({});
   const View = win.MzdSettingsView;
-  assert.deepEqual(Object.keys(View.types).sort(), ['action', 'bool', 'reboot', 'step']);
+  assert.deepEqual(Object.keys(View.types).sort(), ['action', 'bool', 'hint', 'reboot', 'step']);
   assert.equal(View.stepValue({ min: 1, max: 5 }, { value: 3 }), 3);
   assert.equal(View.stepValue({ min: 1, max: 5 }, 4), 4, 'a plain number is a value too');
   assert.equal(View.stepValue({ min: 1, max: 5 }, { value: 6 }), null);

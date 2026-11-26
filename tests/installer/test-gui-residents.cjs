@@ -722,7 +722,7 @@ test("createNativeMenu full features", async (t) => {
         { id: "opt-1", label: "Option 1" },
         { id: "opt-2", label: "Option 2", checkable: true, checked: true, radio: true },
         { label: "Option 3", detail: "Subtitle detail", caret: true },
-        { label: "Option 4", disabled: true },
+        { label: "Option 4", disabled: true, disabledStyleMod: "white", styleMod: "bold", background: "grey" },
         { label: "Resolution DPI", itemStyle: "styleStep", value: 141, min: 100, max: 160, increment: 1, spinner: true }
       ]
     });
@@ -753,6 +753,10 @@ test("createNativeMenu full features", async (t) => {
     assert.equal(items[2].hasCaret, true);
 
     assert.equal(items[3].disabled, true);
+    assert.equal(items[3].disabledStyleMod, "white");
+    assert.equal(items[3].styleMod, "bold");
+    assert.equal(items[3].background, "grey");
+    assert.equal(items[0].styleMod, undefined);
 
     assert.equal(items[4].itemStyle, "styleStep");
     assert.equal(items[4].label1, "Resolution DPI");

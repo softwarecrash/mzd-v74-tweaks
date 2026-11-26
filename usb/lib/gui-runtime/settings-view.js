@@ -129,6 +129,17 @@
                 }
             }
         },
+        // Non-selectable informational hint row with OEM light-grey background and white text.
+        hint: {
+            row: function () {
+                return {
+                    styleMod: 'hint',
+                    disabled: true,
+                    background: 'lightGrey',
+                    disabledStyleMod: 'white'
+                };
+            }
+        },
         // Reboot to apply saved settings. Enabled only when the service reports
         // rebootRequired and no save is running; always confirmed, default No.
         reboot: {

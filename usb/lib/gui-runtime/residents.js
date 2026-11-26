@@ -470,7 +470,7 @@
                 var isStep = row.itemStyle === 'styleStep';
                 var spinnerImg = (row.spinner || row.saving) ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : '';
                 var rightSpinnerImg = row.rightSpinner ? 'common/controls/List2/images/IcnStatBgFunctions_Refreshing_01.png' : (row.image2 || '');
-                items.push({
+                var item = {
                     appData: {
                         itemIndex: i,
                         aaIndex: i,
@@ -496,7 +496,11 @@
                     increment: isStep ? (row.increment != null ? row.increment : 1) : undefined,
                     hasCaret: row.caret === true,
                     disabled: row.disabled === true
-                });
+                };
+                if (row.styleMod) { item.styleMod = row.styleMod; }
+                if (row.disabledStyleMod) { item.disabledStyleMod = row.disabledStyleMod; }
+                if (row.background) { item.background = row.background; }
+                items.push(item);
             }
             signature = JSON.stringify(items);
             oldPage = session.page;

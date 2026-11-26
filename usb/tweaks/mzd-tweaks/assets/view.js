@@ -310,8 +310,8 @@
                     },
                     {
                         key: opts.hintKey || 'reorder_hint',
-                        disabled: true,
-                        image1: 'common/images/icons/IcnUmpInfo_Ds.png',
+                        type: 'hint',
+                        image1: 'common/images/icons/IcnUmpInfo_En.png',
                         label: tr('custom_order_hint', 'Press knob and rotate to change order')
                     }
                 ];
@@ -494,6 +494,16 @@
                     var next = row.checked ? def.falseValue : def.trueValue;
                     api.save(def.key, next);
                 }
+            },
+            section: {
+                row: function () {
+                    return {
+                        itemStyle: 'style01',
+                        disabled: true,
+                        background: 'lightGrey',
+                        disabledStyleMod: 'white'
+                    };
+                }
             }
         },
         title: function (tr) { return tr('title', 'MZD Tweaks'); },
@@ -510,6 +520,31 @@
                 tr('custom', 'Custom') :
                 tr('default', 'Default');
             var rows = [
+                {
+                    key: 'theme_menu',
+                    label: tr('theme', 'Theme'),
+                    detail: getThemeShortLabel(state.theme || 'red', tr),
+                    caret: true,
+                    select: function (api) {
+                        var current = (api.state() || {}).theme || 'red';
+                        api.openPage({
+                            id: 'theme',
+                            title: api.t('theme', 'Theme'),
+                            index: themeIndex(current),
+                            entries: function (pageApi) {
+                                var pageState = pageApi.state() || {};
+                                var pageCurrent = pageState.theme || 'red';
+                                var pageTr = pageApi.t;
+                                var list = [];
+                                for (var i = 0; i < THEMES.length; i++) {
+                                    list.push(themeOption(THEMES[i], pageCurrent, pageTr));
+                                }
+                                return list;
+                            }
+                        });
+                    }
+                },
+                { id: 'section_main_menu', type: 'section', label: tr('section_main_menu', 'Main menu') },
                 { key: 'main_menu_loop', type: 'bool', label: tr('main_menu_loop', 'Main menu loop') },
                 {
                     key: 'main_menu_coins_layout',
@@ -554,9 +589,11 @@
                         api.openPage(mainMenuOrderCtrl.page);
                     }
                 },
+                { id: 'section_list_menu', type: 'section', label: tr('section_list_menu', 'List menu') },
                 { key: 'list_loop', type: 'bool', label: tr('list_loop', 'List menu loop') },
                 { key: 'list_beep', type: 'bool', label: tr('list_beep', 'List menu beep'), defaultValue: true },
                 { key: 'short_delay', type: 'bool', label: tr('short_delay', 'List menu shorter delay') },
+                { id: 'section_status_bar', type: 'section', label: tr('section_status_bar', 'Status bar') },
                 {
                     key: 'statusbar_date_menu',
                     label: tr('statusbar_date', 'Date in status bar'),
@@ -578,30 +615,7 @@
                     }
                 },
                 { key: 'bluetooth_notification', type: 'bool', label: tr('bluetooth_notification', 'Bluetooth connection notification'), defaultValue: true },
-                {
-                    key: 'theme_menu',
-                    label: tr('theme', 'Theme'),
-                    detail: getThemeShortLabel(state.theme || 'red', tr),
-                    caret: true,
-                    select: function (api) {
-                        var current = (api.state() || {}).theme || 'red';
-                        api.openPage({
-                            id: 'theme',
-                            title: api.t('theme', 'Theme'),
-                            index: themeIndex(current),
-                            entries: function (pageApi) {
-                                var pageState = pageApi.state() || {};
-                                var pageCurrent = pageState.theme || 'red';
-                                var pageTr = pageApi.t;
-                                var list = [];
-                                for (var i = 0; i < THEMES.length; i++) {
-                                    list.push(themeOption(THEMES[i], pageCurrent, pageTr));
-                                }
-                                return list;
-                            }
-                        });
-                    }
-                },
+                { id: 'section_others', type: 'section', label: tr('section_others', 'Others') },
                 {
                     key: 'audio_order_menu',
                     label: tr('audio_order_title', 'Entertainment menu order'),

@@ -434,6 +434,7 @@ Built-in row types cover only common patterns:
 | `bool` | OEM On/Off row. `defaultValue` applies while the setting is absent. |
 | `step` | OEM stepper. Limits come from the service `limits[key]`, otherwise `min`, `max` and `increment`. Value is saved once the adjustment is finished, focus leaves the row or on flush. |
 | `action` | Sends `<prefix>-request {action}`. `confirm: {text, buttons}` asks first; the default buttons are No (focused) and Yes. |
+| `hint` | Non-selectable informational row (`disabled: true`, `styleMod: 'hint'`, `background: 'lightGrey'`, `disabledStyleMod: 'white'`). |
 | `reboot` | Enabled only when the service reports `rebootRequired` and no save is running. Always confirmed. `fallback` text appears if the dialog fails. |
 
 These row properties work for every type, including custom ones:

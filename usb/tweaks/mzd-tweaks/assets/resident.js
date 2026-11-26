@@ -335,18 +335,25 @@
     var SIZE_CLASSES = ['mzd-coins-80', 'mzd-coins-60'];
     var themeDomListenerAttached = false;
 
-    function ensureBaseStylesheet() {
+    function loadStylesheet(id, href) {
         var doc = global.document;
-        if (!doc) { return; }
-        var linkId = 'mzd-tweaks-base-css';
-        if (typeof doc.getElementById === 'function' && !doc.getElementById(linkId)) {
-            var link = doc.createElement('link');
-            link.id = linkId;
+        if (!doc) { return null; }
+        var link = typeof doc.getElementById === 'function' ? doc.getElementById(id) : null;
+        if (!link) {
+            var head = doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement;
+            link = doc.createElement('link');
+            link.id = id;
             link.rel = 'stylesheet';
             link.type = 'text/css';
-            link.href = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/mzd-tweaks.css';
-            (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(link);
+            link.href = href;
+            head.appendChild(link);
         }
+        return link;
+    }
+
+    function ensureBaseStylesheet() {
+        loadStylesheet('mzd-tweaks-base-css', '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/mzd-tweaks.css');
+        loadStylesheet('mzd-tweaks-settings-view-css', '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/settings-view.css');
     }
 
     // The class tokens in a stable order, to compare class lists regardless of their order.
@@ -410,26 +417,11 @@
             newCls = 'mzd-theme-' + themeName;
             cls = cls ? (cls + ' ' + newCls) : newCls;
 
-            var commonHref = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/theme-common.css';
-            if (!commonLink) {
-                commonLink = doc.createElement('link');
-                commonLink.id = commonLinkId;
-                commonLink.rel = 'stylesheet';
-                commonLink.type = 'text/css';
-                commonLink.href = commonHref;
-                (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(commonLink);
-            }
+            loadStylesheet(commonLinkId, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/theme-common.css');
 
-            var targetHref = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/themes/theme-' + themeName + '.css';
-            if (!colorLink) {
-                colorLink = doc.createElement('link');
-                colorLink.id = colorLinkId;
-                colorLink.rel = 'stylesheet';
-                colorLink.type = 'text/css';
-                colorLink.setAttribute('data-theme', themeName);
-                colorLink.href = targetHref;
-                (doc.head || doc.getElementsByTagName('head')[0] || doc.documentElement).appendChild(colorLink);
-            } else if (colorLink.getAttribute('data-theme') !== themeName) {
+            var targetHref = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/themes/theme-' + themeName + '.css';
+            colorLink = loadStylesheet(colorLinkId, targetHref);
+            if (colorLink && colorLink.getAttribute('data-theme') !== themeName) {
                 colorLink.setAttribute('data-theme', themeName);
                 colorLink.href = targetHref;
             }

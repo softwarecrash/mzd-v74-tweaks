@@ -11,7 +11,7 @@ body.mzd-theme-orange .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
 
 /* Main Menu Glow */
 body.mzd-theme-orange.mzd-coins-glow .MainMenuCtrl [class*="Highlight"] {
-    background-image: url(../images/highlights/Glow_orange.png) !important;
+    background-image: url(../../images/highlights/Glow_orange.png) !important;
 }
 
 /* List Items (Normal & Thick) Focus and Pressed */
@@ -34,21 +34,21 @@ body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.pressed {
 body.mzd-theme-orange .List2CtrlScrollIndicator,
 body.mzd-theme-orange .ScrollDetailCtrlScrollIndicator,
 body.mzd-theme-orange .Messaging2CtrlScrollIndicator {
-    background-image: url(../images/scrollbar/Scrollbar_orange.png) !important;
+    background-image: url(../../images/scrollbar/Scrollbar_orange.png) !important;
 }
 
 /* Back Button (<) & Folder Up Button */
 body.mzd-theme-orange .LeftBtnCtrlBackBtnFocused {
-    background-image: url(../images/leftbtn/BtnLeft_Focus_orange.png) !important;
+    background-image: url(../../images/leftbtn/BtnLeft_Focus_orange.png) !important;
 }
 body.mzd-theme-orange .LeftBtnCtrlBackBtnDown {
-    background-image: url(../images/leftbtn/BtnLeft_Hit_orange.png) !important;
+    background-image: url(../../images/leftbtn/BtnLeft_Hit_orange.png) !important;
 }
 body.mzd-theme-orange .LeftBtnCtrlMoveUpBtnFocused {
-    background-image: url(../images/leftbtn/BtnFldrUp_Focus_orange.png) !important;
+    background-image: url(../../images/leftbtn/BtnFldrUp_Focus_orange.png) !important;
 }
 body.mzd-theme-orange .LeftBtnCtrlMoveUpBtnDown {
-    background-image: url(../images/leftbtn/BtnFldrUp_Hit_orange.png) !important;
+    background-image: url(../../images/leftbtn/BtnFldrUp_Hit_orange.png) !important;
 }
 
 /* List Segmented Buttons (Auto / Man., Auto / Day / Night, 12h / 24h - Pure CSS Gradient) */
@@ -83,7 +83,7 @@ body.mzd-theme-orange .Dialog3Ctrl_ButtonStyle04_down {
 body.mzd-theme-orange .List2Ctrl .ListItem.styleStep.secondaryFocus .label2,
 body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.styleStep.secondaryFocus .label2,
 body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.styleStep.secondaryFocus .label2 {
-    background: url(../images/stepper/ListItem_MaintSet_Bg_Focus_orange.png) 50% 50% no-repeat, url(/jci/gui/common/controls/List2/images/ListItem_MaintSet_Bg.png) 50% 50% no-repeat !important;
+    background: url(../../images/stepper/ListItem_MaintSet_Bg_Focus_orange.png) 50% 50% no-repeat, url(/jci/gui/common/controls/List2/images/ListItem_MaintSet_Bg.png) 50% 50% no-repeat !important;
 }
 
 /* Sliders (Decision 2: Retained PNG Images) */
@@ -92,14 +92,14 @@ body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.style12 .List2CtrlSliderC
 body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.style12 .List2CtrlSliderCtrlFocusedFill,
 body.mzd-theme-orange .List2CtrlSliderCtrlFocusedFill,
 body.mzd-theme-orange .SliderCtrlFocusedFill {
-    background-image: url(../images/slider/ListItem_Slider_Focus_orange.png) !important;
+    background-image: url(../../images/slider/ListItem_Slider_Focus_orange.png) !important;
 }
 body.mzd-theme-orange .List2Ctrl .ListItem .List2CtrlSliderCtrlFocusedHandle,
 body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.style12 .List2CtrlSliderCtrlFocusedHandle,
 body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.style12 .List2CtrlSliderCtrlFocusedHandle,
 body.mzd-theme-orange .List2CtrlSliderCtrlFocusedHandle,
 body.mzd-theme-orange .SliderCtrlFocusedHandle {
-    background-image: url(../images/slider/ListItem_Slider_KnobFocus_orange.png) !important;
+    background-image: url(../../images/slider/ListItem_Slider_KnobFocus_orange.png) !important;
 }
 
 /* Notifications (SBN banner & Wink) */
@@ -129,10 +129,10 @@ body.mzd-theme-orange .UmpScrubberFocusedHandleStyle06 {
 
 /* Tooltip (UMP Balloon & Point) */
 body.mzd-theme-orange .Ump3CtrlTooltipBalloon {
-    background-image: url(../images/ump/UmpPopupLt_orange.png), url(../images/ump/UMPPopupRt_orange.png), url(../images/ump/UMPPopupMd_orange.png) !important;
+    background-image: url(../../images/ump/UmpPopupLt_orange.png), url(../../images/ump/UMPPopupRt_orange.png), url(../../images/ump/UMPPopupMd_orange.png) !important;
 }
 body.mzd-theme-orange .Ump3CtrlTooltipPoint {
-    background-image: url(../images/ump/UMP_Popup_Point_orange.png) !important;
+    background-image: url(../../images/ump/UMP_Popup_Point_orange.png) !important;
 }
 
 /* EcoEnergy & Screen Settings Switch View Arrow Button */
@@ -144,7 +144,7 @@ body.mzd-theme-orange .EcoFlowCtrlShowUmp,
 body.mzd-theme-orange .EcoFlowCtrlShowUmpHit,
 body.mzd-theme-orange .ScreenSettings2CtrlSwitchView,
 body.mzd-theme-orange .ScreenSettings2CtrlSwitchViewDown {
-    background-image: url(../images/adjustbtn/AdjustBtn3_Focus_orange.png) !important;
+    background-image: url(../../images/adjustbtn/AdjustBtn3_Focus_orange.png) !important;
 }
 
 /* Status Bar */

@@ -1,0 +1,110 @@
+/*
+ * MZD Tweaks Settings View Stylesheet
+ * Styles for the MZD Tweaks settings menu (.mzd-custom-menu) in Mazda GUI.
+ */
+
+/* ==========================================================================
+   1. Theme Selection Subpage Swatches (180px × 36px)
+   Scoped to .mzd-custom-menu to prevent style leakage into OEM Mazda menus.
+   ========================================================================== */
+
+.mzd-custom-menu .List2Ctrl.normalItems .ListItem.style03.mzd-theme-row .line1 {
+    width: 630px !important;
+}
+
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row .line1:before {
+    content: "";
+    display: inline-block;
+    width: 180px;
+    height: 36px;
+    vertical-align: middle;
+    margin-right: 18px;
+    border-radius: 3px;
+    -o-border-radius: 3px;
+    box-sizing: border-box;
+    -o-box-sizing: border-box;
+}
+
+/* Red */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-red .line1:before {
+    border: 1px solid #ff3b30;
+    background-image: -o-linear-gradient(left, rgba(160, 0, 0, 0.08) 0%, rgba(255, 40, 0, 0.85) 15%, rgba(160, 0, 0, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(160, 0, 0, 0.08) 0%, rgba(255, 40, 0, 0.85) 15%, rgba(160, 0, 0, 0.75) 60%, transparent 100%);
+}
+
+/* Blue */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-blue .line1:before {
+    border: 1px solid #00aaff;
+    background-image: -o-linear-gradient(left, rgba(0, 80, 200, 0.08) 0%, rgba(0, 140, 255, 0.85) 15%, rgba(0, 80, 200, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(0, 80, 200, 0.08) 0%, rgba(0, 140, 255, 0.85) 15%, rgba(0, 80, 200, 0.75) 60%, transparent 100%);
+}
+
+/* Green */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-green .line1:before {
+    border: 1px solid #28e070;
+    background-image: -o-linear-gradient(left, rgba(0, 112, 44, 0.08) 0%, rgba(16, 220, 96, 0.85) 15%, rgba(0, 112, 44, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(0, 112, 44, 0.08) 0%, rgba(16, 220, 96, 0.85) 15%, rgba(0, 112, 44, 0.75) 60%, transparent 100%);
+}
+
+/* Orange */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-orange .line1:before {
+    border: 1px solid #ffa520;
+    background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%);
+}
+
+/* Purple */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-purple .line1:before {
+    border: 1px solid #c840f0;
+    background-image: -o-linear-gradient(left, rgba(92, 0, 128, 0.08) 0%, rgba(176, 32, 224, 0.85) 15%, rgba(92, 0, 128, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(92, 0, 128, 0.08) 0%, rgba(176, 32, 224, 0.85) 15%, rgba(92, 0, 128, 0.75) 60%, transparent 100%);
+}
+
+/* Pink */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-pink .line1:before {
+    border: 1px solid #ff4d90;
+    background-image: -o-linear-gradient(left, rgba(153, 0, 56, 0.08) 0%, rgba(255, 45, 120, 0.85) 15%, rgba(153, 0, 56, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(153, 0, 56, 0.08) 0%, rgba(255, 45, 120, 0.85) 15%, rgba(153, 0, 56, 0.75) 60%, transparent 100%);
+}
+
+/* Silver */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-silver .line1:before {
+    border: 1px solid #eef4fa;
+    background-image: -o-linear-gradient(left, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%);
+}
+
+/* Gold */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-gold .line1:before {
+    border: 1px solid #ffe44d;
+    background-image: -o-linear-gradient(left, rgba(179, 143, 0, 0.08) 0%, rgba(255, 215, 0, 0.85) 15%, rgba(179, 143, 0, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(179, 143, 0, 0.08) 0%, rgba(255, 215, 0, 0.85) 15%, rgba(179, 143, 0, 0.75) 60%, transparent 100%);
+}
+
+/* Cyan */
+.mzd-custom-menu .List2Ctrl .ListItem.mzd-theme-row-cyan .line1:before {
+    border: 1px solid #33ecff;
+    background-image: -o-linear-gradient(left, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
+    background-image: linear-gradient(to right, rgba(0, 128, 153, 0.08) 0%, rgba(0, 229, 255, 0.85) 15%, rgba(0, 128, 153, 0.75) 60%, transparent 100%);
+}
+
+/* ==========================================================================
+   2. Section Headers (.style01.disabled.bgLightGrey.disabledWhite)
+   Reuses OEM List2CtrlTitle.style02 typography on bgLightGrey/disabledWhite
+   rows, scoped to .mzd-custom-menu to prevent style leakage into OEM menus.
+   ========================================================================== */
+
+.mzd-custom-menu .List2Ctrl.normalItems .ListItem.style01.disabled.bgLightGrey.disabledWhite:not(.hint) .line1,
+.mzd-custom-menu .List2Ctrl.normalItems.smallItemText .ListItem.style01.disabled.bgLightGrey.disabledWhite:not(.hint) .line1 {
+    width: 688px;
+    display: block;
+    position: absolute;
+    top: 0;
+    line-height: 69px;
+    font-size: 40px;
+    left: 31px;
+    overflow: hidden;
+    white-space: pre;
+    text-overflow: ellipsis;
+    direction: ltr;
+}

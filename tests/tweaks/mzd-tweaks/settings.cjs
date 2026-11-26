@@ -1491,9 +1491,9 @@ function viewPage(options) {
 {
   const page = viewPage();
   page.respond({ statusbar_date: 'off' });
-  let row = page.menu().rows[8];
+  let row = page.menu().rows[12];
   assert.deepEqual([row.label, row.detail, row.caret], ['Date in status bar', 'Off', true], 'the date row shows Off and opens a page');
-  page.select(8);
+  page.select(12);
   let sub = page.menu();
   assert.equal(sub.title, 'Date in status bar');
   // The view uses the framework time (18 November 2026 in this fixture), like the status bar.
@@ -1503,23 +1503,23 @@ function viewPage(options) {
   assert.deepEqual(page.sets(), [{ key: 'statusbar_date', value: 'month_text' }], 'choosing an example saves its mode');
   assert.notEqual(page.menu().title, 'Date in status bar', 'choosing returns to the main page');
   page.respond({ statusbar_date: 'month_text' });
-  assert.equal(page.menu().rows[8].detail, 'Nov 18', 'the row shows the chosen format');
+  assert.equal(page.menu().rows[12].detail, 'Nov 18', 'the row shows the chosen format');
   page.respond({ statusbar_date: true });
-  assert.equal(page.menu().rows[8].detail, 'Wed 18', 'true from an older settings.js shows as weekday');
-  page.select(8);
+  assert.equal(page.menu().rows[12].detail, 'Wed 18', 'true from an older settings.js shows as weekday');
+  page.select(12);
   assert.deepEqual(page.menu().rows.map(r => r.checked), [false, true, false, false], 'weekday is checked for true');
   page.select(1);
   assert.equal(page.sets().length, 1, 'choosing the current mode saves nothing');
   page.respond({ statusbar_date: 'stacked' });
-  assert.equal(page.menu().rows[8].detail, 'Off', 'an unknown value shows Off');
+  assert.equal(page.menu().rows[12].detail, 'Off', 'an unknown value shows Off');
 }
 
 {
   const page = viewPage();
   page.respond({ bluetooth_notification: true });
-  assert.equal(page.menu().rows[9].label, 'Bluetooth connection notification');
-  assert.equal(page.menu().rows[9].checked, true, 'the bluetooth notification is on by default');
-  page.select(9);
+  assert.equal(page.menu().rows[13].label, 'Bluetooth connection notification');
+  assert.equal(page.menu().rows[13].checked, true, 'the bluetooth notification is on by default');
+  page.select(13);
   assert.deepEqual(page.sets(), [{ key: 'bluetooth_notification', value: false }], 'switching bluetooth notification off saves false');
 }
 
@@ -1529,29 +1529,39 @@ function viewPage(options) {
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, main_menu_order_custom: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.key), ['main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'list_loop', 'list_beep', 'short_delay', 'statusbar_date_menu', 'bluetooth_notification', 'theme_menu', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Date in status bar', 'Bluetooth connection notification', 'Theme', 'Entertainment menu order']);
-  assert.equal(menu.rows[3].detail, 'Default');
-  assert.equal(menu.rows[3].caret, true);
-  assert.equal(menu.rows[4].detail, 'Default', 'main menu order detail shows Default when off');
-  assert.equal(menu.rows[4].caret, true);
-  assert.equal(menu.rows[10].detail, 'Red');
-  assert.equal(menu.rows[10].caret, true);
-  assert.equal(menu.rows[11].detail, 'Default', 'detail shows Default when custom order is off');
-  assert.equal(menu.rows[11].caret, true);
+  assert.deepEqual(menu.rows.map(r => r.id), ['theme_menu', 'section_main_menu', 'main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'section_list_menu', 'list_loop', 'list_beep', 'short_delay', 'section_status_bar', 'statusbar_date_menu', 'bluetooth_notification', 'section_others', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Theme', 'Main menu', 'Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Status bar', 'Date in status bar', 'Bluetooth connection notification', 'Others', 'Entertainment menu order']);
+  for (const idx of [1, 7, 11, 14]) {
+    assert.equal(menu.rows[idx].disabled, true, `section header at ${idx} is disabled`);
+    assert.equal(menu.rows[idx].itemStyle, 'style01', `section header at ${idx} uses style01`);
+    assert.equal(menu.rows[idx].background, 'lightGrey', `section header at ${idx} uses built-in bgLightGrey`);
+    assert.equal(menu.rows[idx].disabledStyleMod, 'white', `section header at ${idx} uses built-in disabledWhite`);
+    assert.equal(menu.rows[idx].styleMod, undefined, `section header at ${idx} has no styleMod`);
+    page.select(idx);
+  }
+  assert.equal(page.sets().length, 0, 'selecting section headers does not trigger any save');
+  assert.equal(page.menu().title, 'MZD Tweaks', 'selecting section headers stays on main menu');
+  assert.equal(menu.rows[0].detail, 'Red');
+  assert.equal(menu.rows[0].caret, true);
+  assert.equal(menu.rows[5].detail, 'Default');
+  assert.equal(menu.rows[5].caret, true);
+  assert.equal(menu.rows[6].detail, 'Default', 'main menu order detail shows Default when off');
+  assert.equal(menu.rows[6].caret, true);
+  assert.equal(menu.rows[15].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[15].caret, true);
 
   // Toggle flat layout
-  page.select(1);
+  page.select(3);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_layout', value: 'flat' });
   page.respond({ main_menu_coins_layout: 'flat' });
-  assert.equal(page.menu().rows[1].checked, true);
-  page.select(1);
+  assert.equal(page.menu().rows[3].checked, true);
+  page.select(3);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_layout', value: 'ellipse' });
   page.respond({ main_menu_coins_layout: 'ellipse' });
-  assert.equal(page.menu().rows[1].checked, false);
+  assert.equal(page.menu().rows[3].checked, false);
 
   // Open the Coin size subpage
-  page.select(3);
+  page.select(5);
   const sizeMenu = page.menu();
   assert.equal(sizeMenu.title, 'Main menu icons size');
   assert.equal(sizeMenu.rows.length, 3);
@@ -1566,22 +1576,22 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_size', value: 80 });
   page.respond({ main_menu_coins_size: 80 });
-  assert.equal(page.menu().rows[3].detail, 'Small');
+  assert.equal(page.menu().rows[5].detail, 'Small');
 
-  page.select(6);
+  page.select(9);
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: false });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: false, short_delay: false });
-  assert.equal(page.menu().rows[6].checked, false);
-  page.select(6);
+  assert.equal(page.menu().rows[9].checked, false);
+  page.select(9);
   assert.deepEqual(page.sets().pop(), { key: 'list_beep', value: true });
-  page.select(2);
+  page.select(4);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_glow', value: false });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: false, list_loop: false, list_beep: true, short_delay: false });
-  assert.equal(page.menu().rows[2].checked, false);
-  page.select(2);
+  assert.equal(page.menu().rows[4].checked, false);
+  page.select(4);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_coins_glow', value: true });
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, list_beep: true, short_delay: false });
-  page.select(0);
+  page.select(2);
   assert.deepEqual(page.sets().pop(), { key: 'main_menu_loop', value: false });
 
   // Open the Main menu order subpage
@@ -1599,7 +1609,7 @@ function viewPage(options) {
       }
     }
   };
-  page.select(4);
+  page.select(6);
   const mmMenu = page.menu();
   assert.equal(mmMenu.title, 'Main Menu icons order');
   assert.equal(mmMenu.rows.length, 7);
@@ -1608,6 +1618,10 @@ function viewPage(options) {
   assert.equal(mmMenu.rows[0].checked, false);
   assert.equal(mmMenu.rows[1].key, 'main_menu_reorder_hint');
   assert.equal(mmMenu.rows[1].disabled, true);
+  assert.equal(mmMenu.rows[1].styleMod, 'hint');
+  assert.equal(mmMenu.rows[1].background, 'lightGrey');
+  assert.equal(mmMenu.rows[1].disabledStyleMod, 'white');
+  assert.equal(mmMenu.rows[1].image1, 'common/images/icons/IcnUmpInfo_En.png');
   assert.deepEqual(mmMenu.rows.slice(2).map(r => r.label), ['Aplikacje', 'Rozrywka', 'Komunikacja', 'Nawigacja', 'Ustawienia'], 'main menu labels use JCI system translations');
   assert(mmMenu.rows.slice(2).every(r => r.disabled === true), 'main menu items disabled when custom is off');
 
@@ -1632,12 +1646,12 @@ function viewPage(options) {
     main_menu_set: 4
   });
   page.respond({ main_menu_order_custom: true, main_menu_order: mmOrderSaves[0].value });
-  assert.equal(page.menu().rows[4].detail, 'Custom', 'main menu order detail shows Custom');
+  assert.equal(page.menu().rows[6].detail, 'Custom', 'main menu order detail shows Custom');
   page.notes.length = 0;
   delete page.win.parent.framework;
 
   // Open the Theme subpage
-  page.select(10);
+  page.select(0);
   const themeMenu = page.menu();
   assert.equal(themeMenu.title, 'Theme');
   assert.equal(themeMenu.rows.length, 9);
@@ -1650,10 +1664,10 @@ function viewPage(options) {
   page.select(1);
   assert.deepEqual(page.sets().pop(), { key: 'theme', value: 'blue' });
   page.respond({ theme: 'blue' });
-  assert.equal(page.menu().rows[10].detail, 'Blue');
+  assert.equal(page.menu().rows[0].detail, 'Blue');
 
   // Open the Entertainment menu order subpage
-  page.select(11);
+  page.select(15);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1662,6 +1676,10 @@ function viewPage(options) {
 
   assert.equal(subMenu.rows[1].key, 'reorder_hint');
   assert.equal(subMenu.rows[1].disabled, true);
+  assert.equal(subMenu.rows[1].styleMod, 'hint');
+  assert.equal(subMenu.rows[1].background, 'lightGrey');
+  assert.equal(subMenu.rows[1].disabledStyleMod, 'white');
+  assert.equal(subMenu.rows[1].image1, 'common/images/icons/IcnUmpInfo_En.png');
 
   // Audio items are disabled when custom order is off
   assert(subMenu.rows.slice(2).every(r => r.disabled === true), 'audio source items disabled when custom is off');
@@ -1767,7 +1785,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(11);
+  page.select(15);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1775,7 +1793,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(11);
+  page.select(15);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1994,7 +2012,7 @@ function viewPage(options) {
   hostOptions.onConfirmed({ theme: 'green' });
   assert.equal(byId['mzd-tweaks-theme-common-css'] !== undefined, true, 'theme-common.css remains loaded');
   assert.equal(byId['mzd-tweaks-theme-color-css'].getAttribute('data-theme'), 'green', 'data-theme updated to green');
-  assert.equal(byId['mzd-tweaks-theme-color-css'].href, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/themes/theme-green.css', 'href updated to theme-green.css');
+  assert.equal(byId['mzd-tweaks-theme-color-css'].href, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/themes/theme-green.css', 'href updated to theme-green.css');
   assert.equal(mockBody.className.indexOf('mzd-theme-blue'), -1, 'old mzd-theme-blue class removed');
   assert.equal(mockBody.className.indexOf('mzd-theme-green') !== -1, true, 'new mzd-theme-green class added');
 
@@ -2195,7 +2213,7 @@ function viewPage(options) {
 
 {
   // DialPad2 call button keeps DialPad_CallIcon.png in both focused and active states across all themes
-  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/theme-common.css'), 'utf8');
+  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/theme-common.css'), 'utf8');
   assert(
     /body\[class\*="mzd-theme-"\]\s+\.DialPad2Ctrl\.DialpadStyle02\s+\.callBtn\.focused,\s*body\[class\*="mzd-theme-"\]\s+\.DialPad2Ctrl\.DialpadStyle02\s+\.callBtn\.active\s*\{[^}]*background-position:\s*center center,\s*center center\s*!important;[^}]*background-repeat:\s*no-repeat,\s*no-repeat\s*!important;/s.test(themeCommonCss),
     'theme-common.css keeps centered no-repeat layers on callBtn.focused and callBtn.active'
@@ -2203,7 +2221,7 @@ function viewPage(options) {
 
   const themes = ['blue', 'cyan', 'gold', 'green', 'orange', 'pink', 'purple', 'silver'];
   for (const theme of themes) {
-    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/themes/theme-' + theme + '.css'), 'utf8');
+    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/themes/theme-' + theme + '.css'), 'utf8');
     for (const state of ['focused', 'active']) {
       const ruleRe = new RegExp('body\\.mzd-theme-' + theme + '\\s+\\.DialPad2Ctrl\\.DialpadStyle02\\s+\\.callBtn\\.' + state + '\\s*\\{([^}]*)\\}');
       const match = css.match(ruleRe);
@@ -2673,8 +2691,8 @@ function viewPage(options) {
 
 // CSS positional contract: mzd-tweaks.css, theme-common.css, and themes/*.css do not couple placement/themes to icon names
 {
-  const mzdCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/mzd-tweaks.css'), 'utf8');
-  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/theme-common.css'), 'utf8');
+  const mzdCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/mzd-tweaks.css'), 'utf8');
+  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/theme-common.css'), 'utf8');
   assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)(Div|Highlight)\b/.test(mzdCss),
     'mzd-tweaks.css uses slot classes (.mzd-coin-1..5) instead of icon-named Div/Highlight selectors');
   assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)(Div|Highlight|Normal)\b/.test(themeCommonCss),
@@ -2688,7 +2706,7 @@ function viewPage(options) {
   }
   const themes = ['blue', 'cyan', 'gold', 'green', 'orange', 'pink', 'purple', 'silver'];
   for (const theme of themes) {
-    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/themes/theme-' + theme + '.css'), 'utf8');
+    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/themes/theme-' + theme + '.css'), 'utf8');
     assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)/.test(css),
       'theme-' + theme + '.css contains no icon-name coin selectors');
     assert(css.includes('.MainMenuCtrl .mzd-coin > div[class$="Focus"]'),
@@ -2717,7 +2735,7 @@ function viewPage(options) {
     'main_menu_order.main_menu_nav': 2,
     'main_menu_order.main_menu_set': 3
   });
-  page.select(4);
+  page.select(6);
   const rows = page.menu().rows.slice(2).map(r => r.key);
   assert.deepEqual(rows, [
     'mm_main_menu_com',
