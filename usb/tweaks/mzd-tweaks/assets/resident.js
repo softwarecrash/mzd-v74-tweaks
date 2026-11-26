@@ -11,6 +11,7 @@
 (function (global) {
     'use strict';
 
+
     var AUDIO_ORDER_MAP = {
         'TrafficInfo': 'audio_traffic_info',
         'FMRadio': 'audio_fm_radio',
@@ -310,6 +311,24 @@
         }
     }
 
+    // The class tokens in a stable order, to compare class lists regardless of their order.
+    function classSet(value) {
+        var tokens = (value || '').split(/\s+/), i, out = [];
+        for (i = 0; i < tokens.length; i++) {
+            if (tokens[i]) { out.push(tokens[i]); }
+        }
+        return out.sort().join(' ');
+    }
+
+    // Sets body.className only when the set of classes changes. applyTheme and
+    // applyMainMenuOrder each re-append their own class at the end, so comparing the raw string
+    // made every settings confirmation rewrite it twice and restyle the whole document.
+    function setBodyClass(body, cls) {
+        if (classSet(body.className) === classSet(cls)) { return false; }
+        body.className = cls;
+        return true;
+    }
+
     function applyTheme(themeName) {
         var doc = global.document, body, i, cls, newCls;
         var commonLinkId, commonLink, colorLinkId, colorLink, glowEnabled;
@@ -399,8 +418,7 @@
             cls += ' mzd-coins-60';
         }
 
-        if (body.className !== cls) {
-            body.className = cls;
+        if (setBodyClass(body, cls)) {
             var liveCtrl = findLiveMainMenuCtrl();
             if (liveCtrl) {
                 var focusState = captureMainMenuFocusState(liveCtrl);
@@ -604,8 +622,26 @@
         recomputeMainMenuHitAreas(ctrl);
     }
 
+    // Identifies the coin order a control was last arranged in. applyMainMenuOrder runs on
+    // every boot poll tick; rebuilding an already arranged menu re-appends the coins, which
+    // cancels running CSS transitions and forces a layout, so it is skipped while this matches.
+    function mainMenuOrderKey() {
+        var ordered = getOrderedMainMenuItems(), keys = [], i;
+        for (i = 0; i < ordered.length; i++) { keys.push(ordered[i].prefix); }
+        return keys.join(',');
+    }
+
+    // True when ctrl._coins already holds the coins in the configured order.
+    function mainMenuCoinsInOrder(ctrl) {
+        var ordered = getOrderedMainMenuItems(), i;
+        for (i = 0; i < ordered.length; i++) {
+            if (!ctrl._coins[i] || ctrl._coins[i].key !== ordered[i].prefix) { return false; }
+        }
+        return true;
+    }
+
     function applyMainMenuOrder(ctrl) {
-        var doc = global.document, body, cls, isCustom, targetCtrl, focusState;
+        var doc = global.document, body, cls, isCustom, targetCtrl, focusState, orderKey;
         if (!doc) { return; }
         isCustom = !!(global.mzdTweaks && global.mzdTweaks.main_menu_order_custom);
         body = doc.body;
@@ -614,12 +650,21 @@
             if (isCustom) {
                 cls = cls ? (cls + ' mzd-main-menu-custom') : 'mzd-main-menu-custom';
             }
-            if (body.className !== cls) {
-                body.className = cls;
-            }
+            setBodyClass(body, cls);
         }
         targetCtrl = ctrl || findLiveMainMenuCtrl();
         if (!targetCtrl || !targetCtrl._coins || targetCtrl._coins.length !== MAIN_MENU_ITEMS.length) {
+            return;
+        }
+        orderKey = mainMenuOrderKey();
+        if (targetCtrl._mzdTweaksOrderKey === orderKey) {
+            return;
+        }
+        if (mainMenuCoinsInOrder(targetCtrl)) {
+            // Already in the wanted order, e.g. the factory order of a menu built before the
+            // hooks: nothing to move, so only stamp the slot classes the CSS relies on.
+            syncMainMenuDomOrder(targetCtrl, false);
+            targetCtrl._mzdTweaksOrderKey = orderKey;
             return;
         }
         focusState = captureMainMenuFocusState(targetCtrl);
@@ -628,6 +673,7 @@
         }
         syncMainMenuDomOrder(targetCtrl, true);
         restoreMainMenuFocusState(targetCtrl, focusState);
+        targetCtrl._mzdTweaksOrderKey = orderKey;
     }
 
     global.mzdTweaksApplyMainMenuOrder = function () {
@@ -635,20 +681,24 @@
     };
 
     function hookMainMenu() {
-        var proto, origCreateStructure, origOffsetFocus, liveCtrl;
+        var proto, origCreateStructure, origOffsetFocus, firstInstall = false;
         if (!global.MainMenuCtrl || !global.MainMenuCtrl.prototype) {
             return;
         }
         proto = global.MainMenuCtrl.prototype;
         if (!proto._mzdTweaksHooked) {
             proto._mzdTweaksHooked = true;
+            firstInstall = true;
 
             origCreateStructure = proto.createStructure;
             if (typeof origCreateStructure === 'function') {
                 proto.createStructure = function () {
-                    reorderMainMenuCoins(this);
+                    var orderKey = mainMenuOrderKey();
+                    var reordered = reorderMainMenuCoins(this);
                     var res = origCreateStructure.apply(this, arguments);
                     syncMainMenuDomOrder(this, false);
+                    // The OEM createStructure appended the reordered coins in slot z-order.
+                    if (reordered) { this._mzdTweaksOrderKey = orderKey; }
                     return res;
                 };
             }
@@ -686,8 +736,11 @@
         }
         }
 
-        liveCtrl = findLiveMainMenuCtrl();
-        applyMainMenuOrder(liveCtrl);
+        // A menu built before these hooks is arranged once here. Controls created later are
+        // arranged by the createStructure hook, so repeated calls must not touch the menu.
+        if (firstInstall) {
+            applyMainMenuOrder(findLiveMainMenuCtrl());
+        }
     }
 
     // 2. List Loop, List Beep, Shorter Delay
@@ -1213,7 +1266,9 @@
         var proto = global.StatusBarCtrl && global.StatusBarCtrl.prototype;
         if (!proto || proto._mzdTweaksDateHooked) { return; }
         if (typeof proto.updateClock !== 'function' && typeof proto._updateClock !== 'function') {
-            if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+            // The boot poll calls this every 100 ms; report the missing method only once.
+            if (!proto._mzdTweaksDateUnavailableLogged && global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                proto._mzdTweaksDateUnavailableLogged = true;
                 global.MzdGuiResidents.log('mzd-tweaks', 'StatusBarCtrl has no updateClock method; date in status bar is unavailable');
             }
             return;
@@ -1266,37 +1321,48 @@
         hookCommon();
         hookFramework();
 
-        // Also poll during initial boot until both controls are hooked or limit reached
-        var pollTimer = global.setInterval || (typeof setInterval !== 'undefined' ? setInterval : null);
-        var clearTimer = global.clearInterval || (typeof clearInterval !== 'undefined' ? clearInterval : null);
-        var isHooked = function () {
-            return global.MainMenuCtrl && global.MainMenuCtrl.prototype && global.MainMenuCtrl.prototype._mzdTweaksHooked &&
-                global.List2Ctrl && global.List2Ctrl.prototype && global.List2Ctrl.prototype._mzdTweaksHooked &&
-                global.systemApp && global.systemApp.prototype && global.systemApp.prototype._mzdTweaksHooked &&
-                global.StatusBarCtrl && global.StatusBarCtrl.prototype && global.StatusBarCtrl.prototype._mzdTweaksDateHooked &&
-                ((global.Common && global.Common.prototype && global.Common.prototype._mzdTweaksBtHooked) ||
-                 (global.framework && global.framework.common && global.framework.common._mzdTweaksBtHooked));
+        // MainMenuCtrl, List2Ctrl and StatusBarCtrl are hooked by the framework.instantiateControl
+        // wrapper right before they are created (or above, when their class is already loaded), so
+        // they are not waited for. Only the wrapper, systemApp and Common can still be missing when
+        // the resident loads. When they are all hooked in the first pass no timer is started;
+        // otherwise they are retried with a growing delay for a short time and a missing hook is logged.
+        var scheduleTimeout = global.setTimeout || (typeof setTimeout !== 'undefined' ? setTimeout : null);
+        var missingHooks = function () {
+            var missing = [];
+            if (!(global.framework && global.framework._mzdTweaksInstantiateHooked)) { missing.push('framework.instantiateControl'); }
+            if (!(global.systemApp && global.systemApp.prototype && global.systemApp.prototype._mzdTweaksHooked)) { missing.push('systemApp'); }
+            if (!((global.Common && global.Common.prototype && global.Common.prototype._mzdTweaksBtHooked) ||
+                  (global.framework && global.framework.common && global.framework.common._mzdTweaksBtHooked))) { missing.push('Common'); }
+            return missing;
         };
-        if (pollTimer && !isHooked()) {
-            var attempts = 0;
-            var maxAttempts = 300;
-            var poll = null;
-            var pollFn = function () {
-                attempts++;
+        var isHooked = function () { return missingHooks().length === 0; };
+        if (scheduleTimeout && !isHooked()) {
+            var maxWait = 15000;
+            var attempt = 1;
+            var waited = 0;
+            // 100 ms, 200 ms, 300 ms ... up to 1 s between retries.
+            var retryDelay = function (n) { return Math.min(100 * n, 1000); };
+            var retryHooks = function () {
+                var missing;
+                waited += retryDelay(attempt);
                 hookMainMenu();
                 hookList2();
                 hookSystemApp();
                 hookStatusbar();
                 hookCommon();
                 hookFramework();
-                if (isHooked() || attempts >= maxAttempts) {
-                    if (clearTimer && poll !== null) { clearTimer(poll); }
+                missing = missingHooks();
+                if (missing.length === 0) { return; }
+                attempt++;
+                if (waited + retryDelay(attempt) > maxWait) {
+                    if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Hooks not ready after ' + Math.round(waited / 1000) + ' s: ' + missing.join(', '));
+                    }
+                    return;
                 }
+                scheduleTimeout(retryHooks, retryDelay(attempt));
             };
-            poll = pollTimer(pollFn, 100);
-            if ((isHooked() || attempts >= maxAttempts) && clearTimer && poll !== null) {
-                clearTimer(poll);
-            }
+            scheduleTimeout(retryHooks, retryDelay(attempt));
         }
     }
 
@@ -1307,11 +1373,36 @@
             // settings-host.js did not load. The runtime logs this and stops only this resident.
             throw new Error('Shared settings code is unavailable.');
         }
+        // What each runtime hook reads, as strings, so applyGlobals can tell what a confirmation
+        // really changed. The service confirms the full settings on every read and save.
+        function themeState() {
+            var t = global.mzdTweaks || {};
+            return [t.theme, t.main_menu_coins_glow, t.main_menu_coins_size, t.main_menu_coins_layout].join('|');
+        }
+        function menuOrderState() {
+            var t = global.mzdTweaks || {}, o = t.main_menu_order || {}, parts = [t.main_menu_order_custom === true], i;
+            for (i = 0; i < MAIN_MENU_ITEMS.length; i++) { parts.push(o[MAIN_MENU_ITEMS[i].key]); }
+            return parts.join('|');
+        }
+        function audioOrderState() {
+            var t = global.mzdTweaks || {}, o = t.audio_order || {}, parts = [t.audio_order_custom === true], name;
+            for (name in AUDIO_ORDER_MAP) {
+                if (Object.prototype.hasOwnProperty.call(AUDIO_ORDER_MAP, name)) { parts.push(o[AUDIO_ORDER_MAP[name]]); }
+            }
+            return parts.join('|');
+        }
+
         function applyGlobals(settings) {
-            var k, subKey;
+            var k, subKey, before;
             if (!global.mzdTweaks) { global.mzdTweaks = {}; }
             if (!global.mzdTweaks.audio_order) { global.mzdTweaks.audio_order = {}; }
             if (!global.mzdTweaks.main_menu_order) { global.mzdTweaks.main_menu_order = {}; }
+            before = {
+                theme: themeState(),
+                menuOrder: menuOrderState(),
+                audioOrder: audioOrderState(),
+                date: String(global.mzdTweaks.statusbar_date)
+            };
             for (k in settings) {
                 if (Object.prototype.hasOwnProperty.call(settings, k)) {
                     if (k.indexOf('audio_order.') === 0) {
@@ -1338,21 +1429,16 @@
                 }
             }
             backfillDefaults(global.mzdTweaks);
-            if (Object.prototype.hasOwnProperty.call(settings, 'theme') ||
-                Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_glow') ||
-                Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_size') ||
-                Object.prototype.hasOwnProperty.call(settings, 'main_menu_coins_layout')) {
+            if (before.theme !== themeState()) {
                 applyTheme(global.mzdTweaks.theme);
             }
-            if (Object.prototype.hasOwnProperty.call(settings, 'main_menu_order_custom') ||
-                Object.prototype.hasOwnProperty.call(settings, 'main_menu_order') ||
-                Object.keys(settings).some(function (key) { return key.indexOf('main_menu_order.') === 0; })) {
+            if (before.menuOrder !== menuOrderState()) {
                 applyMainMenuOrder(null);
             }
-            if (Object.prototype.hasOwnProperty.call(settings, 'statusbar_date')) {
+            if (before.date !== String(global.mzdTweaks.statusbar_date)) {
                 refreshStatusbarDisplays(context.log);
             }
-            if (typeof global.mzdTweaksResortEntertainment === 'function') {
+            if (before.audioOrder !== audioOrderState() && typeof global.mzdTweaksResortEntertainment === 'function') {
                 try {
                     global.mzdTweaksResortEntertainment();
                 } catch (error) {

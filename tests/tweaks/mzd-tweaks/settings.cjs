@@ -357,22 +357,73 @@ function lastResponse(source) {
 }
 
 {
-  // Confirming audio_order or audio_order_custom calls mzdTweaksResortEntertainment
+  // Confirming a changed audio_order or audio_order_custom calls mzdTweaksResortEntertainment;
+  // the service confirms the full settings on every read and save, so unchanged ones do not.
   const page = residentPage();
   let resortCount = 0;
   page.win.mzdTweaksResortEntertainment = () => { resortCount += 1; };
   complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS) });
-  assert.equal(resortCount, 1, 'resort is called after initial get');
+  assert.equal(resortCount, 0, 'no resort when the initial get confirms the defaults');
 
   request(page.ctx, 'set', { key: 'audio_order_custom', value: true });
   complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { audio_order_custom: true }) });
   assert.equal(page.win.mzdTweaks.audio_order_custom, true);
-  assert.equal(resortCount, 2, 'resort is called after audio_order_custom save');
+  assert.equal(resortCount, 1, 'resort is called after audio_order_custom save');
 
   request(page.ctx, 'set', { key: 'audio_order', value: { audio_fm_radio: 0, audio_am_radio: 1 } });
-  complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { 'audio_order.audio_fm_radio': 0, 'audio_order.audio_am_radio': 1 }) });
+  complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { audio_order_custom: true, 'audio_order.audio_fm_radio': 0, 'audio_order.audio_am_radio': 1 }) });
   assert.equal(page.win.mzdTweaks.audio_order.audio_fm_radio, 0);
-  assert.equal(resortCount, 3, 'resort is called after audio_order reorder save');
+  assert.equal(resortCount, 2, 'resort is called after audio_order reorder save');
+
+  request(page.ctx, 'set', { key: 'list_loop', value: true });
+  complete(page.ctx, 'set', null, { settings: Object.assign({}, DEFAULTS, { audio_order_custom: true, list_loop: true, 'audio_order.audio_fm_radio': 0, 'audio_order.audio_am_radio': 1 }) });
+  assert.equal(page.win.mzdTweaks.list_loop, true);
+  assert.equal(resortCount, 2, 'saving an unrelated setting does not resort');
+}
+
+{
+  // The first confirmation applies a saved audio order that differs from the booted defaults.
+  const page = residentPage();
+  let resortCount = 0;
+  page.win.mzdTweaksResortEntertainment = () => { resortCount += 1; };
+  complete(page.ctx, 'get', null, { settings: Object.assign({}, DEFAULTS, { audio_order_custom: true, 'audio_order.audio_dab': 0 }) });
+  assert.equal(resortCount, 1, 'resort is called when the initial get brings a saved order');
+}
+
+{
+  // applyGlobals applies the theme and the main menu order only when their values change.
+  let themeCalls = 0;
+  const body = { _cn: '', get className() { return this._cn; }, set className(v) { themeCalls += 1; this._cn = v; } };
+  const page = residentPage(Object.assign({}, DEFAULTS), { body, createElement: () => ({ setAttribute() {}, getAttribute() { return null; } }) });
+  const settings = changes => ({ settings: Object.assign({}, DEFAULTS, changes) });
+  const custom = { main_menu_order_custom: true, main_menu_order: { main_menu_app: 1, main_menu_ent: 0, main_menu_com: 2, main_menu_nav: 3, main_menu_set: 4 } };
+  complete(page.ctx, 'get', null, settings(custom));
+  assert(/mzd-main-menu-custom/.test(body.className), 'custom order marks the body');
+  assert(/mzd-coins-glow/.test(body.className), 'the theme classes stay');
+  const writes = themeCalls;
+  // The same confirmation again, as when the MZD Tweaks menu is reopened: no class rewrite.
+  request(page.ctx, 'get');
+  complete(page.ctx, 'get', null, settings(custom));
+  request(page.ctx, 'get');
+  complete(page.ctx, 'get', null, settings(custom));
+  assert.equal(themeCalls, writes, 'identical confirmations do not rewrite body.className');
+  request(page.ctx, 'set', { key: 'list_loop', value: true });
+  complete(page.ctx, 'set', null, settings(Object.assign({ list_loop: true }, custom)));
+  assert.equal(themeCalls, writes, 'an unrelated setting does not rewrite body.className');
+  request(page.ctx, 'set', { key: 'theme', value: 'blue' });
+  complete(page.ctx, 'set', null, settings(Object.assign({ theme: 'blue' }, custom)));
+  assert(/mzd-theme-blue/.test(body.className) && /mzd-main-menu-custom/.test(body.className), 'a theme change still applies and keeps the order class');
+  assert(themeCalls > writes, 'and rewrites body.className');
+}
+
+{
+  // The same set of classes in a different order is not a change.
+  let assigns = 0;
+  const body = { _cn: 'mzd-coins-glow mzd-main-menu-custom', get className() { return this._cn; }, set className(v) { assigns += 1; this._cn = v; } };
+  const page = residentPage(Object.assign({}, DEFAULTS, { main_menu_order_custom: true }), { body });
+  assert.equal(assigns, 0, 'the resident leaves an equal class set in another order alone');
+  page.win.mzdTweaksApplyMainMenuOrder();
+  assert.equal(assigns, 0, 'also when the order is applied');
 }
 
 {
@@ -889,27 +940,260 @@ function lastResponse(source) {
 }
 
 {
-  // Bounded polling timer clears even when controls are never instantiated
-  let pollCallback;
-  let cleared = false;
-  let clearedId = null;
-  const timerWin = {
-    setInterval: (cb) => { pollCallback = cb; return 42; },
-    clearInterval: (id) => { cleared = true; clearedId = id; }
+  // Main menu order: the boot poll (every 100 ms for up to 30 s) must not rebuild an
+  // already arranged main menu. Re-appending coins cancels their CSS transitions and
+  // forces a layout, which made left/right on the main menu choppy after boot.
+  function fakeNode(className) {
+    return {
+      className: className,
+      listeners: [],
+      addEventListener(type, fn) { this.listeners.push(fn); },
+      removeEventListener(type, fn) { const i = this.listeners.indexOf(fn); if (i >= 0) { this.listeners.splice(i, 1); } }
+    };
+  }
+
+  function mainMenuPage(createBeforeHook, settings) {
+    const counts = { appends: 0, hitAreas: 0, highlights: 0 };
+    const template = {};
+    const pending = []; // boot retries scheduled with setTimeout
+    const logs = [];
+    function MainMenuCtrl() {
+      this._coins = ['App', 'Ent', 'Com', 'Nav', 'Set'].map(key => ({ key: key }));
+      this._focus = 0;
+      this._fullyHighlightedIndex = null;
+      this.divElt = {
+        children: [],
+        appendChild(node) {
+          counts.appends++;
+          const i = this.children.indexOf(node);
+          if (i >= 0) { this.children.splice(i, 1); }
+          this.children.push(node);
+          return node;
+        }
+      };
+      this.createStructure();
+    }
+    // Like the OEM createStructure: coins for the current _coins order, appended in z-order 1, 2, 3, 4, 0.
+    MainMenuCtrl.prototype.createStructure = function () {
+      const self = this;
+      this._coins.forEach((coin, i) => {
+        coin.div = fakeNode('MainMenuCtrl' + coin.key + 'Div');
+        coin.highlight = fakeNode('MainMenuCtrl' + coin.key + 'Highlight');
+        coin.setHighlightEndBinder = self._setHighlightEnd.bind(self, i);
+        coin.div.addEventListener('OTransitionEnd', coin.setHighlightEndBinder);
+      });
+      [1, 2, 3].forEach(i => this.divElt.appendChild(this._coins[i].highlight));
+      [1, 2, 3].forEach(i => this.divElt.appendChild(this._coins[i].div));
+      [4, 0].forEach(i => { this.divElt.appendChild(this._coins[i].highlight); this.divElt.appendChild(this._coins[i].div); });
+      this._iconNameDiv = fakeNode('MainMenuCtrlIconName');
+      this.divElt.appendChild(this._iconNameDiv);
+      this._coins.forEach(coin => this._computeHitAreas(coin));
+    };
+    MainMenuCtrl.prototype._computeHitAreas = function () { counts.hitAreas++; };
+    MainMenuCtrl.prototype._setHighlightEnd = function () {};
+    MainMenuCtrl.prototype._getFocus = function () { return this._focus; };
+    MainMenuCtrl.prototype._setFocus = function (index) { this._focus = index; };
+    MainMenuCtrl.prototype._setHighlight = function (index) {
+      counts.highlights++;
+      this._coins.forEach((coin, i) => {
+        coin.div.className = coin.div.className.replace(/\s*MainMenuCtrlCoinFocus/g, '') + (i === index ? ' MainMenuCtrlCoinFocus' : '');
+      });
+    };
+
+    const early = createBeforeHook ? new MainMenuCtrl() : null;
+    if (early) {
+      // The menu already exists when the resident loads; count only what the resident does to it.
+      template.mainMenuCtrl = early;
+      counts.appends = 0; counts.hitAreas = 0; counts.highlights = 0;
+    }
+    const win = {
+      MainMenuCtrl: MainMenuCtrl,
+      framework: { getAppInstance: id => (id === 'system' ? { _currentContextTemplate: template } : null) },
+      // No instantiateControl, so the boot retries run until their budget is used up.
+      setTimeout(fn, delay) { pending.push({ fn: fn, delay: delay }); return pending.length; },
+      clearTimeout() {},
+      mzdTweaks: Object.assign({}, DEFAULTS, { main_menu_order: Object.assign({}, DEFAULT_MAIN_MENU_ORDER) }, settings)
+    };
+    vm.runInNewContext(settingsHostSource, { window: win });
+    win.MzdGuiResidents = { register() {}, log(id, message) { logs.push(message); } };
+    const doc = { head: { appendChild() {} }, documentElement: {}, body: { className: '' }, createElement: () => ({}) };
+    win.document = doc;
+    vm.runInNewContext(residentSource, { window: win, document: doc });
+    const ctrl = early || new MainMenuCtrl();
+    template.mainMenuCtrl = ctrl;
+    const afterLoad = Object.assign({}, counts);
+    // Runs the next scheduled boot retry, up to the given number of times.
+    function tick(times) {
+      for (let n = 0; n < times && pending.length; n++) {
+        pending.shift().fn();
+      }
+    }
+    function reset() { counts.appends = 0; counts.hitAreas = 0; counts.highlights = 0; }
+    return { win, doc, ctrl, counts, afterLoad, tick, reset, pending, logs };
+  }
+
+  const keys = ctrl => ctrl._coins.map(coin => coin.key).join(',');
+  const domKeys = ctrl => ctrl.divElt.children.filter(n => /Div/.test(n.className)).map(n => n.className.match(/MainMenuCtrl(\w{3})Div/)[1]).join(',');
+
+  // Control created after the hooks: createStructure already arranged it, the poll does nothing.
+  {
+    const page = mainMenuPage(false);
+    page.reset();
+    assert.equal(page.pending.length, 1, 'one boot retry is scheduled while hooks are missing');
+    page.tick(100);
+    assert.equal(page.pending.length, 0, 'the retries stop when their budget is used up');
+    assert.deepEqual(page.counts, { appends: 0, hitAreas: 0, highlights: 0 }, 'default order: every boot retry leaves the main menu alone');
+    assert.equal(keys(page.ctrl), 'App,Ent,Com,Nav,Set');
+    assert(/\bmzd-coin mzd-coin-1\b/.test(page.ctrl._coins[0].div.className), 'slot classes are set by createStructure');
+
+    // A custom order saved later rebuilds once, keeps the focused slot, then stays quiet.
+    page.ctrl._setFocus(2);
+    page.ctrl._setHighlight(2);
+    page.reset();
+    page.win.mzdTweaks.main_menu_order = { main_menu_set: 0, main_menu_app: 1, main_menu_ent: 2, main_menu_com: 3, main_menu_nav: 4 };
+    page.win.mzdTweaks.main_menu_order_custom = true;
+    page.win.mzdTweaksApplyMainMenuOrder();
+    assert.equal(keys(page.ctrl), 'Set,App,Ent,Com,Nav', 'custom order is applied live');
+    assert.equal(domKeys(page.ctrl), 'App,Ent,Com,Nav,Set', 'DOM follows slot z-order 1, 2, 3, 4, 0, so slot 1 (Set) is on top');
+    assert.equal(page.counts.appends, 11, 'one rebuild: 5 coins, 5 highlights and the name');
+    assert.equal(page.counts.hitAreas, 5, 'hit areas are computed once per coin');
+    assert.equal(page.counts.highlights, 1, 'the highlight is restored once');
+    assert.equal(page.ctrl._getFocus(), 2, 'focus stays on the same slot');
+    assert(/mzd-main-menu-custom/.test(page.doc.body.className), 'body marks the custom order');
+    page.ctrl._coins.forEach(coin => assert.equal(coin.div.listeners.length, 1, 'one OTransitionEnd listener per coin'));
+    page.reset();
+    page.tick(300);
+    page.win.mzdTweaksApplyMainMenuOrder();
+    assert.deepEqual(page.counts, { appends: 0, hitAreas: 0, highlights: 0 }, 'custom order: poll ticks and repeated applies do nothing');
+
+    // Turning the custom order off restores the factory order once.
+    page.win.mzdTweaks.main_menu_order_custom = false;
+    page.win.mzdTweaksApplyMainMenuOrder();
+    assert.equal(keys(page.ctrl), 'App,Ent,Com,Nav,Set', 'factory order comes back');
+    assert.equal(page.counts.appends, 11, 'switching back rebuilds once');
+    assert(!/mzd-main-menu-custom/.test(page.doc.body.className), 'body no longer marks the custom order');
+    page.reset();
+    page.tick(300);
+    assert.deepEqual(page.counts, { appends: 0, hitAreas: 0, highlights: 0 }, 'factory order again: the poll is quiet');
+  }
+
+  // Control created before the hooks, factory order: hooking moves nothing, it only stamps the slot classes.
+  {
+    const page = mainMenuPage(true);
+    // The 5 hit-area calls are applyTheme's, once, for the body class it adds at load.
+    assert.deepEqual(page.afterLoad, { appends: 0, hitAreas: 5, highlights: 0 }, 'factory order: no DOM move or highlight when the hooks install');
+    assert(/\bmzd-coin mzd-coin-1\b/.test(page.ctrl._coins[0].div.className), 'slot classes are stamped on the coin');
+    assert(/\bmzd-coin-highlight mzd-coin-highlight-5\b/.test(page.ctrl._coins[4].highlight.className), 'and on its highlight');
+    page.reset();
+    page.tick(300);
+    assert.deepEqual(page.counts, { appends: 0, hitAreas: 0, highlights: 0 }, 'poll ticks never touch the main menu');
+    assert.equal(keys(page.ctrl), 'App,Ent,Com,Nav,Set');
+  }
+
+  // Control created before the hooks, custom order: arranged once when the hooks install, never by the poll.
+  {
+    const page = mainMenuPage(true, { main_menu_order_custom: true, main_menu_order: { main_menu_set: 0, main_menu_app: 1, main_menu_ent: 2, main_menu_com: 3, main_menu_nav: 4 } });
+    assert.equal(keys(page.ctrl), 'Set,App,Ent,Com,Nav', 'the saved order is applied to the built menu');
+    assert.equal(page.afterLoad.appends, 11, 'arranged once when the hooks install');
+    page.reset();
+    page.tick(300);
+    assert.deepEqual(page.counts, { appends: 0, hitAreas: 0, highlights: 0 }, 'poll ticks never touch the main menu');
+  }
+
+  // Re-entering Home creates a new control: instantiateControl hooks, createStructure arranges it, nothing else runs.
+  {
+    const page = mainMenuPage(false, { main_menu_order_custom: true, main_menu_order: { main_menu_set: 0, main_menu_app: 1, main_menu_ent: 2, main_menu_com: 3, main_menu_nav: 4 } });
+    assert.equal(keys(page.ctrl), 'Set,App,Ent,Com,Nav', 'createStructure applies the saved order');
+    page.reset();
+    page.win.mzdTweaksApplyMainMenuOrder();
+    assert.deepEqual(page.counts, { appends: 0, hitAreas: 0, highlights: 0 }, 'a control arranged by createStructure is left alone');
+  }
+}
+
+{
+  // No boot timer when instantiateControl, systemApp and Common are hooked in the first pass.
+  // MainMenuCtrl and List2Ctrl load later and are hooked by the instantiateControl wrapper.
+  let timers = 0;
+  function SystemApp() {}
+  SystemApp.prototype._buildEntertainmentDataList = function () { return { items: [] }; };
+  function Common() {}
+  Common.prototype.startTimedSbn = function () {};
+  const fwControls = makeFakeControls();
+  const win = {
+    framework: { instantiateControl: () => ({}) },
+    systemApp: SystemApp,
+    Common: Common,
+    setTimeout: () => { timers++; return 1; },
+    clearTimeout() {}
   };
+  vm.runInNewContext(settingsHostSource, { window: win });
+  win.MzdGuiResidents = { register: () => {}, log: () => {} };
+  vm.runInNewContext(residentSource, { window: win, document: { head: { appendChild: () => {} }, documentElement: {} } });
+  assert.equal(timers, 0, 'no boot timer when nothing is left to wait for');
+  assert.equal(SystemApp.prototype._mzdTweaksHooked, true, 'systemApp hooked in the first pass');
+  win.MainMenuCtrl = fwControls.MainMenuCtrl;
+  win.List2Ctrl = fwControls.List2Ctrl;
+  win.framework.instantiateControl(null, null, 'MainMenuCtrl', {});
+  win.framework.instantiateControl(null, null, 'List2Ctrl', {});
+  assert.equal(fwControls.MainMenuCtrl.prototype._mzdTweaksHooked, true, 'MainMenuCtrl hooked when it is instantiated');
+  assert.equal(fwControls.List2Ctrl.prototype._mzdTweaksHooked, true, 'List2Ctrl hooked when it is instantiated');
+  assert.equal(timers, 0, 'and still no timer');
+}
+
+{
+  // Boot retries back off (100 ms, 200 ms ... up to 1 s), stop within the budget and report the hooks that never came.
+  const scheduled = [];
+  const logged = [];
+  const timerWin = { setTimeout: (cb, delay) => { scheduled.push({ cb, delay }); return scheduled.length; } };
   vm.runInNewContext(settingsHostSource, { window: timerWin });
-  timerWin.MzdGuiResidents = { register: () => {}, log: () => {} };
-  const timerDoc = { head: { appendChild: () => {} }, documentElement: {} };
+  timerWin.MzdGuiResidents = { register: () => {}, log: (id, message) => logged.push([id, message]) };
+  const timerDoc = { head: { appendChild: () => {} }, documentElement: {}, createElement: () => ({}) };
+  timerWin.document = timerDoc;
   vm.runInNewContext(residentSource, { window: timerWin, document: timerDoc });
 
-  assert.equal(typeof pollCallback, 'function', 'polling timer starts when controls are absent');
-  for (let i = 0; i < 299; i++) {
-    pollCallback();
-    assert.equal(cleared, false, 'timer continues before 300 attempts');
+  assert.equal(scheduled.length, 1, 'a retry is scheduled when the hooks are missing');
+  assert.equal(scheduled[0].delay, 100, 'the first retry comes after 100 ms');
+  const delays = [];
+  while (scheduled.length) {
+    const next = scheduled.shift();
+    delays.push(next.delay);
+    assert(delays.length < 40, 'the retries are bounded');
+    next.cb();
   }
-  pollCallback(); // 300th attempt
-  assert.equal(cleared, true, 'timer clears after reaching bounded limit of 300 attempts');
-  assert.equal(clearedId, 42);
+  const total = delays.reduce((sum, delay) => sum + delay, 0);
+  assert.deepEqual(delays.slice(0, 11), [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1000], 'the delay grows by 100 ms, then stays at 1 s');
+  assert(delays.slice(9).every(delay => delay === 1000), 'the delay is capped at 1 s: ' + delays.join(', '));
+  assert(total <= 15000, 'the retries stay within 15 s: ' + total);
+  assert(total > 14000, 'and use the whole budget: ' + total);
+  assert(delays.length <= 25, 'far fewer ticks than the former 300: ' + delays.length);
+  assert.equal(logged.length, 1, 'one message when giving up: ' + JSON.stringify(logged));
+  assert.equal(logged[0][0], 'mzd-tweaks');
+  assert(/Hooks not ready after \d+ s: framework\.instantiateControl, systemApp, Common/.test(logged[0][1]), logged[0][1]);
+}
+
+{
+  // The retries stop as soon as the missing hooks appear.
+  const scheduled = [];
+  const logged = [];
+  function SystemApp() {}
+  SystemApp.prototype._buildEntertainmentDataList = function () { return { items: [] }; };
+  function Common() {}
+  Common.prototype.startTimedSbn = function () {};
+  const win = { framework: {}, setTimeout: (cb, delay) => { scheduled.push({ cb, delay }); return 1; } };
+  vm.runInNewContext(settingsHostSource, { window: win });
+  win.MzdGuiResidents = { register: () => {}, log: (id, message) => logged.push(message) };
+  const doc2 = { head: { appendChild: () => {} }, documentElement: {}, createElement: () => ({}) };
+  win.document = doc2;
+  vm.runInNewContext(residentSource, { window: win, document: doc2 });
+  assert.equal(scheduled.length, 1, 'waiting for the framework, systemApp and Common');
+  scheduled.shift().cb();
+  assert.equal(scheduled.length, 1, 'still waiting');
+  win.framework.instantiateControl = () => ({});
+  win.systemApp = SystemApp;
+  win.Common = Common;
+  scheduled.shift().cb();
+  assert.equal(scheduled.length, 0, 'no further retry once everything is hooked');
+  assert.deepEqual(logged, [], 'and nothing is reported');
 }
 
 {
