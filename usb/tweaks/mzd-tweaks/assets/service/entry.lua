@@ -8,6 +8,7 @@ local BOOL_DEFAULTS = {
     list_beep = true,
     short_delay = false,
     bluetooth_notification = true,
+    widescreen = false,
     main_menu_order_custom = false,
     audio_order_custom = false
 }
@@ -19,6 +20,7 @@ local BOOL_KEYS = {
     'list_beep',
     'short_delay',
     'bluetooth_notification',
+    'widescreen',
     'main_menu_order_custom',
     'audio_order_custom'
 }

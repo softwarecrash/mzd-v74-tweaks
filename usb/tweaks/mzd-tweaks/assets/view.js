@@ -625,7 +625,8 @@
                         audioOrderCtrl.reset();
                         api.openPage(audioOrderCtrl.page);
                     }
-                }
+                },
+                { key: 'widescreen', type: 'bool', label: tr('widescreen', 'Apply natural look on wide screen') }
             ];
             // The service gives limits for this row only while a Fuel
             // Consumption Ending Screen version that reads the value is installed.

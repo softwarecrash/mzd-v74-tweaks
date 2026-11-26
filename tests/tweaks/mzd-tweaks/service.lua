@@ -102,6 +102,7 @@ local DEFAULTS = {
     short_delay = false,
     statusbar_date = 'off',
     bluetooth_notification = true,
+    widescreen = false,
     theme = 'red',
     main_menu_order_custom = false,
     audio_order_custom = false,
@@ -120,7 +121,7 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, fuel_delay)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, widescreen, fuel_delay)
     main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
     main_menu_custom = main_menu_custom or 'false'
@@ -128,6 +129,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
     coins_size = coins_size or 100
     coins_layout = coins_layout or 'ellipse'
     bluetooth_notification = bluetooth_notification or 'true'
+    widescreen = widescreen or 'false'
     local lines = {
         'window.mzdTweaks = {',
         '    "main_menu_loop": ' .. a .. ',',
@@ -136,6 +138,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
         '    "bluetooth_notification": ' .. bluetooth_notification .. ',',
+        '    "widescreen": ' .. widescreen .. ',',
         '    "main_menu_order_custom": ' .. main_menu_custom .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
         '    "statusbar_date": "' .. (statusbar_date or 'off') .. '",',
@@ -187,6 +190,7 @@ do
         short_delay = true,
         statusbar_date = 'off',
         bluetooth_notification = true,
+        widescreen = false,
         theme = 'red',
         main_menu_order_custom = false,
         main_menu_order = DEFAULT_MAIN_MENU_ORDER,
@@ -274,6 +278,17 @@ do
     local res = svc.request('set', { key = 'bluetooth_notification', value = false })
     assert(res.settings.bluetooth_notification == false)
     assert(fs.content:match('"bluetooth_notification"%s*:%s*false'))
+end
+
+-- set widescreen toggles widescreen aspect ratio compensation.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'widescreen', value = true })
+    assert(res.settings.widescreen == true)
+    assert(fs.content:match('"widescreen"%s*:%s*true'))
+    local ok, err = pcall(svc.request, 'set', { key = 'widescreen', value = 'yes' })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'non-boolean widescreen refused')
 end
 
 -- set audio_order updates the reordered items.
@@ -499,7 +514,7 @@ do
     local old = js('false', 'false', 'true', 'false'):gsub('    "fuel_ending_delay": 7,\n', '')
     assert(not old:find('fuel_ending_delay'), 'old file without the key')
     assert(service(fake_files(old)).request('get').settings.fuel_ending_delay == 7, 'missing key reads 7')
-    assert(service(fake_files(js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 12))).request('get').settings.fuel_ending_delay == 12, 'saved 12 is read')
+    assert(service(fake_files(js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 12))).request('get').settings.fuel_ending_delay == 12, 'saved 12 is read')
     for _, bad in ipairs({ '4', '31', '0', '999' }) do
         local content = js('false', 'false', 'true', 'false'):gsub('"fuel_ending_delay": 7', '"fuel_ending_delay": ' .. bad)
         assert(service(fake_files(content)).request('get').settings.fuel_ending_delay == 7, 'out of range ' .. bad .. ' reads 7')
@@ -509,9 +524,9 @@ do
     local svc = service(fs)
     local res = svc.request('set', { key = 'fuel_ending_delay', value = 5 })
     assert(res.settings.fuel_ending_delay == 5 and res.settings.list_beep == true, 'set 5 keeps other values')
-    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 5), 'js written with 5')
+    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 5), 'js written with 5')
     svc.request('set', { key = 'fuel_ending_delay', value = 30 })
-    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 30), 'js written with 30')
+    assert(fs.content == js('false', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 30), 'js written with 30')
     assert(service(fs).request('get').settings.fuel_ending_delay == 30, 'a fresh service reads 30 back')
     local saved = fs.content
     for _, bad in ipairs({ 4, 31, 7.5, -1, 0 / 0, math.huge, '10', true }) do
@@ -521,7 +536,7 @@ do
     assert(fs.content == saved, 'refused values change nothing')
     -- A boolean setting saved later keeps the time.
     svc.request('set', { key = 'list_loop', value = true })
-    assert(fs.content == js('false', 'true', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 30), 'time kept on other saves')
+    assert(fs.content == js('false', 'true', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 30), 'time kept on other saves')
 end
 
 -- The row is offered (limits) only while Fuel Consumption Ending Screen 1.1.0 or later is installed.

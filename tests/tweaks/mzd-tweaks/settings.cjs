@@ -60,6 +60,7 @@ const DEFAULTS = {
   short_delay: false,
   statusbar_date: 'off',
   bluetooth_notification: true,
+  widescreen: false,
   theme: 'red',
   main_menu_order_custom: false,
   main_menu_order: DEFAULT_MAIN_MENU_ORDER,
@@ -369,7 +370,7 @@ function lastResponse(source) {
 {
   const page = residentPage({ list_loop: true, theme: 'blue' });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, fuel_ending_delay: 7, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), {main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, widescreen: false, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, fuel_ending_delay: 7, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept; a settings.js without the fuel ending time gets 7 s');
 }
 
@@ -1526,12 +1527,21 @@ function viewPage(options) {
 
 {
   const page = viewPage();
+  page.respond({ widescreen: false });
+  assert.equal(page.menu().rows[16].label, 'Apply natural look on wide screen');
+  assert.equal(page.menu().rows[16].checked, false, 'widescreen is off by default');
+  page.select(16);
+  assert.deepEqual(page.sets(), [{ key: 'widescreen', value: true }], 'switching widescreen on saves true');
+}
+
+{
+  const page = viewPage();
   assert.deepEqual(page.posts.map(m => m.type + ':' + m.action), ['mzd-tweaks-request:get'], 'the view asks the resident for the settings');
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, main_menu_order_custom: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.id), ['theme_menu', 'section_main_menu', 'main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'section_list_menu', 'list_loop', 'list_beep', 'short_delay', 'section_status_bar', 'statusbar_date_menu', 'bluetooth_notification', 'section_others', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Theme', 'Main menu', 'Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Status bar', 'Date in status bar', 'Bluetooth connection notification', 'Others', 'Entertainment menu order']);
+  assert.deepEqual(menu.rows.map(r => r.id), ['theme_menu', 'section_main_menu', 'main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'section_list_menu', 'list_loop', 'list_beep', 'short_delay', 'section_status_bar', 'statusbar_date_menu', 'bluetooth_notification', 'section_others', 'audio_order_menu', 'widescreen']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Theme', 'Main menu', 'Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Status bar', 'Date in status bar', 'Bluetooth connection notification', 'Others', 'Entertainment menu order', 'Apply natural look on wide screen']);
   for (const idx of [1, 7, 11, 14]) {
     assert.equal(menu.rows[idx].disabled, true, `section header at ${idx} is disabled`);
     assert.equal(menu.rows[idx].itemStyle, 'style01', `section header at ${idx} uses style01`);
@@ -1868,6 +1878,7 @@ function viewPage(options) {
       assert(dict['color_' + color] && dict['color_' + color].length > 0, 'color_' + color + ' present in ' + lang);
     }
     assert(dict.bluetooth_notification && dict.bluetooth_notification.length > 0, 'bluetooth_notification present in ' + lang);
+    assert(dict.widescreen && dict.widescreen.length > 0, 'widescreen present in ' + lang);
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
     }
@@ -1967,10 +1978,12 @@ function viewPage(options) {
   vm.runInNewContext(settingsHostSource, { window: win });
   vm.runInNewContext(residentSource, { window: win, document: mockDoc });
 
-  // Initial state with theme: 'red' and main_menu_coins_glow: true
+  // Initial state with theme: 'red', main_menu_coins_glow: true, and widescreen: false
   assert.equal(byId['mzd-tweaks-base-css'] !== undefined, true, 'mzd-tweaks.css is always loaded');
   assert.equal(byId['mzd-tweaks-theme-common-css'], undefined, 'theme-common.css is not loaded when theme is red');
   assert.equal(byId['mzd-tweaks-theme-color-css'], undefined, 'theme color css is not loaded when theme is red');
+  assert.equal(byId['mzd-tweaks-widescreen-css'], undefined, 'widescreen.css is not loaded when widescreen is false');
+  assert.equal(mockBody.className.indexOf('mzd-widescreen'), -1, 'mzd-widescreen is not on body when disabled');
   assert.equal(mockBody.className.indexOf('mzd-coins-glow') !== -1, true, 'mzd-coins-glow is on body when enabled');
   assert.equal(mockBody.className.indexOf('mzd-no-coins-glow'), -1, 'mzd-no-coins-glow is not on body');
 
@@ -2054,7 +2067,30 @@ function viewPage(options) {
   assert.equal(mockBody.className.indexOf('mzd-coins-60') !== -1, true, 'mzd-coins-60 is added for 60% size');
   hostOptions.onConfirmed({ main_menu_coins_size: 100 });
   assert.equal(mockBody.className.indexOf('mzd-coins-80'), -1, 'mzd-coins-80 is removed when reset to 100%');
+
+  // Test widescreen.css dynamic loading and mzd-widescreen class
+  hostOptions.onConfirmed({ widescreen: true });
+  assert.equal(byId['mzd-tweaks-widescreen-css'] !== undefined, true, 'widescreen.css is loaded when widescreen is true');
+  assert.equal(byId['mzd-tweaks-widescreen-css'].href, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/widescreen.css');
+  assert.equal(mockBody.className.indexOf('mzd-widescreen') !== -1, true, 'mzd-widescreen is added to body');
+  hostOptions.onConfirmed({ widescreen: false });
+  assert.equal(byId['mzd-tweaks-widescreen-css'], undefined, 'widescreen.css is removed when widescreen is false');
+  assert.equal(mockBody.className.indexOf('mzd-widescreen'), -1, 'mzd-widescreen is removed from body');
   assert.equal(mockBody.className.indexOf('mzd-coins-60'), -1, 'mzd-coins-60 is removed when reset to 100%');
+
+  // Preview services and boot settings.js can update window.mzdTweaks before onConfirmed runs.
+  win.mzdTweaks.widescreen = true;
+  hostOptions.onConfirmed({ widescreen: true });
+  assert.equal(byId['mzd-tweaks-widescreen-css'] !== undefined, true,
+    'widescreen.css is loaded even when window.mzdTweaks was updated before onConfirmed');
+  assert.equal(mockBody.className.indexOf('mzd-widescreen') !== -1, true,
+    'mzd-widescreen is added to body even when window.mzdTweaks was updated before onConfirmed');
+  win.mzdTweaks.widescreen = false;
+  hostOptions.onConfirmed({ widescreen: false });
+  assert.equal(byId['mzd-tweaks-widescreen-css'], undefined,
+    'widescreen.css is removed even when window.mzdTweaks was updated before onConfirmed');
+  assert.equal(mockBody.className.indexOf('mzd-widescreen'), -1,
+    'mzd-widescreen is removed from body even when window.mzdTweaks was updated before onConfirmed');
 }
 
 {
@@ -2723,6 +2759,73 @@ function viewPage(options) {
     'flat + 80% focus selector outranks .mzd-coin');
   assert(mzdCss.includes('body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrl .mzd-coin.MainMenuCtrlCoinFocus'),
     'flat + 60% focus selector outranks .mzd-coin');
+
+  // widescreen.css contract checks (Opera 12 compatibility and main-order class alignment)
+  const widescreenCssPath = path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/widescreen.css');
+  const widescreenCss = fs.readFileSync(widescreenCssPath, 'utf8');
+  for (const match of widescreenCss.matchAll(/url\(['"]?([^'")]+)['"]?\)/g)) {
+    const assetPath = path.resolve(path.dirname(widescreenCssPath), match[1]);
+    assert(fs.existsSync(assetPath), 'widescreen.css asset exists: ' + match[1]);
+  }
+  assert(!/var\(--/.test(widescreenCss), 'widescreen.css uses no CSS custom properties');
+  assert(widescreenCss.includes("font-family: 'SairaEC'"), 'widescreen.css defines SairaEC narrow font');
+  assert(!/\.MainMenuCtrl(App|Ent|Com|Nav|Set)/.test(widescreenCss),
+    'widescreen.css uses slot-agnostic .mzd-coin selectors rather than legacy per-app selectors');
+  assert(widescreenCss.includes('body.mzd-widescreen .MainMenuCtrl .mzd-coin > div'),
+    'widescreen.css targets .mzd-coin > div');
+  assert(widescreenCss.includes('body.mzd-widescreen .MainMenuCtrl .mzd-coin-highlight'),
+    'widescreen.css targets .mzd-coin-highlight');
+  assert(widescreenCss.includes('scaleX(0.67)'), 'widescreen.css scales Main Menu coins by 0.67');
+  assert(widescreenCss.includes('-o-transform: scaleX(0.67)'), 'widescreen.css includes -o-transform for 0.67');
+  assert(
+    widescreenCss.includes('body.mzd-widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60) .MainMenuCtrl .mzd-coin-1:not(.MainMenuCtrlCoinFocus)'),
+    'widescreen.css shifts unfocused coin 1 inward in default non-flat layout'
+  );
+  assert(
+    widescreenCss.includes('body.mzd-widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60) .MainMenuCtrl .mzd-coin-5:not(.MainMenuCtrlCoinFocus)'),
+    'widescreen.css shifts unfocused coin 5 inward in default non-flat layout'
+  );
+  assert(widescreenCss.includes('-o-transform: translateX(22px)'), 'widescreen.css includes -o-transform translateX(22px) for coin 1');
+  assert(widescreenCss.includes('-o-transform: translateX(-22px)'), 'widescreen.css includes -o-transform translateX(-22px) for coin 5');
+  for (const sel of [
+    'body.mzd-widescreen .Ump3CtrlButtonIcon',
+    'body.mzd-widescreen .StatusBarCtrlHomeBtn',
+    'body.mzd-widescreen .StatusBarCtrlDomainIcon',
+    'body.mzd-widescreen .StatusBarCtrlIcon',
+    'body.mzd-widescreen .SbnCtrl_Style02_Image1',
+    'body.mzd-widescreen .InCall2ContactImageFrame',
+    'body.mzd-widescreen .NowPlaying4CtrlArtworkImageDiv'
+  ]) {
+    assert(widescreenCss.includes(sel), 'widescreen.css scales ' + sel);
+  }
+  assert(widescreenCss.includes('-o-transform: scaleX(0.63)'), 'widescreen.css includes -o-transform for 0.63');
+  assert(widescreenCss.includes('-o-transform-origin: center center'), 'widescreen.css includes -o-transform-origin');
+  assert(widescreenCss.includes('body.mzd-widescreen .StatusBarCtrlIconContainer'),
+    'widescreen.css overrides .StatusBarCtrlIconContainer');
+  assert(widescreenCss.includes('margin-right: 90px !important;'),
+    'widescreen.css forces margin-right: 90px on .StatusBarCtrlIconContainer');
+  assert(widescreenCss.includes('body.mzd-widescreen .InCall2ContactName'),
+    'widescreen.css overrides .InCall2ContactName');
+  assert(widescreenCss.includes('body.mzd-widescreen .InCall2ContactElapsedTime'),
+    'widescreen.css overrides .InCall2ContactElapsedTime');
+  assert(widescreenCss.includes('line-height: 100% !important;'),
+    'widescreen.css sets line-height: 100% on InCall2 contact text');
+  assert(widescreenCss.includes('body.mzd-widescreen .Ump3CtrlTooltipBalloon'),
+    'widescreen.css overrides .Ump3CtrlTooltipBalloon');
+  assert(widescreenCss.includes('line-height: 120% !important;'),
+    'widescreen.css sets line-height: 120% on .Ump3CtrlTooltipBalloon');
+  assert(widescreenCss.includes('body.mzd-widescreen .TemplateWithStatus'),
+    'widescreen.css overrides .TemplateWithStatus');
+  assert(widescreenCss.includes('line-height: 250% !important;'),
+    'widescreen.css sets line-height: 250% on .TemplateWithStatus');
+  for (const sel of [
+    'body.mzd-widescreen .ClockSettings2CtrlHoursTensDigit',
+    'body.mzd-widescreen .ClockSettings2CtrlHoursOnesDigit',
+    'body.mzd-widescreen .ClockSettings2CtrlMinutesTensDigit',
+    'body.mzd-widescreen .ClockSettings2CtrlMinutesOnesDigit'
+  ]) {
+    assert(widescreenCss.includes(sel), 'widescreen.css overrides ' + sel);
+  }
 }
 
 // initCurrentOrder deterministic tie-breaker when duplicate order values exist

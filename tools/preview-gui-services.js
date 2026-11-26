@@ -253,6 +253,7 @@
             short_delay: false,
             statusbar_date: 'off',
             bluetooth_notification: true,
+            widescreen: false,
             main_menu_order_custom: false,
             main_menu_order: defaultMainMenuOrder,
             audio_order_custom: false,

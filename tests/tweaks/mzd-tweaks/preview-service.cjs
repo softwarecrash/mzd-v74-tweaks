@@ -39,6 +39,7 @@ test('emulated MZD Tweaks service', async t => {
             short_delay: false,
             statusbar_date: 'off',
             bluetooth_notification: true,
+            widescreen: false,
             theme: 'red'
         }
     });
@@ -53,6 +54,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(env.window.mzdTweaks.short_delay, false);
         assert.equal(env.window.mzdTweaks.statusbar_date, 'off');
         assert.equal(env.window.mzdTweaks.bluetooth_notification, true);
+        assert.equal(env.window.mzdTweaks.widescreen, false);
         assert.equal(env.window.mzdTweaks.theme, 'red');
 
         const res = await request(env.services, 'get', {});
@@ -65,6 +67,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(res.settings.short_delay, false);
         assert.equal(res.settings.statusbar_date, 'off');
         assert.equal(res.settings.bluetooth_notification, true);
+        assert.equal(res.settings.widescreen, false);
         assert.equal(res.settings.theme, 'red');
     });
 
@@ -76,6 +79,10 @@ test('emulated MZD Tweaks service', async t => {
         const updatedBt = await request(env.services, 'set', { key: 'bluetooth_notification', value: false });
         assert.equal(updatedBt.settings.bluetooth_notification, false);
         assert.equal(env.window.mzdTweaks.bluetooth_notification, false);
+
+        const updatedWidescreen = await request(env.services, 'set', { key: 'widescreen', value: true });
+        assert.equal(updatedWidescreen.settings.widescreen, true);
+        assert.equal(env.window.mzdTweaks.widescreen, true);
 
         // Verify persistence across reload
         const reloaded = fixture(storage);

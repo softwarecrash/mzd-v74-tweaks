@@ -1,0 +1,131 @@
+/*
+ * MZD Tweaks Widescreen Aspect Ratio Compensation (244x92 mm display)
+ * Loaded dynamically only when widescreen is enabled.
+ * Opera 12 (Presto) compatible: no CSS custom properties, -o- transform prefixes,
+ * static TrueType (.ttf) fonts only.
+ */
+
+@font-face {
+    font-family: 'SairaEC';
+    src: url('../fonts/SairaExtraCondensed-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'SairaEC';
+    src: url('../fonts/SairaExtraCondensed-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'SairaEC';
+    src: url('../fonts/SairaExtraCondensed-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+/* Map bold to Medium to avoid overly thick vertical strokes after 1.591x horizontal stretch */
+@font-face {
+    font-family: 'SairaEC';
+    src: url('../fonts/SairaExtraCondensed-Medium.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+body,
+div,
+span,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+label,
+a,
+td,
+th,
+button,
+input,
+select,
+textarea {
+    font-family: 'SairaEC', sans-serif !important;
+}
+
+/*
+ * Main Menu Coins and highlights (0.67 horizontal compensation).
+ * Applied to inner icon layers (.mzd-coin > div) so outer container transforms
+ * (ellipse/flat layout, 80%/60% sizes, focus zoom) and custom icon ordering compose
+ * cleanly without affecting .MainMenuCtrlIconName text.
+ */
+body.mzd-widescreen .MainMenuCtrl .mzd-coin > div,
+body.mzd-widescreen .MainMenuCtrl .mzd-coin-highlight {
+    -o-transform: scaleX(0.67);
+    transform: scaleX(0.67);
+    -o-transform-origin: center center;
+    transform-origin: center center;
+}
+
+/*
+ * Move unfocused outer coins (1 and 5) inward in the default-sized elliptical
+ * layout so their scaleX(0.67) inner icons do not clip at the screen edges.
+ */
+body.mzd-widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60) .MainMenuCtrl .mzd-coin-1:not(.MainMenuCtrlCoinFocus) {
+    -o-transform: translateX(22px);
+    transform: translateX(22px);
+}
+
+body.mzd-widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60) .MainMenuCtrl .mzd-coin-5:not(.MainMenuCtrlCoinFocus) {
+    -o-transform: translateX(-22px);
+    transform: translateX(-22px);
+}
+
+/*
+ * Small standalone UI icons (0.63 horizontal compensation):
+ * bottom buttons (UMP), header/status bar, and SBN notifications.
+ */
+body.mzd-widescreen .Ump3CtrlButtonIcon,
+body.mzd-widescreen .StatusBarCtrlHomeBtn,
+body.mzd-widescreen .StatusBarCtrlDomainIcon,
+body.mzd-widescreen .StatusBarCtrlIcon,
+body.mzd-widescreen .ButtonCtrlIcon_AA,
+body.mzd-widescreen .ButtonCtrlIcon_CP,
+body.mzd-widescreen .SbnCtrl_Style02_Image1,
+body.mzd-widescreen .SbnCtrl_Style03_Image1,
+body.mzd-widescreen .SbnCtrl_Style03_Image2,
+body.mzd-widescreen .SbnCtrl_Style04_Image1,
+body.mzd-widescreen .SbnCtrl_Style05_Image1,
+body.mzd-widescreen .SbnCtrl_Style07_Image1,
+body.mzd-widescreen .SbnCtrlInlineGraphic,
+body.mzd-widescreen .InCall2ContactImageFrame,
+body.mzd-widescreen .NowPlaying4CtrlArtworkImageDiv {
+    -o-transform: scaleX(0.63);
+    transform: scaleX(0.63);
+    -o-transform-origin: center center;
+    transform-origin: center center;
+}
+
+body.mzd-widescreen .StatusBarCtrlIconContainer {
+    margin-right: 90px !important;
+}
+
+body.mzd-widescreen .InCall2ContactName,
+body.mzd-widescreen .InCall2ContactElapsedTime,
+body.mzd-widescreen .ClockSettings2CtrlHoursTensDigit,
+body.mzd-widescreen .ClockSettings2CtrlHoursOnesDigit,
+body.mzd-widescreen .ClockSettings2CtrlMinutesTensDigit,
+body.mzd-widescreen .ClockSettings2CtrlMinutesOnesDigit {
+    line-height: 100% !important;
+}
+
+body.mzd-widescreen .Ump3CtrlTooltipBalloon {
+    line-height: 120% !important;
+}
+
+body.mzd-widescreen .TemplateWithStatus {
+    line-height: 250% !important;
+}

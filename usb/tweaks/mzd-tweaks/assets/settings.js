@@ -5,6 +5,7 @@ window.mzdTweaks = {
     "list_beep": true,
     "short_delay": false,
     "bluetooth_notification": true,
+    "widescreen": false,
     "main_menu_order_custom": false,
     "audio_order_custom": false,
     "statusbar_date": "off",

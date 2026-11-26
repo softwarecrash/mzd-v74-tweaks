@@ -92,6 +92,7 @@
         short_delay: false,
         statusbar_date: 'off',
         bluetooth_notification: true,
+        widescreen: false,
         theme: 'red',
         main_menu_order_custom: false,
         main_menu_order: DEFAULT_MAIN_MENU_ORDER,
@@ -333,7 +334,14 @@
     var GLOW_CLASSES = ['mzd-coins-glow', 'mzd-no-coins-glow'];
     var LAYOUT_CLASSES = ['mzd-layout-flat'];
     var SIZE_CLASSES = ['mzd-coins-80', 'mzd-coins-60'];
+    var WIDESCREEN_CLASSES = ['mzd-widescreen'];
     var themeDomListenerAttached = false;
+    var lastAppliedThemeState = null;
+
+    function themeState() {
+        var t = global.mzdTweaks || {};
+        return [t.theme, t.main_menu_coins_glow, t.main_menu_coins_size, t.main_menu_coins_layout, t.widescreen].join('|');
+    }
 
     function loadStylesheet(id, href) {
         var doc = global.document;
@@ -406,6 +414,9 @@
         for (i = 0; i < SIZE_CLASSES.length; i++) {
             cls = cls.replace(new RegExp('\\b' + SIZE_CLASSES[i] + '\\b', 'g'), '');
         }
+        for (i = 0; i < WIDESCREEN_CLASSES.length; i++) {
+            cls = cls.replace(new RegExp('\\b' + WIDESCREEN_CLASSES[i] + '\\b', 'g'), '');
+        }
         cls = cls.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
 
         commonLinkId = 'mzd-tweaks-theme-common-css';
@@ -448,6 +459,17 @@
             cls += ' mzd-coins-60';
         }
 
+        var widescreenLinkId = 'mzd-tweaks-widescreen-css';
+        var widescreenLink = typeof doc.getElementById === 'function' ? doc.getElementById(widescreenLinkId) : null;
+        if (global.mzdTweaks && global.mzdTweaks.widescreen === true) {
+            cls = cls ? (cls + ' mzd-widescreen') : 'mzd-widescreen';
+            widescreenLink = loadStylesheet(widescreenLinkId, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/widescreen.css');
+        } else {
+            if (widescreenLink && widescreenLink.parentNode) {
+                widescreenLink.parentNode.removeChild(widescreenLink);
+            }
+        }
+
         if (setBodyClass(body, cls)) {
             var liveCtrl = findLiveMainMenuCtrl();
             if (liveCtrl) {
@@ -456,6 +478,7 @@
                 restoreMainMenuFocusState(liveCtrl, focusState);
             }
         }
+        lastAppliedThemeState = themeState();
     }
 
     applyTheme(global.mzdTweaks.theme);
@@ -1417,10 +1440,6 @@
         }
         // What each runtime hook reads, as strings, so applyGlobals can tell what a confirmation
         // really changed. The service confirms the full settings on every read and save.
-        function themeState() {
-            var t = global.mzdTweaks || {};
-            return [t.theme, t.main_menu_coins_glow, t.main_menu_coins_size, t.main_menu_coins_layout].join('|');
-        }
         function menuOrderState() {
             var t = global.mzdTweaks || {}, o = t.main_menu_order || {}, parts = [t.main_menu_order_custom === true], i;
             for (i = 0; i < MAIN_MENU_ITEMS.length; i++) { parts.push(o[MAIN_MENU_ITEMS[i].key]); }
@@ -1440,7 +1459,6 @@
             if (!global.mzdTweaks.audio_order) { global.mzdTweaks.audio_order = {}; }
             if (!global.mzdTweaks.main_menu_order) { global.mzdTweaks.main_menu_order = {}; }
             before = {
-                theme: themeState(),
                 menuOrder: menuOrderState(),
                 audioOrder: audioOrderState()
             };
@@ -1470,7 +1488,7 @@
                 }
             }
             backfillDefaults(global.mzdTweaks);
-            if (before.theme !== themeState()) {
+            if (lastAppliedThemeState !== themeState()) {
                 applyTheme(global.mzdTweaks.theme);
             }
             if (before.menuOrder !== menuOrderState()) {
