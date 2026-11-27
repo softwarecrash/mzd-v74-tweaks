@@ -15,8 +15,9 @@ Saved app choices load before automatic CMU settings are requested. Language,
 speed and temperature each offer Automatic or manual choices. Manual choices do
 not query the corresponding Mazda preference. Automatic values are read once on
 opening, or on first switching a manual field to Automatic. Reopen after changing
-Mazda system settings. English and German are currently supplied; other system
-languages use English fallback.
+Mazda system settings. All 41 Mazda GUI language codes have complete dictionaries, including regional
+variants. Automatic uses the CMU language at startup; manual selection uses native
+language names. Unknown languages fall back to English without log messages.
 
 The manifest declares the whole persistent preferences directory, containing
 `/tmp/mnt/data_persist/mzd-tweaks/gui-data/drivedash/settings.conf`.

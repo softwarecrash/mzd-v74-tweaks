@@ -24,14 +24,27 @@
             callback('Data reader unavailable.');
         }
     }) : new window.DriveDashDemo();
-    function t(key) { var all = window.DriveDashLanguages, dictionary = all[language] || all[language.split('_')[0] === 'de' ? 'de_DE' : 'en_US']; return dictionary[key] || all.en_US[key] || key; }
+    var dictionary = window.DriveDashLanguages.en_US;
+    function dictionaryFor(code) {
+        var all = window.DriveDashLanguages, names, base, i;
+        code = code.replace('-', '_');
+        if (all[code]) { return all[code]; }
+        base = code.split('_')[0]; names = Object.keys(all);
+        for (i = 0; i < names.length; i += 1) {
+            if (names[i].split('_')[0] === base) { return all[names[i]]; }
+        }
+        return all.en_US;
+    }
+    function t(key) { return dictionary[key] || window.DriveDashLanguages.en_US[key] || key; }
     function post(value) { value.token = token; window.parent.postMessage(value,'*'); }
     function designIds() { return skins.list().map(function (skin) { return skin.id; }); }
     try { if (!live) { stored = JSON.parse(window.localStorage.getItem(storageKey) || 'null'); } } catch (ignore) {}
     config = model.settings(stored,designIds(),Object.keys(window.DriveDashLanguages));
     function applyLanguage() {
         language = config.language === 'auto' ? system.language : config.language;
+        dictionary = dictionaryFor(language);
         document.documentElement.lang = language.replace('_','-');
+        document.documentElement.dir = /^(ar|he)(_|$)/.test(language) ? 'rtl' : 'ltr';
     }
     applyLanguage();
     function applyUnits(units) {

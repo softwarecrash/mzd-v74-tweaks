@@ -13,7 +13,7 @@ for (const name of ['i18n.js', 'data.js', 'model.js', 'skins/registry.js', 'skin
     parser.exports.parse(source(name), {ecmaVersion: 5});
 }
 
-function fixture(native, live, initial, deferred, bitmap=false) {
+function fixture(native, live, initial, deferred, bitmap=false, locale='de_DE') {
     const timeouts = new Map(); let timeoutId = 0;
     const stats = {bitmapDraws:0,drawn:[],rotations:[],imageLoads:[],images:[],timerDelays:[]};
     const events = {}, intervals = new Map(), texts = [], labels = [], messages = [], saved = {};
@@ -51,7 +51,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
             onInput: fn => {input = fn;},
             onDispose: fn => {dispose = fn;},
             ready() {},
-            loadLanguage: fn => fn('de_DE', 'ltr'),
+            loadLanguage: fn => fn(locale, /^(ar|he)_/.test(locale)?'rtl':'ltr'),
             getUnits: fn => {
                 messages.push({type:'mzd-gui-units-request'});
                 unitsCallback = fn;
@@ -73,7 +73,7 @@ function fixture(native, live, initial, deferred, bitmap=false) {
         serviceCallbacks[load.id](null, initial || {});
     }
     if (native && !deferred && unitsCallback) {
-        unitsCallback({language:'de_DE',speedUnit:'mph',tempUnit:'F'});
+        unitsCallback({language:locale,speedUnit:'mph',tempUnit:'F'});
     }
     return {window, context, nodes, stats, events, intervals, texts, labels, messages, saved, input, dispose, suspend, resume, timeouts, serviceCallbacks, getUnitsCallback: () => unitsCallback};
 }
@@ -364,7 +364,7 @@ const extreme={source:'cmu',available:true,speedKph:400,rpm:16000,outsideC:-39,c
 for(const skin of suite.window.DriveDashSkins.list()) {
  const check=fixture(false,false,{design:skin.id},false,true);
  for(const raw of [full,{},extreme]) {
-  for(const language of ['en_US','de_DE']) {
+  for(const language of Object.keys(dictionaries)) {
    const translate=key=>dictionaries[language][key]||key;
    const display=check.window.DriveDashModel.display(raw,check.window.DriveDashModel.settings({design:skin.id},[skin.id]),translate);
    assert.doesNotThrow(()=>check.window.DriveDashSkins.get(skin.id).draw(check.nodes.gauge.getContext('2d'),display,translate),skin.id);
@@ -385,3 +385,29 @@ wrongSize.dispose();
 console.log('DRIVEDASH_SKINS_PASSED: all six designs, full/empty/extreme data, translation parity and native-size bitmap guards.');
 
 suite.dispose();
+
+for(const locale of Object.keys(dictionaries)) {
+ const autoLanguage=fixture(true,false,{language:'auto',speedUnit:'kmh',tempUnit:'C'},false,false,locale);
+ assert.equal(autoLanguage.nodes.stage.style.visibility,'visible',locale);
+ autoLanguage.nodes.settings.onclick();
+ const menu=autoLanguage.messages.filter(m=>m.type==='drivedash-native-render').at(-1).menu;
+ assert.equal(menu.title,dictionaries[locale].settings,locale+' auto menu language');
+ assert.equal(autoLanguage.nodes.settings.textContent,dictionaries[locale].settings);
+ assert.equal(autoLanguage.context.document.documentElement.dir,/^(ar|he)_/.test(locale)?'rtl':'ltr');
+ nativeSelect(autoLanguage,3);
+ const choices=autoLanguage.messages.filter(m=>m.type==='drivedash-native-render').at(-1).menu.rows;
+ assert.equal(choices.length,42);
+ assert(choices.some(row=>row.id===locale&&row.label===dictionaries[locale]['language.'+locale]));
+ autoLanguage.dispose();
+ const manualLanguage=fixture(true,false,{language:locale,speedUnit:'kmh',tempUnit:'C'},false,false,'en_US');
+ assert.equal(manualLanguage.messages.filter(m=>m.type==='mzd-gui-units-request').length,0,'Manual settings do not query CMU preferences.');
+ manualLanguage.nodes.settings.onclick();
+ assert.equal(manualLanguage.nodes.settings.textContent,dictionaries[locale].settings,locale+' manual menu language');
+ manualLanguage.dispose();
+}
+for(const [locale,expected] of [['pl_ZZ','pl_PL'],['pl','pl_PL'],['xx_XX','en_US']]) {
+ const variant=fixture(true,false,{language:'auto',speedUnit:'kmh',tempUnit:'C'},false,false,locale);
+ variant.nodes.settings.onclick();
+ assert.equal(variant.nodes.settings.textContent,dictionaries[expected].settings,locale+' fallback');variant.dispose();
+}
+console.log('DRIVEDASH_LOCALES_PASSED: 41 automatic/manual startup languages, native names, RTL menus and unknown-locale fallback.');

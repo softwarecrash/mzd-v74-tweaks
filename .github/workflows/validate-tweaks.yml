@@ -194,6 +194,7 @@ jobs:
       - run: node tests/tweaks/tetris/highscore.cjs
       - name: Test drivedash view, preferences and read-only collector
         run: |
+          node tests/tweaks/drivedash/i18n.cjs
           node tests/tweaks/drivedash/data.cjs
           node tests/tweaks/drivedash/preview.cjs
           node tests/tweaks/drivedash/needle.cjs

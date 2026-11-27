@@ -28,16 +28,18 @@ switch to demo values. No legacy websocketd, CASDK installation, disclaimer patc
 watchdog changes or status-bar speedometer is used.
 
 `assets/i18n.js` is the single dictionary for the gauge, settings, units and menu
-entry. English and German are supplied; other Mazda languages use
-English fallback until translated. Saved app choices are loaded first. Only
+entry. All 41 Mazda GUI language codes have complete dictionaries, including their
+regional variants. Language names use their native spelling. Saved app choices are loaded first. Only
 fields set to Automatic are read from the Mazda GUI framework on opening;
 all-manual choices perform no app settings query. Switching a previously manual
 field to Automatic reads it once on demand.
 The default option is Automatic; settings also offer explicit km/h or mph,
 Celsius or Fahrenheit, and any language supplied in the common dictionary
-(currently English and German). Manual choices override the startup snapshot.
+(all 41 Mazda GUI codes). Manual choices override the startup snapshot.
 Reopen the app after changing Mazda system settings to refresh automatic choices.
-Unsupported system languages silently use the English dictionary; unknown units
+Exact Mazda language codes are retained, including cs_CS, fr_CN, cn_HK and mn_TW.
+Unknown regional codes first use a dictionary of the same language; entirely
+unsupported languages silently use English. Unknown units
 fall back to metric. Missing unit getters do not discard a valid language.
 No setters, native service requests, CAN input or background watcher are needed.
 DriveDash reuses the shared GUI SDK and runtime functions: `createNativeMenu` for
