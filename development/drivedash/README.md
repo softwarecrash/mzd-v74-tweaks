@@ -29,7 +29,8 @@ watchdog changes or status-bar speedometer is used.
 
 `assets/i18n.js` is the single dictionary for the gauge, settings, units and menu
 entry. All 41 Mazda GUI language codes have complete dictionaries, including their
-regional variants. Language names use their native spelling. Saved app choices are loaded first. Only
+regional variants. Language names use their native spelling and are stored once in the shared
+`DriveDashLanguageNames` map in `assets/i18n.js`. Saved app choices are loaded first. Only
 fields set to Automatic are read from the Mazda GUI framework on opening;
 all-manual choices perform no app settings query. Switching a previously manual
 field to Automatic reads it once on demand.

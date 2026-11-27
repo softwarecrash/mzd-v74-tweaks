@@ -117,7 +117,7 @@
             var settings = [{id:'design',label:t('design'),detail:t(skins.get(config.design).labelKey),caret:true},
                 {id:'speed',label:t('speedUnits'),detail:t(config.speedUnit),caret:true},
                 {id:'temperature',label:t('temperatureUnits'),detail:config.tempUnit === 'auto' ? t('auto') : t(config.tempUnit === 'F' ? 'fahrenheit' : 'celsius'),caret:true},
-                {id:'language',label:t('language'),detail:config.language === 'auto' ? t('auto') : t('language.'+config.language),caret:true}];
+                {id:'language',label:t('language'),detail:config.language === 'auto' ? t('auto') : window.DriveDashLanguageNames[config.language],caret:true}];
             if (!preferencesLoaded) { for (i = 0; i < settings.length; i += 1) { settings[i].disabled = true; } }
             if (preferenceError) { settings.splice(0,0,{id:'settingsError',label:t(preferenceError),disabled:true}); }
             if (!live) { settings.splice(4,0,{id:'animated',label:t('animate'),detail:t(config.animated ? 'on' : 'off')}); }
@@ -125,7 +125,7 @@
         }
         if (page === 'language') {
             values = ['auto'].concat(Object.keys(window.DriveDashLanguages));
-            for (i = 0; i < values.length; i += 1) { result.push({id:values[i],label:t(values[i] === 'auto' ? 'auto' : 'language.'+values[i]),radio:true,checkable:true,checked:config.language === values[i]}); }
+            for (i = 0; i < values.length; i += 1) { result.push({id:values[i],label:(values[i] === 'auto' ? t('auto') : window.DriveDashLanguageNames[values[i]]),radio:true,checkable:true,checked:config.language === values[i]}); }
         } else if (page === 'design') {
             values = skins.list(); for (i = 0; i < values.length; i += 1) { result.push({id:values[i].id,label:t(values[i].labelKey),radio:true,checkable:true,checked:config.design === values[i].id}); }
         } else {

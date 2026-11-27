@@ -397,7 +397,7 @@ for(const locale of Object.keys(dictionaries)) {
  nativeSelect(autoLanguage,3);
  const choices=autoLanguage.messages.filter(m=>m.type==='drivedash-native-render').at(-1).menu.rows;
  assert.equal(choices.length,42);
- assert(choices.some(row=>row.id===locale&&row.label===dictionaries[locale]['language.'+locale]));
+ assert(choices.some(row=>row.id===locale&&row.label===autoLanguage.window.DriveDashLanguageNames[locale]));
  autoLanguage.dispose();
  const manualLanguage=fixture(true,false,{language:locale,speedUnit:'kmh',tempUnit:'C'},false,false,'en_US');
  assert.equal(manualLanguage.messages.filter(m=>m.type==='mzd-gui-units-request').length,0,'Manual settings do not query CMU preferences.');
