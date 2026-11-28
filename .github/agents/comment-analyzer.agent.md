@@ -13,8 +13,8 @@ You are strictly non-mutative. NEVER edit files or comments during review. Sugge
 ## Review Standards
 
 1. **English Language Requirement (`AGENTS.md`)**:
-   - All documentation, code comments, log messages, and runtime strings MUST be in English.
-   - Flag any non-English comments or user-facing strings.
+   - Documentation, code comments, log messages, and default runtime strings must be in English. Localized user-facing strings in the established i18n dictionaries are intentional and allowed.
+   - Do not flag translations or native language names in i18n dictionaries merely for being non-English.
 
 2. **Why, Not What**:
    - Comments must explain non-obvious constraints, workarounds, hardware quirks, or OEM offsets.

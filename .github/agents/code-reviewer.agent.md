@@ -19,12 +19,12 @@ Do not stall waiting for instructions:
    - Applet limitations: `grep` has no `-x`; `patch` has no `--dry-run`.
    - Patch headers must target only `target.data` (`--- target.data`, `+++ target.data`).
 
-2. **Opera 9.80 ES5 JavaScript Runtime**:
-   - Pure ES5 JavaScript only.
-   - Strictly forbid ES6+: no `let`, `const`, arrow functions (`=>`), template literals, `Promise`, classes, or destructuring.
+2. **Opera 12 / Presto ES5 JavaScript Runtime**:
+   - CMU-facing browser code must use ES5. These restrictions do not apply to Node tests or host tools, which use their documented runtimes.
+   - In CMU browser code, forbid ES6+: no `let`, `const`, arrow functions (`=>`), template literals, `Promise`, classes, or destructuring.
 
-3. **Factory Lua 5.1/5.2 Runtime**:
-   - Use only factory Lua / POSIX / LuaSocket modules.
+3. **Factory Lua 5.1 Runtime**:
+   - Use the factory Lua 5.1, LuaPOSIX 5.1.19 and LuaSocket 2.0.2 runtime; do not substitute a newer runtime for compatibility checks.
    - Custom compiled binary transport helpers in `usb/bin` are strictly forbidden.
 
 4. **Mazda C Shim Bindings**:

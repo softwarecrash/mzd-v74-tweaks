@@ -21,21 +21,21 @@ Evaluate changes across five specialized dimensions. If running in an environmen
 
 1. **Runtime Portability & Correctness** (@code-reviewer)
    - CMU BusyBox 1.19.2 POSIX sh compatibility (no bashisms, grep has no -x, patch has no --dry-run, patch headers target only target.data).
-   - Opera 9.80 ES5 JavaScript compatibility (strictly no ES6+: no let, const, arrow functions, template strings, Promise, or destructuring).
-   - Factory Lua 5.1/5.2 with LuaSocket (no custom binary transport helpers in usb/bin).
+   - Opera 12 / Presto ES5 compatibility for CMU-facing JavaScript only (no ES6+). Modern Node tests and host tooling may use their documented runtime features; do not apply CMU restrictions to them.
+   - Factory Lua 5.1 with LuaPOSIX 5.1.19 and LuaSocket 2.0.2 (no custom binary transport helpers in usb/bin).
    - C Shim compilation & ELF 32-bit ARM compatibility via m3-toolchain (.github/workflows/build-shims.yml).
 
 2. **Contract, Manifest & Invariants** (@type-design-analyzer)
-   - Manifest schema: contract_version=1, id matches folder name in usb/tweaks/<id>, explicit single firmware scope unless covered by tests, valid keys, never sourced or eval'd.
-   - Worker lifecycle status contract: stdout outputs exactly one token (installed, uninstalled, unavailable, broken) with newline and exit code 0.
+   - Manifest schema: contract_version=1, id matches folder name in usb/tweaks/<id>, explicit single firmware scope as defined in development/Manifest-format.md, valid keys, never sourced or eval'd.
+   - Worker lifecycle status contract: successful inspections output one token (installed, uninstalled, unavailable, broken) with newline and exit 0. Inspection failures exit 1 with empty stdout and a reason on stderr.
    - Unavailable and broken states MUST output clear, actionable explanations to stderr.
-   - Status inspections must be strictly read-only (private RAM scratch space in /dev/shm or /tmp/mzd-tweak-XXXXXX, no locks, no storage remounts, no reboots).
+   - Status inspections must be strictly read-only (private /tmp scratch directories, cleaned up on exit and catchable signals, no locks, no storage remounts, no reboots).
    - Persistent packages layout (/tmp/mnt/data_persist/mzd-tweaks/installed/<id>/) and preserve OEM backup fingerprints (oem_backup_md5).
 
 3. **Automotive Error Handling & Safety** (@silent-failure-hunter)
    - Asymmetric error standards:
-     * OEM GUI Patches / Runtime (usb/lib/gui-runtime/): MUST degrade defensively (try/catch fallback to prevent infotainment display freezes or watchdog reboots while driving).
-     * Worker Scripts (run.sh) & Services: MUST fail fast and loudly on errors, returning exit codes 1 or 2 with stderr explanation.
+     * OEM GUI Patches / Runtime (usb/lib/gui-runtime/): must isolate errors and preserve usable OEM navigation, release input/focus ownership and clean up partial hooks. Defensive try/catch is appropriate only when its fallback leaves a coherent state; do not assume every exception causes a freeze or watchdog reboot.
+     * Worker mutations and inspections must propagate errors using their documented exit codes and stderr. Successful unavailable/broken status inspections exit 0. Lua services should report contained request failures without unnecessarily stopping the service.
    - Workers must NEVER invoke reboot or jci-dialog commands.
 
 4. **Architectural Simplicity & Cleanliness** (@code-simplifier)
@@ -46,7 +46,7 @@ Evaluate changes across five specialized dimensions. If running in an environmen
 
 5. **Documentation, i18n & Verification Alignment** (@comment-analyzer)
    - Strictly read-only / advisory: NEVER edit files or comments during review.
-   - English-only documentation, comments, and runtime messages.
+   - English documentation, comments and default runtime messages; localized i18n strings and native language names are allowed.
    - PR checklist alignment (.github/pull_request_template.md): scope, behavior tests, firmware limitations, vehicle test notes.
    - Testing policy: checks run ONLY in Docker containers (sh tools/test-in-container.sh); NEVER run tests on host.
 
