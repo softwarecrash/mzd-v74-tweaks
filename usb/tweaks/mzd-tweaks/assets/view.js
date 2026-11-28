@@ -625,7 +625,8 @@
                         audioOrderCtrl.reset();
                         api.openPage(audioOrderCtrl.page);
                     }
-                }
+                },
+                { key: 'skip_usb_reconnect', type: 'bool', label: tr('skip_usb_reconnect', 'Skip USB reconnect message') }
             ];
             // The service gives limits for this row only while a Fuel
             // Consumption Ending Screen version that reads the value is installed.

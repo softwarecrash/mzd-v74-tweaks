@@ -9,6 +9,7 @@ local BOOL_DEFAULTS = {
     short_delay = false,
     bluetooth_notification = true,
     main_menu_order_custom = false,
+    skip_usb_reconnect = false,
     audio_order_custom = false
 }
 
@@ -20,6 +21,7 @@ local BOOL_KEYS = {
     'short_delay',
     'bluetooth_notification',
     'main_menu_order_custom',
+    'skip_usb_reconnect',
     'audio_order_custom'
 }
 

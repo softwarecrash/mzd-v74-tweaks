@@ -255,6 +255,7 @@
             bluetooth_notification: true,
             main_menu_order_custom: false,
             main_menu_order: defaultMainMenuOrder,
+            skip_usb_reconnect: false,
             audio_order_custom: false,
             fuel_ending_delay: 7,
             audio_order: defaultAudioOrder,

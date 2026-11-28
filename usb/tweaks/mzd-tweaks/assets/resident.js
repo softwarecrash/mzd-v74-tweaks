@@ -95,6 +95,7 @@
         theme: 'red',
         main_menu_order_custom: false,
         main_menu_order: DEFAULT_MAIN_MENU_ORDER,
+        skip_usb_reconnect: false,
         audio_order_custom: false,
         fuel_ending_delay: 7,
         audio_order: DEFAULT_AUDIO_ORDER
@@ -479,6 +480,9 @@
                 applyTheme(global.mzdTweaks.theme);
                 applyMainMenuOrder(null);
                 refreshStatusbarDisplays(null);
+                try {
+                    leaveOpenReconnect();
+                } catch (ignoreReconnect) {}
             };
             bootScript.onerror = function (event) {
                 if (event && event.preventDefault) { event.preventDefault(); }
@@ -1240,6 +1244,115 @@
         }
     }
 
+    // Skip USB reconnect message (systemApp hook)
+    // At startup MMUI opens SourceReconnect ("Reconnecting USB device to resume")
+    // and, if that fails, SourceReconnectFailed for the last USB source. When the
+    // setting is on, these two contexts get an empty transparent template that
+    // asks MMUI for the home screen. The OEM entry is put back for every other
+    // source and whenever the setting is off, so the choice is made each time the
+    // context opens and no reboot is needed.
+    var RECONNECT_CONTEXTS = { SourceReconnect: true, SourceReconnectFailed: true };
+    var RECONNECT_SOURCES = { AndroidAuto: true, USB_A: true, USB_B: true, USBAudio: true };
+
+    function skipReconnectEntry() {
+        return {
+            template: 'NoCtrlTmplt',
+            properties: { customBgImage: 'common/images/FullTransparent.png' },
+            readyFunction: function () {
+                var fw = global.framework;
+                if (fw && typeof fw.sendEventToMmui === 'function') {
+                    fw.sendEventToMmui('common', 'Global.IntentHome');
+                }
+            }
+        };
+    }
+
+    function chooseReconnectEntry(app, contextObj) {
+        var ctxtId = contextObj && contextObj.ctxtId;
+        if (!RECONNECT_CONTEXTS[ctxtId] || !app._contextTable) {
+            return;
+        }
+        if (!app._mzdTweaksReconnectStock) {
+            app._mzdTweaksReconnectStock = {};
+        }
+        var stock = app._mzdTweaksReconnectStock;
+        var current = app._contextTable[ctxtId];
+        if (current && !current._mzdTweaksSkip) {
+            stock[ctxtId] = current;
+        }
+        if (!stock[ctxtId]) {
+            return;
+        }
+        var payload = contextObj.params && contextObj.params.payload;
+        var source = payload ? payload.audioSource : null;
+        if (global.mzdTweaks && global.mzdTweaks.skip_usb_reconnect === true && RECONNECT_SOURCES[source] === true) {
+            var entry = skipReconnectEntry();
+            entry._mzdTweaksSkip = true;
+            app._contextTable[ctxtId] = entry;
+        } else {
+            app._contextTable[ctxtId] = stock[ctxtId];
+        }
+    }
+
+    // The resident and settings.js load asynchronously at boot. If the OEM
+    // reconnect message is already on screen by then, leave it once.
+    function leaveOpenReconnect() {
+        var fw = global.framework;
+        var app = fw && typeof fw.getAppInstance === 'function' ? fw.getAppInstance('system') : null;
+        var contextObj = app && app._currentContext;
+        if (!contextObj || !RECONNECT_CONTEXTS[contextObj.ctxtId] || !app._contextTable) {
+            return;
+        }
+        var entry = app._contextTable[contextObj.ctxtId];
+        if (entry && entry._mzdTweaksSkip) {
+            return;
+        }
+        var payload = contextObj.params && contextObj.params.payload;
+        var source = payload ? payload.audioSource : null;
+        if (global.mzdTweaks && global.mzdTweaks.skip_usb_reconnect === true && RECONNECT_SOURCES[source] === true &&
+                app._mzdTweaksReconnectLeft !== contextObj && typeof fw.sendEventToMmui === 'function') {
+            app._mzdTweaksReconnectLeft = contextObj;
+            fw.sendEventToMmui('common', 'Global.IntentHome');
+        }
+    }
+
+    function hookReconnectInstance(app) {
+        if (!app || Object.prototype.hasOwnProperty.call(app, '_mzdTweaksReconnectWrapped') || typeof app.handleContext !== 'function') {
+            return;
+        }
+        app._mzdTweaksReconnectWrapped = true;
+        var origHandleContext = app.handleContext;
+        app.handleContext = function (contextObj) {
+            try {
+                chooseReconnectEntry(app, contextObj);
+            } catch (error) {
+                if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                    global.MzdGuiResidents.log('mzd-tweaks', 'USB reconnect check failed: ' + (error && error.message ? error.message : error));
+                }
+            }
+            return origHandleContext.apply(this, arguments);
+        };
+    }
+
+    function hookUsbReconnect() {
+        if (!global.systemApp || !global.systemApp.prototype || typeof global.systemApp.prototype.appInit !== 'function') {
+            return;
+        }
+        var proto = global.systemApp.prototype;
+        if (!proto._mzdTweaksReconnectHooked) {
+            proto._mzdTweaksReconnectHooked = true;
+            var origAppInit = proto.appInit;
+            proto.appInit = function () {
+                var res = origAppInit.apply(this, arguments);
+                hookReconnectInstance(this);
+                return res;
+            };
+        }
+        if (global.framework && typeof global.framework.getAppInstance === 'function') {
+            hookReconnectInstance(global.framework.getAppInstance('system'));
+        }
+    }
+
     // Expose global resort function
     global.mzdTweaksResortEntertainment = function () {
         var fw = (global.parent && global.parent.framework) || global.framework;
@@ -1361,6 +1474,7 @@
         hookSystemApp();
         hookStatusbar();
         hookCommon();
+        hookUsbReconnect();
         hookFramework();
 
         // MainMenuCtrl, List2Ctrl and StatusBarCtrl are hooked by the framework.instantiateControl
@@ -1392,6 +1506,7 @@
                 hookSystemApp();
                 hookStatusbar();
                 hookCommon();
+                hookUsbReconnect();
                 hookFramework();
                 missing = missingHooks();
                 if (missing.length === 0) { return; }
@@ -1479,6 +1594,9 @@
             if (lastRenderedDateMode !== statusbarDateMode()) {
                 refreshStatusbarDisplays(context.log);
             }
+            try {
+                leaveOpenReconnect();
+            } catch (ignoreReconnect) {}
             if (before.audioOrder !== audioOrderState() && typeof global.mzdTweaksResortEntertainment === 'function') {
                 try {
                     global.mzdTweaksResortEntertainment();

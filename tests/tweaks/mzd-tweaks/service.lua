@@ -104,6 +104,7 @@ local DEFAULTS = {
     bluetooth_notification = true,
     theme = 'red',
     main_menu_order_custom = false,
+    skip_usb_reconnect = false,
     audio_order_custom = false,
     fuel_ending_delay = 7
 }
@@ -120,7 +121,8 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, fuel_delay)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, fuel_delay, skip)
+    skip = skip or 'false'
     main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
     main_menu_custom = main_menu_custom or 'false'
@@ -137,6 +139,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "short_delay": ' .. d .. ',',
         '    "bluetooth_notification": ' .. bluetooth_notification .. ',',
         '    "main_menu_order_custom": ' .. main_menu_custom .. ',',
+        '    "skip_usb_reconnect": ' .. skip .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
         '    "statusbar_date": "' .. (statusbar_date or 'off') .. '",',
         '    "main_menu_coins_layout": "' .. coins_layout .. '",',
@@ -176,7 +179,7 @@ do
     for i, k in ipairs(AUDIO_KEYS) do
         custom_audio[k] = #AUDIO_KEYS - i
     end
-    local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio, nil, nil, 'false')
+    local custom_js = js('true', 'false', 'false', 'true', 'true', custom_audio, nil, nil, 'false', nil, nil, nil, nil, nil, nil, 'true')
     local expected = {
         main_menu_loop = true,
         main_menu_coins_layout = 'ellipse',
@@ -190,6 +193,7 @@ do
         theme = 'red',
         main_menu_order_custom = false,
         main_menu_order = DEFAULT_MAIN_MENU_ORDER,
+        skip_usb_reconnect = true,
         audio_order_custom = true,
         fuel_ending_delay = 7,
         audio_order = custom_audio
@@ -558,4 +562,19 @@ do
     for _, path in ipairs(fs.reads) do assert(path == SETTINGS_PATH, 'set read ' .. path) end
 end
 
-print('MZD_TWEAKS_SERVICE_PASSED: fuel ending time read/saved within 5-30 s and offered only with Fuel Consumption Ending Screen 1.1.0+, status bar date modes and old true/false, defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')
+-- A settings.js saved before skip_usb_reconnect existed keeps its values; the new key is off.
+do
+    local old_js = js('true', 'true', 'false', 'true'):gsub('    "skip_usb_reconnect": false,\n', '')
+    assert(not old_js:find('skip_usb_reconnect'), 'old format has no skip_usb_reconnect line')
+    local fs = fake_files(old_js)
+    local settings = service(fs).request('get').settings
+    assert(settings.skip_usb_reconnect == false, 'missing skip_usb_reconnect reads as false')
+    assert(settings.main_menu_loop == true and settings.list_loop == true and settings.short_delay == true, 'old values kept')
+    local res = service(fs).request('set', { key = 'skip_usb_reconnect', value = true })
+    assert(res.settings.skip_usb_reconnect == true and res.settings.main_menu_loop == true, 'set keeps the other values')
+    assert(fs.content == js('true', 'true', 'false', 'true', 'false', nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, 'true'), 'skip_usb_reconnect written')
+    local ok, err = pcall(service(fs).request, 'set', { key = 'skip_usb_reconnect', value = 1 })
+    assert(not ok and tostring(err):match('Invalid setting value'), 'non-boolean skip_usb_reconnect refused')
+end
+
+print('MZD_TWEAKS_SERVICE_PASSED: old settings.js without skip_usb_reconnect, fuel ending time read/saved within 5-30 s and offered only with Fuel Consumption Ending Screen 1.1.0+, status bar date modes and old true/false, defaults, parsing, audio order, js written, refusals change nothing, failed temp write and failed publish keep the saved settings.')

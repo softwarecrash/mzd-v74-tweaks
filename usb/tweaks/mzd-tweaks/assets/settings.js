@@ -6,6 +6,7 @@ window.mzdTweaks = {
     "short_delay": false,
     "bluetooth_notification": true,
     "main_menu_order_custom": false,
+    "skip_usb_reconnect": false,
     "audio_order_custom": false,
     "statusbar_date": "off",
     "main_menu_coins_layout": "ellipse",
