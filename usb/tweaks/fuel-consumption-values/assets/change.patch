@@ -48,7 +48,7 @@
          }
          if(this.properties.ctrlStyle === 'hevstyle')
          { 
-@@ -1655,6 +1661,122 @@
+@@ -1655,6 +1661,123 @@
      }
  }
  
@@ -82,11 +82,12 @@
 +    lbl.style.fontSize = fs + 'px';
 +    lbl.style.letterSpacing = ls;
 +    // Inside the top of the bar whenever it fits, so the values line up; only very short bars
-+    // get it above. Inside the bar a dark shadow keeps the white digits readable.
++    // get it above. Inside the bar a strong dark shadow keeps the white digits readable,
++    // also on the light "current" bars.
 +    var above = fontPx + 6;
 +    var inside = (heightPx >= fs + 8) || (heightPx > (109 - above));
 +    lbl.style.top = inside ? '4px' : ('-' + above + 'px');
-+    lbl.style.textShadow = inside ? '0px 0px 3px #000, 1px 1px 2px #000' : 'none';
++    lbl.style.textShadow = inside ? '0px 0px 2px #000, 0px 0px 4px #000, 0px 0px 6px #000, 1px 1px 2px #000' : 'none';
 +};
 +FuelConsumptionCtrl.prototype._modSetCFERBarLabel = function(bar, value, heightPx)
 +{
@@ -171,7 +172,7 @@
  /*
   * Utility function to set the height of single CFER graph bar (e.g. the just-inserted one)
   */
-@@ -1670,7 +1792,7 @@
+@@ -1670,7 +1793,7 @@
                                                     this._CFERGraphBarValues[barIdx],
                                                     this.properties.cumulativeFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -180,7 +181,7 @@
      }
  }
  
-@@ -1717,6 +1839,7 @@
+@@ -1717,6 +1840,7 @@
                                                         this._CFERGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -188,7 +189,7 @@
          }
      }
  }
-@@ -2008,6 +2131,7 @@
+@@ -2008,6 +2132,7 @@
  
      // Re-initialize the "hidden" slot for new data
      this._CDFEGraphBarValues[this._newCDFEDataIdx] = 0;

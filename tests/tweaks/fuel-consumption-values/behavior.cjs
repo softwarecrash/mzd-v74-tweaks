@@ -48,7 +48,8 @@ const label = bar.children[0];
 assert.equal(label.innerHTML, '7.8');
 // The value goes inside the bar whenever it fits, with a dark shadow.
 assert.equal(label.style.top, '4px');
-assert.match(label.style.textShadow, /#000/);
+// Several dark layers, so the digits stay readable on the light "current" bars too.
+assert(label.style.textShadow.split(',').filter(layer => /#000/.test(layer)).length >= 3);
 assert.equal(label.style.fontSize, '18px');
 assert.match(label.style.cssText, /width:44px;/);
 ctrl._modSetBarLabel(bar, '6.0', 40, 44, 18);
