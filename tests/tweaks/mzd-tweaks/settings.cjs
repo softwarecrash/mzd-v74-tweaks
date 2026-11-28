@@ -59,6 +59,7 @@ const DEFAULTS = {
   list_beep: true,
   short_delay: false,
   statusbar_date: 'off',
+  nav_notification: true,
   bluetooth_notification: true,
   theme: 'red',
   main_menu_order_custom: false,
@@ -350,7 +351,7 @@ function lastResponse(source) {
   assert.equal(page.ctx.requests.length, 1, 'it joins the read that is running');
   assert.equal(lastResponse(page.source), undefined, 'the inline defaults are never shown as saved values');
 
-  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: 'off', bluetooth_notification: true, theme: 'red', audio_order_custom: false };
+  const expectedSettings = { main_menu_loop: true, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: false, short_delay: true, statusbar_date: 'off', nav_notification: true, bluetooth_notification: true, theme: 'red', audio_order_custom: false };
   complete(page.ctx, 'get', null, { settings: expectedSettings });
   assert.equal(page.win.mzdTweaks.main_menu_loop, true, 'the saved settings reach the globals');
   assert.equal(page.win.mzdTweaks.list_loop, true);
@@ -369,7 +370,7 @@ function lastResponse(source) {
 {
   const page = residentPage({ list_loop: true, theme: 'blue' });
   assert.equal(lastResponse(page.source), undefined, 'boot values are not shown before the service confirmed them');
-  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, fuel_ending_delay: 7, audio_order: DEFAULT_AUDIO_ORDER },
+  assert.deepEqual(plain(page.win.mzdTweaks), { main_menu_loop: false, main_menu_coins_layout: 'ellipse', main_menu_coins_size: 100, main_menu_coins_glow: true, list_loop: true, list_beep: true, short_delay: false, statusbar_date: 'off', nav_notification: true, bluetooth_notification: true, theme: 'blue', main_menu_order_custom: false, main_menu_order: DEFAULT_MAIN_MENU_ORDER, audio_order_custom: false, fuel_ending_delay: 7, audio_order: DEFAULT_AUDIO_ORDER },
     'existing globals are kept; a settings.js without the fuel ending time gets 7 s');
 }
 
@@ -1517,10 +1518,19 @@ function viewPage(options) {
 
 {
   const page = viewPage();
-  page.respond({ bluetooth_notification: true });
-  assert.equal(page.menu().rows[13].label, 'Bluetooth connection notification');
-  assert.equal(page.menu().rows[13].checked, true, 'the bluetooth notification is on by default');
+  page.respond({ nav_notification: true });
+  assert.equal(page.menu().rows[13].label, 'Current street notification');
+  assert.equal(page.menu().rows[13].checked, true, 'the current street notification is on by default');
   page.select(13);
+  assert.deepEqual(page.sets(), [{ key: 'nav_notification', value: false }], 'switching current street notification off saves false');
+}
+
+{
+  const page = viewPage();
+  page.respond({ bluetooth_notification: true });
+  assert.equal(page.menu().rows[14].label, 'Bluetooth connection notification');
+  assert.equal(page.menu().rows[14].checked, true, 'the bluetooth notification is on by default');
+  page.select(14);
   assert.deepEqual(page.sets(), [{ key: 'bluetooth_notification', value: false }], 'switching bluetooth notification off saves false');
 }
 
@@ -1530,9 +1540,9 @@ function viewPage(options) {
   page.respond({ main_menu_loop: true, main_menu_coins_glow: true, list_loop: false, short_delay: false, main_menu_order_custom: false, audio_order_custom: false });
   const menu = page.menu();
   assert.equal(menu.title, 'MZD Tweaks');
-  assert.deepEqual(menu.rows.map(r => r.id), ['theme_menu', 'section_main_menu', 'main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'section_list_menu', 'list_loop', 'list_beep', 'short_delay', 'section_status_bar', 'statusbar_date_menu', 'bluetooth_notification', 'section_others', 'audio_order_menu']);
-  assert.deepEqual(menu.rows.map(r => r.label), ['Theme', 'Main menu', 'Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Status bar', 'Date in status bar', 'Bluetooth connection notification', 'Others', 'Entertainment menu order']);
-  for (const idx of [1, 7, 11, 14]) {
+  assert.deepEqual(menu.rows.map(r => r.id), ['theme_menu', 'section_main_menu', 'main_menu_loop', 'main_menu_coins_layout', 'main_menu_coins_glow', 'main_menu_coins_size_menu', 'main_menu_order_menu', 'section_list_menu', 'list_loop', 'list_beep', 'short_delay', 'section_status_bar', 'statusbar_date_menu', 'nav_notification', 'bluetooth_notification', 'section_others', 'audio_order_menu']);
+  assert.deepEqual(menu.rows.map(r => r.label), ['Theme', 'Main menu', 'Main menu loop', 'Main menu flat layout', 'Main menu icons glow', 'Main menu icons size', 'Main Menu icons order', 'List menu', 'List menu loop', 'List menu beep', 'List menu shorter delay', 'Status bar', 'Date in status bar', 'Current street notification', 'Bluetooth connection notification', 'Others', 'Entertainment menu order']);
+  for (const idx of [1, 7, 11, 15]) {
     assert.equal(menu.rows[idx].disabled, true, `section header at ${idx} is disabled`);
     assert.equal(menu.rows[idx].itemStyle, 'style01', `section header at ${idx} uses style01`);
     assert.equal(menu.rows[idx].background, 'lightGrey', `section header at ${idx} uses built-in bgLightGrey`);
@@ -1548,8 +1558,8 @@ function viewPage(options) {
   assert.equal(menu.rows[5].caret, true);
   assert.equal(menu.rows[6].detail, 'Default', 'main menu order detail shows Default when off');
   assert.equal(menu.rows[6].caret, true);
-  assert.equal(menu.rows[15].detail, 'Default', 'detail shows Default when custom order is off');
-  assert.equal(menu.rows[15].caret, true);
+  assert.equal(menu.rows[16].detail, 'Default', 'detail shows Default when custom order is off');
+  assert.equal(menu.rows[16].caret, true);
 
   // Toggle flat layout
   page.select(3);
@@ -1668,7 +1678,7 @@ function viewPage(options) {
   assert.equal(page.menu().rows[0].detail, 'Blue');
 
   // Open the Entertainment menu order subpage
-  page.select(15);
+  page.select(16);
   const subMenu = page.menu();
   assert.equal(subMenu.title, 'Entertainment menu order');
   assert.equal(subMenu.rows[0].key, 'audio_order_custom');
@@ -1786,7 +1796,7 @@ function viewPage(options) {
   // Re-enter audio order page, order is unchanged now. Leaving via Back should NOT trigger save again
   const setsCount = page.sets().length;
   const notesCount = page.notes.length;
-  page.select(15);
+  page.select(16);
   assert.equal(page.menu().page, 'audio_order');
   page.input('back', 'release');
   assert.equal(page.menu().page, 'home');
@@ -1794,7 +1804,7 @@ function viewPage(options) {
   assert.equal(page.notes.length, notesCount, 'no notification emitted when order was unchanged');
 
   // Re-enter audio order page, reorder, and leave via Home
-  page.select(15);
+  page.select(16);
   assert.equal(page.menu().page, 'audio_order');
   page.select(2);
   page.input('rotateRight', 'step');
@@ -1867,6 +1877,7 @@ function viewPage(options) {
       assert(dict['theme_' + color] && dict['theme_' + color].length > 0, 'theme_' + color + ' present in ' + lang);
       assert(dict['color_' + color] && dict['color_' + color].length > 0, 'color_' + color + ' present in ' + lang);
     }
+    assert(dict.nav_notification && dict.nav_notification.length > 0, 'nav_notification present in ' + lang);
     assert(dict.bluetooth_notification && dict.bluetooth_notification.length > 0, 'bluetooth_notification present in ' + lang);
     for (const day of ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']) {
       assert(dict['weekday_' + day] && dict['weekday_' + day].length > 0, 'weekday_' + day + ' present in ' + lang);
@@ -2297,6 +2308,68 @@ function viewPage(options) {
   assert.equal(calls[5].sbnId, 'ImportedContactsStatus');
   assert.equal(stateCalls.length, 2, 'Contacts import progress state SBN passes through when bluetooth_notification is true');
   assert.equal(stateCalls[1].sbnId, 'ImportedContactsStatus');
+}
+
+{
+  // Test Common.prototype.showStateSbn hook for nav_notification
+  const calls = [];
+  const stateCalls = [];
+  const endCalls = [];
+  function MockCommon() {}
+  MockCommon.prototype.startTimedSbn = function (uiaId, sbnId, type, props) {
+    calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+  };
+  MockCommon.prototype.showStateSbn = function (uiaId, sbnId, type, props) {
+    stateCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+  };
+  MockCommon.prototype.endStateSbn = function (uiaId, sbnId, type) {
+    endCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type });
+  };
+  const mockFw = { common: new MockCommon() };
+  const page = residentPage({ nav_notification: false }, { framework: mockFw, Common: MockCommon });
+
+  // When nav_notification is false, street-only emnaviTurnByTurnStateSbn is suppressed and endStateSbn is called:
+  mockFw.common.showStateSbn('emnavi', 'emnaviTurnByTurnStateSbn', 'navigationNear', {
+    sbnStyle: 'Style05',
+    hasManeuverIcon: false,
+    hasManeuverDistance: false,
+    text3: 'Main St'
+  });
+  assert.equal(stateCalls.length, 0, 'Street-only navigation SBN is suppressed when nav_notification is false');
+  assert.equal(endCalls.length, 1, 'Suppressing street-only navigation SBN ends any active turn-by-turn SBN');
+  assert.deepEqual(endCalls[0], { uiaId: 'emnavi', sbnId: 'emnaviTurnByTurnStateSbn', type: 'navigationNear' });
+
+  // Active turn-by-turn guidance SBNs (with maneuver icon or distance) are NOT suppressed:
+  mockFw.common.showStateSbn('emnavi', 'emnaviTurnByTurnStateSbn', 'navigationNear', {
+    sbnStyle: 'Style05',
+    hasManeuverIcon: true,
+    hasManeuverDistance: false,
+    text3: 'Main St'
+  });
+  mockFw.common.showStateSbn('emnavi', 'emnaviTurnByTurnStateSbn', 'navigationFar', {
+    sbnStyle: 'Style05',
+    hasManeuverIcon: false,
+    hasManeuverDistance: true,
+    text1SubMap: { value: 200, spacing: '' },
+    text3: 'Main St'
+  });
+  assert.equal(stateCalls.length, 2, 'Active turn-by-turn SBNs are not suppressed when nav_notification is false');
+
+  // Other emnavi SBNs (SD card, ETC) and endStateSbn are NOT suppressed:
+  mockFw.common.startTimedSbn('emnavi', 'emnaviSDCardSbn', 'deviceConnected', { text1Id: 'SDCradInserted' });
+  mockFw.common.endStateSbn('emnavi', 'emnaviTurnByTurnStateSbn', 'navigationNear');
+  assert.equal(calls.length, 1, 'emnavi SD card SBN is not suppressed');
+  assert.equal(endCalls.length, 2, 'explicit endStateSbn is not suppressed');
+
+  // When nav_notification is true, street-only emnaviTurnByTurnStateSbn passes through:
+  page.win.mzdTweaks.nav_notification = true;
+  mockFw.common.showStateSbn('emnavi', 'emnaviTurnByTurnStateSbn', 'navigationNear', {
+    sbnStyle: 'Style05',
+    hasManeuverIcon: false,
+    hasManeuverDistance: false,
+    text3: 'Main St'
+  });
+  assert.equal(stateCalls.length, 3, 'Street-only navigation SBN passes through when nav_notification is true');
 }
 
 {

@@ -12,6 +12,7 @@ Features included:
 - **List Beep**: Keep factory list autoscroll beeps or mute them.
 - **List menu shorter delay**: Reduce list autoscroll delay and intervals for faster multicontroller scrolling.
 - **Date in status bar**: Show a short date below a smaller clock. The sub-page lists today's date in each format: weekday (`Wed 18`), month name (`Nov 18`) or month number (`11/18`, two digits). Names and order follow the head unit language (English for unsupported languages). Off keeps the factory clock, which Android Auto and CarPlay always keep. `true`/`false` from an older `settings.js` read as weekday/Off.
+- **Current street notification**: Show or suppress the status bar navigation notification with the current street name when turn-by-turn navigation is not active (active turn-by-turn guidance notifications still appear; on by default).
 - **Bluetooth connection notification**: Show or suppress the status bar notifications when a Bluetooth phone or audio device connects, as well as contacts import progress and successful completion notifications (import failure notifications still appear; on by default).
 - **Color theme**: Customize the accent and highlight color across the Mazda Connect interface (Stock Red (default), Cobalt Blue, Emerald Green, Amber Orange, Neon Violet, Hot Pink, Titanium Silver, Sunset Gold, Electric Cyan). Applied in memory without system patching.
 - **Entertainment menu order**: Customize the display order of audio sources in the factory Entertainment menu.
