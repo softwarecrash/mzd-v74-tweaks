@@ -56,6 +56,18 @@ mzd_restore_write() (
     mv -f "$temp" "$target" && sync && cmp -s "$target" "$data" || exit 1
     rm -f "$MZD_REPORT/temp.path"
 )
+# Create a new file by same-directory rename, refusing to overwrite an existing target.
+mzd_restore_create() (
+    target=$1; data=$2; mode=${3:-644}; temp="$1.mzd-restore-$$"
+    [ ! -e "$target" ] && [ ! -L "$target" ] || exit 1
+    [ ! -e "$temp" ] && [ ! -L "$temp" ] || exit 1
+    [ -f "$data" ] && [ ! -L "$data" ] || exit 1
+    printf '%s\n' "$temp" > "$MZD_REPORT/temp.path" || exit 1
+    cat "$data" > "$temp" && chmod "$mode" "$temp" && cmp -s "$temp" "$data" || exit 1
+    sync
+    mv -f "$temp" "$target" && sync && cmp -s "$target" "$data" || exit 1
+    rm -f "$MZD_REPORT/temp.path"
+)
 mzd_restore_before_matches() {
     if [ -f "$1/before.absent" ]; then
         [ ! -e "$2" ] && [ ! -L "$2" ]

@@ -3538,3 +3538,9 @@ test("SSH_CONDITIONAL_KEY_MANIFEST", () => {
     raw + "setting.ssh_password.asset=public.key\nsetting.ssh_password.asset_source=other.key\nsetting.ssh_password.asset_when=enabled\n"
   ]) assert.throws(() => parseConf("ssh", invalid));
 });
+
+test("installer stylesheet prefers widescreen font when available", () => {
+  const css = fs.readFileSync(path.join(ROOT, "ui/style.css"), "utf8");
+  const matches = css.match(/"Saira ExtraCondensed","Tipperary",Arial,sans-serif/g) || [];
+  assert.equal(matches.length, 3);
+});

@@ -1,0 +1,4 @@
+patch	/jci/gui/index.html
+create	/jci/gui/common/css/widescreen.css
+create	/jci/fonts/CHN/SairaExtraCondensed-Regular.ttf
+create	/jci/fonts/CHN/SairaExtraCondensed-Medium.ttf

@@ -67,6 +67,9 @@ for id_, runner in CASES.items():
         test_file = f'test_{id_.replace("-", "_")}.py'
         subprocess.run([sys.executable, str(Path(__file__).with_name(test_file))], check=True)
         continue
+    if runner == 'widescreen':
+        subprocess.run([sys.executable, str(Path(__file__).with_name('test_widescreen.py'))], check=True)
+        continue
     if runner in ['export-command', 'restore-command', 'terminal-command']: continue
     assert runner == 'shared-patch', 'Add a dedicated runner for this implementation.'
     with tempfile.TemporaryDirectory(prefix='cmu-contract-') as directory:
