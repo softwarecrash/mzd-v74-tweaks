@@ -334,6 +334,75 @@
     var LAYOUT_CLASSES = ['mzd-layout-flat'];
     var SIZE_CLASSES = ['mzd-coins-80', 'mzd-coins-60'];
     var themeDomListenerAttached = false;
+    var COIN_BASE_IMAGE_URLS = [
+        '/data/integration/mzd-gui-modules/mzd-tweaks/assets/images/coins/HomeApps_Focus_base.png',
+        '/data/integration/mzd-gui-modules/mzd-tweaks/assets/images/coins/HomeAudio_Focus_base.png',
+        '/data/integration/mzd-gui-modules/mzd-tweaks/assets/images/coins/HomeCom_Focus_base.png',
+        '/data/integration/mzd-gui-modules/mzd-tweaks/assets/images/coins/HomeNav_Focus_base.png',
+        '/data/integration/mzd-gui-modules/mzd-tweaks/assets/images/coins/HomeSet_Focus_base.png'
+    ];
+    var coinBaseImageCache = null;
+    var coinBaseImagesReady = false;
+    var glowImageCache = {};
+
+    function preloadGlowImage(themeName) {
+        if (typeof global.Image !== 'function' || !themeName || themeName === 'red' || glowImageCache[themeName]) {
+            return;
+        }
+        var img = new global.Image();
+        img.src = '/data/integration/mzd-gui-modules/mzd-tweaks/assets/images/highlights/Glow_' + themeName + '.png';
+        glowImageCache[themeName] = img;
+    }
+
+    function preloadCoinBaseImages() {
+        var remaining, i;
+        if (coinBaseImagesReady) { return true; }
+        if (typeof global.Image !== 'function') {
+            coinBaseImagesReady = true;
+            return true;
+        }
+        if (coinBaseImageCache) { return false; }
+        coinBaseImageCache = [];
+        remaining = COIN_BASE_IMAGE_URLS.length;
+
+        function markSettled() {
+            remaining -= 1;
+            if (remaining <= 0) {
+                coinBaseImagesReady = true;
+                var doc = global.document;
+                var body = doc && doc.body;
+                var activeTheme = global.mzdTweaks && global.mzdTweaks.theme;
+                if (body && activeTheme && activeTheme !== 'red' &&
+                    body.className.indexOf('mzd-theme-' + activeTheme) !== -1 &&
+                    body.className.indexOf('mzd-coin-images-ready') === -1) {
+                    var nextCls = body.className ? (body.className + ' mzd-coin-images-ready') : 'mzd-coin-images-ready';
+                    setBodyClass(body, nextCls);
+                }
+            }
+        }
+
+        function loadOne(url) {
+            var img = new global.Image();
+            var done = false;
+            function onDone() {
+                if (done) { return; }
+                done = true;
+                markSettled();
+            }
+            coinBaseImageCache.push(img);
+            img.onload = onDone;
+            img.onerror = onDone;
+            img.src = url;
+            if (img.complete) {
+                onDone();
+            }
+        }
+
+        for (i = 0; i < COIN_BASE_IMAGE_URLS.length; i++) {
+            loadOne(COIN_BASE_IMAGE_URLS[i]);
+        }
+        return coinBaseImagesReady;
+    }
 
     function loadStylesheet(id, href) {
         var doc = global.document;
@@ -406,6 +475,7 @@
         for (i = 0; i < SIZE_CLASSES.length; i++) {
             cls = cls.replace(new RegExp('\\b' + SIZE_CLASSES[i] + '\\b', 'g'), '');
         }
+        cls = cls.replace(/\bmzd-coin-images-ready\b/g, '');
         cls = cls.replace(/\s+/g, ' ').replace(/^\s+|\s+$/g, '');
 
         commonLinkId = 'mzd-tweaks-theme-common-css';
@@ -416,6 +486,9 @@
         if (themeName && themeName !== 'red') {
             newCls = 'mzd-theme-' + themeName;
             cls = cls ? (cls + ' ' + newCls) : newCls;
+            if (preloadCoinBaseImages()) {
+                cls += ' mzd-coin-images-ready';
+            }
 
             loadStylesheet(commonLinkId, '/data/integration/mzd-gui-modules/mzd-tweaks/assets/css/theme-common.css');
 
@@ -437,6 +510,9 @@
 
         glowEnabled = !global.mzdTweaks || global.mzdTweaks.main_menu_coins_glow !== false;
         cls = cls ? (cls + ' ' + (glowEnabled ? 'mzd-coins-glow' : 'mzd-no-coins-glow')) : (glowEnabled ? 'mzd-coins-glow' : 'mzd-no-coins-glow');
+        if (themeName && themeName !== 'red' && glowEnabled) {
+            preloadGlowImage(themeName);
+        }
 
         if (global.mzdTweaks && global.mzdTweaks.main_menu_coins_layout === 'flat') {
             cls += ' mzd-layout-flat';

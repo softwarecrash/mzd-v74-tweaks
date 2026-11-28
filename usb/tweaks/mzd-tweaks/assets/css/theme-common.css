@@ -35,8 +35,8 @@ body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
     transition: opacity 0.2s linear;
 }
 
-/* Icon glyph overlay independent of slot position */
-body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Focus"]:after {
+/* Icon glyph overlay independent of slot position (gated until base PNGs are decoded) */
+body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrl .mzd-coin > div[class$="Focus"]:after {
     content: "";
     position: absolute;
     top: 0;
@@ -47,19 +47,19 @@ body[class*="mzd-theme-"] .MainMenuCtrl .mzd-coin > div[class$="Focus"]:after {
     background-position: center center;
     background-repeat: no-repeat;
 }
-body[class*="mzd-theme-"] .MainMenuCtrlAppFocus:after {
+body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrlAppFocus:after {
     background-image: url(../images/coins/HomeApps_Focus_base.png);
 }
-body[class*="mzd-theme-"] .MainMenuCtrlEntFocus:after {
+body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrlEntFocus:after {
     background-image: url(../images/coins/HomeAudio_Focus_base.png);
 }
-body[class*="mzd-theme-"] .MainMenuCtrlComFocus:after {
+body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrlComFocus:after {
     background-image: url(../images/coins/HomeCom_Focus_base.png);
 }
-body[class*="mzd-theme-"] .MainMenuCtrlNavFocus:after {
+body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrlNavFocus:after {
     background-image: url(../images/coins/HomeNav_Focus_base.png);
 }
-body[class*="mzd-theme-"] .MainMenuCtrlSetFocus:after {
+body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrlSetFocus:after {
     background-image: url(../images/coins/HomeSet_Focus_base.png);
 }
 
@@ -160,7 +160,10 @@ body[class*="mzd-theme-"] .LeftBtnCtrlMoveUpBtnDown {
 
 body[class*="mzd-theme-"] .List2CtrlScrollIndicator,
 body[class*="mzd-theme-"] .ScrollDetailCtrlScrollIndicator,
-body[class*="mzd-theme-"] .Messaging2CtrlScrollIndicator {
+body[class*="mzd-theme-"] .Messaging2CtrlScrollIndicator,
+body[class*="mzd-theme-"] .netmgmtList2CtrlScrollIndicator,
+body[class*="mzd-theme-"] .carplayList2CtrlScrollIndicator,
+body[class*="mzd-theme-"] .xmdataList2CtrlScrollIndicator {
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
     width: 30px !important;

@@ -4,7 +4,7 @@
  */
 
 /* Main Menu Coins */
-body.mzd-theme-silver .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
+body.mzd-theme-silver.mzd-coin-images-ready .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
     background-image: -o-radial-gradient(center, ellipse cover, #d8e2ec 0%, #6a7684 56%, transparent 63%) !important;
     background-image: radial-gradient(ellipse at center, #d8e2ec 0%, #6a7684 56%, transparent 63%) !important;
 }
@@ -18,14 +18,26 @@ body.mzd-theme-silver.mzd-coins-glow .MainMenuCtrl [class*="Highlight"] {
 body.mzd-theme-silver .List2Ctrl.normalItems .ListItem.focus,
 body.mzd-theme-silver .List2Ctrl.thickItems .ListItem.focus,
 body.mzd-theme-silver .List2Ctrl .List2CtrlRow.focus,
-body.mzd-theme-silver .List2Ctrl .List2CtrlItem.focus {
+body.mzd-theme-silver .List2Ctrl .List2CtrlItem.focus,
+body.mzd-theme-silver .netmgmtList2Ctrl.normalItems .ListItem.focus,
+body.mzd-theme-silver .carplayList2Ctrl.normalItems .ListItem.focus,
+body.mzd-theme-silver .xmdataList2Ctrl.normalItems .ListItem.focus,
+body.mzd-theme-silver .xmdataList2Ctrl.thickItems .ListItem.focus {
     background-image: -o-linear-gradient(left, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%) !important;
     background-image: linear-gradient(to right, rgba(106, 118, 132, 0.08) 0%, rgba(216, 226, 236, 0.85) 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%) !important;
     border-top: 1px solid #eef4fa !important;
     border-bottom: 1px solid #eef4fa !important;
 }
 body.mzd-theme-silver .List2Ctrl.normalItems .ListItem.pressed,
-body.mzd-theme-silver .List2Ctrl.thickItems .ListItem.pressed {
+body.mzd-theme-silver .List2Ctrl.thickItems .ListItem.pressed,
+body.mzd-theme-silver .netmgmtList2Ctrl.normalItems .ListItem.hit.focus,
+body.mzd-theme-silver .carplayList2Ctrl.normalItems .ListItem.hit.focus,
+body.mzd-theme-silver .xmdataList2Ctrl.normalItems .ListItem.hit.focus,
+body.mzd-theme-silver .xmdataList2Ctrl.thickItems .ListItem.hit.focus,
+body.mzd-theme-silver .netmgmtList2Ctrl.normalItems .ListItem.pressed,
+body.mzd-theme-silver .carplayList2Ctrl.normalItems .ListItem.pressed,
+body.mzd-theme-silver .xmdataList2Ctrl.normalItems .ListItem.pressed,
+body.mzd-theme-silver .xmdataList2Ctrl.thickItems .ListItem.pressed {
     background-image: -o-linear-gradient(left, rgba(106, 118, 132, 0.15) 0%, #d8e2ec 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%) !important;
     background-image: linear-gradient(to right, rgba(106, 118, 132, 0.15) 0%, #d8e2ec 15%, rgba(106, 118, 132, 0.75) 60%, transparent 100%) !important;
 }
@@ -33,7 +45,12 @@ body.mzd-theme-silver .List2Ctrl.thickItems .ListItem.pressed {
 /* Scrollbar Indicator (Fixed curved bezel arc indicating scrolling progress) */
 body.mzd-theme-silver .List2CtrlScrollIndicator,
 body.mzd-theme-silver .ScrollDetailCtrlScrollIndicator,
-body.mzd-theme-silver .Messaging2CtrlScrollIndicator {
+body.mzd-theme-silver .Messaging2CtrlScrollIndicator,
+body.mzd-theme-silver .netmgmtList2CtrlScrollIndicator,
+body.mzd-theme-silver .carplayList2CtrlScrollIndicator,
+body.mzd-theme-silver .xmdataList2CtrlScrollIndicator,
+body.mzd-theme-silver .xmdataScrollDetailCtrlScrollIndicator,
+body.mzd-theme-silver .TrafficCtrlScrollIndicator {
     background-image: url(../../images/scrollbar/Scrollbar_silver.png) !important;
 }
 
