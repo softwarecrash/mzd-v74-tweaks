@@ -38,6 +38,7 @@ test('emulated MZD Tweaks service', async t => {
             list_beep: true,
             short_delay: false,
             statusbar_date: 'off',
+            nav_notification: true,
             bluetooth_notification: true,
             theme: 'red'
         }
@@ -52,6 +53,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(env.window.mzdTweaks.list_beep, true);
         assert.equal(env.window.mzdTweaks.short_delay, false);
         assert.equal(env.window.mzdTweaks.statusbar_date, 'off');
+        assert.equal(env.window.mzdTweaks.nav_notification, true);
         assert.equal(env.window.mzdTweaks.bluetooth_notification, true);
         assert.equal(env.window.mzdTweaks.theme, 'red');
 
@@ -64,6 +66,7 @@ test('emulated MZD Tweaks service', async t => {
         assert.equal(res.settings.list_beep, true);
         assert.equal(res.settings.short_delay, false);
         assert.equal(res.settings.statusbar_date, 'off');
+        assert.equal(res.settings.nav_notification, true);
         assert.equal(res.settings.bluetooth_notification, true);
         assert.equal(res.settings.theme, 'red');
     });
@@ -72,6 +75,10 @@ test('emulated MZD Tweaks service', async t => {
         const updated = await request(env.services, 'set', { key: 'main_menu_loop', value: true });
         assert.equal(updated.settings.main_menu_loop, true);
         assert.equal(env.window.mzdTweaks.main_menu_loop, true);
+
+        const updatedNav = await request(env.services, 'set', { key: 'nav_notification', value: false });
+        assert.equal(updatedNav.settings.nav_notification, false);
+        assert.equal(env.window.mzdTweaks.nav_notification, false);
 
         const updatedBt = await request(env.services, 'set', { key: 'bluetooth_notification', value: false });
         assert.equal(updatedBt.settings.bluetooth_notification, false);

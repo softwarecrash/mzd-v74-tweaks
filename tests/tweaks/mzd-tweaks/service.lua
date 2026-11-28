@@ -101,6 +101,7 @@ local DEFAULTS = {
     list_beep = true,
     short_delay = false,
     statusbar_date = 'off',
+    nav_notification = true,
     bluetooth_notification = true,
     theme = 'red',
     main_menu_order_custom = false,
@@ -120,13 +121,14 @@ for i, k in ipairs(AUDIO_KEYS) do
 end
 DEFAULTS.audio_order = DEFAULT_AUDIO_ORDER
 
-local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, fuel_delay)
+local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_menu_coins_glow, coins_size, coins_layout, bluetooth_notification, main_menu_custom, main_menu_table, fuel_delay, nav_notification)
     main_menu_coins_glow = main_menu_coins_glow or 'true'
     custom = custom or 'false'
     main_menu_custom = main_menu_custom or 'false'
     theme = theme or 'red'
     coins_size = coins_size or 100
     coins_layout = coins_layout or 'ellipse'
+    nav_notification = nav_notification or 'true'
     bluetooth_notification = bluetooth_notification or 'true'
     local lines = {
         'window.mzdTweaks = {',
@@ -135,6 +137,7 @@ local function js(a, b, c, d, custom, audio_table, statusbar_date, theme, main_m
         '    "list_loop": ' .. b .. ',',
         '    "list_beep": ' .. c .. ',',
         '    "short_delay": ' .. d .. ',',
+        '    "nav_notification": ' .. nav_notification .. ',',
         '    "bluetooth_notification": ' .. bluetooth_notification .. ',',
         '    "main_menu_order_custom": ' .. main_menu_custom .. ',',
         '    "audio_order_custom": ' .. custom .. ',',
@@ -186,6 +189,7 @@ do
         list_beep = false,
         short_delay = true,
         statusbar_date = 'off',
+        nav_notification = true,
         bluetooth_notification = true,
         theme = 'red',
         main_menu_order_custom = false,
@@ -265,6 +269,15 @@ do
     local res = svc.request('set', { key = 'audio_order_custom', value = true })
     assert(res.settings.audio_order_custom == true)
     assert(fs.content:match('"audio_order_custom"%s*:%s*true'))
+end
+
+-- set nav_notification toggles current street notification.
+do
+    local fs = fake_files(js('false', 'false', 'true', 'false'))
+    local svc = service(fs)
+    local res = svc.request('set', { key = 'nav_notification', value = false })
+    assert(res.settings.nav_notification == false)
+    assert(fs.content:match('"nav_notification"%s*:%s*false'))
 end
 
 -- set bluetooth_notification toggles bluetooth connection notification.

@@ -614,6 +614,7 @@
                         });
                     }
                 },
+                { key: 'nav_notification', type: 'bool', label: tr('nav_notification', 'Current street notification'), defaultValue: true },
                 { key: 'bluetooth_notification', type: 'bool', label: tr('bluetooth_notification', 'Bluetooth connection notification'), defaultValue: true },
                 { id: 'section_others', type: 'section', label: tr('section_others', 'Others') },
                 {

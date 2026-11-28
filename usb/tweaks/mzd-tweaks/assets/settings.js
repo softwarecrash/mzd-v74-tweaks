@@ -4,6 +4,7 @@ window.mzdTweaks = {
     "list_loop": false,
     "list_beep": true,
     "short_delay": false,
+    "nav_notification": true,
     "bluetooth_notification": true,
     "main_menu_order_custom": false,
     "audio_order_custom": false,

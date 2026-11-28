@@ -252,6 +252,7 @@
             list_beep: true,
             short_delay: false,
             statusbar_date: 'off',
+            nav_notification: true,
             bluetooth_notification: true,
             main_menu_order_custom: false,
             main_menu_order: defaultMainMenuOrder,

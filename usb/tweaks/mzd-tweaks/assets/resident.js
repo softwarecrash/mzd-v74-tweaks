@@ -91,6 +91,7 @@
         list_beep: true,
         short_delay: false,
         statusbar_date: 'off',
+        nav_notification: true,
         bluetooth_notification: true,
         theme: 'red',
         main_menu_order_custom: false,
@@ -1256,6 +1257,17 @@
         }
     };
 
+    function navNotificationEnabled() {
+        return !global.mzdTweaks || global.mzdTweaks.nav_notification !== false;
+    }
+
+    function isNavStreetNotificationSbn(methodName, uiaId, sbnId, properties) {
+        return methodName === 'showStateSbn' &&
+            uiaId === 'emnavi' &&
+            sbnId === 'emnaviTurnByTurnStateSbn' &&
+            !(properties && (properties.hasManeuverIcon || properties.hasManeuverDistance));
+    }
+
     function bluetoothNotificationEnabled() {
         return !global.mzdTweaks || global.mzdTweaks.bluetooth_notification !== false;
     }
@@ -1283,6 +1295,15 @@
             if (typeof origMethod !== 'function') { return; }
             target[flagName] = true;
             target[methodName] = function (uiaId, sbnId, type, properties) {
+                if (!navNotificationEnabled() && isNavStreetNotificationSbn(methodName, uiaId, sbnId, properties)) {
+                    if (typeof this.endStateSbn === 'function') {
+                        this.endStateSbn(uiaId, sbnId, type);
+                    }
+                    if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Suppressed navigation street SBN (' + methodName + '): ' + uiaId + ' ' + sbnId);
+                    }
+                    return;
+                }
                 if (!bluetoothNotificationEnabled() && isBtNotificationSbn(methodName, uiaId, sbnId, properties)) {
                     if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
                         global.MzdGuiResidents.log('mzd-tweaks', 'Suppressed Bluetooth notification SBN (' + methodName + '): ' + uiaId + ' ' + sbnId);
