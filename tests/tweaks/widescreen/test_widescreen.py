@@ -300,4 +300,43 @@ with tempfile.TemporaryDirectory(prefix='cmu-widescreen-') as directory:
     assert not (font_dir / 'SairaExtraCondensed-Regular.ttf').exists()
     assert not (font_dir / 'SairaExtraCondensed-Medium.ttf').exists()
 
+    # 8. Busy ro,remount on internal root after committed uninstall (e.g. Opera holding unlinked fonts)
+    # must succeed so package cleanup removes index.html.org; other remount errors or
+    # busy remount on install must still fail with exit 2.
+    write(target, stock)
+    (internal / 'jci/gui/index.html.org').unlink(missing_ok=True)
+    shutil.rmtree(persist / 'mzd-tweaks/installed/widescreen', ignore_errors=True)
+    write(
+        bins / 'mount',
+        '''#!/bin/sh
+if [ "$2" = ro,remount ] && [ "$3" = "''' + bp(internal) + '''" ]; then
+    if [ -f "''' + bp(b / 'busy-remount') + '''" ]; then
+        echo "mount: mounting /dev/ffx01p1 on / failed: Device or resource busy" >&2
+        exit 255
+    fi
+    if [ -f "''' + bp(b / 'fail-remount') + '''" ]; then
+        echo "mount: mounting /dev/ffx01p1 on / failed: I/O error" >&2
+        exit 1
+    fi
+fi
+awk -v p="$3" -v mode="$2" '{$4=($2==p?(mode=="rw,remount"?"rw":"ro"):$4);print}' "''' + bp(mounts) + '''" > "''' + bp(mounts) + '''.next" && mv "''' + bp(mounts) + '''.next" "''' + bp(mounts) + '''"
+''',
+    )
+    call('install')
+    (b / 'fail-remount').write_text('yes', encoding='utf-8')
+    call('uninstall', code=2)
+    (b / 'fail-remount').unlink()
+    (b / 'busy-remount').write_text('yes', encoding='utf-8')
+    call('uninstall')
+    assert call('status', direct=True).stdout.strip() == 'uninstalled'
+    assert target.read_text(encoding='utf-8') == stock
+    assert not (internal / 'jci/gui/index.html.org').exists()
+    write(
+        mounts,
+        f'mock {bp(usb)} vfat rw 0 0\n'
+        f'/dev/root {bp(internal)} relfs ro 0 0\n'
+        f'/dev/mmcblk0p1 {bp(persist)} relfs rw 0 0\n',
+    )
+    call('install', code=2)
+
 print('WIDESCREEN_PASSED')

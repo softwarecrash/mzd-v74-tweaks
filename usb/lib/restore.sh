@@ -132,7 +132,11 @@ mzd_restore_cleanup() (
         temp=$(cat "$MZD_REPORT/temp.path")
         rm -f "$temp" || result=1
     fi
-    mzd_system_cleanup || result=1
+    if [ "${RESTORE_COMMITTED:-0}" = 1 ]; then
+        mzd_system_cleanup allow-busy-remount || result=1
+    else
+        mzd_system_cleanup || result=1
+    fi
     [ "$result" = 0 ] || printf 'Restore rollback or cleanup failed. Do NOT reboot. Check the USB report.\n' >&4
     exit "$result"
 )
