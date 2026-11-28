@@ -160,7 +160,9 @@ body[class*="mzd-theme-"] .LeftBtnCtrlMoveUpBtnDown {
 
 body[class*="mzd-theme-"] .List2CtrlScrollIndicator,
 body[class*="mzd-theme-"] .ScrollDetailCtrlScrollIndicator,
-body[class*="mzd-theme-"] .Messaging2CtrlScrollIndicator {
+body[class*="mzd-theme-"] .Messaging2CtrlScrollIndicator,
+body[class*="mzd-theme-"] .netmgmtList2CtrlScrollIndicator,
+body[class*="mzd-theme-"] .carplayList2CtrlScrollIndicator {
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
     width: 30px !important;

@@ -2723,6 +2723,25 @@ function viewPage(options) {
     'flat + 80% focus selector outranks .mzd-coin');
   assert(mzdCss.includes('body.mzd-layout-flat.mzd-coins-60 .MainMenuCtrl .mzd-coin.MainMenuCtrlCoinFocus'),
     'flat + 60% focus selector outranks .mzd-coin');
+
+  // netmgmtList2Ctrl and carplayList2Ctrl list item focus/hit and scrollbar selectors across all themes
+  assert(themeCommonCss.includes('.netmgmtList2CtrlScrollIndicator'),
+    'theme-common.css styles .netmgmtList2CtrlScrollIndicator');
+  assert(themeCommonCss.includes('.carplayList2CtrlScrollIndicator'),
+    'theme-common.css styles .carplayList2CtrlScrollIndicator');
+  for (const theme of themes) {
+    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/themes/theme-' + theme + '.css'), 'utf8');
+    for (const ctrl of ['netmgmtList2Ctrl', 'carplayList2Ctrl']) {
+      assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + '.normalItems .ListItem.focus'),
+        'theme-' + theme + '.css styles .' + ctrl + '.normalItems .ListItem.focus');
+      assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + '.normalItems .ListItem.hit.focus'),
+        'theme-' + theme + '.css styles .' + ctrl + '.normalItems .ListItem.hit.focus');
+      assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + '.normalItems .ListItem.pressed'),
+        'theme-' + theme + '.css styles .' + ctrl + '.normalItems .ListItem.pressed');
+      assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + 'ScrollIndicator'),
+        'theme-' + theme + '.css styles .' + ctrl + 'ScrollIndicator');
+    }
+  }
 }
 
 // initCurrentOrder deterministic tie-breaker when duplicate order values exist
