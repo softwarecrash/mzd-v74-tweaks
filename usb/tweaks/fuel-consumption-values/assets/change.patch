@@ -24,7 +24,15 @@
          }
          
          if(this.properties.ctrlStyle === 'hevstyle')
-@@ -1236,6 +1239,7 @@
+@@ -1216,6 +1219,7 @@
+             }
+         }
+     }
++    this._modPairCDFEBars(); // MOD
+ }
+ 
+ FuelConsumptionCtrl.prototype._setCDFEGraphBarHeightsRight = function()
+@@ -1236,6 +1240,7 @@
                                                         this._CDFEGraphBarValuesRight[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -32,7 +40,7 @@
          }
          if(this.properties.ctrlStyle === 'hevstyle')
          { 
-@@ -1655,6 +1659,42 @@
+@@ -1655,6 +1660,87 @@
      }
  }
  
@@ -59,6 +67,7 @@
 +    }
 +    var txt = v.toFixed(1);
 +    lbl.innerHTML = txt;
++    lbl.style.width = widthPx + 'px';
 +    // On narrow bars a 4-character value (e.g. 12.8) gets a smaller, tighter font so it fits.
 +    var fs = fontPx, ls = '0px';
 +    if (widthPx < 30 && txt.length > 3) { fs = fontPx - 2; ls = '-1px'; }
@@ -72,10 +81,54 @@
 +    this._modSetBarLabel(bar, value, heightPx, 50, 22);
 +};
 +
++// MOD (paired minutes): the ten 1-minute bars of the current drive graph are merged in pairs
++// (1+2, 3+4, 5+6, 7+8, 9+10). Each pair is drawn by its right bar, as wide as a 10-minute bar.
++FuelConsumptionCtrl.prototype._modPairValue = function(a, b)
++{
++    a = parseFloat(a);
++    b = parseFloat(b);
++    var okA = a > 0, okB = b > 0;
++    // An empty minute (0, e.g. before the trip started) does not halve the other one.
++    if (okA && okB) { return Math.round((a + b) * 5) / 10; }
++    return okA ? a : (okB ? b : 0);
++};
++FuelConsumptionCtrl.prototype._modPairCDFEBars = function()
++{
++    if (this.properties.ctrlStyle === 'hevstyle') { return; }
++    var w = this._CSSConstants["CDFEGraphBarWidth"];
++    var step = w + this._CSSConstants["CDFEGraphBarSpacing"];
++    var margin = this._CSSConstants["CDFEGraphBarMargin"];
++    var graphHeight = this._CSSConstants["CDFEGraphVisibleHeight"];
++    var yLimit = this.properties.currentFuelConfig.yAxisLimitValue;
++    var wide = w + step;
++    for (var i = 0; i + 1 < this._newCDFEDataIdx; i += 2)
++    {
++        var first = document.getElementById('CDFEBar' + (i + 1));
++        var second = document.getElementById('CDFEBar' + (i + 2));
++        if (!first || !second) { continue; }
++        var value = this._modPairValue(this._CDFEGraphBarValues[i], this._CDFEGraphBarValues[i + 1]);
++        first.style.visibility = 'hidden';
++        this._modSetBarLabel(first, 0, 0, w, 13);
++        second.style.left = (margin + i * step) + 'px';
++        second.style.width = wide + 'px';
++        second.style.backgroundSize = wide + 'px 100%';
++        second.style.height = this._scaleDataToGraphY(graphHeight, value, yLimit, false) + 'px';
++        this._modSetBarLabel(second, value, parseFloat(second.style.height), wide, 18);
++    }
++};
++// A one-bar slide would show half-shifted pairs, so the new minute is applied at once.
++FuelConsumptionCtrl.prototype._modFinishCDFEShift = function()
++{
++    if (this.properties.ctrlStyle === 'hevstyle') { return; }
++    this.CDFEGraphArea.removeEventListener('oTransitionEnd', this._cbCDFELeftAnimationEnd, false);
++    this._CDFELineGraphInTransition = false;
++    this._resetCDFEGraph(false);
++};
++
  /*
   * Utility function to set the height of single CFER graph bar (e.g. the just-inserted one)
   */
-@@ -1670,7 +1710,7 @@
+@@ -1670,7 +1756,7 @@
                                                     this._CFERGraphBarValues[barIdx],
                                                     this.properties.cumulativeFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -84,7 +137,7 @@
      }
  }
  
-@@ -1717,6 +1757,7 @@
+@@ -1717,6 +1803,7 @@
                                                         this._CFERGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -92,3 +145,11 @@
          }
      }
  }
+@@ -2008,6 +2095,7 @@
+ 
+     // Re-initialize the "hidden" slot for new data
+     this._CDFEGraphBarValues[this._newCDFEDataIdx] = 0;
++    this._modFinishCDFEShift(); // MOD
+ }
+ 
+ // inser new bar graph for HEV disc bars

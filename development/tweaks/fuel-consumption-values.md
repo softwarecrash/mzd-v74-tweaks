@@ -14,15 +14,25 @@ label per bar, hides it for values of 0 or less, and moves it inside the bar
 when the bar is taller than the 109 px graph area minus the label height.
 No full replacement file is shipped.
 
-On the vehicle the one-minute shift animation ends with the Opera/Presto
-`oTransitionEnd` event, which calls `_resetCDFEGraph` and then the bar height
-setters, so the labels follow the bars. A Chromium-based emulator does not send
-that event; trigger it manually there.
+Version 1.1.0 merges the ten 1-minute bars (CDFEBar1-10) in pairs.
+`_modPairCDFEBars`, called at the end of `_setCDFEGraphBarHeights`, hides the
+left bar of each pair and moves/widens the right one to 44 px (two bars plus
+the spacing between them, the width of a 10-minute bar). The height and label
+use `_modPairValue`: the average of the two minutes rounded to one decimal, or
+the non-empty one if the other is 0. CDFEBar10 keeps the factory "current"
+style, so the newest pair stays highlighted. `insertCurrentDriveFuelGraph`
+ends with `_modFinishCDFEShift`, which drops the one-bar slide and redraws the
+graph at once, because a 23 px slide would show half-shifted pairs. The HEV
+style (`hevstyle`) is left unchanged.
+
+The factory one-minute shift animation ends with the Opera/Presto
+`oTransitionEnd` event. With the paired bars this slide is skipped and
+`_resetCDFEGraph` runs directly, so the emulator shows the new minute too.
 
 Ported from the `fuel-consumption.sh` bar values tweak in
 [piotrmocko/mzd-v74-tweaks](https://github.com/piotrmocko/mzd-v74-tweaks/blob/main/jci-patches/FuelConsumptionCtrl-patch.py).
-The patch is byte-identical to that version: the OEM file plus this diff gives
-the `jci-mods/FuelConsumptionCtrl.js` shipped there.
+Version 1.0.0 was byte-identical to that version; 1.1.0 adds the paired
+1-minute bars.
 
 Use `sh run.sh status`, `install` or `uninstall` from this folder in the complete
 USB layout. Settings are read only from manifest.conf. Other tweaks touching

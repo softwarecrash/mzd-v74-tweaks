@@ -6,10 +6,16 @@ Consumption app. The stock firmware shows a value only for "Current".
 - Average fuel economy history (Current and the five previous resets).
 - Current trip graph, both the 1-minute and the 10-minute bars.
 
+The ten narrow 1-minute bars are merged in pairs (1+2, 3+4, 5+6, 7+8, 9+10),
+so the last 10 minutes are shown as five bars, each as wide as a 10-minute bar.
+A pair shows the average of its two minutes; an empty minute (for example
+before the trip started) does not halve the other one. The car sends only the
+per-minute values, so this is a simple average, not weighted by distance.
+When a new minute arrives the pairs are redrawn at once instead of sliding.
+
 The value uses the unit of the graph (for example L/100km) with one decimal.
 Empty bars get no value. Tall bars get the value inside the top of the bar,
-because the graph area clips anything above it. On the narrow 1-minute bars a
-four-character value (for example 12.8) uses a slightly smaller font.
+because the graph area clips anything above it.
 
 | Stock | Tweak |
 |---|---|
