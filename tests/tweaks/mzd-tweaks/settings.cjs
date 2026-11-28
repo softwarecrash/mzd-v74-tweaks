@@ -2238,46 +2238,77 @@ function viewPage(options) {
       );
     }
   }
-  // Test Common.prototype.startTimedSbn hook for bluetooth_notification
+  // Test Common.prototype.startTimedSbn and showStateSbn hooks for bluetooth_notification
   const calls = [];
+  const stateCalls = [];
+  const endCalls = [];
   function MockCommon() {}
   MockCommon.prototype.startTimedSbn = function (uiaId, sbnId, type, props) {
     calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
   };
+  MockCommon.prototype.showStateSbn = function (uiaId, sbnId, type, props) {
+    stateCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+  };
+  MockCommon.prototype.endStateSbn = function (uiaId, sbnId, type) {
+    endCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type });
+  };
   const mockFw = { common: new MockCommon() };
   const page = residentPage({ bluetooth_notification: false }, { framework: mockFw, Common: MockCommon });
 
-  // When bluetooth_notification is false, PhoneConnectionStatus and AudioConnectionStatus are suppressed:
+  // When bluetooth_notification is false, PhoneConnectionStatus, AudioConnectionStatus, and contacts import progress/success SBNs are suppressed:
   mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
   mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneDisconnected' });
   mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
   mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioDisconnected' });
-  assert.equal(calls.length, 0, 'Phone and Audio connection SBNs are suppressed when bluetooth_notification is false');
+  mockFw.common.showStateSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ConatctImport' });
+  mockFw.common.startTimedSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ImportSuccessSbn' });
+  assert.equal(calls.length, 0, 'Phone/Audio connection and contacts import success SBNs are suppressed when bluetooth_notification is false');
+  assert.equal(stateCalls.length, 0, 'Contacts import progress state SBN is suppressed when bluetooth_notification is false');
+
+  // ImportFailureSbn is NOT suppressed:
+  mockFw.common.startTimedSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ImportFailureSbn' });
+  assert.equal(calls.length, 1, 'ImportFailureSbn is not suppressed');
+  assert.equal(calls[0].props.text1Id, 'ImportFailureSbn');
+
+  // endStateSbn is never suppressed:
+  mockFw.common.endStateSbn('contacts', 'ImportedContactsStatus', 'deviceConnected');
+  assert.equal(endCalls.length, 1, 'endStateSbn is not suppressed');
 
   // PairingSuccessStatus is NOT suppressed:
   mockFw.common.startTimedSbn('btpairing', 'PairingSuccessStatus', 'btConnecting', { text1Id: 'PairingSuccess' });
-  assert.equal(calls.length, 1, 'PairingSuccessStatus is not suppressed');
-  assert.equal(calls[0].sbnId, 'PairingSuccessStatus');
+  assert.equal(calls.length, 2, 'PairingSuccessStatus is not suppressed');
+  assert.equal(calls[1].sbnId, 'PairingSuccessStatus');
 
-  // Non-Bluetooth SBN is NOT suppressed:
+  // Non-Bluetooth SBNs are NOT suppressed:
   mockFw.common.startTimedSbn('system', 'SomeSbn', 'typeE', {});
-  assert.equal(calls.length, 2, 'Non-bluetooth SBN is not suppressed');
+  mockFw.common.showStateSbn('system', 'StateSbn_vuiState', 'typeB', {});
+  assert.equal(calls.length, 3, 'Non-bluetooth timed SBN is not suppressed');
+  assert.equal(stateCalls.length, 1, 'Non-bluetooth state SBN is not suppressed');
 
-  // When bluetooth_notification is true, Phone and Audio connection SBNs pass through:
+  // When bluetooth_notification is true, Phone/Audio connection and contacts import SBNs pass through:
   page.win.mzdTweaks.bluetooth_notification = true;
   mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
   mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
-  assert.equal(calls.length, 4, 'Phone and Audio connection SBNs pass through when bluetooth_notification is true');
-  assert.equal(calls[2].sbnId, 'PhoneConnectionStatus');
-  assert.equal(calls[3].sbnId, 'AudioConnectionStatus');
+  mockFw.common.showStateSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ConatctImport' });
+  mockFw.common.startTimedSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ImportSuccessSbn' });
+  assert.equal(calls.length, 6, 'Phone/Audio connection and contacts import finish SBNs pass through when bluetooth_notification is true');
+  assert.equal(calls[3].sbnId, 'PhoneConnectionStatus');
+  assert.equal(calls[4].sbnId, 'AudioConnectionStatus');
+  assert.equal(calls[5].sbnId, 'ImportedContactsStatus');
+  assert.equal(stateCalls.length, 2, 'Contacts import progress state SBN passes through when bluetooth_notification is true');
+  assert.equal(stateCalls[1].sbnId, 'ImportedContactsStatus');
 }
 
 {
   // Test Object.getPrototypeOf(framework.common) fallback when Common is absent
   const calls = [];
+  const stateCalls = [];
   const commonProto = {
     startTimedSbn(uiaId, sbnId, type, props) {
       calls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
+    },
+    showStateSbn(uiaId, sbnId, type, props) {
+      stateCalls.push({ uiaId: uiaId, sbnId: sbnId, type: type, props: props });
     }
   };
   const mockFw = { common: Object.create(commonProto) };
@@ -2285,14 +2316,19 @@ function viewPage(options) {
 
   mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
   mockFw.common.startTimedSbn('btpairing', 'AudioConnectionStatus', 'btConnecting', { text1Id: 'AudioConnected' });
-  assert.equal(calls.length, 0, 'fallback prototype hook suppresses BT connection SBNs when Common is absent');
+  mockFw.common.showStateSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ConatctImport' });
+  mockFw.common.startTimedSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ImportSuccessSbn' });
+  assert.equal(calls.length, 0, 'fallback prototype hook suppresses BT connection and contacts import finish SBNs when Common is absent');
+  assert.equal(stateCalls.length, 0, 'fallback prototype hook suppresses contacts import state SBN when Common is absent');
 
   mockFw.common.startTimedSbn('btpairing', 'PairingSuccessStatus', 'btConnecting', { text1Id: 'PairingSuccess' });
   assert.equal(calls.length, 1, 'fallback prototype hook passes non-connection SBNs');
 
   page.win.mzdTweaks.bluetooth_notification = true;
   mockFw.common.startTimedSbn('btpairing', 'PhoneConnectionStatus', 'btConnecting', { text1Id: 'PhoneConnected' });
+  mockFw.common.showStateSbn('contacts', 'ImportedContactsStatus', 'deviceConnected', { text1Id: 'ConatctImport' });
   assert.equal(calls.length, 2, 'fallback prototype hook passes BT connection SBNs when enabled');
+  assert.equal(stateCalls.length, 1, 'fallback prototype hook passes contacts import state SBN when enabled');
 }
 
 {
