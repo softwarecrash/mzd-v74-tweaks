@@ -33,7 +33,12 @@ const source = added.slice(start, end + 1).join('\n');
 
 function element(tag) {
     return {tag, children: [], style: {}, innerHTML: '', className: '',
-            appendChild(child) { this.children.push(child); if (!this.firstChild) { this.firstChild = child; } }};
+            appendChild(child) { this.children.push(child); if (!this.firstChild) { this.firstChild = child; } },
+            insertBefore(child, before) {
+                const at = before ? this.children.indexOf(before) : -1;
+                if (at < 0) { this.children.push(child); } else { this.children.splice(at, 0, child); }
+                this.firstChild = this.children[0];
+            }};
 }
 const sandbox = {document: {createElement(tag) { assert(tag === 'div' || tag === 'span'); return element(tag); }}};
 sandbox.FuelConsumptionCtrl = function () {};
@@ -140,7 +145,17 @@ for (let k = 0; k < 5; k++) {
     assert.equal(second.style.backgroundImage, 'url(apps/ecoenergy/controls/FuelConsumption/images/' +
                  (k === 4 ? 'FuelConsBar_WideCurrent.png)' : 'FuelConsBar_wide.png)'));
 }
-assert.deepEqual([2, 4, 6, 8, 10].map(i => bars['CDFEBar' + i].children[1].innerHTML), ['7.4', '14.2', '13.4', '7.8', '7.0']);
+assert.deepEqual([2, 4, 6, 8, 10].map(i => bars['CDFEBar' + i]._modLbl.innerHTML), ['7.4', '14.2', '13.4', '7.8', '7.0']);
+// Only the newest ("current") pair gets the dark layer, under the label and after the cap.
+assert.deepEqual([2, 4, 6, 8, 10].map(i => bars['CDFEBar' + i]._modShade.style.display), ['none', 'none', 'none', 'none', 'block']);
+assert.match(bars.CDFEBar10._modShade.style.cssText, /rgba\(0,0,0,0\.35\)/);
+assert.deepEqual(bars.CDFEBar10.children.map(c => c === bars.CDFEBar10._modShade ? 'shade' : c === bars.CDFEBar10._modLbl ? 'label' : c.className),
+                 ['FuelConsumptionCtrlCDFEBarGraphCap', 'shade', 'label']);
+// Reused, and hidden again when the bar is no longer current.
+bars.CDFEBar10.className = 'FuelConsumptionCtrlCDFEBarGraphCore';
+paired._modPairCDFEBars();
+assert.equal(bars.CDFEBar10.children.length, 3);
+assert.equal(bars.CDFEBar10._modShade.style.display, 'none');
 assert.equal(bars.CDFEBar4.style.height, Math.round(109 * 14.2 / 15) + 'px');
 assert.equal(bars.CDFEBar11.style.width, undefined);
 assert.equal(bars.CDFEBar11.style.visibility, undefined);
@@ -176,4 +191,4 @@ const hevShift = graph('hevstyle').c;
 hevShift._resetCDFEGraph = () => assert.fail('HEV must keep the factory slide');
 hevShift._modFinishCDFEShift();
 
-console.log('FUEL_CONSUMPTION_VALUES_BEHAVIOR_PASSED: bar setters, label reuse, placement, empty values, narrow-bar font, inside placement with shadow, paired 1-minute bars with wide caps, pair axis labels and immediate shift.');
+console.log('FUEL_CONSUMPTION_VALUES_BEHAVIOR_PASSED: bar setters, label reuse, placement, empty values, narrow-bar font, inside placement with shadow, paired 1-minute bars with wide caps and darker current pair, pair axis labels and immediate shift.');

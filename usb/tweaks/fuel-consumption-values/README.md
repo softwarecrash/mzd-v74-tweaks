@@ -8,7 +8,8 @@ Consumption app. The stock firmware shows a value only for "Current".
 
 The ten narrow 1-minute bars are merged in pairs (1+2, 3+4, 5+6, 7+8, 9+10),
 so the last 10 minutes are shown as five bars, each as wide as a 10-minute bar
-(same bar and cap images). The time axis shows 10, 8, 6, 4, 2 and 0 minutes on
+(same bar and cap images); the newest pair is slightly darker than the stock
+highlight so its value stays readable. The time axis shows 10, 8, 6, 4, 2 and 0 minutes on
 the pair borders.
 A pair shows the average of its two minutes; an empty minute (for example
 before the trip started) does not halve the other one. The car sends only the

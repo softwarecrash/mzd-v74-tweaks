@@ -21,7 +21,8 @@ Version 1.1.0 merges the ten 1-minute bars (CDFEBar1-10) in pairs.
 left bar of each pair and moves/widens the right one to 44 px (two bars plus
 the spacing between them, the width of a 10-minute bar) with the factory
 `FuelConsBar_wide.png` / `FuelConsBar_WideCurrent.png` body and
-`FuelConsBarCap_wide.png` cap images. `_modPairCDFEAxisLabels`, called after the
+`FuelConsBarCap_wide.png` cap images; the current pair gets a
+`rgba(0,0,0,0.35)` layer (`_modShadeCurrent`) between the cap and the label. `_modPairCDFEAxisLabels`, called after the
 factory "5" label in `_addCDFEGraphAxisLabels`, moves that label to the 6-minute
 border and adds 8, 4 and 2. The height and label
 use `_modPairValue`: the average of the two minutes rounded to one decimal, or

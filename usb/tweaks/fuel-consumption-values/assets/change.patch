@@ -48,7 +48,7 @@
          }
          if(this.properties.ctrlStyle === 'hevstyle')
          { 
-@@ -1655,6 +1661,123 @@
+@@ -1655,6 +1661,139 @@
      }
  }
  
@@ -136,7 +136,23 @@
 +        }
 +        second.style.height = this._scaleDataToGraphY(graphHeight, value, yLimit, false) + 'px';
 +        this._modSetBarLabel(second, value, parseFloat(second.style.height), wide, 18);
++        this._modShadeCurrent(second);
 +    }
++};
++// The light "current" image makes white digits hard to read: a dark layer under the label
++// keeps the newest pair a bit lighter than the others, but readable.
++FuelConsumptionCtrl.prototype._modShadeCurrent = function(bar)
++{
++    var shade = bar._modShade;
++    if (!shade)
++    {
++        shade = document.createElement('div');
++        shade.style.cssText = 'position:absolute;left:0px;top:0px;width:100%;height:100%;' +
++                              'background-color:rgba(0,0,0,0.35);';
++        bar.insertBefore(shade, bar._modLbl || null);
++        bar._modShade = shade;
++    }
++    shade.style.display = /Current/.test(bar.className) ? 'block' : 'none';
 +};
 +FuelConsumptionCtrl.prototype._modImages = 'apps/ecoenergy/controls/FuelConsumption/images/';
 +// The factory "5" label sits on the border after the 5th 1-minute bar. With pairs the borders
@@ -172,7 +188,7 @@
  /*
   * Utility function to set the height of single CFER graph bar (e.g. the just-inserted one)
   */
-@@ -1670,7 +1793,7 @@
+@@ -1670,7 +1809,7 @@
                                                     this._CFERGraphBarValues[barIdx],
                                                     this.properties.cumulativeFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -181,7 +197,7 @@
      }
  }
  
-@@ -1717,6 +1840,7 @@
+@@ -1717,6 +1856,7 @@
                                                         this._CFERGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -189,7 +205,7 @@
          }
      }
  }
-@@ -2008,6 +2132,7 @@
+@@ -2008,6 +2148,7 @@
  
      // Re-initialize the "hidden" slot for new data
      this._CDFEGraphBarValues[this._newCDFEDataIdx] = 0;
