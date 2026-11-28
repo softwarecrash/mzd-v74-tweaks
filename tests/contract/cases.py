@@ -25,4 +25,5 @@ CASES = {
     'restore-originals': 'restore-command',
     'terminal': 'terminal-command',
     'ssh': 'shared-patch',
+    'widescreen': 'widescreen',
 }

@@ -1,0 +1,18 @@
+--- target.data
++++ target.data
+@@ -51,13 +51,14 @@
+         <link rel="stylesheet" href="framework/css/GuiFramework.css" />
+         <link rel="stylesheet" href="framework/css/Debug.css" />
+         <link rel="stylesheet" href="common/transitions/css/TransitionsGen.css" />
++        <link rel="stylesheet" href="common/css/widescreen.css" /> <!-- MZD Tweaks -->
+         
+         <!--End of hard-coded files.-->
+         <!--Async loaded files start here-->
+         
+     </head>
+     
+-    <body>
++    <body class="widescreen"> <!-- MZD Tweaks -->
+         <script type="text/javascript">
+             var utility = new Utility();
+             var baseApp = new BaseApp(); // (Object) use to add standard functions to apps when framework instantiates an app (see BaseApp.js)

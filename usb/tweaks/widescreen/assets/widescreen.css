@@ -1,0 +1,131 @@
+/*
+ * MZD Widescreen Aspect Ratio Compensation (10.25-inch / 12.3-inch displays)
+ * Loaded on boot via /jci/gui/index.html (<body class="widescreen">).
+ * Opera 12 (Presto) compatible: no CSS custom properties, -o- transform prefixes,
+ * fonts loaded from /jci/fonts/CHN/ via OPERA_FONTS.
+ */
+
+body,
+div,
+span,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+label,
+a,
+td,
+th,
+button,
+input,
+select,
+textarea {
+    font-family: 'Saira ExtraCondensed', "Tipperary", Arial, Helvetica, sans-serif !important;
+}
+
+/*
+ * Main Menu Coins and highlights (0.67 horizontal compensation).
+ * Applied to inner icon layers (.mzd-coin > div and OEM MainMenuCtrl*Div > div)
+ * so outer container transforms (ellipse/flat layout, 80%/60% sizes, focus zoom)
+ * and custom icon ordering compose cleanly without affecting .MainMenuCtrlIconName text.
+ */
+body.widescreen .MainMenuCtrl .mzd-coin > div,
+body.widescreen .MainMenuCtrl .MainMenuCtrlAppDiv > div,
+body.widescreen .MainMenuCtrl .MainMenuCtrlEntDiv > div,
+body.widescreen .MainMenuCtrl .MainMenuCtrlComDiv > div,
+body.widescreen .MainMenuCtrl .MainMenuCtrlNavDiv > div,
+body.widescreen .MainMenuCtrl .MainMenuCtrlSetDiv > div,
+body.widescreen .MainMenuCtrl .mzd-coin-highlight,
+body.widescreen .MainMenuCtrl .MainMenuCtrlAppHighlight,
+body.widescreen .MainMenuCtrl .MainMenuCtrlEntHighlight,
+body.widescreen .MainMenuCtrl .MainMenuCtrlComHighlight,
+body.widescreen .MainMenuCtrl .MainMenuCtrlNavHighlight,
+body.widescreen .MainMenuCtrl .MainMenuCtrlSetHighlight {
+    -o-transform: scaleX(0.67);
+    transform: scaleX(0.67);
+    -o-transform-origin: center center;
+    transform-origin: center center;
+}
+
+/*
+ * Move unfocused outer coins (1 and 5) inward in the default-sized elliptical
+ * layout so their scaleX(0.67) inner icons do not clip at the screen edges.
+ */
+body.widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60) .MainMenuCtrl .mzd-coin-1:not(.MainMenuCtrlCoinFocus),
+body.widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60):not(.mzd-main-menu-custom) .MainMenuCtrl .MainMenuCtrlAppDiv:not(.MainMenuCtrlCoinFocus) {
+    -o-transform: translateX(22px);
+    transform: translateX(22px);
+}
+
+body.widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60) .MainMenuCtrl .mzd-coin-5:not(.MainMenuCtrlCoinFocus),
+body.widescreen:not(.mzd-layout-flat):not(.mzd-coins-80):not(.mzd-coins-60):not(.mzd-main-menu-custom) .MainMenuCtrl .MainMenuCtrlSetDiv:not(.MainMenuCtrlCoinFocus) {
+    -o-transform: translateX(-22px);
+    transform: translateX(-22px);
+}
+
+/*
+ * Small standalone UI icons (0.63 horizontal compensation):
+ * bottom buttons (UMP), header/status bar, and SBN notifications.
+ */
+body.widescreen .Ump3CtrlButtonIcon,
+body.widescreen .StatusBarCtrlHomeBtn,
+body.widescreen .StatusBarCtrlDomainIcon,
+body.widescreen .StatusBarCtrlIcon,
+body.widescreen .StatusBarCtrlRemoteUIBtn_En,
+body.widescreen .SbnCtrl_Style02_Image1,
+body.widescreen .SbnCtrl_Style03_Image1,
+body.widescreen .SbnCtrl_Style03_Image2,
+body.widescreen .SbnCtrl_Style04_Image1,
+body.widescreen .SbnCtrl_Style05_Image1,
+body.widescreen .SbnCtrl_Style07_Image1,
+body.widescreen .SbnCtrlInlineGraphic,
+body.widescreen .InCall2ContactImageFrame,
+body.widescreen .NowPlaying4CtrlArtworkImageDiv,
+body.widescreen .List2Ctrl .ListItem.style01 .image1,
+body.widescreen .List2CtrlTitle.style05 .image1 {
+    -o-transform: scaleX(0.63);
+    transform: scaleX(0.63);
+    -o-transform-origin: center center;
+    transform-origin: center center;
+}
+
+/*
+ * Keep RemoteUI (AA/CP) status bar button anchored to its 58x62 slot when
+ * focused/down classes widen the container for hover/select glow sprites.
+ */
+body.widescreen .StatusBarCtrlRemoteUIBtn_En {
+    -o-transform-origin: 29px 31px;
+    transform-origin: 29px 31px;
+}
+
+body.widescreen .StatusBarCtrlIconContainer {
+    margin-right: 90px !important;
+}
+
+body.widescreen .InCall2ContactName,
+body.widescreen .InCall2ContactElapsedTime,
+body.widescreen .ClockSettings2CtrlHoursTensDigit,
+body.widescreen .ClockSettings2CtrlHoursOnesDigit,
+body.widescreen .ClockSettings2CtrlMinutesTensDigit,
+body.widescreen .ClockSettings2CtrlMinutesOnesDigit {
+    line-height: 100% !important;
+}
+
+body.widescreen .Ump3CtrlTooltipBalloon {
+    line-height: 120% !important;
+}
+
+body.widescreen .TemplateWithStatus {
+    line-height: 250% !important;
+}
+
+body.widescreen .ClockSettings2CtrlHoursTensDigitFrame,
+body.widescreen .ClockSettings2CtrlHoursOnesDigitFrame,
+body.widescreen .ClockSettings2CtrlMinutesTensDigitFrame,
+body.widescreen .ClockSettings2CtrlMinutesOnesDigitFrame {
+    text-align: center !important;
+}

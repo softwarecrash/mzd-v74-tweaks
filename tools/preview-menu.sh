@@ -11,6 +11,7 @@ TWEAKS_SPECIFIED=0
 TWEAK_ID="android-auto"
 NO_OPEN=0
 USE_EMU=0
+WIDESCREEN=0
 EMU_PATH="${MZD_EMU_DIR:-}"
 FAIL_SAVE=0
 FAIL_REBOOT=0
@@ -42,6 +43,7 @@ Options:
   --out <path>          Output path for generated preview HTML
   --no-open             Generate preview HTML file without launching browser
   --emu [path]          Sync GUI assets into mzd-emu and launch emulator (default: ../mzd-emu, or ./mzd-emu if present)
+  --widescreen          Stage widescreen fonts, CSS, and index.html patch in --emu
   --sbn <text>          Display an MZD Status Bar Notification (SBN) toast
   --focus <id|idx>      Focus menu row by index or ID (e.g. 7 or hud_maneuver_max_distance_m)
   --scroll <mode>       Scroll mode for initial render (nearest, start, bottom)
@@ -103,6 +105,10 @@ while [ $# -gt 0 ]; do
         --emu=*)
             USE_EMU=1
             EMU_PATH="${1#*=}"
+            shift
+            ;;
+        --widescreen)
+            WIDESCREEN=1
             shift
             ;;
         --sbn)
@@ -281,14 +287,66 @@ if [ "$USE_EMU" -eq 1 ]; then
     mkdir -p "$EMU_DIR/data/integration/mzd-gui-runtime"
     cp -R "$REPO_DIR/usb/lib/gui-runtime/"* "$EMU_DIR/data/integration/mzd-gui-runtime/"
 
-    # Restore any previously patched OEM files if .orig backups exist in the emulator.
-    for target_rel in /jci/gui/common/controls/List2/js/List2Ctrl.js /jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js /jci/gui/apps/system/js/systemApp.js; do
+    # Restore any previously patched OEM/emulator files if .orig backups exist in the emulator.
+    for target_rel in /jci/gui/index.html /jci/gui/common/controls/List2/js/List2Ctrl.js /jci/gui/apps/system/controls/MainMenu/js/MainMenuCtrl.js /jci/gui/apps/system/js/systemApp.js /client/ui-polyfills.html; do
         if [ -f "$EMU_DIR$target_rel.orig" ]; then
             cp "$EMU_DIR$target_rel.orig" "$EMU_DIR$target_rel"
             rm -f "$EMU_DIR$target_rel.orig"
             echo "Restored original $target_rel in emulator"
         fi
     done
+    rm -f "$EMU_DIR/jci/gui/common/css/widescreen.css" \
+        "$EMU_DIR/jci/fonts/SairaExtraCondensed-Regular.ttf" \
+        "$EMU_DIR/jci/fonts/SairaExtraCondensed-Medium.ttf" \
+        "$EMU_DIR/jci/fonts/CHN/SairaExtraCondensed-Regular.ttf" \
+        "$EMU_DIR/jci/fonts/CHN/SairaExtraCondensed-Medium.ttf"
+
+    if [ "$WIDESCREEN" -eq 1 ]; then
+        ws_dir="$REPO_DIR/usb/tweaks/widescreen"
+        ws_index="$EMU_DIR/jci/gui/index.html"
+        ws_patch="$ws_dir/assets/gui-index.patch"
+        if [ -f "$ws_index" ] && [ -f "$ws_patch" ]; then
+            cp "$ws_index" "$ws_index.orig"
+            if patch_log=$(patch -p0 -t -N -i "$ws_patch" "$ws_index" < /dev/null 2>&1); then
+                echo "Patched /jci/gui/index.html for widescreen in emulator"
+            else
+                echo "ERROR: Patching /jci/gui/index.html for widescreen failed:" >&2
+                echo "$patch_log" >&2
+                exit 1
+            fi
+        fi
+        mkdir -p "$EMU_DIR/jci/gui/common/css" "$EMU_DIR/jci/fonts/CHN"
+        cp "$ws_dir/assets/widescreen.css" "$EMU_DIR/jci/gui/common/css/widescreen.css"
+        cp "$ws_dir/assets/fonts/SairaExtraCondensed-Regular.ttf" "$EMU_DIR/jci/fonts/CHN/"
+        cp "$ws_dir/assets/fonts/SairaExtraCondensed-Medium.ttf" "$EMU_DIR/jci/fonts/CHN/"
+        ws_polyfills="$EMU_DIR/client/ui-polyfills.html"
+        if [ -f "$ws_polyfills" ]; then
+            cp "$ws_polyfills" "$ws_polyfills.orig"
+            ws_polyfills_tmp=$(mktemp /tmp/mzd-ui-polyfills.XXXXXX)
+            awk '
+                BEGIN { q = sprintf("%c", 39) }
+                !inserted && /<\/style>/ {
+                    print "    @font-face {"
+                    print "        font-family: " q "Saira ExtraCondensed" q ";"
+                    print "        src: url(" q "../fonts/CHN/SairaExtraCondensed-Regular.ttf" q ") format(" q "truetype" q ");"
+                    print "        font-weight: normal;"
+                    print "        font-style: normal;"
+                    print "    }"
+                    print "    @font-face {"
+                    print "        font-family: " q "Saira ExtraCondensed" q ";"
+                    print "        src: url(" q "../fonts/CHN/SairaExtraCondensed-Medium.ttf" q ") format(" q "truetype" q ");"
+                    print "        font-weight: bold;"
+                    print "        font-style: normal;"
+                    print "    }"
+                    inserted = 1
+                }
+                { print }
+            ' "$ws_polyfills" > "$ws_polyfills_tmp"
+            mv "$ws_polyfills_tmp" "$ws_polyfills"
+            echo "Patched /client/ui-polyfills.html with widescreen @font-face rules in emulator"
+        fi
+        echo "Staged widescreen CSS and fonts in emulator"
+    fi
 
     # Overwrite target XML files with fresh copies from src/mazda/cmu/etc directory if they exist in emulator.
     if [ -d "$REPO_DIR/src/mazda/cmu/etc" ]; then
