@@ -24,7 +24,10 @@ the spacing between them, the width of a 10-minute bar) with the factory
 `FuelConsBarCap_wide.png` cap images; the current pair gets a
 `rgba(0,0,0,0.35)` layer (`_modShadeCurrent`) between the cap and the label. `_modPairCDFEAxisLabels`, called after the
 factory "5" label in `_addCDFEGraphAxisLabels`, moves that label to the 6-minute
-border and adds 8, 4 and 2. The height and label
+border and adds 8, 4 and 2. `_modPairCDFEBackground` (same hook) replaces the
+graph background, which is plain under the 1-minute bars, with pieces of the same
+`FuelConsBgBars1.png`: the stock part under the 10-minute bars, then light/dark
+stripes (image x 237+ and 96) with the gray line (image x 48) on the pair borders. The height and label
 use `_modPairValue`: the average of the two minutes rounded to one decimal, or
 the non-empty one if the other is 0. CDFEBar10 keeps the factory "current"
 style, so the newest pair stays highlighted. `insertCurrentDriveFuelGraph`

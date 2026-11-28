@@ -20,11 +20,13 @@ assert.equal(calls.filter(line => line.includes('_modSetCFERBarLabel(bar, this._
 assert.deepEqual(added.filter(line => /hev/i.test(line)).map(line => line.trim()),
                  ["if (this.properties.ctrlStyle === 'hevstyle') { return; }",
                   "if (this.properties.ctrlStyle === 'hevstyle' || !xDiv || !fiveLabel) { return; }",
+                  "if (this.properties.ctrlStyle === 'hevstyle' || !graph || graph._modBg) { return; }",
                   "if (this.properties.ctrlStyle === 'hevstyle') { return; }"]);
 // Pairing runs after every full redraw, and a new minute is applied at once.
 assert.equal(calls.filter(line => line.trim() === 'this._modPairCDFEBars(); // MOD').length, 1);
 assert.equal(calls.filter(line => line.trim() === 'this._modFinishCDFEShift(); // MOD').length, 1);
 assert.equal(calls.filter(line => line.trim() === 'this._modPairCDFEAxisLabels(xDiv, barLabel); // MOD').length, 1);
+assert.equal(calls.filter(line => line.trim() === 'this._modPairCDFEBackground(); // MOD').length, 1);
 
 const start = added.findIndex(line => line.startsWith('FuelConsumptionCtrl.prototype._modSetBarLabel'));
 const end = added.findIndex((line, i) => i > start && line === '};' && added[i - 1].includes('this._resetCDFEGraph(false);'));
@@ -172,9 +174,36 @@ assert.deepEqual(xDiv.children.map(l => [l.innerHTML, l.style.left, l.style.widt
 graph('hevstyle').c._modPairCDFEAxisLabels(xDiv, five);
 assert.equal(xDiv.children.length, 4);
 
+// The background is rebuilt from the stock image so the pairs continue the striped pattern:
+// stock part under the 10-minute bars, then light, dark, light, dark, light with gray lines.
+const graphDiv = element('div');
+graphDiv.appendChild(element('div'));
+paired.CDFEGraph = graphDiv;
+paired._modPairCDFEBackground();
+const bgLayer = graphDiv.children[0];
+assert.equal(graphDiv._modBg, bgLayer);
+assert.equal(graphDiv.style.backgroundImage, 'none');
+const pieces = bgLayer.children.map(c => {
+    const m = c.style.cssText.match(/left:(\d+)px;width:(\d+)px;background:url\(apps\/ecoenergy\/controls\/FuelConsumption\/images\/FuelConsBgBars1\.png\) no-repeat -(\d+)px 0px;/);
+    assert(m, c.style.cssText);
+    return m.slice(1).map(Number);
+});
+assert.deepEqual(pieces, [[0, 237, 0], [237, 48, 237],
+                          [285, 1, 48], [286, 45, 96], [331, 1, 48], [332, 45, 332],
+                          [377, 1, 48], [378, 45, 96], [423, 1, 48], [424, 49, 424]]);
+// The pieces cover the 473 px image without gaps or overlaps.
+pieces.reduce((x, [left, width]) => { assert.equal(left, x); return left + width; }, 0);
+assert.equal(pieces.reduce((sum, [, width]) => sum + width, 0), 473);
+// Built once per control.
+paired._modPairCDFEBackground();
+assert.equal(graphDiv.children.length, 2);
+
 // HEV style keeps the factory bars.
 const {c: hev, bars: hevBars} = graph('hevstyle');
 hev._modPairCDFEBars();
+hev.CDFEGraph = element('div');
+hev._modPairCDFEBackground();
+assert.equal(hev.CDFEGraph.children.length, 0);
 assert(Object.values(hevBars).every(b => b.style.width === undefined && b.style.visibility === undefined));
 
 // A new minute is redrawn at once: no pending slide listener, no transition flag.
@@ -191,4 +220,4 @@ const hevShift = graph('hevstyle').c;
 hevShift._resetCDFEGraph = () => assert.fail('HEV must keep the factory slide');
 hevShift._modFinishCDFEShift();
 
-console.log('FUEL_CONSUMPTION_VALUES_BEHAVIOR_PASSED: bar setters, label reuse, placement, empty values, narrow-bar font, inside placement with shadow, paired 1-minute bars with wide caps and darker current pair, pair axis labels and immediate shift.');
+console.log('FUEL_CONSUMPTION_VALUES_BEHAVIOR_PASSED: bar setters, label reuse, placement, empty values, narrow-bar font, inside placement with shadow, paired 1-minute bars with wide caps and darker current pair, pair axis labels, striped background and immediate shift.');

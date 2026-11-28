@@ -1,14 +1,15 @@
 --- target.data
 +++ target.data
-@@ -925,6 +925,7 @@
+@@ -925,6 +925,8 @@
                                          this._CSSConstants["CDFEGraphBarSpacingRight"] - 19) + 'px';
          barLabel.style.width = this._CSSConstants["CDFEGraphBarWidthRight"] + 'px';
          xDiv.appendChild(barLabel);
 +        this._modPairCDFEAxisLabels(xDiv, barLabel); // MOD
++        this._modPairCDFEBackground(); // MOD
  
    
      this.yLimitValueLabelCDFE = document.createElement('span');
-@@ -1137,6 +1138,7 @@
+@@ -1137,6 +1139,7 @@
                                                     this._CDFEGraphBarValues[barIdx],
                                                     this.properties.currentFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -16,7 +17,7 @@
          
          
      }
-@@ -1178,6 +1180,7 @@
+@@ -1178,6 +1181,7 @@
                                                     this._CDFEGraphBarValuesRight[barIdx],
                                                     this.properties.currentFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -24,7 +25,7 @@
      }
  }
  
-@@ -1201,6 +1204,7 @@
+@@ -1201,6 +1205,7 @@
                                                         this._CDFEGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -32,7 +33,7 @@
          }
          
          if(this.properties.ctrlStyle === 'hevstyle')
-@@ -1216,6 +1220,7 @@
+@@ -1216,6 +1221,7 @@
              }
          }
      }
@@ -40,7 +41,7 @@
  }
  
  FuelConsumptionCtrl.prototype._setCDFEGraphBarHeightsRight = function()
-@@ -1236,6 +1241,7 @@
+@@ -1236,6 +1242,7 @@
                                                         this._CDFEGraphBarValuesRight[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -48,7 +49,7 @@
          }
          if(this.properties.ctrlStyle === 'hevstyle')
          { 
-@@ -1655,6 +1661,139 @@
+@@ -1655,6 +1662,172 @@
      }
  }
  
@@ -176,6 +177,39 @@
 +        label.style.left = (left + (5 - minute) * step) + 'px';
 +    }
 +};
++// The stock background (FuelConsBgBars1.png, 473 x 109) has alternating dark/light stripes with
++// a gray border line under the 10-minute bars, but one plain light area under the 1-minute bars.
++// It is rebuilt from pieces of the same image so the five pairs continue the pattern:
++// light, dark, light, dark, light, with a gray line between them.
++FuelConsumptionCtrl.prototype._modPairCDFEBackground = function()
++{
++    var graph = this.CDFEGraph;
++    if (this.properties.ctrlStyle === 'hevstyle' || !graph || graph._modBg) { return; }
++    var step = 2 * (this._CSSConstants["CDFEGraphBarWidth"] + this._CSSConstants["CDFEGraphBarSpacing"]);
++    var first = 237 + this._CSSConstants["CDFEGraphBarMargin"];  // left of the first pair (clip mask at 237)
++    // [left, width, source x]: 0-236 stock, gray line = x 48, dark stripe = x 96, light = same x.
++    var parts = [[0, 237, 0], [237, first + step - 1 - 237, 237]];
++    for (var k = 1; k < 5; k++)
++    {
++        var left = first + k * step;
++        var end = (k < 4) ? left + step - 1 : 473;
++        parts.push([left - 1, 1, 48]);
++        parts.push([left, end - left, (k % 2) ? 96 : left]);
++    }
++    var bg = document.createElement('div');
++    bg.style.cssText = 'position:absolute;left:0px;top:1px;width:473px;height:109px;';
++    for (var i = 0; i < parts.length; i++)
++    {
++        var piece = document.createElement('div');
++        piece.style.cssText = 'position:absolute;top:0px;height:109px;left:' + parts[i][0] + 'px;width:' +
++                              parts[i][1] + 'px;background:url(' + this._modImages +
++                              'FuelConsBgBars1.png) no-repeat -' + parts[i][2] + 'px 0px;';
++        bg.appendChild(piece);
++    }
++    graph.style.backgroundImage = 'none';
++    graph.insertBefore(bg, graph.firstChild);
++    graph._modBg = bg;
++};
 +// A one-bar slide would show half-shifted pairs, so the new minute is applied at once.
 +FuelConsumptionCtrl.prototype._modFinishCDFEShift = function()
 +{
@@ -188,7 +222,7 @@
  /*
   * Utility function to set the height of single CFER graph bar (e.g. the just-inserted one)
   */
-@@ -1670,7 +1809,7 @@
+@@ -1670,7 +1843,7 @@
                                                     this._CFERGraphBarValues[barIdx],
                                                     this.properties.cumulativeFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -197,7 +231,7 @@
      }
  }
  
-@@ -1717,6 +1856,7 @@
+@@ -1717,6 +1890,7 @@
                                                         this._CFERGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -205,7 +239,7 @@
          }
      }
  }
-@@ -2008,6 +2148,7 @@
+@@ -2008,6 +2182,7 @@
  
      // Re-initialize the "hidden" slot for new data
      this._CDFEGraphBarValues[this._newCDFEDataIdx] = 0;
