@@ -69,6 +69,8 @@ mzd_system_remount_rw() (
 
 # Restore only recorded changes; never remove somebody else's lock.
 mzd_system_cleanup() (
+  allow_busy=0
+  [ "${1:-}" != allow-busy-remount ] || allow_busy=1
   [ -n "${MZD_SYSTEM:-}" ] && [ -d "$MZD_SYSTEM" ] || exit 0
   result=0
   if [ -f "$MZD_SYSTEM/mounts" ]
@@ -77,7 +79,21 @@ mzd_system_cleanup() (
     awk '{line[NR]=$0} END {for (i=NR;i>0;i--) print line[i]}' "$MZD_SYSTEM/mounts" > "$MZD_SYSTEM/restore-mounts" || result=1
     while IFS= read -r path
     do
-      mount -o ro,remount "$path" || result=1
+      mount_err=$(mount -o ro,remount "$path" 2>&1)
+      mount_rc=$?
+      if [ "$mount_rc" != 0 ]
+      then
+        case "$allow_busy:$mount_err" in
+          1:*'Device or resource busy'*)
+            printf '%s\n' "$mount_err"
+            printf 'Note: %s remains writable until restart (open files in use).\n' "$path"
+            ;;
+          *)
+            [ -z "$mount_err" ] || printf '%s\n' "$mount_err" >&2
+            result=1
+            ;;
+        esac
+      fi
     done < "$MZD_SYSTEM/restore-mounts"
   fi
   if [ -f "$MZD_SYSTEM/watchdog" ]

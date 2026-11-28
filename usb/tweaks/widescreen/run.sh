@@ -142,8 +142,12 @@ widescreen_cleanup() (
         if [ -d "$MZD_REPORT/index" ] && [ -f "$MZD_REPORT/index/target.path" ]; then
             mzd_patch_rollback "$MZD_REPORT/index" || result=1
         fi
+        mzd_system_cleanup || result=1
+    elif [ "${ACTION:-}" = uninstall ]; then
+        mzd_system_cleanup allow-busy-remount || result=1
+    else
+        mzd_system_cleanup || result=1
     fi
-    mzd_system_cleanup || result=1
     exit "$result"
 )
 
@@ -199,7 +203,7 @@ EOF
         while IFS="$tab" read -r target asset; do
             n=$((n + 1))
             backup="$MZD_REPORT/removed-backup/$n"
-            cp -a "$target" "$backup" && cmp -s "$target" "$backup" || mzd_fail "Cannot archive $target before removal."
+            cp "$target" "$backup" && cmp -s "$target" "$backup" || mzd_fail "Cannot archive $target before removal."
             printf '%s\t%s\n' "$target" "$backup" >> "$MZD_REPORT/removed" || mzd_fail 'Cannot record removed file.'
             rm -f "$target" || mzd_fail "Failed to remove widescreen file: $target"
         done <<EOF
