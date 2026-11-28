@@ -1260,8 +1260,17 @@
         return !global.mzdTweaks || global.mzdTweaks.bluetooth_notification !== false;
     }
 
-    function isBtConnectionSbn(uiaId, sbnId) {
-        return uiaId === 'btpairing' && (sbnId === 'PhoneConnectionStatus' || sbnId === 'AudioConnectionStatus');
+    function isBtNotificationSbn(methodName, uiaId, sbnId, properties) {
+        if (uiaId === 'btpairing') {
+            return sbnId === 'PhoneConnectionStatus' || sbnId === 'AudioConnectionStatus';
+        }
+        if (uiaId === 'contacts' && sbnId === 'ImportedContactsStatus') {
+            if (methodName === 'startTimedSbn') {
+                return !(properties && properties.text1Id === 'ImportFailureSbn');
+            }
+            return true;
+        }
+        return false;
     }
 
     function hookCommon() {
@@ -1269,28 +1278,45 @@
             ? global.Common.prototype
             : (global.framework && global.framework.common && Object.getPrototypeOf(global.framework.common));
 
-        function wrapStartTimedSbn(target) {
-            var origStartTimedSbn = target.startTimedSbn;
-            target._mzdTweaksBtHooked = true;
-            target.startTimedSbn = function (uiaId, sbnId, type, properties) {
-                if (!bluetoothNotificationEnabled() && isBtConnectionSbn(uiaId, sbnId)) {
+        function wrapSbnMethod(target, methodName, flagName) {
+            var origMethod = target[methodName];
+            if (typeof origMethod !== 'function') { return; }
+            target[flagName] = true;
+            target[methodName] = function (uiaId, sbnId, type, properties) {
+                if (!bluetoothNotificationEnabled() && isBtNotificationSbn(methodName, uiaId, sbnId, properties)) {
                     if (global.MzdGuiResidents && global.MzdGuiResidents.log) {
-                        global.MzdGuiResidents.log('mzd-tweaks', 'Suppressed Bluetooth connection SBN: ' + uiaId + ' ' + sbnId);
+                        global.MzdGuiResidents.log('mzd-tweaks', 'Suppressed Bluetooth notification SBN (' + methodName + '): ' + uiaId + ' ' + sbnId);
                     }
                     return;
                 }
-                return origStartTimedSbn.apply(this, arguments);
+                return origMethod.apply(this, arguments);
             };
         }
 
-        if (proto && !proto._mzdTweaksBtHooked && typeof proto.startTimedSbn === 'function') {
-            wrapStartTimedSbn(proto);
+        function wrapSbnMethods(target) {
+            target._mzdTweaksBtHooked = true;
+            wrapSbnMethod(target, 'startTimedSbn', '_mzdTweaksStartTimedSbnHooked');
+            wrapSbnMethod(target, 'showStateSbn', '_mzdTweaksShowStateSbnHooked');
         }
 
-        if (global.framework && global.framework.common && typeof global.framework.common.startTimedSbn === 'function' &&
-            !Object.prototype.hasOwnProperty.call(global.framework.common, '_mzdTweaksBtHooked') &&
-            Object.prototype.hasOwnProperty.call(global.framework.common, 'startTimedSbn')) {
-            wrapStartTimedSbn(global.framework.common);
+        if (proto && !proto._mzdTweaksBtHooked &&
+            (typeof proto.startTimedSbn === 'function' || typeof proto.showStateSbn === 'function')) {
+            wrapSbnMethods(proto);
+        }
+
+        if (global.framework && global.framework.common) {
+            var fwCommon = global.framework.common;
+            var hasOwnStart = Object.prototype.hasOwnProperty.call(fwCommon, 'startTimedSbn') &&
+                typeof fwCommon.startTimedSbn === 'function' &&
+                !Object.prototype.hasOwnProperty.call(fwCommon, '_mzdTweaksStartTimedSbnHooked');
+            var hasOwnShow = Object.prototype.hasOwnProperty.call(fwCommon, 'showStateSbn') &&
+                typeof fwCommon.showStateSbn === 'function' &&
+                !Object.prototype.hasOwnProperty.call(fwCommon, '_mzdTweaksShowStateSbnHooked');
+            if (hasOwnStart || hasOwnShow) {
+                fwCommon._mzdTweaksBtHooked = true;
+                if (hasOwnStart) { wrapSbnMethod(fwCommon, 'startTimedSbn', '_mzdTweaksStartTimedSbnHooked'); }
+                if (hasOwnShow) { wrapSbnMethod(fwCommon, 'showStateSbn', '_mzdTweaksShowStateSbnHooked'); }
+            }
         }
     }
 
