@@ -79,6 +79,7 @@ function residentPage(boot, options) {
   if (options.StatusBarCtrl) { win.StatusBarCtrl = options.StatusBarCtrl; }
   if (options.Intl) { win.Intl = options.Intl; }
   if (options.utility) { win.utility = options.utility; }
+  if (options.Image) { win.Image = options.Image; }
   if (options.previewServices) { win.mzdPreviewServiceDefaults = options.previewServices; }
   if (options.parentPreviewServices) { win.parent = { mzdPreviewServiceDefaults: options.parentPreviewServices }; }
   const scripts = [];
@@ -2764,6 +2765,68 @@ function viewPage(options) {
     'mm_main_menu_nav',
     'mm_main_menu_set'
   ], 'initCurrentOrder breaks ties deterministically by allItems index');
+}
+
+// Coin base image preloading & mzd-coin-images-ready gating
+{
+  const themeCommonCss = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/theme-common.css'), 'utf8');
+  assert(
+    themeCommonCss.includes('body[class*="mzd-theme-"].mzd-coin-images-ready .MainMenuCtrl .mzd-coin > div[class$="Focus"]:after'),
+    'theme-common.css gates :after coin icon overlay on .mzd-coin-images-ready'
+  );
+  for (const theme of ['blue', 'cyan', 'gold', 'green', 'orange', 'pink', 'purple', 'silver']) {
+    const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/themes/theme-' + theme + '.css'), 'utf8');
+    assert(
+      css.includes('body.mzd-theme-' + theme + '.mzd-coin-images-ready .MainMenuCtrl .mzd-coin > div[class$="Focus"]'),
+      'theme-' + theme + '.css gates coin radial-gradient on .mzd-coin-images-ready'
+    );
+  }
+
+  const createdImages = [];
+  function MockImage() {
+    this.complete = false;
+    this.onload = null;
+    this.onerror = null;
+    this.src = '';
+    createdImages.push(this);
+  }
+  const body = { className: '' };
+  const makeLink = () => ({
+    attrs: {},
+    parentNode: { removeChild() {} },
+    getAttribute(k) { return this.attrs[k] || null; },
+    setAttribute(k, v) { this.attrs[k] = v; }
+  });
+  const page = residentPage({ theme: 'blue', main_menu_coins_glow: true }, {
+    body: body,
+    Image: MockImage,
+    createElement: makeLink
+  });
+  const coinImages = createdImages.filter(img => img.src.indexOf('/images/coins/Home') !== -1);
+  assert.equal(coinImages.length, 5, 'all 5 coin base PNGs are preloaded on custom theme boot');
+  assert(
+    createdImages.some(img => img.src.endsWith('/images/highlights/Glow_blue.png')),
+    'active theme glow PNG is preloaded when glow is enabled'
+  );
+  assert.equal(body.className.includes('mzd-theme-blue'), true, 'mzd-theme-blue is applied immediately');
+  assert.equal(body.className.includes('mzd-coin-images-ready'), false, 'mzd-coin-images-ready is withheld until coin PNGs finish loading');
+
+  for (let i = 0; i < coinImages.length - 1; i++) {
+    coinImages[i].complete = true;
+    coinImages[i].onload();
+    assert.equal(body.className.includes('mzd-coin-images-ready'), false, 'still waiting for remaining coin PNGs');
+  }
+  coinImages[coinImages.length - 1].complete = true;
+  coinImages[coinImages.length - 1].onload();
+  assert.equal(body.className.includes('mzd-coin-images-ready'), true, 'mzd-coin-images-ready is added once all 5 coin PNGs load');
+
+  const bootScript = page.scripts.find(s => s.src && s.src.endsWith('/settings.js'));
+  page.win.mzdTweaks.theme = 'red';
+  bootScript.onload();
+  assert.equal(body.className.includes('mzd-coin-images-ready'), false, 'mzd-coin-images-ready is removed when switching back to red');
+  page.win.mzdTweaks.theme = 'purple';
+  bootScript.onload();
+  assert.equal(body.className.includes('mzd-coin-images-ready'), true, 'mzd-coin-images-ready is immediately present once cached');
 }
 
 console.log('MZD_TWEAKS_SETTINGS_PASSED: boot globals, runtime status-bar formats and AA/CarPlay fallback, date modes and sub-page, month names and orders, weekday translations without Intl, no unconfirmed state, failed save restored, audio order subpage with deferred save, resort confirmation.');

@@ -4,7 +4,7 @@
  */
 
 /* Main Menu Coins */
-body.mzd-theme-blue .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
+body.mzd-theme-blue.mzd-coin-images-ready .MainMenuCtrl .mzd-coin > div[class$="Focus"] {
     background-image: -o-radial-gradient(center, ellipse cover, #0099ff 0%, #0048b3 56%, transparent 63%) !important;
     background-image: radial-gradient(ellipse at center, #0099ff 0%, #0048b3 56%, transparent 63%) !important;
 }
