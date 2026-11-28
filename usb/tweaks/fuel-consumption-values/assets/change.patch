@@ -1,6 +1,14 @@
 --- target.data
 +++ target.data
-@@ -1137,6 +1137,7 @@
+@@ -925,6 +925,7 @@
+                                         this._CSSConstants["CDFEGraphBarSpacingRight"] - 19) + 'px';
+         barLabel.style.width = this._CSSConstants["CDFEGraphBarWidthRight"] + 'px';
+         xDiv.appendChild(barLabel);
++        this._modPairCDFEAxisLabels(xDiv, barLabel); // MOD
+ 
+   
+     this.yLimitValueLabelCDFE = document.createElement('span');
+@@ -1137,6 +1138,7 @@
                                                     this._CDFEGraphBarValues[barIdx],
                                                     this.properties.currentFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -8,7 +16,7 @@
          
          
      }
-@@ -1178,6 +1179,7 @@
+@@ -1178,6 +1180,7 @@
                                                     this._CDFEGraphBarValuesRight[barIdx],
                                                     this.properties.currentFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -16,7 +24,7 @@
      }
  }
  
-@@ -1201,6 +1203,7 @@
+@@ -1201,6 +1204,7 @@
                                                         this._CDFEGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -24,7 +32,7 @@
          }
          
          if(this.properties.ctrlStyle === 'hevstyle')
-@@ -1216,6 +1219,7 @@
+@@ -1216,6 +1220,7 @@
              }
          }
      }
@@ -32,7 +40,7 @@
  }
  
  FuelConsumptionCtrl.prototype._setCDFEGraphBarHeightsRight = function()
-@@ -1236,6 +1240,7 @@
+@@ -1236,6 +1241,7 @@
                                                         this._CDFEGraphBarValuesRight[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -40,12 +48,12 @@
          }
          if(this.properties.ctrlStyle === 'hevstyle')
          { 
-@@ -1655,6 +1660,87 @@
+@@ -1655,6 +1661,122 @@
      }
  }
  
 +// MOD (bar-values): show the value above every bar of the fuel graphs.
-+// The graph areas are 109 px high and clip anything above, so on tall bars the value goes inside the bar.
++// The graph areas are 109 px high and clip anything above; the value goes inside the bar when it fits.
 +FuelConsumptionCtrl.prototype._modSetBarLabel = function(bar, value, heightPx, widthPx, fontPx)
 +{
 +    if (!bar) { return; }
@@ -73,8 +81,12 @@
 +    if (widthPx < 30 && txt.length > 3) { fs = fontPx - 2; ls = '-1px'; }
 +    lbl.style.fontSize = fs + 'px';
 +    lbl.style.letterSpacing = ls;
++    // Inside the top of the bar whenever it fits, so the values line up; only very short bars
++    // get it above. Inside the bar a dark shadow keeps the white digits readable.
 +    var above = fontPx + 6;
-+    lbl.style.top = (heightPx > (109 - above)) ? '4px' : ('-' + above + 'px');
++    var inside = (heightPx >= fs + 8) || (heightPx > (109 - above));
++    lbl.style.top = inside ? '4px' : ('-' + above + 'px');
++    lbl.style.textShadow = inside ? '0px 0px 3px #000, 1px 1px 2px #000' : 'none';
 +};
 +FuelConsumptionCtrl.prototype._modSetCFERBarLabel = function(bar, value, heightPx)
 +{
@@ -111,9 +123,40 @@
 +        this._modSetBarLabel(first, 0, 0, w, 13);
 +        second.style.left = (margin + i * step) + 'px';
 +        second.style.width = wide + 'px';
++        second.style.backgroundImage = 'url(' + this._modImages +
++            (/Current/.test(second.className) ? 'FuelConsBar_WideCurrent.png' : 'FuelConsBar_wide.png') + ')';
 +        second.style.backgroundSize = wide + 'px 100%';
++        var cap = second.firstChild;
++        if (cap && cap.className === 'FuelConsumptionCtrlCDFEBarGraphCap')
++        {
++            cap.style.width = wide + 'px';
++            cap.style.backgroundImage = 'url(' + this._modImages + 'FuelConsBarCap_wide.png)';
++            cap.style.backgroundSize = wide + 'px 2px';
++        }
 +        second.style.height = this._scaleDataToGraphY(graphHeight, value, yLimit, false) + 'px';
 +        this._modSetBarLabel(second, value, parseFloat(second.style.height), wide, 18);
++    }
++};
++FuelConsumptionCtrl.prototype._modImages = 'apps/ecoenergy/controls/FuelConsumption/images/';
++// The factory "5" label sits on the border after the 5th 1-minute bar. With pairs the borders
++// are at 8, 6, 4 and 2 minutes: the "5" label becomes "6" and three copies get 8, 4 and 2.
++FuelConsumptionCtrl.prototype._modPairCDFEAxisLabels = function(xDiv, fiveLabel)
++{
++    if (this.properties.ctrlStyle === 'hevstyle' || !xDiv || !fiveLabel) { return; }
++    var step = this._CSSConstants["CDFEGraphBarWidth"] + this._CSSConstants["CDFEGraphBarSpacing"];
++    var left = parseFloat(fiveLabel.style.left);
++    for (var minute = 8; minute >= 2; minute -= 2)
++    {
++        var label = fiveLabel;
++        if (minute !== 6)
++        {
++            label = document.createElement('span');
++            label.style.position = 'absolute';
++            label.style.width = fiveLabel.style.width;
++            xDiv.appendChild(label);
++        }
++        label.innerHTML = minute;
++        label.style.left = (left + (5 - minute) * step) + 'px';
 +    }
 +};
 +// A one-bar slide would show half-shifted pairs, so the new minute is applied at once.
@@ -128,7 +171,7 @@
  /*
   * Utility function to set the height of single CFER graph bar (e.g. the just-inserted one)
   */
-@@ -1670,7 +1756,7 @@
+@@ -1670,7 +1792,7 @@
                                                     this._CFERGraphBarValues[barIdx],
                                                     this.properties.cumulativeFuelConfig.yAxisLimitValue,
                                                     false) + 'px';
@@ -137,7 +180,7 @@
      }
  }
  
-@@ -1717,6 +1803,7 @@
+@@ -1717,6 +1839,7 @@
                                                         this._CFERGraphBarValues[i],
                                                         yLimit,
                                                         false) + 'px';
@@ -145,7 +188,7 @@
          }
      }
  }
-@@ -2008,6 +2095,7 @@
+@@ -2008,6 +2131,7 @@
  
      // Re-initialize the "hidden" slot for new data
      this._CDFEGraphBarValues[this._newCDFEDataIdx] = 0;

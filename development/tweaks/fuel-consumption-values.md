@@ -10,14 +10,20 @@ It adds one helper, `_modSetBarLabel`, and calls it after each place where the
 control sets a bar height: `_setCDFEGraphBarHeight(s)`,
 `_setCDFEGraphBarHeight(s)Right` and `_setCFERGraphBarHeight(s)`. The HEV
 graph branch is not touched. The helper creates one absolutely positioned
-label per bar, hides it for values of 0 or less, and moves it inside the bar
-when the bar is taller than the 109 px graph area minus the label height.
+label per bar and hides it for values of 0 or less. Since 1.1.0 the label is
+placed inside the top of the bar with a dark `text-shadow` whenever the bar is
+at least the font size + 8 px tall (or too tall for a label above it in the
+109 px clipped area); only shorter bars get it above, without shadow.
 No full replacement file is shipped.
 
 Version 1.1.0 merges the ten 1-minute bars (CDFEBar1-10) in pairs.
 `_modPairCDFEBars`, called at the end of `_setCDFEGraphBarHeights`, hides the
 left bar of each pair and moves/widens the right one to 44 px (two bars plus
-the spacing between them, the width of a 10-minute bar). The height and label
+the spacing between them, the width of a 10-minute bar) with the factory
+`FuelConsBar_wide.png` / `FuelConsBar_WideCurrent.png` body and
+`FuelConsBarCap_wide.png` cap images. `_modPairCDFEAxisLabels`, called after the
+factory "5" label in `_addCDFEGraphAxisLabels`, moves that label to the 6-minute
+border and adds 8, 4 and 2. The height and label
 use `_modPairValue`: the average of the two minutes rounded to one decimal, or
 the non-empty one if the other is 0. CDFEBar10 keeps the factory "current"
 style, so the newest pair stays highlighted. `insertCurrentDriveFuelGraph`

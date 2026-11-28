@@ -10,7 +10,7 @@ const added = lines.filter(line => line[0] === '+' && !line.startsWith('+++')).m
 const removed = lines.filter(line => line[0] === '-' && !line.startsWith('---')).map(line => line.slice(1));
 // Only one blank line is replaced; everything else is added.
 assert.deepEqual(removed.map(line => line.trim()), ['']);
-assert.equal(lines.filter(line => line.startsWith('@@ ')).length, 9);
+assert.equal(lines.filter(line => line.startsWith('@@ ')).length, 10);
 // Every bar height setter of the CDFE (left/right) and CFER graphs gets a label call.
 const calls = added.filter(line => /\/\/ MOD$/.test(line));
 assert.equal(calls.filter(line => line.includes('_CDFEGraphBarValues[') && line.includes(', 21, 13)')).length, 2);
@@ -18,20 +18,24 @@ assert.equal(calls.filter(line => line.includes('_CDFEGraphBarValuesRight[') && 
 assert.equal(calls.filter(line => line.includes('_modSetCFERBarLabel(bar, this._CFERGraphBarValues[')).length, 2);
 // The HEV graph is only mentioned to skip it.
 assert.deepEqual(added.filter(line => /hev/i.test(line)).map(line => line.trim()),
-                 Array(2).fill("if (this.properties.ctrlStyle === 'hevstyle') { return; }"));
+                 ["if (this.properties.ctrlStyle === 'hevstyle') { return; }",
+                  "if (this.properties.ctrlStyle === 'hevstyle' || !xDiv || !fiveLabel) { return; }",
+                  "if (this.properties.ctrlStyle === 'hevstyle') { return; }"]);
 // Pairing runs after every full redraw, and a new minute is applied at once.
 assert.equal(calls.filter(line => line.trim() === 'this._modPairCDFEBars(); // MOD').length, 1);
 assert.equal(calls.filter(line => line.trim() === 'this._modFinishCDFEShift(); // MOD').length, 1);
+assert.equal(calls.filter(line => line.trim() === 'this._modPairCDFEAxisLabels(xDiv, barLabel); // MOD').length, 1);
 
 const start = added.findIndex(line => line.startsWith('FuelConsumptionCtrl.prototype._modSetBarLabel'));
 const end = added.findIndex((line, i) => i > start && line === '};' && added[i - 1].includes('this._resetCDFEGraph(false);'));
 assert(start >= 0 && end > start);
 const source = added.slice(start, end + 1).join('\n');
 
-function element() {
-    return {children: [], style: {}, innerHTML: '', appendChild(child) { this.children.push(child); }};
+function element(tag) {
+    return {tag, children: [], style: {}, innerHTML: '', className: '',
+            appendChild(child) { this.children.push(child); if (!this.firstChild) { this.firstChild = child; } }};
 }
-const sandbox = {document: {createElement(tag) { assert.equal(tag, 'div'); return element(); }}};
+const sandbox = {document: {createElement(tag) { assert(tag === 'div' || tag === 'span'); return element(tag); }}};
 sandbox.FuelConsumptionCtrl = function () {};
 vm.runInNewContext(source, sandbox);
 const ctrl = new sandbox.FuelConsumptionCtrl();
@@ -42,18 +46,23 @@ ctrl._modSetBarLabel(bar, 7.84, 40, 44, 18);
 assert.equal(bar.children.length, 1);
 const label = bar.children[0];
 assert.equal(label.innerHTML, '7.8');
-assert.equal(label.style.top, '-24px');
+// The value goes inside the bar whenever it fits, with a dark shadow.
+assert.equal(label.style.top, '4px');
+assert.match(label.style.textShadow, /#000/);
 assert.equal(label.style.fontSize, '18px');
 assert.match(label.style.cssText, /width:44px;/);
 ctrl._modSetBarLabel(bar, '6.0', 40, 44, 18);
 assert.equal(bar.children.length, 1);
 assert.equal(label.innerHTML, '6.0');
 
-// Tall bars get the value inside the 109 px clipped graph area.
+// Only bars too short for the label get it above, without shadow.
 ctrl._modSetBarLabel(bar, 15, 100, 44, 18);
 assert.equal(label.style.top, '4px');
-ctrl._modSetBarLabel(bar, 15, 85, 44, 18);
+ctrl._modSetBarLabel(bar, 2.1, 26, 44, 18);
+assert.equal(label.style.top, '4px');
+ctrl._modSetBarLabel(bar, 2.0, 25, 44, 18);
 assert.equal(label.style.top, '-24px');
+assert.equal(label.style.textShadow, 'none');
 
 // Empty or invalid values clear the label.
 for (const value of [0, -1, '', undefined, NaN, '--.-']) {
@@ -75,6 +84,8 @@ const history = element();
 ctrl._modSetCFERBarLabel(history, 8.26, 50);
 assert.match(history.children[0].style.cssText, /width:50px;.*font-size:22px;/);
 assert.equal(history.children[0].innerHTML, '8.3');
+assert.equal(history.children[0].style.top, '4px');
+ctrl._modSetCFERBarLabel(history, 1.5, 20);
 assert.equal(history.children[0].style.top, '-28px');
 
 // A missing bar element is ignored.
@@ -96,7 +107,14 @@ assert.equal(ctrl._modPairValue(0, 0), 0);
 // The ten 1-minute bars become five 44 px bars; the hidden new-data slot is untouched.
 function graph(style) {
     const bars = {};
-    for (let i = 1; i <= 11; i++) { bars['CDFEBar' + i] = element(); bars['CDFEBar' + i].style.left = (3 + (i - 1) * 23) + 'px'; }
+    for (let i = 1; i <= 11; i++) {
+        const bar = bars['CDFEBar' + i] = element('div');
+        bar.style.left = (3 + (i - 1) * 23) + 'px';
+        bar.className = i === 10 ? 'FuelConsumptionCtrlCDFEBarGraphCoreCurrent' : 'FuelConsumptionCtrlCDFEBarGraphCore';
+        const cap = element('div');
+        cap.className = 'FuelConsumptionCtrlCDFEBarGraphCap';
+        bar.appendChild(cap);
+    }
     sandbox.document.getElementById = id => bars[id] || null;
     const c = new sandbox.FuelConsumptionCtrl();
     c._newCDFEDataIdx = 10;
@@ -114,11 +132,29 @@ for (let k = 0; k < 5; k++) {
     assert.equal(second.style.left, (3 + k * 46) + 'px');
     assert.equal(second.style.width, '44px');
     assert.equal(second.style.backgroundSize, '44px 100%');
+    // The silver cap covers the whole pair, with the factory 44 px images.
+    assert.equal(second.firstChild.style.width, '44px');
+    assert.equal(second.firstChild.style.backgroundSize, '44px 2px');
+    assert.equal(second.firstChild.style.backgroundImage, 'url(apps/ecoenergy/controls/FuelConsumption/images/FuelConsBarCap_wide.png)');
+    assert.equal(second.style.backgroundImage, 'url(apps/ecoenergy/controls/FuelConsumption/images/' +
+                 (k === 4 ? 'FuelConsBar_WideCurrent.png)' : 'FuelConsBar_wide.png)'));
 }
-assert.deepEqual([2, 4, 6, 8, 10].map(i => bars['CDFEBar' + i].children[0].innerHTML), ['7.4', '14.2', '13.4', '7.8', '7.0']);
+assert.deepEqual([2, 4, 6, 8, 10].map(i => bars['CDFEBar' + i].children[1].innerHTML), ['7.4', '14.2', '13.4', '7.8', '7.0']);
 assert.equal(bars.CDFEBar4.style.height, Math.round(109 * 14.2 / 15) + 'px');
 assert.equal(bars.CDFEBar11.style.width, undefined);
 assert.equal(bars.CDFEBar11.style.visibility, undefined);
+
+// The x axis gets 8, 6, 4 and 2 on the pair borders; the factory "5" label is reused for 6.
+const xDiv = element('div');
+const five = element('span');
+five.innerHTML = 5; five.style.left = '170px'; five.style.width = '44px';
+xDiv.appendChild(five);
+paired._modPairCDFEAxisLabels(xDiv, five);
+assert.equal(xDiv.children.length, 4);
+assert.deepEqual(xDiv.children.map(l => [l.innerHTML, l.style.left, l.style.width]),
+                 [[6, '147px', '44px'], [8, '101px', '44px'], [4, '193px', '44px'], [2, '239px', '44px']]);
+graph('hevstyle').c._modPairCDFEAxisLabels(xDiv, five);
+assert.equal(xDiv.children.length, 4);
 
 // HEV style keeps the factory bars.
 const {c: hev, bars: hevBars} = graph('hevstyle');
@@ -139,4 +175,4 @@ const hevShift = graph('hevstyle').c;
 hevShift._resetCDFEGraph = () => assert.fail('HEV must keep the factory slide');
 hevShift._modFinishCDFEShift();
 
-console.log('FUEL_CONSUMPTION_VALUES_BEHAVIOR_PASSED: bar setters, label reuse, placement, empty values, narrow-bar font, paired 1-minute bars and immediate shift.');
+console.log('FUEL_CONSUMPTION_VALUES_BEHAVIOR_PASSED: bar setters, label reuse, placement, empty values, narrow-bar font, inside placement with shadow, paired 1-minute bars with wide caps, pair axis labels and immediate shift.');
