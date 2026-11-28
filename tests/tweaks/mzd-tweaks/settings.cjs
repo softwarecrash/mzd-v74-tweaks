@@ -2730,9 +2730,11 @@ function viewPage(options) {
     'theme-common.css styles .netmgmtList2CtrlScrollIndicator');
   assert(themeCommonCss.includes('.carplayList2CtrlScrollIndicator'),
     'theme-common.css styles .carplayList2CtrlScrollIndicator');
+  assert(themeCommonCss.includes('.xmdataList2CtrlScrollIndicator'),
+    'theme-common.css styles .xmdataList2CtrlScrollIndicator');
   for (const theme of themes) {
     const css = fs.readFileSync(path.join(repo, 'usb/tweaks/mzd-tweaks/assets/css/themes/theme-' + theme + '.css'), 'utf8');
-    for (const ctrl of ['netmgmtList2Ctrl', 'carplayList2Ctrl']) {
+    for (const ctrl of ['netmgmtList2Ctrl', 'carplayList2Ctrl', 'xmdataList2Ctrl']) {
       assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + '.normalItems .ListItem.focus'),
         'theme-' + theme + '.css styles .' + ctrl + '.normalItems .ListItem.focus');
       assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + '.normalItems .ListItem.hit.focus'),
@@ -2742,6 +2744,16 @@ function viewPage(options) {
       assert(css.includes('body.mzd-theme-' + theme + ' .' + ctrl + 'ScrollIndicator'),
         'theme-' + theme + '.css styles .' + ctrl + 'ScrollIndicator');
     }
+    assert(css.includes('body.mzd-theme-' + theme + ' .xmdataList2Ctrl.thickItems .ListItem.focus'),
+      'theme-' + theme + '.css styles .xmdataList2Ctrl.thickItems .ListItem.focus');
+    assert(css.includes('body.mzd-theme-' + theme + ' .xmdataList2Ctrl.thickItems .ListItem.hit.focus'),
+      'theme-' + theme + '.css styles .xmdataList2Ctrl.thickItems .ListItem.hit.focus');
+    assert(css.includes('body.mzd-theme-' + theme + ' .xmdataList2Ctrl.thickItems .ListItem.pressed'),
+      'theme-' + theme + '.css styles .xmdataList2Ctrl.thickItems .ListItem.pressed');
+    assert(css.includes('body.mzd-theme-' + theme + ' .xmdataScrollDetailCtrlScrollIndicator'),
+      'theme-' + theme + '.css styles .xmdataScrollDetailCtrlScrollIndicator');
+    assert(css.includes('body.mzd-theme-' + theme + ' .TrafficCtrlScrollIndicator'),
+      'theme-' + theme + '.css styles .TrafficCtrlScrollIndicator');
   }
 }
 

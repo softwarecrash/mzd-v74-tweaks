@@ -20,7 +20,9 @@ body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.focus,
 body.mzd-theme-orange .List2Ctrl .List2CtrlRow.focus,
 body.mzd-theme-orange .List2Ctrl .List2CtrlItem.focus,
 body.mzd-theme-orange .netmgmtList2Ctrl.normalItems .ListItem.focus,
-body.mzd-theme-orange .carplayList2Ctrl.normalItems .ListItem.focus {
+body.mzd-theme-orange .carplayList2Ctrl.normalItems .ListItem.focus,
+body.mzd-theme-orange .xmdataList2Ctrl.normalItems .ListItem.focus,
+body.mzd-theme-orange .xmdataList2Ctrl.thickItems .ListItem.focus {
     background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
     background-image: linear-gradient(to right, rgba(179, 83, 0, 0.08) 0%, rgba(255, 149, 0, 0.85) 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
     border-top: 1px solid #ffa520 !important;
@@ -30,8 +32,12 @@ body.mzd-theme-orange .List2Ctrl.normalItems .ListItem.pressed,
 body.mzd-theme-orange .List2Ctrl.thickItems .ListItem.pressed,
 body.mzd-theme-orange .netmgmtList2Ctrl.normalItems .ListItem.hit.focus,
 body.mzd-theme-orange .carplayList2Ctrl.normalItems .ListItem.hit.focus,
+body.mzd-theme-orange .xmdataList2Ctrl.normalItems .ListItem.hit.focus,
+body.mzd-theme-orange .xmdataList2Ctrl.thickItems .ListItem.hit.focus,
 body.mzd-theme-orange .netmgmtList2Ctrl.normalItems .ListItem.pressed,
-body.mzd-theme-orange .carplayList2Ctrl.normalItems .ListItem.pressed {
+body.mzd-theme-orange .carplayList2Ctrl.normalItems .ListItem.pressed,
+body.mzd-theme-orange .xmdataList2Ctrl.normalItems .ListItem.pressed,
+body.mzd-theme-orange .xmdataList2Ctrl.thickItems .ListItem.pressed {
     background-image: -o-linear-gradient(left, rgba(179, 83, 0, 0.15) 0%, #ff9500 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
     background-image: linear-gradient(to right, rgba(179, 83, 0, 0.15) 0%, #ff9500 15%, rgba(179, 83, 0, 0.75) 60%, transparent 100%) !important;
 }
@@ -41,7 +47,10 @@ body.mzd-theme-orange .List2CtrlScrollIndicator,
 body.mzd-theme-orange .ScrollDetailCtrlScrollIndicator,
 body.mzd-theme-orange .Messaging2CtrlScrollIndicator,
 body.mzd-theme-orange .netmgmtList2CtrlScrollIndicator,
-body.mzd-theme-orange .carplayList2CtrlScrollIndicator {
+body.mzd-theme-orange .carplayList2CtrlScrollIndicator,
+body.mzd-theme-orange .xmdataList2CtrlScrollIndicator,
+body.mzd-theme-orange .xmdataScrollDetailCtrlScrollIndicator,
+body.mzd-theme-orange .TrafficCtrlScrollIndicator {
     background-image: url(../../images/scrollbar/Scrollbar_orange.png) !important;
 }
 
